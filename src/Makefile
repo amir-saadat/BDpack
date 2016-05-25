@@ -12,7 +12,7 @@ all : $(EXE)
 $(EXE) : $(OBJLIBS) $(OBJS)
 	$(COMP) $(GLBFLGS) $(GLBINCS) $(INCS) $(OBJS) -o $(EXE) $(LIBS) $(GLBLIBS)
 	$(ECHO) ">>> BDpack compiled on `hostname -s` with  $(COMP) <<<"
-	$(MV) $(EXE) ../projs
+	$(MV) $(EXE) ../projects
 	$(RM) -f $(OBJLIBS) $(OBJS)
 
 libdlt_bs.a : force_look

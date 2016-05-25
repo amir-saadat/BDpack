@@ -1,10 +1,10 @@
-BDpack Manual
-=============
+BDpack
+======
 BDpack is a package to numerically calculate the configurational evolution of polymeric solution using Brownian dynamics simulation of bead-spring micro-mechanical model. The algorithm used in BDpack incorporates high-fidelity and computationally efficient calculation of hydrodynamic interactions (HI) and excluded volume (EV) forces. BDpack is written in parallel by employing message passing interface (MPI) for distributed-memory-architectures.
 
 The aim of this project is to write the codes self descriptive, documented, yet very efficient to enable its applicability and development. To this end, the codes are written in modular fashion using Fortran.
 
-# Installation and Run
+# Installation and Running
 
 ## Dependencies
 
@@ -41,7 +41,7 @@ $ make
 ```
 ## Running BDpack projects
 
-1- Upon proper installation of the program, the executable file `BDpack.exe` is built in `projs` directory.
+1- Upon proper installation of the program, the executable file `BDpack.exe` is built in `projects` directory.
 
 2- The program can get started in any directory which contains `BDpack.exe` and `input.dat` files and `data` directory by using the standard run command of the OpenMPI:
 ```bash
@@ -49,7 +49,7 @@ $ mpirun -np x BDpack.exe
 ```
 with x replaced by the number of processes.
 
-3- A sample form of `input.dat` is provided in `projs` directory. The parameters are specified with their names followed by a separator `:` and their values:
+3- A sample form of `input.dat` is provided in `projects` directory. The parameters are specified with their names followed by a separator `:` and their values:
 ```bash
 driver        : dilute_bs
 #---------------------------------------
