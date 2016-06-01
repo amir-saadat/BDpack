@@ -1,5 +1,7 @@
 !%------------------------------------------------------------------------%
-!|  Copyright (C) 2013 - 2016: University of Tennessee-Knoxville          |
+!|  Copyright (C) 2013 - 2016:                                            |
+!|  Material Research and Innovation Laboratory (MRAIL)                   |
+!|  University of Tennessee-Knoxville                                     |
 !|  Author:    Amir Saadat   <asaadat@vols.utk.edu>                       |
 !|  Advisor:   Bamin Khomami <bkhomami@utk.edu>                           |
 !|                                                                        |
@@ -1048,7 +1050,7 @@ contains
           end if ! DumpstrCalc
           if (time >= time_check4) then
             time_check4=time_check4+frm_rt_rst*lambda
-            ! For writing equilibrium or final data to the output file
+            ! For writing restart data to the output file
             call MPI_Gatherv(q,nsegx3*npchain,MPI_REAL_WP,qTot,q_counts,q_disps,&
                              q_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
             if (CoM) then 
@@ -1086,6 +1088,8 @@ contains
           if (time >= time_check2) then
             time_check2=time_check2+frm_rt_dmp*lambda
             ! For writing equilibrium or final data to the output file
+            call MPI_Gatherv(q,nsegx3*npchain,MPI_REAL_WP,qTot,q_counts,q_disps,&
+                             q_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
             call MPI_Gatherv(rvmrc,nbeadx3*npchain,MPI_REAL_WP,RTot,R_counts,R_disps,&
                              R_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
             if (CoM) then 
@@ -1110,6 +1114,8 @@ contains
               if (jcheck == 0) then
                 jcheck=-1
                 if (iflow == 1) then
+                  open (unit=34,file='data/q.equil.dat',status='replace',&
+                        position='append')
                   open (unit=25,file='data/R.equil.dat',status='replace',&
                         position='append')
                   if (CoM) open (unit=26,file='data/CoM.equil.dat',&
@@ -1117,6 +1123,8 @@ contains
                   if (CoHR) open (unit=27,file='data/CoHR.equil.dat',&
                                           status='replace',position='append')
                 else
+                  open (unit=34,file='data/q.flow.dat',status='replace',&
+                        position='append')
                   open (unit=25,file='data/R.flow.dat',status='replace',&
                         position='append')
                   if (CoM) open (unit=26,file='data/CoM.flow.dat',&
@@ -1127,6 +1135,10 @@ contains
               end if ! jcheck
               do ip = 1, p
                 do ichain =1, npchain
+                  do iseg = 1, nseg
+                    offset=3*(iseg-1)
+                    write(34,1) qTot(offset+1:offset+3,ichain,ip)
+                  end do
                   do ibead = 1, nbead
                     offset=3*(ibead-1)
                     write(25,1) RTot(offset+1:offset+3,ichain,ip)
@@ -1150,7 +1162,8 @@ contains
       close(7);close(8);close(9);close(10);close(11);close(12);close(13);
       close(14);close(15);close(16);close(17);close(18);close(19);close(&
       &20);close(21);close(22);close(23);close(24);close(25);close(26);c&
-      &lose(27);close(28);close(29);close(30);close(31);close(32)
+      &lose(27);close(28);close(29);close(30);close(31);close(32);close(&
+      &33);close(34);close(35);close(36);close(37);close(38)
       select case (tplgy)
         case ('Linear')
         case ('Comb')
@@ -1252,7 +1265,7 @@ contains
   
     end subroutine lookup_tab
   
-    ! Random numeber seeding:
+    ! Random numeber seeding (from H. C. Ottinger):
     subroutine ranils(iseed)
     
       integer,intent(in) :: iseed
@@ -1278,7 +1291,7 @@ contains
     
     end subroutine ranils
     
-    ! Uniform random number generator:
+    ! Uniform random number generator (from H. C. Ottinger):
     real(wp) function ranuls()
     
       integer,parameter :: in1=2147483563,ik1=40014,iq1=53668,ir1=12211,&
@@ -1310,7 +1323,7 @@ contains
      
     end function ranuls  
     
-    ! Gaussian random number generator:
+    ! Gaussian random number generator (from H. C. Ottinger):
     real(wp) function rangls()
     
       integer :: iflag

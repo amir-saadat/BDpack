@@ -1,5 +1,7 @@
 !%------------------------------------------------------------------------%
-!|  Copyright (C) 2013 - 2016: University of Tennessee-Knoxville          |
+!|  Copyright (C) 2013 - 2016:                                            |
+!|  Material Research and Innovation Laboratory (MRAIL)                   |
+!|  University of Tennessee-Knoxville                                     |
 !|  Author:    Amir Saadat   <asaadat@vols.utk.edu>                       |
 !|  Advisor:   Bamin Khomami <bkhomami@utk.edu>                           |
 !|                                                                        |
@@ -69,6 +71,7 @@ module inp_mod
   real(wp) :: dti,dtf
   character(len=10) :: dtSpacing
   character(len=10) :: dtCalc
+  logical :: dtScale
   integer :: nAdjSeq
   logical :: Adjust_dt
   real(wp),allocatable :: AdjSeq(:)
@@ -82,6 +85,7 @@ module inp_mod
   logical :: TimerA
   logical :: RgCalc
   logical :: cosThCalc
+  character(len=10) :: cosmode
   logical :: DumpstrCalc
   integer :: nstr
   real(wp),allocatable :: dumpstr(:)
@@ -99,7 +103,7 @@ module inp_mod
   
 contains
 
-  subroutine read_inp(id)
+  subroutine read_inp(id,inpFile)
 
     use :: iso_fortran_env
     use :: strg_mod, only: parse,value
@@ -107,6 +111,7 @@ contains
     integer :: il,j,ntokens,u1,stat,ios,id,k
     character(len=1024) :: line
     character(len=100) :: tokens(10)
+    character(len=20) :: inpFile
 
     ! Default values
     driver='dilute_bs'
@@ -114,7 +119,7 @@ contains
     LambdaMethod='Rouse'
     initmode='st'
     tend=10._wp;tss=5._wp;trst=0._wp
-    dti=0.01_wp;dtf=0.01_wp;dtSpacing='Linear';dtCalc='Self'
+    dti=0.01_wp;dtf=0.01_wp;dtSpacing='Linear';dtCalc='Self';dtScale=.false.
     Adjust_dt=.false.
     tol=real(1.e-4,kind=wp)
     nroots=10**6;PrScale=1
@@ -135,10 +140,10 @@ contains
     StrCalc=.true.
     TimerA=.false.
     RgCalc=.false.
-    cosThCalc=.false.
+    cosThCalc=.false.;cosmode='angle'
     DumpstrCalc=.false.    
 
-    open (newunit=u1,action='read',file='input.dat',status='old')
+    open (newunit=u1,action='read',file=inpFile,status='old')
     il=1
 ef: do
       read(u1,'(A)',iostat=stat) line
@@ -277,6 +282,13 @@ ef: do
               call value(tokens(j+2),dtf,ios)
               dtSpacing=trim(adjustl(tokens(j+3)))
               dtCalc=trim(adjustl(tokens(j+4)))
+              if (dtCalc == 'Self') then
+                if(tokens(j+5) == 'TRUE') then
+                  dtScale=.true.
+                elseif(tokens(j+5) == 'FALSE') then
+                  dtScale=.false.
+                end if
+              end if
             case ('Adjust_dt')
               if(tokens(j+1) == 'TRUE') then
                 Adjust_dt=.true.
@@ -342,6 +354,7 @@ ef: do
             case ('cosTh')
               if(tokens(j+1) == 'TRUE') then
                 cosThCalc=.true.
+                cosmode=trim(adjustl(tokens(j+2)))
               elseif(tokens(j+1) == 'FALSE') then
                 cosThCalc=.false.
               end if
@@ -414,8 +427,7 @@ ef: do
     
     if (id == 0) then
       print *
-      print "(1x,'Longest Relaxation Time with (',A,') Method:',&
-             f10.4)",LambdaMethod,lambda
+      print '(" Longest Relaxation Time:",f10.4)',lambda
     end if
 
     if (lambda == 0._wp) then
@@ -451,7 +463,11 @@ ef: do
         elseif (dtCalc == 'Zimm') then
           dt(iWi,:)=lambda*hstar/(3*nbead**1.5*2*Wi(iWi))
         elseif (dtCalc == 'Self') then
-          dt(iWi,:)=dttemp1!/(2*Wi(iWi))
+          if (dtScale) then
+            dt(iWi,:)=dttemp1/(2*Wi(iWi))
+          else
+            dt(iWi,:)=dttemp1
+          end if
         end if
       end if
 !     To make the dt's in appropriate format

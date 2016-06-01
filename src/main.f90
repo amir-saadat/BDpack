@@ -1,5 +1,7 @@
 !%------------------------------------------------------------------------%
-!|  Copyright (C) 2013 - 2016: University of Tennessee-Knoxville          |
+!|  Copyright (C) 2013 - 2016:                                            |
+!|  Material Research and Innovation Laboratory (MRAIL)                   |
+!|  University of Tennessee-Knoxville                                     |
 !|  Author:    Amir Saadat   <asaadat@vols.utk.edu>                       |
 !|  Advisor:   Bamin Khomami <bkhomami@utk.edu>                           |
 !|                                                                        |
@@ -27,7 +29,8 @@ program BDpack
   implicit none
 
   ! MPI variables
-  integer :: ierr,p,id
+  integer :: ierr,p,id,narg
+  character(len=20) :: inpFile
 
   ! Initialize MPI
   call MPI_Init(ierr)
@@ -36,7 +39,15 @@ program BDpack
   ! Get the individual process ID
   call MPI_Comm_rank(MPI_COMM_WORLD,id,ierr)
 
-  call read_inp(id)
+  
+  narg=command_argument_count()
+  if (narg /= 0) then
+    call get_command_argument(1,inpFile)
+  else
+    inpFile='input.dat'
+  end if
+
+  call read_inp(id,inpFile)
 
   select case (driver)
     case ('dilute_bs')

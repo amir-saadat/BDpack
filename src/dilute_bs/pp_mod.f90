@@ -1,5 +1,7 @@
 !%------------------------------------------------------------------------%
-!|  Copyright (C) 2013 - 2016: University of Tennessee-Knoxville          |
+!|  Copyright (C) 2013 - 2016:                                            |
+!|  Material Research and Innovation Laboratory (MRAIL)                   |
+!|  University of Tennessee-Knoxville                                     |
 !|  Author:    Amir Saadat   <asaadat@vols.utk.edu>                       |
 !|  Advisor:   Bamin Khomami <bkhomami@utk.edu>                           |
 !|                                                                        |
@@ -30,13 +32,16 @@ module pp_mod
   real(wp),private :: sdxx,sdxy,sdyy,sdzz,sdxxyy,sdyyzz
   real(wp),private :: qetoeAve,sdqetoeAve,sqqetoeAve,sdsqqetoeAve
   real(wp),private :: sqqsprAve,sdsqqsprAve
+  real(wp),private :: XAve,sdXAve,XSqAve,sdXSqAve
 
   real(wp),private :: tAvesqqsprAveTot,tAvesqqetoeAveTot,tAveqetoeAveTot
-  real(wp),private :: tAvetauxyTot,tAvetauxxyyTot,tAvetauyyzzTot
   real(wp),private :: tAvesdsqqsprAveTot,tAvesdsqqetoeAveTot,tAvesdqetoeAveTot
-  real(wp),private :: tAvesdxyTot,tAvesdxxyyTot,tAvesdyyzzTot
   real(wp),private :: sdtAvesqqsprAveTot
   real(wp),private :: sdtAvesqqetoeAveTot,sdtAveqetoeAveTot
+  real(wp),private :: tAveXAveTot,tAvesdXAveTot,sdtAveXAveTot
+  real(wp),private :: tAveXSqAveTot,tAvesdXSqAveTot,sdtAveXSqAveTot
+  real(wp),private :: tAvetauxyTot,tAvetauxxyyTot,tAvetauyyzzTot
+  real(wp),private :: tAvesdxyTot,tAvesdxxyyTot,tAvesdyyzzTot
   real(wp),private :: sdtAvetauxyTot,sdtAvetauxxyyTot,sdtAvetauyyzzTot
   real(wp),allocatable,private :: qee_ar(:),sdqee_ar(:)
   real(wp),allocatable,private :: sqqee_ar(:),sdsqqee_ar(:)
@@ -67,23 +72,31 @@ contains
     integer :: iarm
     character(len=1024) :: fnme1,fnme2
 
-    ue=33 ! The largest unit excluding arms of the comb polymer
+    ue=38 ! The largest unit excluding arms of the comb polymer
     if (StrCalc) then
       if (initmode == 'rst') then
         open (unit=31,file='data/trQsprSq.dat',status='unknown',position='append')
         open (unit=33,file='data/trQeeSq.dat',status='unknown',position='append')
         open (unit=7,file='data/trQeeRel.dat',status='unknown',position='append')
+        open (unit=35,file='data/trXRel.dat',status='unknown',position='append')
+        open (unit=36,file='data/trXSq.dat',status='unknown',position='append')
       else
         open (unit=31,file='data/trQsprSq.dat',status='replace',position='append')
         open (unit=33,file='data/trQeeSq.dat',status='replace',position='append')
         open (unit=7,file='data/trQeeRel.dat',status='replace',position='append')
+        open (unit=35,file='data/trXRel.dat',status='replace',position='append')
+        open (unit=36,file='data/trXSq.dat',status='replace',position='append')
       end if
       write(31,*) "# Wi, dt, Time, <Qspr.Qspr>, sd<Qspr.Qspr> #"
       write(31,*) "# ---------------------------------------- #"
       write(33,*) "# Wi, dt, Time, <Qee.Qee>, sd<Qee.Qee> #"
       write(33,*) "# ------------------------------------ #"
-      write(7,*) "# Wi, dt, time, <|Qee|>/|Qee|_max, sd<Qee>/|Qee|_max #" 
-      write(7,*) "# -------------------------------------------------- #"
+      write(7,*) "# Wi, dt, time, <|Qee|>/Lc, sd<Qee>/Lc #" 
+      write(7,*) "# ------------------------------------ #"
+      write(35,*) "# Wi, dt, Time, <X>/Lc, sd<X>/Lc #" 
+      write(35,*) "# ------------------------------ #"
+      write(36,*) "# Wi, dt, Time, <X.X>, sd<X.X> #"
+      write(36,*) "# ---------------------------- #"
       if (tplgy == 'Comb') then
         do iarm=1, Na
           write(fnme1,"(A,i0.2,'.dat')") 'data/trQeeSqArm',iarm
@@ -105,22 +118,30 @@ contains
           write(ue+Na+iarm,*) "# -------------------------------------------------- #"
         end do
       end if
-      if (initmode == 'rst') then
-        open (unit=8,file='data/EtavsTime.dat',status='unknown',position='append')
-      else
-        open (unit=8,file='data/EtavsTime.dat',status='replace',position='append')
-      end if 
-      write(8,*) "# Wi, dt, Time, Etap=<Taupxy>/Pe, sd<Taupxy>/Pe #"
-      write(8,*) "# --------------------------------------------- #"
+      if (iflow /= 1) then
+        if (initmode == 'rst') then
+          open (unit=8,file='data/EtavsTime.dat',status='unknown',position='append')
+        else
+          open (unit=8,file='data/EtavsTime.dat',status='replace',position='append')
+        end if 
+        write(8,*) "# Wi, dt, Time, Etap=<Taupxy>/Pe, sd<Taupxy>/Pe #"
+        write(8,*) "# --------------------------------------------- #"
+      end if
       open (unit=30,file='data/QeeSq.dat',status='unknown',position='append')
-      write(30,*) "# Wi, dt, <<Qee^2>t, <sd<Qee^2>>t, sd<<Qee^2>>t #"
+      write(30,*) "# Wi, dt, <<Qee^2>>t, <sd<Qee^2>>t, sd<<Qee^2>>t #"
       write(30,*) "# --------------------------------------------- #"
       open (unit=32,file='data/QsprSq.dat',status='unknown',position='append')
-      write(32,*) "# Wi, dt, <<Qspr^2>t, <sd<Qspr^2>>t, sd<<Qspr^2>>t #"
+      write(32,*) "# Wi, dt, <<Qspr^2>>t, <sd<Qspr^2>>t, sd<<Qspr^2>>t #"
       write(32,*) "# ------------------------------------------------ #"
-      open (unit=9,file='data/Qee.dat',status='unknown',position='append')
-      write(9,*) "# Wi, dt, <<|Qee|>/|Qee|_mx>t, <sd<|Qee|>/|Qee|_mx>t, sd<<|Qee|>/|Qee|_mx>t #"
-      write(9,*) "# ------------------------------------------------------------------------- #"
+      open (unit=9,file='data/QeeRel.dat',status='unknown',position='append')
+      write(9,*) "# Wi, dt, <<|Qee|>/Lc>t, <sd<|Qee|>/Lc>t, sd<<|Qee|>/Lc>t #"
+      write(9,*) "# ------------------------------------------------------- #"
+      open (unit=37,file='data/XRel.dat',status='unknown',position='append')
+      write(37,*) "# Wi, dt, <<X>/Lc>t, <sd<X>/Lc>t, sd<<X>/Lc>t #"
+      write(37,*) "# ------------------------------------------- #"
+      open (unit=38,file='data/XSq.dat',status='unknown',position='append')
+      write(38,*) "# Wi, dt, <<X.X>>t, <sd<X.X>>t, sd<<X.X>>t #"
+      write(38,*) "# ---------------------------------------- #"
       if (tplgy == 'Comb') then
         do iarm=1, Na
           write(fnme1,"(A,i0.2,'.dat')") 'data/QeeSqArm',iarm
@@ -135,15 +156,17 @@ contains
           write(ue+3*Na+iarm,*) "# -------------------------------------------------- #"
         end do
       end if
-      open (unit=10,file='data/EtavsWi.dat',status='replace',position='append')
-      write(10,*) "# Wi, dt, <Etap=-<Taupxy>/Pe>t, <sd<Taupxy>/Pe>t, sd<Etap>t #"
-      write(10,*) "# --------------------------------------------------------- #"
-      open (unit=11,file='data/Psi1vsWi.dat',status='replace',position='append') 
-      write(11,*) "# Wi, dt, <Psi1=-<Taupxx-Taupyy>/Pe^2>t, <sd<Taipxx-Taupyy>/Pe^2>t, sd<Psi1>t #"
-      write(11,*) "# --------------------------------------------------------------------------- #"
-      open (unit=12,file='data/Psi2vsWi.dat',status='replace',position='append') 
-      write(12,*) "# Wi, dt, <Psi2=-<Taupyy-Taupzz>/Pe^2>t, <sd<Taipyy-Taupzz>/Pe^2>t, sd<Psi2>t #"
-      write(12,*) "# --------------------------------------------------------------------------- #"
+      if (iflow /= 1) then
+        open (unit=10,file='data/EtavsWi.dat',status='replace',position='append')
+        write(10,*) "# Wi, dt, <Etap=-<Taupxy>/Pe>t, <sd<Taupxy>/Pe>t, sd<Etap>t #"
+        write(10,*) "# --------------------------------------------------------- #"
+        open (unit=11,file='data/Psi1vsWi.dat',status='replace',position='append') 
+        write(11,*) "# Wi, dt, <Psi1=-<Taupxx-Taupyy>/Pe^2>t, <sd<Taipxx-Taupyy>/Pe^2>t, sd<Psi1>t #"
+        write(11,*) "# --------------------------------------------------------------------------- #"
+        open (unit=12,file='data/Psi2vsWi.dat',status='replace',position='append') 
+        write(12,*) "# Wi, dt, <Psi2=-<Taupyy-Taupzz>/Pe^2>t, <sd<Taipyy-Taupzz>/Pe^2>t, sd<Psi2>t #"
+        write(12,*) "# --------------------------------------------------------------------------- #"
+      end if
       if (iflow >= 3) then ! For Elongational Flow
         open (unit=13,file='data/EtaElongvsWi.dat',status='unknown',position='append') 
         write(13,*) "# Wi, dt, <Eta_el=-<Taupxx-Taupyy>/Pe>t, <sd<Taipxx-Taupyy>/Pe>t, sd<Eta_el>t #"
@@ -213,8 +236,6 @@ contains
         write(20,*) "# ------------------------------- #"
       end if ! DecompMeth
     end if
-
-
 
   end subroutine pp_init
 
@@ -294,7 +315,7 @@ contains
     use :: inp_mod, only: npchain,nchain,nbead,nseg,tss,trst,lambda,Wi,dt,&
                           ntime,qmax,nseg_ar,Pe,ntotang,iflow,StrCalc,tplg&
                           &y,Na,cosThCalc,CoM,CoHR,RgCalc,nbeadx3,AveIterC&
-                          &alc,DecompMeth,initmode
+                          &alc,DecompMeth,initmode,cosmode
 
     integer,intent(in) :: id,itime,nseg_bb,MPI_REAL_WP,idt,iPe
     real(wp),intent(in) :: time
@@ -307,6 +328,7 @@ contains
     real(wp) :: sdxxTot,sdxyTot,sdyyTot,sdzzTot,sdxxyyTot,sdyyzzTot
     real(wp) :: qetoeAveTot,sdqetoeAveTot,sqqetoeAveTot,sdsqqetoeAveTot
     real(wp) :: sqqsprAveTot,sdsqqsprAveTot
+    real(wp) :: XAveTot,sdXAveTot,XSqAveTot,sdXSqAveTot
     real(wp) :: cosThAve,sdcosThAve,qi(3),qj(3),qi_mag,qj_mag
     real(wp) :: DcmAve,sdDcmAve,rcmdiff(3),rchrdiff(3),DchrAve,sdDchrAve
     real(wp) :: cosThAveTot,sdcosThAveTot
@@ -330,11 +352,13 @@ contains
 8   format(i4,1x,e11.3,1x,2(f14.7,2x))
 
     if (StrCalc) then
-      call StressCalc(q,rvmrc,Fphi,nseg_bb)
+      call conf_anlzr(q,rvmrc,Fphi,nseg_bb)
       ! Reduction of terms for stress and relative extension
       call MPI_Reduce(sqqsprAve,sqqsprAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_Reduce(sqqetoeAve,sqqetoeAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_Reduce(qetoeAve,qetoeAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+      call MPI_Reduce(XAve,XAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+      call MPI_Reduce(XSqAve,XSqAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       if (tplgy == 'Comb') then
         call MPI_Reduce(sqqee_ar,sqqee_art,Na,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
         call MPI_Reduce(qee_ar,qee_art,Na,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
@@ -349,6 +373,8 @@ contains
       call MPI_Reduce(sdsqqsprAve,sdsqqsprAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_Reduce(sdsqqetoeAve,sdsqqetoeAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_Reduce(sdqetoeAve,sdqetoeAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+      call MPI_Reduce(sdXAve,sdXAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+      call MPI_Reduce(sdXSqAve,sdXSqAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       if (tplgy == 'Comb') then
         call MPI_Reduce(sdsqqee_ar,sdsqqee_art,Na,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
         call MPI_Reduce(sdqee_ar,sdqee_art,Na,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
@@ -373,8 +399,11 @@ contains
           qj(1:3)=q(offsetj+1:offsetj+3,ichain)
           qi_mag=sqrt(dot_product(qi,qi))
           qj_mag=sqrt(dot_product(qj,qj))
-!                cosTh=dot_product(qi,qj)/(qi_mag*qj_mag)
-          cosTh=dot_product(qi,qj)
+          if (cosmode == 'dot') then
+            cosTh=dot_product(qi,qj)
+          else 
+            cosTh=dot_product(qi,qj)/(qi_mag*qj_mag)
+          end if
           cosThAve=cosThAve+cosTh
           sdcosThAve=sdcosThAve+cosTh*cosTh
         end do ! ibead
@@ -479,6 +508,8 @@ contains
         sdsqqsprAveTot=sqrt(abs(sdsqqsprAveTot-sqqsprAveTot**2)/(nchain-1))
         sdsqqetoeAveTot=sqrt(abs(sdsqqetoeAveTot-sqqetoeAveTot**2)/(nchain-1))
         sdqetoeAveTot=sqrt(abs(sdqetoeAveTot-qetoeAveTot**2)/(nchain-1))
+        sdXAveTot=sqrt(abs(sdXAveTot-XAveTot**2)/(nchain-1))
+        sdXSqAveTot=sqrt(abs(sdXSqAveTot-XSqAveTot**2)/(nchain-1))
         sdxxTot=sqrt(abs(sdxxTot-tauxxTot**2)/(nchain-1))
         sdxyTot=sqrt(abs(sdxyTot-tauxyTot**2)/(nchain-1))
         sdxxyyTot=sqrt(abs(sdxxyyTot-tauxxyyTot**2)/(nchain-1))
@@ -486,13 +517,18 @@ contains
         if (initmode == 'rst') then
           write(31,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),sqqsprAveTot,sdsqqsprAveTot
           write(33,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),sqqetoeAveTot,sdsqqetoeAveTot
+          write(36,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),XSqAveTot,sdXSqAveTot
           select case (tplgy)
             case ('Linear')
               write(7,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),qetoeAveTot/(qmax*nseg),&
                          sdqetoeAveTot/(qmax*nseg)
+              write(35,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),XAveTot/(qmax*nseg),&
+                          sdXAveTot/(qmax*nseg)
             case ('Comb')
               write(7,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),qetoeAveTot/(qmax*nseg_bb),&
                          sdqetoeAveTot/(qmax*nseg_bb)
+              write(35,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),XAveTot/(qmax*nseg_bb),&
+                          sdXAveTot/(qmax*nseg_bb)
               do iarm=1, Na
                 sdsqqee_art(iarm)=sqrt(abs(sdsqqee_art(iarm)-sqqee_art(iarm)**2)/(nchain-1))
                 sdqee_art(iarm)=sqrt(abs(sdqee_art(iarm)-qee_art(iarm)**2)/(nchain-1))
@@ -505,13 +541,16 @@ contains
         else ! initmode == 'st'
           write(31,2) Wi(iPe),dt(iPe,idt),time,sqqsprAveTot,sdsqqsprAveTot
           write(33,2) Wi(iPe),dt(iPe,idt),time,sqqetoeAveTot,sdsqqetoeAveTot
+          write(36,2) Wi(iPe),dt(iPe,idt),time,XSqAveTot,sdXSqAveTot
           select case (tplgy)
             case ('Linear')
               write(7,2) Wi(iPe),dt(iPe,idt),time,qetoeAveTot/(qmax*nseg),&
                          sdqetoeAveTot/(qmax*nseg)
+              write(35,2) Wi(iPe),dt(iPe,idt),time,XAveTot/(qmax*nseg),sdXAveTot/(qmax*nseg)
             case ('Comb')
               write(7,2) Wi(iPe),dt(iPe,idt),time,qetoeAveTot/(qmax*nseg_bb),&
                          sdqetoeAveTot/(qmax*nseg_bb)
+              write(35,2) Wi(iPe),dt(iPe,idt),time,XAveTot/(qmax*nseg_bb),sdXAveTot/(qmax*nseg_bb)
               do iarm=1, Na
                 sdsqqee_art(iarm)=sqrt(abs(sdsqqee_art(iarm)-sqqee_art(iarm)**2)/(nchain-1))
                 sdqee_art(iarm)=sqrt(abs(sdqee_art(iarm)-qee_art(iarm)**2)/(nchain-1))
@@ -576,7 +615,6 @@ contains
           sdtAveLAveTot=sdtAveLAveTot+LAveTot*LAveTot
         end if
       end if ! AveIterCalc
-      ! After ?*'chain-largest (or) characteristic-relaxation-time' average over time:
       if (time >= tss*lambda) then
         jcount=jcount+1
         if (StrCalc) then                      
@@ -584,6 +622,8 @@ contains
           tAvesqqsprAveTot=tAvesqqsprAveTot+sqqsprAveTot
           tAvesqqetoeAveTot=tAvesqqetoeAveTot+sqqetoeAveTot
           tAveqetoeAveTot=tAveqetoeAveTot+qetoeAveTot
+          tAveXAveTot=tAveXAveTot+XAveTot
+          tAveXSqAveTot=tAveXSqAveTot+XSqAveTot
           tAvetauxyTot=tAvetauxyTot+tauxyTot
           tAvetauxxyyTot=tAvetauxxyyTot+tauxxyyTot
           tAvetauyyzzTot=tAvetauyyzzTot+tauyyzzTot
@@ -591,6 +631,8 @@ contains
           tAvesdsqqsprAveTot=tAvesdsqqsprAveTot+sdsqqsprAveTot
           tAvesdsqqetoeAveTot=tAvesdsqqetoeAveTot+sdsqqetoeAveTot
           tAvesdqetoeAveTot=tAvesdqetoeAveTot+sdqetoeAveTot
+          tAvesdXAveTot=tAvesdXAveTot+sdXAveTot
+          tAvesdXSqAveTot=tAvesdXSqAveTot+sdXSqAveTot
           tAvesdxyTot=tAvesdxyTot+sdxyTot
           tAvesdxxyyTot=tAvesdxxyyTot+sdxxyyTot
           tAvesdyyzzTot=tAvesdyyzzTot+sdyyzzTot
@@ -598,6 +640,8 @@ contains
           sdtAvesqqsprAveTot=sdtAvesqqsprAveTot+sqqsprAveTot*sqqsprAveTot
           sdtAvesqqetoeAveTot=sdtAvesqqetoeAveTot+sqqetoeAveTot*sqqetoeAveTot
           sdtAveqetoeAveTot=sdtAveqetoeAveTot+qetoeAveTot*qetoeAveTot
+          sdtAveXAveTot=sdtAveXAveTot+XAveTot*XAveTot
+          sdtAveXSqAveTot=sdtAveXSqAveTot+XSqAveTot*XSqAveTot
           sdtAvetauxyTot=sdtAvetauxyTot+tauxyTot*tauxyTot
           sdtAvetauxxyyTot=sdtAvetauxxyyTot+tauxxyyTot*tauxxyyTot
           sdtAvetauyyzzTot=sdtAvetauyyzzTot+tauyyzzTot*tauyyzzTot
@@ -674,6 +718,8 @@ contains
             tAvesqqsprAveTot=tAvesqqsprAveTot/jcount
             tAvesqqetoeAveTot=tAvesqqetoeAveTot/jcount
             tAveqetoeAveTot=tAveqetoeAveTot/jcount
+            tAveXAveTot=tAveXAveTot/jcount
+            tAveXSqAveTot=tAveXSqAveTot/jcount
             tAvetauxyTot=tAvetauxyTot/jcount
             tAvetauxxyyTot=tAvetauxxyyTot/jcount
             tAvetauyyzzTot=tAvetauyyzzTot/jcount
@@ -681,6 +727,8 @@ contains
             tAvesdsqqsprAveTot=tAvesdsqqsprAveTot/jcount
             tAvesdsqqetoeAveTot=tAvesdsqqetoeAveTot/jcount
             tAvesdqetoeAveTot=tAvesdqetoeAveTot/jcount
+            tAvesdXAveTot=tAvesdXAveTot/jcount
+            tAvesdXSqAveTot=tAvesdXSqAveTot/jcount
             tAvesdxyTot=tAvesdxyTot/jcount
             tAvesdxxyyTot=tAvesdxxyyTot/jcount
             tAvesdyyzzTot=tAvesdyyzzTot/jcount
@@ -688,12 +736,16 @@ contains
             sdtAvesqqsprAveTot=sdtAvesqqsprAveTot/jcount
             sdtAvesqqetoeAveTot=sdtAvesqqetoeAveTot/jcount
             sdtAveqetoeAveTot=sdtAveqetoeAveTot/jcount
+            sdtAveXAveTot=sdtAveXAveTot/jcount
+            sdtAveXSqAveTot=sdtAveXSqAveTot/jcount
             sdtAvetauxyTot=sdtAvetauxyTot/jcount
             sdtAvetauxxyyTot=sdtAvetauxxyyTot/jcount
             sdtAvetauyyzzTot=sdtAvetauyyzzTot/jcount
             sdtAvesqqsprAveTot=sqrt(abs(sdtAvesqqsprAveTot-tAvesqqsprAveTot**2)/(jcount-1))
             sdtAvesqqetoeAveTot=sqrt(abs(sdtAvesqqetoeAveTot-tAvesqqetoeAveTot**2)/(jcount-1))
             sdtAveqetoeAveTot=sqrt(abs(sdtAveqetoeAveTot-tAveqetoeAveTot**2)/(jcount-1))
+            sdtAveXAveTot=sqrt(abs(sdtAveXAveTot-tAveXAveTot**2)/(jcount-1))
+            sdtAveXSqAveTot=sqrt(abs(sdtAveXSqAveTot-tAveXSqAveTot**2)/(jcount-1))
             if (tplgy == 'Comb') then
               do iarm=1, Na
                 tAvsdsqqee_art(iarm)=tAvsdsqqee_art(iarm)/jcount
@@ -711,13 +763,18 @@ contains
             sdtAvetauyyzzTot=sqrt(abs(sdtAvetauyyzzTot-tAvetauyyzzTot**2)/(jcount-1))
             write(32,5) Wi(iPe),dt(iPe,idt),tAvesqqsprAveTot,tAvesdsqqsprAveTot,sdtAvesqqsprAveTot
             write(30,5) Wi(iPe),dt(iPe,idt),tAvesqqetoeAveTot,tAvesdsqqetoeAveTot,sdtAvesqqetoeAveTot
+            write(38,5) Wi(iPe),dt(iPe,idt),tAveXSqAveTot,tAvesdXSqAveTot,sdtAveXSqAveTot
             select case (tplgy)
               case ('Linear')
                 write(9,5) Wi(iPe),dt(iPe,idt),tAveqetoeAveTot/(qmax*nseg),tAvesdqetoeAveTot/&
                           (qmax*nseg),sdtAveqetoeAveTot/(qmax*nseg)
+                write(37,5) Wi(iPe),dt(iPe,idt),tAveXAveTot/(qmax*nseg),tAvesdXAveTot/(qmax*nseg),&
+                            sdtAveXAveTot/(qmax*nseg)
               case ('Comb')
                 write(9,5) Wi(iPe),dt(iPe,idt),tAveqetoeAveTot/(qmax*nseg_bb),tAvesdqetoeAveTot/&
                           (qmax*nseg_bb),sdtAveqetoeAveTot/(qmax*nseg_bb)
+                write(37,5) Wi(iPe),dt(iPe,idt),tAveXAveTot/(qmax*nseg_bb),tAvesdXAveTot/(qmax*nseg_bb),&
+                            sdtAveXAveTot/(qmax*nseg_bb)
                 do iarm=1, Na
                   write(ue+2*Na+iarm,5) Wi(iPe),dt(iPe,idt),tAvsqqee_art(iarm),tAvsdsqqee_art(iarm),&
                                         sdtAvsqqee_art(iarm)
@@ -828,21 +885,23 @@ contains
 ! they will be summed up to give total stress and also appropriate term   !
 ! for getting the deviation.                                              !
 !-------------------------------------------------------------------------!
-  subroutine StressCalc(q,rvmrc,Fphi,nseg_bb)
+  subroutine conf_anlzr(q,rvmrc,Fphi,nseg_bb)
   
-    use :: inp_mod, only: nseg,npchain,nchain,ForceLaw,tplgy,nseg_ar
+    use :: inp_mod, only: nseg,npchain,nchain,ForceLaw,tplgy,nseg_ar,applFext
   
     integer,intent(in) :: nseg_bb
     real(wp),intent(in),target :: q(:,:),rvmrc(:,:),Fphi(:,:)
     real(wp),dimension(:),pointer :: qP,qPx,qPy,qPz,RPx,RPy,RPz
     real(wp),dimension(:),pointer :: FphiPx,FphiPy,FphiPz
-    real(wp) :: sqqeetmp,qeetmp,qetoex,qetoey,qetoez
+    real(wp) :: sqqeetmp,qeetmp,qetoex,qetoey,qetoez,X
     real(wp) :: sqqspr,sqqetoe,qetoe,txx,txy,tyy,tzz,txxyy,tyyzz
     real(wp),allocatable :: qee_artmp(:,:)
     integer :: ichain,iarm,os
   
     sqqetoeAve=0._wp;qetoeAve=0._wp
+    sqqsprAve=0._wp;XAve=0._wp;XSqAve=0._wp
     sdsqqetoeAve=0._wp;sdqetoeAve=0._wp
+    sdsqqsprAve=0._wp;sdXAve=0._wp;sdXSqAve=0._wp
     tauxx=0._wp;tauxy=0._wp;tauyy=0._wp
     tauzz=0._wp;tauxxyy=0._wp;tauyyzz=0._wp
     sdxx=0._wp;sdxy=0._wp;sdyy=0._wp
@@ -885,14 +944,22 @@ contains
       end select
       sqqspr=dot_product(q(:,ichain),q(:,ichain))
       sqqetoe=qetoex**2+qetoey**2+qetoez**2
-      qetoe=sqrt(sqqetoe)
-!     qetoe=qetoex
+      if (applFext) then
+        qetoe=qetoex
+      else
+        qetoe=sqrt(sqqetoe)
+      end if
+      X=maxval(RPx)-minval(RPx)
       sqqsprAve=sqqsprAve+sqqspr
       sqqetoeAve=sqqetoeAve+sqqetoe
       qetoeAve=qetoeAve+qetoe
+      XAve=XAve+X
+      XSqAve=XSqAve+X**2
       sdsqqsprAve=sdsqqsprAve+sqqspr*sqqspr
       sdsqqetoeAve=sdsqqetoeAve+sqqetoe*sqqetoe
       sdqetoeAve=sdqetoeAve+qetoe*qetoe
+      sdXAve=sdXAve+X**2
+      sdXSqAve=sdXSqAve+X**4
       FphiPx => Fphi(1:3*(nseg+1)-2:3,ichain)
       FphiPy => Fphi(2:3*(nseg+1)-1:3,ichain) 
       FphiPz => Fphi(3:3*(nseg+1):3,ichain)
@@ -921,9 +988,13 @@ contains
     sqqsprAve=sqqsprAve/(nchain*nseg)
     sqqetoeAve=sqqetoeAve/nchain
     qetoeAve=qetoeAve/nchain
+    XAve=XAve/nchain
+    XSqAve=XSqAve/nchain
     sdsqqsprAve=sdsqqsprAve/nchain
     sdsqqetoeAve=sdsqqetoeAve/nchain
     sdqetoeAve=sdqetoeAve/nchain
+    sdXAve=sdXAve/nchain
+    sdXSqAve=sdXSqAve/nchain
     tauxx = tauxx/nchain
     tauxy = tauxy/nchain
     tauyy = tauyy/nchain
@@ -947,6 +1018,6 @@ contains
       deallocate(qee_artmp)
     end if
    
-  end subroutine StressCalc
+  end subroutine conf_anlzr
 
 end module pp_mod

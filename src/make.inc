@@ -1,6 +1,7 @@
 # put common definitions in here
 
 COMP     = mpif90
+FCOMP    = ifort
 FEXT	 = f90
 MFLAGS	 = -s
 ECHO	 = @echo

@@ -1,5 +1,7 @@
 !%------------------------------------------------------------------------%
-!|  Copyright (C) 2013 - 2016: University of Tennessee-Knoxville          |
+!|  Copyright (C) 2013 - 2016:                                            |
+!|  Material Research and Innovation Laboratory (MRAIL)                   |
+!|  University of Tennessee-Knoxville                                     |
 !|  Author:    Amir Saadat   <asaadat@vols.utk.edu>                       |
 !|  Advisor:   Bamin Khomami <bkhomami@utk.edu>                           |
 !|                                                                        |
