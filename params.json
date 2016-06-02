@@ -1,0 +1,6 @@
+{
+  "name": "BDpack",
+  "tagline": "A Brownian dynamics package for simulation of polymeric solutions",
+  "body": "BDpack is a package to numerically calculate the configurational evolution of polymeric solution using Brownian dynamics simulation of bead-spring micro-mechanical model. The algorithm used in BDpack incorporates high-fidelity and computationally efficient calculation of hydrodynamic interactions (HI) and excluded volume (EV) forces. BDpack is written in parallel by employing message passing interface (MPI) for distributed-memory-architectures.\r\n\r\nThe aim of this project is to write the codes self descriptive, documented, yet very efficient to enable its applicability and development. To this end, the codes are written in modular fashion using Fortran.\r\n\r\n[Documentation](https://github.com/amir-saadat/BDpack/wiki/Documentation) \r\n\r\n[Publications](https://github.com/amir-saadat/BDpack/wiki/Publications)\r\n",
+  "note": "Don't delete this file! It's used internally to help with page regeneration."
+}
