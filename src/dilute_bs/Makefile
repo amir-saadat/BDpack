@@ -7,7 +7,12 @@ OBJS   += pp_mod.o dlt_mod.o
 INCS	= -I ./inc
 LIBS	=
 
-all : $(OBJLIBS)
+all : makeinc  $(OBJLIBS)
+
+makeinc:
+	if [ ! -d "./inc" ];then     \
+                mkdir ./inc;         \
+        fi
 
 ../libdlt_bs.a : $(OBJS)
 	$(ECHO) making the library: $(OBJLIBS)
@@ -17,9 +22,8 @@ all : $(OBJLIBS)
 	$(MV) ./*.mod ./inc/
 
 $(OBJS): %.o: %.$(FEXT)
-	$(ECHO) compiling $< using $(OMPI_FC)
+	$(ECHO) compiling $< using $(COMP)
 	$(COMP) $(GLBFLGS) $(GLBINCS) $(INCS) -c $< $(GLBLIBS) $(LIBS) -o $@
-
 clean :
 	$(ECHO) cleaning up in dilute_bs
 	$(RM) -f $(OBJS)

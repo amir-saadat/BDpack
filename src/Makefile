@@ -26,7 +26,7 @@ libdlt_bs.a : force_look
 	cd dilute_bs; $(MAKE) $(MFLAGS)
 
 $(OBJS): %.o: %.$(FEXT)
-	$(ECHO) compiling $< using $(OMPI_FC)
+	$(ECHO) compiling $< using $(COMP)
 	$(COMP) $(GLBFLGS) $(GLBINCS) $(INCS) -c $< $(GLBLIBS) $(LIBS) -o $@
 
 utils: $(UTILS)

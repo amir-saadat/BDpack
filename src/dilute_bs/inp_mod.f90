@@ -24,7 +24,6 @@ module inp_mod
 
   use :: prcn_mod
 
-
   implicit none
   save
 
@@ -526,10 +525,14 @@ ef: do
               (1-4.225_wp/(2*WLC_v)+4.87_wp/(4*WLC_v**2))
       case ('WLC_GEN')
         WLC_A=3._wp/32-3/(8*WLC_v)-3/(2*WLC_v**2)
-        WLC_B=(13._wp/32+4.6765_wp/(2*WLC_v)+13.7004_wp/(4*WLC_v**2))/ &
-              (1+1.7228_wp/(2*WLC_v)-3.3722_wp/(4*WLC_v**2))
-        WLC_C=(1-1.4538_wp*(2*WLC_v)+0.4056_wp*(4*WLC_v**2))/(2*WLC_&
-               &v- 0.9709_wp*(4*WLC_v**2)+0.2296_wp*(8*WLC_v**3))
+!        WLC_B=(13._wp/32+4.6765_wp/(2*WLC_v)+13.7004_wp/(4*WLC_v**2))/ &
+!              (1+1.7228_wp/(2*WLC_v)-3.3722_wp/(4*WLC_v**2))
+!        WLC_C=(1-1.4538_wp*(2*WLC_v)+0.4056_wp*(4*WLC_v**2))/(2*WLC_&
+!               &v- 0.9709_wp*(4*WLC_v**2)+0.2296_wp*(8*WLC_v**3))
+        WLC_B=(13._wp/32+3.4719_wp/(2*WLC_v)+2.5064_wp/(4*WLC_v**2))/ &
+              (1-1.2906_wp/(2*WLC_v)+0.6482_wp/(4*WLC_v**2))
+        WLC_C=(1-1.2370_wp*(2*WLC_v)+0.8105_wp*(4*WLC_v**2))/(2*WLC_&
+               &v- 1.0243_wp*(4*WLC_v**2)+0.4595_wp*(8*WLC_v**3))
     end select
 
   end subroutine

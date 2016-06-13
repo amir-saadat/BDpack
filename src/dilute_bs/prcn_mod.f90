@@ -22,9 +22,9 @@
 !%------------------------------------------------------------------------%
 module prcn_mod
 
-  use :: mkl95_lapack, only : geqrf,orgqr,syev,syevr,potrf,potri,getrf,getri,geev
-  use :: mkl95_precision, only : wp => dp
-  use :: mkl95_blas, only : dot,nrm2,scal,copy,axpy,symv,gemv,gbmv,trmv,symm,gemm,trmm
+  use :: lapack95, only : geqrf,orgqr,syev,syevr,potrf,potri,getrf,getri,geev
+  use :: f95_precision, only : wp => dp
+  use :: blas95, only : dot,nrm2,scal,copy,axpy,symv,gemv,gbmv,trmv,symm,gemm,trmm
 
   implicit none
   save

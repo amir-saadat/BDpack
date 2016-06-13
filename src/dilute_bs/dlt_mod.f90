@@ -24,8 +24,8 @@ module dlt_mod
 
   use :: mpi
   use :: iso_fortran_env
-  use :: prcn_mod
   use :: inp_mod
+  use :: prcn_mod
   use :: arry_mod, only: logspace,linspace,print_vector,print_matrix
   use :: force_mod, only: sprforce,sprupdate,bndforce,bndupdate
   use :: dcmp_mod, only: Lanczos,BlockLanczos,MKLsyevr,BlockChebyshev

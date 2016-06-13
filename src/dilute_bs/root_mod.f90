@@ -30,7 +30,7 @@ contains
   subroutine root_fndr(coeffs,upper,root)
 
     use :: arry_mod, only: print_vector,print_matrix
-    use :: mkl95_lapack, only: geev
+    use :: lapack95, only: geev
 
     real(double),intent(in) :: coeffs(:),upper
     real(double),intent(out) :: root
