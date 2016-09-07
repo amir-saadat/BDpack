@@ -8,8 +8,12 @@ The aim of this project is to write the codes self descriptive, documented, yet 
 
 * [Documentation](https://github.com/amir-saadat/BDpack/wiki/Documentation)
   + [Installation and Running](https://github.com/amir-saadat/BDpack/wiki/Installation-and-Running)
-  + [User Inputs](https://github.com/amir-saadat/BDpack/wiki/User-Inputs)
-  + [Tutorials](https://github.com/amir-saadat/BDpack/wiki/Tutorials)
+  + User Inputs
+    - [[Dilute|https://github.com/amir-saadat/BDpack/wiki/User-Inputs-(Dilute)]]
+    - [[Semi-dilute|https://github.com/amir-saadat/BDpack/wiki/User-Inputs-(Semidilute)]]
+  + Tutorials
+    - [[Dilute|https://github.com/amir-saadat/BDpack/wiki/Tutorials-(Dilute)]]
+    - [[Semi-dilute|https://github.com/amir-saadat/BDpack/wiki/Tutorials-(Semidilute)]]
 * [Citation](https://github.com/amir-saadat/BDpack/wiki/Citation)
 * [Publications](https://github.com/amir-saadat/BDpack/wiki/Publications)
 * [License](https://github.com/amir-saadat/BDpack/wiki/License)
