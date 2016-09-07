@@ -24,7 +24,7 @@ subroutine HICalc(rvmrc,nseg,HITens,DiffTens,EVForceLaw,Fev)
 
   use :: prcn_mod
   use :: arry_mod, only: print_vector,print_matrix
-  use :: inp_mod, only: hstar,zstar,dstar,LJ_eps,LJ_sig,LJ_rtr,LJ_rc,minNonBond
+  use :: inp_dlt, only: hstar,zstar,dstar,LJ_eps,LJ_sig,LJ_rtr,LJ_rc,minNonBond
 
   implicit real(wp) (a-h, o-z)
   real(wp),parameter :: PI=3.1415926535897958648_wp!4*atan(1.0_wp)
@@ -204,7 +204,7 @@ subroutine EVCalc(rvmrc,nseg,EVForceLaw,Fev)
 
   use :: prcn_mod
   use :: arry_mod, only: print_vector,print_matrix
-  use :: inp_mod, only: zstar,dstar,LJ_eps,LJ_sig,LJ_rtr,LJ_rc,minNonBond
+  use :: inp_dlt, only: zstar,dstar,LJ_eps,LJ_sig,LJ_rtr,LJ_rc,minNonBond
 
   implicit real(wp) (a-h, o-z)
   integer :: offset,offseti,offsetj 
@@ -290,16 +290,16 @@ subroutine EVCalc(rvmrc,nseg,EVForceLaw,Fev)
 
 end subroutine EVCalc
 
-subroutine EVUpdate(Fev,qstar,Bmat,rvmrc,EVForceLaw,nseg,Fbarev)
+subroutine EVUpdate(Fev,rvmrc,Fbarev)
 
   use :: prcn_mod
-  use :: inp_mod, only: zstar,dstar,LJ_eps,LJ_sig,LJ_rtr,LJ_rc,minNonBond
+  use :: arry_mod, only: print_vector,print_matrix
+  use :: inp_dlt, only: nseg,EVForceLaw,zstar,dstar,LJ_eps,LJ_sig,LJ_rtr,LJ_rc,minNonBond
 
   implicit real(wp) (a-h, o-z)
   integer :: offset,offseti,offsetj
-  character(len=10) :: EVForceLaw
-  real(wp),dimension(3*nseg),intent(in) :: qstar
-  real(wp),dimension(3*(nseg+1),3*nseg),intent(in) :: Bmat
+!  real(wp),dimension(3*nseg),intent(in) :: qstar
+!  real(wp),dimension(3*(nseg+1),3*nseg),intent(in) :: Bmat
   real(wp),dimension(3*(nseg+1)) :: rvmrc
 !  real(wp),allocatable,dimension(:) :: qxtemp,qytemp,qztemp
   real(wp),allocatable,dimension(:) :: Fstarev
@@ -320,7 +320,7 @@ subroutine EVUpdate(Fev,qstar,Bmat,rvmrc,EVForceLaw,nseg,Fbarev)
     LJ_prefactor_tr=4*epsOVsig*( 12*(sigOVrtrto6*sigOVrtrto6*sigOVrtr) - &
                                   6*(sigOVrtrto6*sigOVrtr))
   end if
-  call gemv(Bmat,qstar,rvmrc)
+!  call gemv(Bmat,qstar,rvmrc)
   do jbead=1,nseg+1
     offset=3*(jbead-2)
     offsetj=3*(jbead-1)

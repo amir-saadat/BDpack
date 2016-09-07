@@ -7,7 +7,7 @@
 !|                                                                        |
 !|  This file is part of BDpack.                                          |
 !|                                                                        |
-!|  BDpack is free software: you can redistribute it and/or modify        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
 !|  it under the terms of the GNU General Public License as published by  |
 !|  the Free Software Foundation, either version 3 of the License, or     |
 !|  (at your option) any later version.                                   |
@@ -31,7 +31,8 @@ program pdf
   integer :: narg,iarg,nchain,nseg,nbead,ntotseg,k,ichain,iseg
   ! number of bins for specifying the range of |Qseg| nad |Qee|
   integer :: nbinSeg,nbinCh,ibinCh,ibinSeg,itotseg
-  character(len=20) :: arg,buffer,dmpFile,yaxis,xaxis
+  integer :: nseg_bb,nseg_ar,Na
+  character(len=20) :: arg,buffer,dmpFile,yaxis,xaxis,tplgy
   logical :: dmpExist
   real(dp) :: b,Qeemax,qSegmax
   real(dp),allocatable :: q(:,:,:)
@@ -55,6 +56,7 @@ program pdf
   nbinSeg=50;nbinCh=10
   yaxis='pdf'
   xaxis='abs'
+  tplgy='Linear'
 
   ! Check if arguments are found
   narg=command_argument_count()
@@ -75,17 +77,27 @@ program pdf
         call get_command_argument(iarg+1,buffer)
         read(buffer,'(i10)') nchain
         print '(" No. chains: ",i10)',nchain
+      case ('--tplgy')
+        call get_command_argument(iarg+1,tplgy)
+        print '(" Topology: ",a)',tplgy
       case ('--nSeg')
         call get_command_argument(iarg+1,buffer)
         read(buffer,'(i10)') nseg
         nbead=nseg+1
         print '(" No. segments: ",i10)',nseg
         ntotseg=nchain*nseg
+      case ('--nArm')
+        call get_command_argument(iarg+1,buffer)
+        read(buffer,'(i10)') Na
+        print '(" No. arms: ",i10)',Na
+      case ('--nSegArm')
+        call get_command_argument(iarg+1,buffer)
+        read(buffer,'(i10)') nseg_ar
+        print '(" No. segments in arms: ",i10)',nseg_ar
       case ('--b')
         call get_command_argument(iarg+1,buffer)
         read(buffer,'(f10.3)') b
         print '(" b: ",f10.3)',b
-        Qeemax=sqrt(b)*nseg;qSegmax=sqrt(b)
       case ('--nbinCh')
         call get_command_argument(iarg+1,buffer)
         read(buffer,'(i10)') nbinCh
@@ -101,6 +113,13 @@ program pdf
         stop
     end select
   end do ! iarg
+  select case (tplgy)
+    case ('Linear')
+      nseg_bb=nseg
+    case ('Comb')
+      nseg_bb=nseg-Na*nseg_ar
+  end select
+  Qeemax=sqrt(b)*nseg_bb;qSegmax=sqrt(b)
   ! Allocation:
   allocate(q(3,nseg,nchain))
   allocate(Qee(nchain),QeeRel(nchain),QeeSq(nchain))
@@ -115,12 +134,21 @@ program pdf
   open (unit=3,file='PQspr.dat',status='unknown')
   ! Initial positions 
   Qee=0._dp;Qeex=0._dp;Qeey=0._dp;Qeez=0._dp
+  select case (tplgy)
+    case ('Linear')
+      nseg_bb=nseg
+    case ('Comb')
+      nseg_bb=nseg-Na*nseg_ar
+  end select
   do ichain=1, nchain
     do iseg=1, nseg
       read(1,*) q(1:3,iseg,ichain)
-      Qeex(ichain)=Qeex(ichain)+q(1,iseg,ichain) 
-      Qeey(ichain)=Qeey(ichain)+q(2,iseg,ichain) 
-      Qeez(ichain)=Qeez(ichain)+q(3,iseg,ichain) 
+      if (iseg <= nseg_bb) then
+        Qeex(ichain)=Qeex(ichain)+q(1,iseg,ichain) 
+        Qeey(ichain)=Qeey(ichain)+q(2,iseg,ichain) 
+        Qeez(ichain)=Qeez(ichain)+q(3,iseg,ichain) 
+      else
+      end if
     end do
   end do
 
@@ -161,6 +189,10 @@ program pdf
 !    betaCh=maxval(Qee)/Qeemax
 !    alfaSeg=minval(qmagSeg)/qSegmax
 !    betaSeg=maxval(qmagSeg)/qSegmax
+    if (b == 0._dp) then
+      print '(" For normalized xaxis, b should be non-zero.")'
+      stop
+    end if
     alfaCh=0._dp*Qeemax/Qeemax
     betaCh=1._dp*Qeemax/Qeemax
     alfaSeg=0._dp*qSegmax/qSegmax
@@ -273,8 +305,11 @@ contains
     print '(a)', ''
     print '(a)', ' --help        print usage information and exit'
     print '(a)', ' --file        name of the file containing segmental q'
-    print '(a)', ' --nchain      total No. chains'
-    print '(a)', ' --nseg        No. segments in a chain'
+    print '(a)', ' --nCh         total No. chains'
+    print '(a)', ' --tplgy       topology of the chain, i.e., Linear or Comb'
+    print '(a)', ' --nSeg        No. segments in a chain'
+    print '(a)', ' --nArm        No. arms if topology is Comb'
+    print '(a)', ' --nSegArm     No. segments in arms if topology is Comb'
     print '(a)', ' --b           squared maximum of segment length'
     print '(a)', ' --nbinCh      No. bins for chain pdf. def: 10'
     print '(a)', ' --nbinSeg     No. bins for segment pdf. def: 50'

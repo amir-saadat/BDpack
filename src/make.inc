@@ -18,8 +18,20 @@ MV	 = mv
 #----------------------------------------------------------------------
 # Uncomment for using <Address of MKL directory>
 #----------------------------------------------------------------------
-#MKLROOT  =
-GLBFLGS	 = -Ofast
+MKLROOT  = /data/apps/intel-compilers/2016u3/compilers_and_libraries_2016.3.210/linux/mkl
+
+GLBFLGS  = -fpp # Enables preprocessing
+GLBFLGS += -qopenmp # Enables openmp directives
+GLBFLGS += -DUSE_DP # SP or DP for single or double precision
+GLBFLGS	+= -mieee-fp -g -traceback
+ifeq ($(FCOMP),gfortran)
+GLBFLGS += -fcray-pointer
+GLBFLGS += -fbounds-check
+else ifeq ($(FCOMP),ifort)
+GLBFLGS += -heap-arrays 10
+GLBFLGS += -check bounds
+endif
+
 
 GLBINCS  = -I/usr/include
 GLBINCS	+= -I$(MKLROOT)/include

@@ -24,12 +24,12 @@ module dlt_mod
 
   use :: mpi
   use :: iso_fortran_env
-  use :: inp_mod
+  use :: inp_dlt
   use :: prcn_mod
   use :: arry_mod, only: logspace,linspace,print_vector,print_matrix
-  use :: force_mod, only: sprforce,sprupdate,bndforce,bndupdate
+  use :: force_mod, only: sprforce,sprupdate,bndforce,bndupdate,tetforce,tetupdate
   use :: dcmp_mod, only: Lanczos,BlockLanczos,MKLsyevr,BlockChebyshev
-  use :: pp_mod, only: pp_init,pp_init_tm,data_prcs,ue
+  use :: pp_mod, only: pp_init,pp_init_tm,data_prcs,conf_sort,del_pp
 
   implicit none
 
@@ -41,33 +41,42 @@ contains
     ! MPI variables
     integer :: ierr,SizeSP,SizeDP,MPI_REAL_WP
     real(wp) :: realvar
+    integer  :: intvar
     ! Variables used for making output
     integer :: q_recvsubarray,q_resizedrecvsubarray
     integer :: R_recvsubarray,R_resizedrecvsubarray
     integer :: rc_recvsubarray,rc_resizedrecvsubarray
+    integer :: ia_recvsubarray,ia_resizedrecvsubarray
+    integer :: cnf_tp_recvsubarray,cnf_tp_resizedrecvsubarray
     integer,dimension(3) :: q_starts,q_sizes,q_subsizes
     integer,dimension(3) :: R_starts,R_sizes,R_subsizes
     integer,dimension(3) :: rc_starts,rc_sizes,rc_subsizes
+    integer,dimension(2) :: ia_starts,ia_sizes,ia_subsizes
+    integer,dimension(2) :: cnf_tp_starts,cnf_tp_sizes,cnf_tp_subsizes
     integer,allocatable  :: q_counts(:),q_disps(:)
     integer,allocatable  :: R_counts(:),R_disps(:)
     integer,allocatable  :: rc_counts(:),rc_disps(:)
+    integer,allocatable  :: ia_counts(:),ia_disps(:)
+    integer,allocatable  :: cnf_tp_counts(:),cnf_tp_disps(:)
     integer(kind=MPI_ADDRESS_KIND) :: q_start,q_extent
     integer(kind=MPI_ADDRESS_KIND) :: R_start,R_extent
     integer(kind=MPI_ADDRESS_KIND) :: rc_start,rc_extent
+    integer(kind=MPI_ADDRESS_KIND) :: ia_start,ia_extent
+    integer(kind=MPI_ADDRESS_KIND) :: cnf_tp_start,cnf_tp_extent
     real(wp),parameter :: PI=4*atan(1._wp)
     real(wp),parameter :: sqrtPI=sqrt(PI)
-    !Parameters used for calculating Brownian displacement
+    ! Parameters used for calculating Brownian displacement
     real(wp),parameter :: c1=14.14858378_wp,c2=1.21569221_wp
     ! Constant paramter used in SDE
     real(wp),parameter :: coeff=1/sqrt(2._wp)
     ! Characters:
-    character(len=1024) :: file1,format_str
+    character(len=1024) :: file1,format_str,fstat,fmt1
     ! Integers:
-    integer :: offset,offseti,offsetj,u1,idx
+    integer :: offset,offseti,offsetj,idx
     integer :: jcheck,kcheck,iseed,jp,iseg,jbead,i,j,k,nseg_bb,iarm,ku,kl
     integer :: nu,mu,ibead,jseg,ichain,ip,iread,iPe,idt,iAdjSeq,itime
     integer :: icol,jcol,kcol,lcol,jchain,istr,info,mrestart,Lrestart
-    integer :: icount,iglob,jglob
+    integer :: icount,iglob,jglob,nbead_bb
     ! Reals:
     real(wp) :: xxkappa,xykappa,yykappa,zzkappa,strain,fctr,lambdaminFixman
     real(wp) :: lambdamaxFixman,time,time_check1,time_check2,time_check3
@@ -79,7 +88,7 @@ contains
     ! Non-allocatable flow arrays
     integer,dimension(3) :: ipiv
     real(wp),dimension(2) :: lambdaBE
-    real(wp),dimension(3) :: SumBdotw,SumDdotF,LdotBdotw
+    real(wp),dimension(3) :: SumBdotw,SumDdotF,LdotBdotw,Ftet,Fbartet
     real(wp),dimension(3,3) :: kappareg,totMobilTens,invtotMobilTens
     ! Allocatable arrays:
     integer,allocatable,dimension(:) :: mch,Lch
@@ -95,7 +104,7 @@ contains
     real(double),dimension(:),pointer :: wbltempP2,BdotwP,BdotwPx,BdotwPy,BdotwPz
     real(wp),allocatable,dimension(:,:) :: Kappa,Amat,Bmat,wbl,aBlLan,WBlLan
     real(wp),allocatable,dimension(:,:) :: VBlLan,VcntBlLan,Eye,Dsh
-    real(wp),allocatable,dimension(:,:) :: KappaBF,AmatBF,WeightTenstmp
+    real(wp),allocatable,dimension(:,:) :: KappaBF,AmatBF,WeightTenstmp,rf0
     real(wp),allocatable,dimension(:,:),target :: q,rcm,rchr,Fphi,MobilTens,rvmrc
     real(wp),allocatable,dimension(:,:),target :: WeightTens,qstart,rcmstart
     real(wp),allocatable,dimension(:,:),target :: rchrstart
@@ -108,6 +117,10 @@ contains
     real(wp),allocatable,dimension(:,:,:),target :: qxT,qyT,qzT,qTot,RTot,rcmT
     real(wp),allocatable,dimension(:,:,:),target :: rchrT,FBrbl,DiffTens,AdotD
     real(double),allocatable,dimension(:,:,:),target :: CoeffTens,wbltemp
+    integer,allocatable,dimension(:) :: cnf_tp
+    integer,allocatable,dimension(:,:) :: iaTot,cnf_tpTot
+    ! File units
+    integer :: u2,u3,u4,u21,u22,u23,u24,u25,u26,u27,u34,u39,u40,u41
 
     call prcs_inp(id,p)
    
@@ -115,7 +128,7 @@ contains
 1   format(3(f20.8,2x))
 2   format(i4,1x,f8.2,1x,e11.3,1x,f14.7,1x,3(i4,1x),f14.5)
 
-    if (id == 0) call pp_init()
+    call pp_init(id)
 
     ! Controlling index (0 or -1):
     jcheck=0;kcheck=0
@@ -131,7 +144,7 @@ contains
     call MPI_Barrier(MPI_COMM_WORLD,ierr)
   
     !--------------------------------------------------------------
-    !>>>>> Initializations and allocations in master processor:
+    !>>>>> Initializations and allocations in master process:
     !--------------------------------------------------------------
 
     ! Specifying parameters by rank 0
@@ -185,6 +198,42 @@ contains
                                      &sizedrecvsubarray,ierr)
         call MPI_Type_commit(rc_resizedrecvsubarray,ierr)
       end if
+      ! Ia
+      if ((tplgy == 'Comb').and.(arm_plc /= 'Fixed')) then
+        ia_sizes=[Na,p]
+        ia_subsizes=[Na,1]
+        ia_starts=0
+        call MPI_Type_create_subarray(2,ia_sizes,ia_subsizes,ia_starts,MPI_ORDER_&
+                                      &FORTRAN,MPI_INTEGER,ia_recvsubarray,ierr)
+        call MPI_Type_commit(ia_recvsubarray,ierr)
+        ia_extent=sizeof(intvar)
+        ia_start=0
+        call MPI_Type_create_resized(ia_recvsubarray,ia_start,ia_extent,ia_resized&
+                                     &recvsubarray,ierr)
+        call MPI_Type_commit(ia_resizedrecvsubarray,ierr)
+        allocate(iaTot(Na,p))
+      end if
+      ! cnf_tp
+      if (cnf_srt) then
+        cnf_tp_sizes=[npchain,p]
+        cnf_tp_subsizes=[npchain,1]
+        cnf_tp_starts=0
+        call MPI_Type_create_subarray(2,cnf_tp_sizes,cnf_tp_subsizes,cnf_tp_starts,&
+                                      MPI_ORDER_FORTRAN,MPI_INTEGER,cnf_tp_recvsuba&
+                                      &rray,ierr)
+        call MPI_Type_commit(cnf_tp_recvsubarray,ierr)
+        cnf_tp_extent=sizeof(intvar)
+        cnf_tp_start=0
+        call MPI_Type_create_resized(cnf_tp_recvsubarray,cnf_tp_start,cnf_tp_extent,&
+                                     cnf_tp_resizedrecvsubarray,ierr)
+        call MPI_Type_commit(cnf_tp_resizedrecvsubarray,ierr)
+        allocate(cnf_tpTot(npchain,p))
+        if (initmode == 'rst') then
+          open(newunit=u41,file='data/cnf_tp.dat',status='unknown',position='append')
+        else
+          open(newunit=u41,file='data/cnf_tp.dat',status='replace',position='append')
+        end if
+      end if
       ! allocation of total random number
       allocate(rdnt(nbeadx3,ncols,nchain))
       allocate(qTot(nsegx3,npchain,p))
@@ -233,13 +282,20 @@ contains
     end if
     if (CoM) allocate(rcm(3,npchain),rcmstart(3,npchain))
     if (CoHR) allocate(rchr(3,npchain),rchrstart(3,npchain),&
-                               MobilTens(nbeadx3,nbeadx3),WeightTens&
-                               &(3,nbeadx3),weightTenstmp(3,nbeadx3))
+                       MobilTens(nbeadx3,nbeadx3),WeightTens&
+                       &(3,nbeadx3),weightTenstmp(3,nbeadx3))
+    if (srf_tet) allocate(rf0(3,npchain))
     ! For making the output
     allocate (q_counts(p),q_disps(p))
     allocate (R_counts(p),R_disps(p))
     if (CoM .or. CoHR) then
       allocate(rc_counts(p),rc_disps(p))
+    end if
+    if ((tplgy == 'Comb').and.(arm_plc /= 'Fixed')) then
+      allocate(ia_counts(p),ia_disps(p))
+    end if
+    if (cnf_srt) then
+      allocate(cnf_tp(npchain),cnf_tp_counts(p),cnf_tp_disps(p))
     end if
     do jp=1, p
       q_counts(jp)=1
@@ -250,7 +306,43 @@ contains
         rc_counts(jp)=1
         rc_disps(jp)=(jp-1)*3*npchain
       end if
+      if ((tplgy == 'Comb').and.(arm_plc /= 'Fixed')) then
+        ia_counts(jp)=1
+        ia_disps(jp)=(jp-1)*Na
+      end if
+      if (cnf_srt) then
+        cnf_tp_counts(jp)=1
+        cnf_tp_disps(jp)=(jp-1)*npchain
+      end if
     end do
+    if ((tplgy == 'Comb').and.(arm_plc /= 'Fixed')) then
+      write(fmt1,'("(",i3.3,"(i4,1x))")') Na
+      if ((iflow == 1).and.(initmode == 'st').and.(arm_plc /= 'Stored')) then
+        call MPI_Gatherv(Ia(2:Na+1),Na,MPI_INTEGER,iaTot,ia_counts,ia_disps,&
+                         ia_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
+        if (id == 0) then
+          open(newunit=u39,file='data/ia.dat',status='replace')
+          do ip=1, p
+            write(u39,fmt1) iaTot(:,ip)
+          end do
+        end if ! id==0
+      else
+        Ia(1)=1
+        do ip=1, p
+          if (ip == 1) then              
+            open(newunit=u39,file='data/ia.dat',status='old',position='rewind')
+            do iread=1, id
+              read(u39,*)
+            end do
+          end if
+          if (id == ip-1) then 
+            read(u39,*) Ia(2:Na+1)
+          end if
+          call MPI_Barrier(MPI_COMM_WORLD,ierr)
+        end do 
+      end if
+      close(u39)
+    end if
 
     !----------------------------------------------------------------
     !>>>>> Constant tensors in SDE:
@@ -285,7 +377,7 @@ contains
     end if
 
     ! To be used in Predictor-Corrector step 
-    Kappa=0._wp;KappaBF=0._wp
+    Kappa=0._wp
     forall (iseg=1:3*(nseg-1)+1:3)
       Kappa(iseg,iseg)=xxkappa
       Kappa(iseg,iseg+1)=xykappa
@@ -299,6 +391,8 @@ contains
     Amat=0.0_wp
     select case (tplgy)
       case ('Linear')
+        nseg_bb=nseg
+        nbead_bb=nbead
         do iseg=1, nseg
           offseti=3*(iseg-1)
           do jbead=1, nbead
@@ -312,6 +406,7 @@ contains
         end do
       case ('Comb')
         nseg_bb=nseg-Na*nseg_ar
+        nbead_bb=nseg_bb+1
         iarm=1
         do iseg=1, nseg
           offseti=3*(iseg-1)
@@ -343,16 +438,18 @@ contains
           end do
         end do
     end select
+    ! Constructing banded form of Kappa
+    KappaBF=0._wp
+    ku=1;kl=0
+    do j=1, nsegx3
+      k=ku+1-j
+      do i=max(1,j-ku),min(nsegx3,j+kl)
+        KappaBF(k+i,j)=Kappa(i,j)
+      end do
+    end do
     if (tplgy == 'Linear') then
       AmatBF=0._wp
-      ! Constructing banded form of Kappa and Amat
-      ku=1;kl=0
-      do j=1, nsegx3
-        k=ku+1-j
-        do i=max(1,j-ku),min(nsegx3,j+kl)
-          KappaBF(k+i,j)=Kappa(i,j)
-        end do
-      end do
+      ! Constructing banded form of Amat
       ku=3;kl=0
       do j=1, nbeadx3
         k=ku+1-j
@@ -428,10 +525,11 @@ contains
        end do ! iarm
     end select
     if ((hstar == 0._wp) .or. (DecompMeth == 'Chebyshev')) then
+      Eye=0._wp
       forall (i=1:nbeadx3) Eye(i,i)=1._wp
     end if
     if (hstar == 0._wp) then
-      Eye=0._wp
+!      Eye=0._wp
       do ichain=1, npchain
         DiffTens(:,:,ichain)=Eye
         CoeffTens(:,:,ichain)=Eye
@@ -440,7 +538,7 @@ contains
     if (EVForceLaw == 'NoEV') Fev=0._wp;Fbarev=0._wp
     if (ForceLaw /= 'WLC_GEN') Fbnd=0._wp;Fbarbnd=0._wp
     if (DecompMeth == 'Chebyshev') then
-      Eye=0._wp
+!      Eye=0._wp
       forall (i=1:nbeadx3) uminus(i)=real((-1)**i,kind=wp)
       forall (i=1:nbeadx3) uplus(i)=1.0_wp
     end if
@@ -456,7 +554,7 @@ contains
             offset=3*(iseg-1)
             select case (tplgy)
               case ('Linear')
-                qstart(offset+1:offset+3,ichain)=(/0.7_wp*qmax,0._wp,0._wp/)
+                qstart(offset+1:offset+3,ichain)=(/infrx*qmax,infry*qmax,infrz*qmax/)
 !                qstart(offset+1:offset+3,ichain)=[0.4_wp*qmax,0.1_wp*qmax,0.2_wp*qmax]
               case ('Comb')
                 if (iseg <= nseg_bb) then
@@ -479,28 +577,28 @@ contains
         ! In order to prevent probable race condition
         do ip=1, p
           if (ip == 1) then              
-            open(unit=2,file='data/q.rst.dat',status='old',position='rewind')
+            open(newunit=u2,file='data/q.rst.dat',status='old',position='rewind')
             if (CoM) then
-              open(unit=3,file='data/CoM.rst.dat',status='old',position='rewind')
+              open(newunit=u3,file='data/CoM.rst.dat',status='old',position='rewind')
             end if
             if (CoHR) then
-              open(unit=4,file='data/CoHR.rst.dat',status='old',position='rewind')
+              open(newunit=u4,file='data/CoHR.rst.dat',status='old',position='rewind')
             end if
             do iread=1, id*nseg*npchain
-              read(2,*)
+              read(u2,*)
             end do
             do iread=1, id*npchain
-              if (CoM) read(3,*);if (CoHR) read(4,*)
+              if (CoM) read(u3,*);if (CoHR) read(u4,*)
             end do
           end if
           if (id == ip-1) then
             do ichain=1, npchain
               do iseg=1, nseg
                 offset=3*(iseg-1)
-                read(2,*) qstart(offset+1:offset+3,ichain)
+                read(u2,*) qstart(offset+1:offset+3,ichain)
               end do
-              if (CoM) read(3,*) rcmstart(1:3,ichain)
-              if (CoHR) read(4,*) rchrstart(1:3,ichain)
+              if (CoM) read(u3,*) rcmstart(1:3,ichain)
+              if (CoHR) read(u4,*) rchrstart(1:3,ichain)
             end do
           end if
           call MPI_Barrier(MPI_COMM_WORLD,ierr)
@@ -510,43 +608,43 @@ contains
       do ip=1, p
         if (ip == 1) then
           if (initmode == 'st') then
-            open(unit=2,file='data/q.st.dat',status='old',position='rewind')
+            open(newunit=u2,file='data/q.st.dat',status='old',position='rewind')
             if (CoM) then
-              open(unit=3,file='data/CoM.st.dat',status='old',position='rewind')
+              open(newunit=u3,file='data/CoM.st.dat',status='old',position='rewind')
             end if
             if (CoHR) then
-              open(unit=4,file='data/CoHR.st.dat',status='old',position='rewind')
+              open(newunit=u4,file='data/CoHR.st.dat',status='old',position='rewind')
             end if
           elseif (initmode == 'rst') then
-            open(unit=2,file='data/q.rst.dat',status='old',position='rewind')
+            open(newunit=u2,file='data/q.rst.dat',status='old',position='rewind')
             if (CoM) then
-              open(unit=3,file='data/CoM.rst.dat',status='old',position='rewind')
+              open(newunit=u3,file='data/CoM.rst.dat',status='old',position='rewind')
             end if
             if (CoHR) then
-              open(unit=4,file='data/CoHR.rst.dat',status='old',position='rewind')
+              open(newunit=u4,file='data/CoHR.rst.dat',status='old',position='rewind')
             end if
           end if
           do iread=1, id*nseg*npchain
-            read(2,*)
+            read(u2,*)
           end do
           do iread=1, id*npchain
-            if (CoM) read(3,*);if (CoHR) read(4,*)
+            if (CoM) read(u3,*);if (CoHR) read(u4,*)
           end do
         end if
         if (id == ip-1) then
           do ichain=1, npchain
             do iseg=1, nseg
               offset=3*(iseg-1)
-              read(2,*) qstart(offset+1:offset+3,ichain)
+              read(u2,*) qstart(offset+1:offset+3,ichain)
             end do
-            if (CoM) read(3,*) rcmstart(1:3,ichain)
-            if (CoHR) read(4,*) rchrstart(1:3,ichain)
+            if (CoM) read(u3,*) rcmstart(1:3,ichain)
+            if (CoHR) read(u4,*) rchrstart(1:3,ichain)
           end do
         end if
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
       end do
     end if
-    close (2);if (CoM) close (3);if (CoHR) close(4)
+    close (u2);if (CoM) close (u3);if (CoHR) close(u4)
     
     allocate(root_f(PrScale*nroots))
 
@@ -631,7 +729,11 @@ contains
             jcol=1
           end if
           if ((time >= time_check1) .and. (id == 0)) then
-            rtpassed=time/lambda
+            if (initmode == 'rst') then 
+              rtpassed=(time+trst*lambda)/lambda
+            else
+              rtpassed=time/lambda
+            end if
             print '(f7.3," Chain-Relaxation-Time(s) Passed")',rtpassed
             time_check1=time_check1+frm_rt_rep*lambda
           end if
@@ -643,6 +745,9 @@ contains
               qP => q(:,jchain)
               rvmrcP => rvmrc(:,jchain)
               call gemv(Bmat,qP,rvmrcP)
+              if (srf_tet) then
+                rf0(:,jchain)=rvmrc(1:3,jchain)+rcmstart(:,jchain)
+              end if
             end do
             if (CoM) rcm=rcmstart
             if (CoHR) rchr=rchrstart
@@ -685,7 +790,7 @@ contains
             qc(:)=q(:,ichain)
             rvmrcP => rvmrc(:,ichain)
             call sprforce(qc,nseg,ForceLaw,TruncMethod,Fseg)
-            if (ForceLaw == 'WLC_GEN') call bndforce(qc,Fbnd,itime)
+            if (ForceLaw == 'WLC_GEN') call bndforce(nbead_bb,qc,Fbnd,itime)
             ! Calculation of Diffusion Tensor and Excluded Volume Force
             EVcalcd=.false.
             if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
@@ -791,7 +896,6 @@ contains
             if ((EVForceLaw /= 'NoEV') .and. (.not.EVcalcd)) then
                 call EVCalc(rvmrcP,nseg,EVForceLaw,Fev)
             end if
-      
             !============ Predictor-Corrector =============!
             !--------Predictor Algorithm----------!
             ! Kdotq=dt*Pe*(Kappa.q)               !
@@ -817,6 +921,11 @@ contains
               Fphi(1,ichain)=Fphi(1,ichain)-Fext0
               Fphi(nbeadx3-2,ichain)=Fphi(nbeadx3-2,ichain)+Fext0
             end if
+            if (srf_tet) then
+              call tetforce(rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),Ftet,&
+                            rf0(:,ichain),itime)
+              Fphi(1:3,ichain)=Fphi(1:3,ichain)+Ftet(1:3)
+            end if
             call gemv(AdotDP1,Fphi(:,ichain),qstar,alpha=0.25*dt(iPe,idt),&
                       beta=1._wp)
             call axpy(FBr,qstar)
@@ -834,39 +943,41 @@ contains
             ! RHSP:=RHSP+(1/4)*dt*(AdotDP.Fbarbead) !
             ! Fbarbead=-A'.Fbarseg                  !
             !---------------------------------------!
-             call copy(qc,RHS)
-             call axpy(Kdotq,RHS,a=0.5_wp)
-             if (EVForceLaw /= 'NoEV') then
-               call EVUpdate(Fev,qstar,Bmat,rvmrcP,EVForceLaw,nseg,Fbarev)
-             end if
-             if (ForceLaw == 'WLC_GEN') then
-               call bndupdate(Fbnd,qstar,Fbarbnd,itime)
-             end if
-             Fbar=Fbarev+Fbarbnd
-             if (applFext) then
-               Fbar(1)=Fbar(1)-Fext0
-               Fbar(nbeadx3-2)=Fbar(nbeadx3-2)+Fext0
-             end if
-             call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
-             call axpy(FBr,RHS)
-             call copy(RHS,RHScnt)
-             call gemv(Kappa,qstar,RHS,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1._wp)
-             call axpy(Fseg,RHS,a=0.5*dt(iPe,idt))
-             call copy(Fseg,Fbarseg)
-             call copy(Fbead,Fbarbead)
-             do iseg=1, nseg
-               offset=3*(iseg-1)
-               RHSP => RHS(offset+1:offset+3)
-               AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
-               call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
-               !---------------------------------------------------------------!
-               ! Note that for considering iseg, Fbarbead(jseg)=Fbead(jseg)    !
-               ! if jseg>iseg and is Fbarbead(jseg) if jseg<iseg).So we update !
-               ! Fbarseg in following routine and then calculate Fbarbead      ! 
-               !---------------------------------------------------------------!
-               call sprupdate(root_f,PrScale,nroots,dt(iPe,idt),RHSP,qstar,iseg,nseg,&
-                              ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,Amat)
-             end do
+            call gemv(Bmat,qstar,rvmrcP) 
+            call copy(qc,RHS)
+            call axpy(Kdotq,RHS,a=0.5_wp)
+            if (EVForceLaw /= 'NoEV') then
+              call EVUpdate(Fev,rvmrcP,Fbarev)
+            end if
+            if (ForceLaw == 'WLC_GEN') then
+              call bndupdate(nbead_bb,Fbnd,qstar,Fbarbnd,itime)
+            end if
+            Fbar=Fbarev+Fbarbnd
+            if (applFext) then
+              Fbar(1)=Fbar(1)-Fext0
+              Fbar(nbeadx3-2)=Fbar(nbeadx3-2)+Fext0
+            end if
+            if (srf_tet) then
+              call tetupdate(Ftet,rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),Fbartet,&
+                             rf0(:,ichain),itime)
+              Fbar(1:3)=Fbar(1:3)+Fbartet(1:3)
+            end if
+            call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
+            call axpy(FBr,RHS)
+            call copy(RHS,RHScnt)
+            call gemv(Kappa,qstar,RHS,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1._wp)
+            call axpy(Fseg,RHS,a=0.5*dt(iPe,idt))
+            call copy(Fseg,Fbarseg)
+            call copy(Fbead,Fbarbead)
+            do iseg=1, nseg
+              offset=3*(iseg-1)
+              RHSP => RHS(offset+1:offset+3)
+              AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
+              call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
+              call sprupdate(root_f,PrScale,nroots,dt(iPe,idt),RHSP,qstar,iseg,nseg,&
+                              ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,Amat,&
+                              nseg_bb,nseg_ar,Ia,Na)
+            end do
             !----------Second Corrector Algorithm----------!
             ! q=qbar;Fseg=Fbarseg;Fbead=Fbarbead           !
             ! RHSbase=RHScnt(from 1stCorr.)for while loop. !
@@ -896,11 +1007,12 @@ contains
                 call axpy(FsegP,RHSP,a=0.5*dt(iPe,idt))
                 call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
                 call sprupdate(root_f,PrScale,nroots,dt(iPe,idt),RHSP,qbar,iseg,nseg,&
-                               ForceLaw,TruncMethod,qc,Fseg,Fbead,tplgy,Amat)
+                               ForceLaw,TruncMethod,qc,Fseg,Fbead,tplgy,Amat,nseg_bb,&
+                               nseg_ar,Ia,Na)
               end do
               eps=nrm2(qc-qctemp)/nrm2(qctemp)         
               icount=icount+1
-              if (icount.gt.5000) then
+              if (icount > 5000) then
                 print *
                 print '(" Convergance Problem in 2nd Corrector.")'
                 print '(" time index: ",i10)',itime
@@ -1016,6 +1128,19 @@ contains
             time_check3=time_check3+frm_rt_pp*lambda
             call data_prcs(id,itime,time,idt,iPe,q,rvmrc,Fphi,rcm,rcmstart,rchr,&
                            nseg_bb,mch,Lch,MPI_REAL_WP)
+            if (cnf_srt) then
+              call conf_sort(q,rvmrc,nseg_bb,nbead_bb,cnf_tp)
+              call MPI_Gatherv(cnf_tp,npchain,MPI_INTEGER,cnf_tpTot,cnf_tp_counts,&
+                               cnf_tp_disps,cnf_tp_resizedrecvsubarray,0,MPI_COMM_&
+                               &WORLD,ierr)
+              if (id == 0) then
+                do ip = 1, p
+                  do ichain=1, npchain
+                    write(u41,'(" ",i1)') cnf_tpTot(ichain,ip)
+                  end do
+                end do
+              end if
+            end if
           end if
           ! To be done at specified strains:
           if (initmode == 'rst') then
@@ -1024,29 +1149,31 @@ contains
             strain=Pe(iPe)*time
           end if
           if (DumpstrCalc) then
-            if ((strain >= dumpstr(istr)).and.(istr <= nstr)) then
-              ! For writing data to the output file:
-              call MPI_Gatherv(q,nsegx3*npchain,MPI_REAL_WP,qTot,q_counts,q_disps,&
-                               q_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
-              if (id == 0) then
-                format_str="(A,f3.1,'.dat')"
-                if (initmode.eq.'rst') then
-                  write(file1,format_str)'data/qdump_str',Pe(iPe)*(time+trst*lambda)
-                else
-                  write(file1,format_str)'data/qdump_str',Pe(iPe)*time
-                end if
-                open(newunit=u1,file=trim(adjustl(file1)),status='replace')
-                do ip = 1, p
-                  do ichain=1, npchain
-                    do iseg= 1, nseg
-                      offset=3*(iseg-1)
-                      write(u1,1) qTot(offset+1:offset+3,ichain,ip)
+            if (istr <= nstr) then
+              if (strain >= dumpstr(istr)) then
+                ! For writing data to the output file:
+                call MPI_Gatherv(q,nsegx3*npchain,MPI_REAL_WP,qTot,q_counts,q_disps,&
+                                 q_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
+                if (id == 0) then
+                  format_str="(A,f6.2,'.dat')"
+                  if (initmode.eq.'rst') then
+                    write(file1,format_str)'data/qdump_str',Pe(iPe)*(time+trst*lambda)
+                  else
+                    write(file1,format_str)'data/qdump_str',Pe(iPe)*time
+                  end if
+                  open(newunit=u40,file=trim(adjustl(file1)),status='replace')
+                  do ip = 1, p
+                    do ichain=1, npchain
+                      do iseg= 1, nseg
+                        offset=3*(iseg-1)
+                        write(u40,1) qTot(offset+1:offset+3,ichain,ip)
+                      end do
                     end do
                   end do
-                end do
-              end if ! id == 0
-              istr=istr+1
-            end if ! strain ...
+                end if ! id == 0
+                istr=istr+1
+              end if ! strain ...
+            end if ! istr ...
           end if ! DumpstrCalc
           if (time >= time_check4) then
             time_check4=time_check4+frm_rt_rst*lambda
@@ -1062,26 +1189,30 @@ contains
                                rc_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
             end if
             if (id == 0) then
-              open (unit=21,file='data/q.rst.dat',status='replace')
-              if (CoM) open (unit=22,file='data/CoM.rst.dat',status='replace')
-              if (CoHR) open (unit=23,file='data/CoHR.rst.dat',status='replace')
+              open(newunit=u21,file='data/q.rst.dat',status='replace')
+              if (CoM) open(newunit=u22,file='data/CoM.rst.dat',status='replace')
+              if (CoHR) open(newunit=u23,file='data/CoHR.rst.dat',status='replace')
               do ip = 1, p
                 do ichain =1, npchain
                   do iseg = 1, nseg
                     offset=3*(iseg-1)
-                    write(21,1) qTot(offset+1:offset+3,ichain,ip)
+                    write(u21,1) qTot(offset+1:offset+3,ichain,ip)
                   end do
-                  if (CoM) write(22,1) rcmT(1:3,ichain,ip)
-                  if (CoHR) write(23,1) rchrT(1:3,ichain,ip)
+                  if (CoM) write(u22,1) rcmT(1:3,ichain,ip)
+                  if (CoHR) write(u23,1) rchrT(1:3,ichain,ip)
                 end do
-              end do 
-              rtpassed=time/lambda
-              write (21,'(f7.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(21)
+              end do
+              if (initmode == 'rst') then 
+                rtpassed=(time+trst*lambda)/lambda
+              else
+                rtpassed=time/lambda
+              end if
+              write(u21,'(f7.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u21)
               if (CoM) then
-                write (22,'(f7.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(22)
+                write(u22,'(f7.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u22)
               end if
               if (CoHR) then
-                write (23,'(f7.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(23)
+                write(u23,'(f7.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u23)
               end if
             end if ! id == 0
           end if ! mod(itime,lambda/dt)==0
@@ -1102,78 +1233,67 @@ contains
             end if
             if (id == 0) then
               if (TimerA) then
-                open (unit=24,file='data/TimerA.dat',status='unknown',position='append')
-                write(24,*) "iflow, Wi, dt, After ~ Chain RelTime, Nbeads, Nchains, Nproc, ExecutionTime"
-                write(24,*) "---------------------------------------------------------------------------"
+                open(newunit=u24,file='data/TimerA.dat',status='unknown',position='append')
+                write(u24,*) "iflow, Wi, dt, After ~ Chain RelTime, Nbeads, Nchains, Nproc, ExecutionTime"
+                write(u24,*) "---------------------------------------------------------------------------"
 !                tA1=MPI_Wtime()
                 call cpu_time(time_end)
 !                write(24,2) iflow,Wi(iPe),dt(iPe,idt),tend,nbead,nchain,p,(tA1-tA0)
-                write(24,2) iflow,Wi(iPe),dt(iPe,idt),tend,nbead,nchain,p,(time_end-time_begin)
+                write(u24,2) iflow,Wi(iPe),dt(iPe,idt),tend,nbead,nchain,p,(time_end-time_begin)
               end if
               ! Writing equilibrium or final data to the output file
               if (jcheck == 0) then
                 jcheck=-1
-                if (iflow == 1) then
-                  open (unit=34,file='data/q.equil.dat',status='replace',&
-                        position='append')
-                  open (unit=25,file='data/R.equil.dat',status='replace',&
-                        position='append')
-                  if (CoM) open (unit=26,file='data/CoM.equil.dat',&
-                                         status='replace',position='append')
-                  if (CoHR) open (unit=27,file='data/CoHR.equil.dat',&
-                                          status='replace',position='append')
+                if (initmode == 'st') then
+                  fstat='replace'
                 else
-                  open (unit=34,file='data/q.flow.dat',status='replace',&
-                        position='append')
-                  open (unit=25,file='data/R.flow.dat',status='replace',&
-                        position='append')
-                  if (CoM) open (unit=26,file='data/CoM.flow.dat',&
-                                         status='replace',position='append')
-                  if (CoHR) open (unit=27,file='data/CoHR.flow.dat',&
-                                          status='replace',position='append')
+                  fstat='unknown'
+                end if
+                if (iflow == 1) then
+                  open(newunit=u34,file='data/q.equil.dat',status=fstat,position='append')
+                  open(newunit=u25,file='data/R.equil.dat',status=fstat,position='append')
+                  if (CoM) open(newunit=u26,file='data/CoM.equil.dat',status=fstat,position='append')
+                  if (CoHR) open(newunit=u27,file='data/CoHR.equil.dat',status=fstat,position='append')
+                else
+                  open(newunit=u34,file='data/q.flow.dat',status=fstat,position='append')
+                  open(newunit=u25,file='data/R.flow.dat',status=fstat,position='append')
+                  if (CoM) open(newunit=u26,file='data/CoM.flow.dat',status=fstat,position='append')
+                  if (CoHR) open(newunit=u27,file='data/CoHR.flow.dat',status=fstat,position='append')
                 end if ! iflow == 1
               end if ! jcheck
               do ip = 1, p
                 do ichain =1, npchain
                   do iseg = 1, nseg
                     offset=3*(iseg-1)
-                    write(34,1) qTot(offset+1:offset+3,ichain,ip)
+                    write(u34,1) qTot(offset+1:offset+3,ichain,ip)
                   end do
                   do ibead = 1, nbead
                     offset=3*(ibead-1)
-                    write(25,1) RTot(offset+1:offset+3,ichain,ip)
+                    write(u25,1) RTot(offset+1:offset+3,ichain,ip)
                   end do
-                  if (CoM) write(26,1) rcmT(1:3,ichain,ip)
-                  if (CoHR) write(27,1) rchrT(1:3,ichain,ip)
+                  if (CoM) write(u26,1) rcmT(1:3,ichain,ip)
+                  if (CoHR) write(u27,1) rchrT(1:3,ichain,ip)
                 end do
               end do 
             end if ! id==0
           end if ! time >= ...
           jcol=jcol+1 ! col in the block of random number columns
-        end do ! time loop  
+        end do ! time loop
+        ! resetting restart time
+        if (initmode == 'st') trst=0._wp 
       end do ! dt loop
     end do ! Pe loop
   
     !----------------------------------------------------------------
     !>>>>> Deallocation of arrays and closing files:
     !----------------------------------------------------------------
-
     if (id == 0) then
-      close(7);close(8);close(9);close(10);close(11);close(12);close(13);
-      close(14);close(15);close(16);close(17);close(18);close(19);close(&
-      &20);close(21);close(22);close(23);close(24);close(25);close(26);c&
-      &lose(27);close(28);close(29);close(30);close(31);close(32);close(&
-      &33);close(34);close(35);close(36);close(37);close(38)
-      select case (tplgy)
-        case ('Linear')
-        case ('Comb')
-          do iarm=1, Na
-            close(ue+iarm)
-            close(ue+Na+iarm)
-            close(ue+2*Na+iarm)
-            close(ue+3*Na+iarm)
-          end do
-      end select
+      close(u25);close(u34)
+      if (TimerA) close (u24)
+      if (CoM) close(u26)
+      if (CoHR) close(u27)
+      if (DumpstrCalc) close(u40)
+      if (cnf_srt) close(u41)
     end if
   
     if (id == 0) then
@@ -1184,10 +1304,10 @@ contains
     end if
   
     deallocate(rdn)
-    deallocate(Wi,Pe,qc,qstar,Fseg,w,wbl,wbltemp,Kappa,Amat,FBr,FBrbl,&
-               Kdotq,AdotD,Fbead,RHS,RHScnt,RHSbase,Fbarseg,ADFev,qbar&
-               &,Fbarbead,Fev,Fphi,Bmat,q,qstart,Fbarev,KappaBF,qctemp&
-               &,DdotF,rvmrc,DiffTens,CoeffTens,Fbnd,Fbarbnd)
+    deallocate(qc,qstar,Fseg,w,wbl,wbltemp,Kappa,Amat,FBr,FBrbl,Kdotq,AdotD)
+    deallocate(Fbead,RHS,RHScnt,RHSbase,Fbarseg,ADFev,qbar,Fbarbead,Fev,Fphi)
+    deallocate(Bmat,q,qstart,Fbarev,KappaBF,qctemp,DdotF,rvmrc,DiffTens)
+    deallocate(CoeffTens,Fbnd,Fbarbnd)
     if (tplgy == 'Linear') deallocate(AmatBF)
     if (DecompMeth == 'Chebyshev') then
       deallocate(Dsh,Eye,Ybar,uminus,uplus,Ddotuminus,Ddotuplus,Lch)
@@ -1198,6 +1318,14 @@ contains
     if (CoHR) deallocate(rchr,rchrstart,MobilTens,WeightTens,WeightTenstmp)
     deallocate(q_counts,q_disps)
     if ((CoM) .or. (CoHR)) deallocate(rc_counts,rc_disps)
+    if ((tplgy == 'Comb').and.(arm_plc /= 'Fixed')) then
+      deallocate(ia_counts,ia_disps)
+    end if
+    if (cnf_srt) then
+      deallocate(cnf_tp,cnf_tp_counts,cnf_tp_disps)
+    end if
+    call del_inp()
+    call del_pp(id)
 
   contains
 

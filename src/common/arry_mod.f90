@@ -194,7 +194,7 @@ contains
 
     nx = size(a,1)
     ny = size(a,2)
-    write(fmt,'("(",I3.3,"(i4,1X))")') ny
+    write(fmt,'("(",I3.3,"(i10,1X))")') ny
     print *, myname
     do i=1,nx
        write(*,fmt) a(i,:)
@@ -212,7 +212,7 @@ contains
 
     nx = size(a,1)
     ny = size(a,2)
-    write(fmt,'("(",I3.3,"(f8.4,1x))")') ny
+    write(fmt,'("(",I3.3,"(f20.10,1x))")') ny
     print *, myname
     do i=1,nx       
        write(*,fmt) a(i,:)
@@ -231,7 +231,7 @@ contains
 
     nx = size(a,1)
     ny = size(a,2)
-    write(fmt,'("(",I3.3,"(F7.5,1X))")') ny
+    write(fmt,'("(",I3.3,"(f20.8,1X))")') ny
     print *, myname
     do i=1,nx
        write(*,fmt) a(i,:)
@@ -274,7 +274,7 @@ contains
     nx = size(a,1)
     print *, myname
     do i=1,nx
-       write(*,'(f16.10)') a(i)
+       write(*,'(f24.14)') a(i)
     end do
   end subroutine print_vector_dp
 

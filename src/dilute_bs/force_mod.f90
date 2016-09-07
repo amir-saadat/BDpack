@@ -30,7 +30,7 @@ contains
 
   subroutine sprforce(q,nseg,ForceLaw,TruncMethod,Fseg)
 
-    use :: inp_mod, only: b,qr_l,RWS_v,WLC_v,qmax,qr_lto2,q_l,RWS_C,RWS_D,&
+    use :: inp_dlt, only: b,qr_l,RWS_v,WLC_v,qmax,qr_lto2,q_l,RWS_C,RWS_D,&
                           WLC_A,WLC_B
     
     integer,intent(in) :: nseg
@@ -101,16 +101,16 @@ contains
 
   subroutine sprupdate(root_f,PrScale,nroots,dt,RHSP,qstar,iseg,nseg,&
                        ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tpl&
-                       &gy,Amat)
+                       &gy,Amat,nseg_bb,nseg_ar,Ia,Na)
 
     use :: arry_mod, only: print_vector,print_matrix
     use :: root_mod, only: CubeRoot,root_fndr
-    use :: inp_mod, only: b,qr_l,RWS_v,WLC_v,qmax,qr_lto2,q_l,RWS_C,RWS_D,&
+    use :: inp_dlt, only: b,qr_l,RWS_v,WLC_v,qmax,qr_lto2,q_l,RWS_C,RWS_D,&
                           WLC_A,WLC_B
   
     character(len=10),intent(in) :: ForceLaw,TruncMethod,tplgy
     real(wp),intent(in) :: dt
-    integer,intent(in) :: PrScale,nroots,iseg,nseg
+    integer,intent(in) :: PrScale,nroots,iseg,nseg,nseg_bb,nseg_ar,Ia(:),Na
     real(wp),dimension(3),intent(in) :: RHSP
     real(wp),dimension(3*(nseg+1)),intent(inout)    :: Fbarbead
     real(wp),dimension(3*(nseg)),intent(in),target  :: qstar
@@ -121,7 +121,7 @@ contains
     real(wp),dimension(3*nseg,3*(nseg+1)),intent(in) :: Amat
     real(wp) :: denom
     real(wp) :: RHSmag,qcheckmag,a1,a2,a3,qmag,F,coeffs(8),qr,slope,qden
-    integer :: iRHS,offset
+    integer :: iRHS,offset,iarm,iseg_ar,offset_ar
   
     RHSmag=dot(RHSP,RHSP);RHSmag=sqrt(RHSmag)
     iRHS=int(RHSmag/(0.01_wp/PrScale)) ! Based on LookUp table definitions
@@ -280,49 +280,102 @@ contains
     end select
     call scal(FbarsegP,F)       ! FbarsegP:=F*qbarP  !
     
-    if (tplgy == 'Linear') then
-      ! As the change in Fseg(i) only affects Fbead(i:i+1):
-      if (nseg == 1) then
-        Fbarbead(1:3)=Fbarseg(1:3)
-        Fbarbead(4:6)=-Fbarseg(1:3)
-      else
-        if (iseg == 1) then
+    select case (tplgy)
+
+      case ('Linear')
+        ! As the change in Fseg(i) only affects Fbead(i:i+1):
+        if (nseg == 1) then
           Fbarbead(1:3)=Fbarseg(1:3)
-          Fbarbead(4:6)=Fbarseg(4:6)-Fbarseg(1:3)
-        elseif (iseg == nseg) then
-          Fbarbead(offset+1:offset+3)=Fbarseg(offset+1:offset+3)-&
-                                      Fbarseg(offset-2:offset)
-          Fbarbead(offset+4:offset+6)=-Fbarseg(offset+1:offset+3)
+          Fbarbead(4:6)=-Fbarseg(1:3)
         else
-          Fbarbead(offset+1:offset+3)=Fbarseg(offset+1:offset+3)-&
-                                      Fbarseg(offset-2:offset)
-          Fbarbead(offset+4:offset+6)=Fbarseg(offset+4:offset+6)-&
-                                      Fbarseg(offset+1:offset+3)
+          if (iseg == 1) then
+            Fbarbead(1:3)=Fbarseg(1:3)
+            Fbarbead(4:6)=Fbarseg(4:6)-Fbarseg(1:3)
+          elseif (iseg == nseg) then
+            Fbarbead(offset+1:offset+3)=Fbarseg(offset+1:offset+3)-&
+                                        Fbarseg(offset-2:offset)
+            Fbarbead(offset+4:offset+6)=-Fbarseg(offset+1:offset+3)
+          else
+            Fbarbead(offset+1:offset+3)=Fbarseg(offset+1:offset+3)-&
+                                        Fbarseg(offset-2:offset)
+            Fbarbead(offset+4:offset+6)=Fbarseg(offset+4:offset+6)-&
+                                        Fbarseg(offset+1:offset+3)
+          end if
+        end if                       
+
+      case ('Comb')
+!        call gemv(Amat,Fbarseg,Fbarbead,alpha=-1.d0,trans='T')
+        if (iseg <= nseg_bb) then
+          if (iseg == 1) then
+            Fbarbead(1:3)=Fbarseg(1:3)
+            Fbarbead(4:6)=Fbarseg(4:6)-Fbarseg(1:3)
+          elseif (iseg == nseg_bb) then
+            Fbarbead(offset+1:offset+3)=Fbarseg(offset+1:offset+3)-&
+                                        Fbarseg(offset-2:offset)
+            Fbarbead(offset+4:offset+6)=-Fbarseg(offset+1:offset+3)
+          else
+            Fbarbead(offset+1:offset+3)=Fbarseg(offset+1:offset+3)-&
+                                        Fbarseg(offset-2:offset)
+            Fbarbead(offset+4:offset+6)=Fbarseg(offset+4:offset+6)-&
+                                        Fbarseg(offset+1:offset+3)
+          end if
+          do iarm=1, Na
+            offset_ar=(nseg_bb+(iarm-1)*nseg_ar)*3
+            if (Ia(iarm+1) == iseg) then
+              Fbarbead(offset+1:offset+3)=Fbarbead(offset+1:offset+3)+Fbarseg(offset_ar+1:offset_ar+3)
+            elseif (Ia(iarm+1) == iseg+1) then
+              Fbarbead(offset+4:offset+6)=Fbarbead(offset+4:offset+6)+Fbarseg(offset_ar+1:offset_ar+3)
+            end if
+          end do
+        else ! iseg > nseg_bb
+          iarm=(iseg-nseg_bb-1)/nseg_ar+1
+          offset_ar=(Ia(iarm+1)-1)*3
+          if (nseg_ar == 1) then
+            Fbarbead(offset_ar+1:offset_ar+3)=Fbarseg(offset   +1:offset   +3)+&
+                                              Fbarseg(offset_ar+1:offset_ar+3)-&
+                                              Fbarseg(offset_ar-2:offset_ar)
+            Fbarbead(offset+4:offset+6)=-Fbarseg(offset+1:offset+3)
+          else
+            iseg_ar=iseg-nseg_bb-(iarm-1)*nseg_ar
+            if (iseg_ar == 1) then
+              Fbarbead(offset_ar+1:offset_ar+3)=Fbarseg(offset   +1:offset   +3)+&
+                                                Fbarseg(offset_ar+1:offset_ar+3)-&
+                                                Fbarseg(offset_ar-2:offset_ar)
+              Fbarbead(offset+4:offset+6)=Fbarseg(offset+4:offset+6)-Fbarseg(offset+1:offset+3)
+            elseif (iseg_ar == nseg_ar) then
+              Fbarbead(offset+1:offset+3)= Fbarseg(offset+1:offset+3)-Fbarseg(offset-2:offset)
+              Fbarbead(offset+4:offset+6)=-Fbarseg(offset+1:offset+3)
+            else
+              Fbarbead(offset+1:offset+3)=Fbarseg(offset+1:offset+3)-Fbarseg(offset-2:offset)
+              Fbarbead(offset+4:offset+6)=Fbarseg(offset+4:offset+6)-Fbarseg(offset+1:offset+3)
+            end if
+          end if
         end if
-      end if                       
-    else
-      call gemv(Amat,Fbarseg,Fbarbead,alpha=-1.d0,trans='T')
-    end if
+
+      case default
+        call gemv(Amat,Fbarseg,Fbarbead,alpha=-1.d0,trans='T')
+    end select
 
   end subroutine sprupdate
 
-  subroutine bndforce(q,Fbnd,itime)
+  subroutine bndforce(nbead_bb,q,Fbnd,itime)
 
     use :: arry_mod, only: print_vector
-    use :: inp_mod, only: WLC_v,WLC_C
+    use :: inp_dlt, only: WLC_v,WLC_C,tplgy,nseg_ar,Na,Ia
 
     integer,intent(in) :: itime
-    real(double),intent(in) :: q(:)
-    real(double),intent(inout) :: Fbnd(:)
-    real(double) :: thta(-1:1),cost(-1:1)
-    real(double) :: qtmp(3,-2:1),qmg(-2:1),ehat(3,-2:1)
-    integer :: nbead,ib,os
+    real(wp),intent(in) :: q(:)
+    real(wp),intent(inout) :: Fbnd(:)
+    real(wp) :: thta(-1:1),cost(-1:1),thtal,thtar,costl,costr
+    real(wp) :: qtmp(3,-2:1),qmg(-2:1),ehat(3,-2:1)
+    real(wp) :: qtmpl(3),qtmpr(3),qmgl,qmgr,ehatl(3),ehatr(3)
+    integer :: nbead,ib,os,nbead_bb,osl,iarm
 
-    nbead=size(Fbnd)/3
+!call print_vector(q,'q')
 
-    do ib=1, nbead
+    do ib=1, nbead_bb
 
-      if (ib == 1) then
+      if ((ib == 1).and.(nbead_bb > 2)) then
         qtmp(:,0)=q(1:3)
         qtmp(:,1)=q(4:6)
         qmg(0)=sqrt(dot(qtmp(:,0),qtmp(:,0)))
@@ -340,7 +393,7 @@ contains
         ehat(:,-1)=ehat(:,0)
         ehat(:, 0)=ehat(:,1)
         cost(0)=cost(1)
-        if (nbead > 3) then
+        if (nbead_bb > 3) then
           qtmp(:,1)=q(7:9)
           qmg(1)=sqrt(dot(qtmp(:,1),qtmp(:,1)))
           ehat(:,1)=qtmp(:,1)/qmg(1)
@@ -353,7 +406,7 @@ contains
           Fbnd(4:6)=WLC_C*( (ehat(:, 0)*(1/qmg(-1)+cost(0)/qmg( 0))- &
                              ehat(:,-1)*(1/qmg( 0)+cost(0)/qmg(-1))) )
         end if
-      elseif ((ib >= 3).and.(ib <= nbead-2)) then
+      elseif ((ib >= 3).and.(ib <= nbead_bb-2)) then
         qtmp(:,-2)=qtmp(:,-1)
         qtmp(:,-1)=qtmp(:, 0)
         qtmp(:, 0)=qtmp(:, 1)
@@ -374,8 +427,8 @@ contains
         Fbnd(os+1:os+3)=WLC_C*( ehat(:, 0)*(1/qmg(-1)+cost(0)/qmg(0)) - &
                                 ehat(:,-1)*(1/qmg(0)+cost(0)/qmg(-1)) + &
                                 1/qmg(-1)*(-cost(-1)*ehat(:,-1)+ehat(:,-2))+&
-                                1/qmg( 0)*( cost( 1)*ehat(:, 0)-ehat(:,1)) )
-      elseif ((ib == nbead-1).and.(nbead > 3)) then
+                                1/qmg( 0)*( cost( 1)*ehat(:, 0)-ehat(:, 1)) )
+      elseif ((ib == nbead_bb-1).and.(nbead_bb > 3)) then
         qtmp(:,-2)=qtmp(:,-1)
         qtmp(:,-1)=qtmp(:, 0)
         qtmp(:, 0)=qtmp(:, 1)
@@ -391,7 +444,7 @@ contains
         Fbnd(os+1:os+3)=WLC_C*( ehat(:, 0)*(1/qmg(-1)+cost(0)/qmg(0)) - &
                                 ehat(:,-1)*(1/qmg(0)+cost(0)/qmg(-1)) + &
                                 1/qmg(-1)*(-cost(-1)*ehat(:,-1)+ehat(:,-2)))
-      elseif (ib == nbead) then
+      elseif (ib == nbead_bb) then
         qtmp(:,-2)=qtmp(:,-1)
         qtmp(:,-1)=qtmp(:, 0)
         qmg(-2)=qmg(-1)
@@ -405,25 +458,212 @@ contains
 
     end do
 
+!print *,'1:'
+!call print_vector(Fbnd,'fbnd')
+
+    if (tplgy == 'Comb') then
+      do iarm=1, Na
+        
+        do ib=1, nseg_ar+2
+
+          ! Before and after grafting point:
+          if (ib == 1) then
+            ! Left and right
+            osl=(Ia(iarm+1)-2)*3
+            qtmpl(:)= q(osl+1:osl+3)
+            qtmpr(:)=-q(osl+4:osl+6)
+            os=(nbead_bb-1+(iarm-1)*nseg_ar)*3
+            qtmp(:,1)=q(os+1:os+3)
+            qmgl=sqrt(dot(qtmpl(:),qtmpl(:)))
+            qmgr=sqrt(dot(qtmpr(:),qtmpr(:)))
+            qmg(1)=sqrt(dot(qtmp(:,1),qtmp(:,1)))
+            ehatl(:)=qtmpl(:)/qmgl
+            ehatr(:)=qtmpr(:)/qmgr
+            ehat(:,1)=qtmp(:,1)/qmg(1)
+            thtal=acos(dot(qtmpl,qtmp(:,1))/(qmgl*qmg(1)))
+            thtar=acos(dot(qtmpr,qtmp(:,1))/(qmgr*qmg(1)))
+!print *,'theta',thtal,thtar
+            costl=cos(thtal)
+            costr=cos(thtar)
+            Fbnd(osl+1:osl+3)=Fbnd(osl+1:osl+3)+WLC_C/qmgl*&
+                              (costl*ehatl(:)-ehat(:,1))
+            Fbnd(osl+7:osl+9)=Fbnd(osl+7:osl+9)+WLC_C/qmgr*&
+                              (costr*ehatr(:)-ehat(:,1))
+!print *,'fl',WLC_C/qmgl*(costl*ehatl(:)-ehat(:,1))
+!print *,'fr',WLC_C/qmgr*(costr*ehatr(:)-ehat(:,1))
+          ! Grafting point:
+          elseif (ib == 2) then
+            qtmp(:,0)=qtmp(:,1)
+            qmg(0)=qmg(1)
+            ehat(:, 0)=ehat(:,1)
+            if (nseg_ar > 1) then
+              qtmp(:,1)=q(os+4:os+6)
+              qmg(1)=sqrt(dot(qtmp(:,1),qtmp(:,1)))
+              ehat(:,1)=qtmp(:,1)/qmg(1)
+              thta(1)=acos(dot(qtmp(:,0),qtmp(:,1))/(qmg(0)*qmg(1)))
+              cost(1)=cos(thta(1))
+              Fbnd(osl+4:osl+6)=Fbnd(osl+4:osl+6)+WLC_C*&
+                                ( (ehat(:,0)*(1/qmgl  +costl/qmg(0)) -&
+                                   ehatl(: )*(1/qmg(0)+costl/qmgl  ))+&
+                                  (ehat(:,0)*(1/qmgr  +costr/qmg(0)) -&
+                                   ehatr(: )*(1/qmg(0)+costr/qmgr  ))+&
+                                   1/qmg(0)*(cost(1)*ehat(:,0)-ehat(:,1)) )
+            else
+              Fbnd(osl+4:osl+6)=Fbnd(osl+4:osl+6)+WLC_C*&
+                                ( (ehat(:,0)*(1/qmgl  +costl/qmg(0)) -&
+                                   ehatl(: )*(1/qmg(0)+costl/qmgl  ))+&
+                                  (ehat(:,0)*(1/qmgr  +costr/qmg(0)) -&
+                                   ehatr(: )*(1/qmg(0)+costr/qmgr  )) )
+            end if
+          ! First bead on the arm, next to the grafting point:
+          elseif (ib == 3) then
+            if (nseg_ar == 1) then
+              qtmp(:,-1)=qtmp(:,0)
+              qmg(-1)=qmg(0)
+              ehat(:,-1)=ehat(:,0)
+              Fbnd(os+4:os+6)=WLC_C*(1/qmg(-1)*(-costl*ehat(:,-1)+ehatl(:))+&
+                                     1/qmg(-1)*(-costr*ehat(:,-1)+ehatr(:)) )
+            elseif (nseg_ar == 2) then
+              qtmp(:,-1)=qtmp(:,0)
+              qtmp(:, 0)=qtmp(:,1)
+              qmg(-1)=qmg(0)
+              qmg( 0)=qmg(1)
+              ehat(:,-1)=ehat(:,0)
+              ehat(:, 0)=ehat(:,1)
+              cost( 0)=cost(1)
+              Fbnd(os+4:os+6)=WLC_C*( ehat(:, 0)*(1/qmg(-1)+cost(0)/qmg(0)) - &
+                                      ehat(:,-1)*(1/qmg(0)+cost(0)/qmg(-1)) + &
+                                      1/qmg(-1)*(-costl*ehat(:,-1)+ehatl(:))+ &
+                                      1/qmg(-1)*(-costr*ehat(:,-1)+ehatr(:)) )
+            else ! nseg_ar > 2
+              qtmp(:,-1)=qtmp(:,0)
+              qtmp(:, 0)=qtmp(:,1)
+              qmg(-1)=qmg(0)
+              qmg( 0)=qmg(1)
+              ehat(:,-1)=ehat(:,0)
+              ehat(:, 0)=ehat(:,1)
+              cost( 0)=cost(1)
+              qtmp(:,1)=q(os+7:os+9)
+              qmg(1)=sqrt(dot(qtmp(:,1),qtmp(:,1)))
+              ehat(:,1)=qtmp(:,1)/qmg(1)
+              thta(1)=acos(dot(qtmp(:,0),qtmp(:,1))/(qmg(0)*qmg(1)))
+              cost(1)=cos(thta(1))
+              Fbnd(os+4:os+6)=WLC_C*( ehat(:, 0)*(1/qmg(-1)+cost(0)/qmg(0)) - &
+                                      ehat(:,-1)*(1/qmg(0)+cost(0)/qmg(-1)) + &
+                                      1/qmg(-1)*(-costl*ehat(:,-1)+ehatl(:))+ &
+                                      1/qmg(-1)*(-costr*ehat(:,-1)+ehatr(:))+ &
+                                      1/qmg( 0)*( cost( 1)*ehat(:, 0)-ehat(:,1)) )
+            end if
+          elseif ((ib > 3).and.(ib <= nseg_ar)) then
+            qtmp(:,-2)=qtmp(:,-1)
+            qtmp(:,-1)=qtmp(:, 0)
+            qtmp(:, 0)=qtmp(:, 1)
+            qmg(-2)=qmg(-1)
+            qmg(-1)=qmg( 0)
+            qmg( 0)=qmg( 1)
+            ehat(:,-2)=ehat(:,-1)
+            ehat(:,-1)=ehat(:, 0)
+            ehat(:, 0)=ehat(:, 1)
+            cost(-1)=cost(0)
+            cost( 0)=cost(1)
+            os=(nbead_bb-1+(iarm-1)*nseg_ar+ib-1)*3
+            qtmp(:,1)=q(os+1:os+3)
+            qmg(1)=sqrt(dot(qtmp(:,1),qtmp(:,1)))
+            ehat(:,1)=qtmp(:,1)/qmg(1)
+            thta(1)=acos(dot(qtmp(:,0),qtmp(:,1))/(qmg(0)*qmg(1)))
+            cost(1)=cos(thta(1))
+            os=(nbead_bb+(iarm-1)*nseg_ar+ib-3)*3
+            Fbnd(os+1:os+3)=WLC_C*( ehat(:, 0)*(1/qmg(-1)+cost(0)/qmg( 0)) - &
+                                    ehat(:,-1)*(1/qmg( 0)+cost(0)/qmg(-1)) + &
+                                    1/qmg(-1)*(-cost(-1)*ehat(:,-1)+ehat(:,-2))+&
+                                    1/qmg( 0)*( cost( 1)*ehat(:, 0)-ehat(:, 1)) )
+          elseif (ib == nseg_ar+1) then
+            qtmp(:,-2)=qtmp(:,-1)
+            qtmp(:,-1)=qtmp(:, 0)
+            qtmp(:, 0)=qtmp(:, 1)
+            qmg(-2)=qmg(-1)
+            qmg(-1)=qmg( 0)
+            qmg( 0)=qmg( 1)
+            ehat(:,-2)=ehat(:,-1)
+            ehat(:,-1)=ehat(:, 0)
+            ehat(:, 0)=ehat(:, 1)
+            cost(-1)=cost(0)
+            cost( 0)=cost(1)
+            os=(nbead_bb+(iarm-1)*nseg_ar+ib-3)*3
+            Fbnd(os+1:os+3)=WLC_C*( ehat(:, 0)*(1/qmg(-1)+cost(0)/qmg( 0)) - &
+                                    ehat(:,-1)*(1/qmg( 0)+cost(0)/qmg(-1)) + &
+                                    1/qmg(-1)*(-cost(-1)*ehat(:,-1)+ehat(:,-2)))
+          elseif (ib == nseg_ar+2) then
+            qtmp(:,-2)=qtmp(:,-1)
+            qtmp(:,-1)=qtmp(:, 0)
+            qmg(-2)=qmg(-1)
+            qmg(-1)=qmg( 0)
+            ehat(:,-2)=ehat(:,-1)
+            ehat(:,-1)=ehat(:, 0)
+            cost(-1)=cost(0)
+            os=(nbead_bb+(iarm-1)*nseg_ar+ib-3)*3
+            Fbnd(os+1:os+3)=WLC_C*(1/qmg(-1)*(-cost(-1)*ehat(:,-1)+ehat(:,-2)))
+          end if
+    
+        end do ! ib
+
+      end do ! iarm
+    end if ! tplgy == 'Comb'
+
   end subroutine bndforce
 
-  subroutine bndupdate(Fbnd,qst,Fbarbnd,itime)
+  subroutine bndupdate(nbead_bb,Fbnd,qst,Fbarbnd,itime)
+
+    use :: arry_mod, only: print_vector,print_matrix
 
     integer,intent(in) :: itime
-    real(double),intent(in) :: qst(:),Fbnd(:)
-    real(double),intent(out) :: Fbarbnd(:)
-    real(double),allocatable :: Fstbnd(:)
-    integer :: nbeadx3
+    real(wp),intent(in) :: qst(:),Fbnd(:)
+    real(wp),intent(out) :: Fbarbnd(:)
+    real(wp),allocatable :: Fstbnd(:)
+    integer :: nbeadx3,nbead_bb
 
     nbeadx3=size(Fbnd)
+
     allocate(Fstbnd(nbeadx3))
-
-    call bndforce(qst,Fstbnd,itime)
-    Fbarbnd=0.5d0*(Fbnd+Fstbnd)
-
+    call bndforce(nbead_bb,qst,Fstbnd,itime)
+    Fbarbnd=0.5_wp*(Fbnd+Fstbnd)
     deallocate(Fstbnd)
 
   end subroutine bndupdate
 
+  subroutine tetforce(rvmrc,rc,D,dt,Ftet,rf0,itime)
+
+    use :: arry_mod, only: print_vector,print_matrix
+
+    real(wp),intent(in) :: rvmrc(:),rc(:),D(:,:),dt,rf0(3)
+    integer,intent(in) :: itime
+    real(wp),intent(inout) :: Ftet(3)
+    real(wp) :: delr(3),D1(3,3)
+    integer :: ipiv(6),info
+
+    delr(1:3)=(rvmrc(1:3)+rc(1:3)-rf0(1:3))/(0.25_wp*dt)
+
+    D1=D(1:3,1:3)
+    call sysv(D1,delr,'U',ipiv,info)
+    if (info == 0) then
+      Ftet=-delr
+    else
+      print '(" Incorrect Solution for D.delr=F by sysv in force module.")'
+      print '(" sysv info: ",i0)',info
+    end if
+
+  end subroutine tetforce
+
+  subroutine tetupdate(Ftet,rvmrc,rc,D,dt,Fbartet,rf0,itime)
+
+    real(wp),intent(in) :: Ftet(3),rvmrc(:),rc(:),D(:,:),dt,rf0(3)
+    integer,intent(in) :: itime
+    real(wp),intent(out) :: Fbartet(3)
+    real(wp) :: Fsttet(3)
+
+    call tetforce(rvmrc,rc,D,dt,Fsttet,rf0,itime)
+    Fbartet=0.5_wp*(Ftet+Fsttet)
+
+  end subroutine tetupdate
 
 end module force_mod

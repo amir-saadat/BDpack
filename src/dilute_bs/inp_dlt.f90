@@ -20,112 +20,112 @@
 !|  You should have received a copy of the GNU General Public License     |
 !|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
 !%------------------------------------------------------------------------%
-module inp_mod
+module inp_dlt
 
   use :: prcn_mod
 
   implicit none
+
   save
 
   ! Parameters from user:
-  character(len=10) :: driver
-  integer :: nchain
-  integer :: nseg
-  character(len=10) :: tplgy
-  integer :: Na
+  integer,protected :: nchain
+  integer,protected :: nseg
+  character(len=10),protected :: tplgy
+  integer,protected :: Na
+  character(len=10),protected :: arm_plc
   integer,allocatable :: Ia(:)
-  integer :: nseg_ar
-  character(len=10) :: LambdaMethod
-  real(wp) :: lambda
-  character(len=10) :: ForceLaw
-  character(len=10) :: TruncMethod
-  real(wp) :: qr_l
-  real(wp) :: RWS_v,WLC_v
-  real(wp) :: b
-  logical :: applFext
-  real(wp) :: Fext0
-  integer :: iflow
-  integer :: nWi
-  real(wp) :: Wii,Wif
-  character(len=10) :: WiSpacing
-  character(len=10) :: HITens
-  real(wp) :: hstar
-  character(len=10) :: DecompMeth
-  integer :: ncols
+  integer,protected :: nseg_ar
+  character(len=10),protected :: LambdaMethod
+  real(wp),protected :: lambda
+  character(len=10),protected :: ForceLaw
+  character(len=10),protected :: TruncMethod
+  real(wp),protected :: qr_l
+  real(wp),protected :: RWS_v,WLC_v
+  real(wp),protected :: b
+  logical,protected :: applFext
+  logical,protected :: srf_tet
+  real(wp),protected :: Fext0
+  integer,protected :: iflow
+  integer,protected :: nWi
+  real(wp),protected :: Wii,Wif
+  character(len=10),protected :: WiSpacing
+  character(len=10),protected :: HITens
+  real(wp),protected :: hstar
+  character(len=10),protected :: DecompMeth
+  integer,protected :: ncols
   integer :: mBlLan,mubBlLan
-  logical :: mset
+  logical,protected :: mset
   integer :: LCheb,Lub
-  logical :: Lset
-  real(wp) :: errormin
-  integer :: upfactr
-  logical :: AveIterCalc
-  character(len=10) :: EVForceLaw
-  real(wp) :: zstar,dstar
-  character(len=10) :: dstarCalc
-  real(wp) :: LJ_eps,LJ_sig,LJ_rtr,LJ_rc
-  integer :: minNonBond
-  character(len=10) :: initmode
-  real(wp) :: tend,tss,trst
-  integer :: ndt
-  real(wp) :: dti,dtf
-  character(len=10) :: dtSpacing
-  character(len=10) :: dtCalc
-  logical :: dtScale
-  integer :: nAdjSeq
-  logical :: Adjust_dt
-  real(wp),allocatable :: AdjSeq(:)
-  real(wp),allocatable :: AdjFact(:)
-  real(wp) :: tol
-  integer :: nroots
-  integer :: PrScale
-  logical :: CoM,CoHR
-  real(wp) :: frm_rt_rep,frm_rt_pp,frm_rt_rst,frm_rt_dmp
-  logical :: StrCalc
-  logical :: TimerA
-  logical :: RgCalc
-  logical :: cosThCalc
-  character(len=10) :: cosmode
-  logical :: DumpstrCalc
-  integer :: nstr
-  real(wp),allocatable :: dumpstr(:)
+  logical,protected :: Lset
+  real(wp),protected :: errormin
+  integer,protected :: upfactr
+  logical,protected :: AveIterCalc
+  character(len=10),protected :: EVForceLaw
+  real(wp),protected :: zstar,dstar
+  character(len=10),protected :: dstarCalc
+  real(wp),protected :: LJ_eps,LJ_sig,LJ_rtr,LJ_rc
+  integer,protected :: minNonBond
+  character(len=10),protected :: initmode
+  real(wp),protected :: infrx,infry,infrz
+  real(wp),protected :: tend,tss
+  real(wp) :: trst
+  integer,protected :: ndt
+  real(wp),protected :: dti,dtf
+  character(len=10),protected :: dtSpacing
+  character(len=10),protected :: dtCalc
+  logical,protected :: dtScale
+  integer,protected :: nAdjSeq
+  logical,protected :: Adjust_dt
+  real(wp),allocatable,protected :: AdjSeq(:)
+  real(wp),allocatable,protected :: AdjFact(:)
+  real(wp),protected :: tol
+  integer,protected :: nroots
+  integer,protected :: PrScale
+  logical,protected :: CoM,CoHR
+  real(wp),protected :: frm_rt_rep,frm_rt_pp,frm_rt_rst,frm_rt_dmp
+  logical,protected :: StrCalc
+  logical,protected :: cnf_srt
+  logical,protected :: indvlext
+  integer,protected :: residx
+  logical,protected :: TimerA
+  logical,protected :: RgCalc
+  logical,protected :: cosThCalc
+  character(len=10),protected :: cosmode
+  logical,protected :: DumpstrCalc
+  integer,protected :: nstr
+  real(wp),allocatable,protected :: dumpstr(:)
   ! Parameters based on input data:
-  real(wp),allocatable :: Wi(:),Pe(:)
+  real(wp),allocatable,protected :: Wi(:),Pe(:)
   real(wp),allocatable :: dttemp1(:),dt(:,:),dt_tmp(:,:)
-  integer,allocatable :: ntime(:,:),itime_AdjSeq(:,:,:)
-  integer :: nbead,nbeadx3,nsegx3
-  integer :: ntotang
-  real(wp) :: qmax
-  real(wp) :: q_l,qr_lto2
-  integer :: npchain
-  real(wp) :: RWS_C,RWS_D,WLC_A,WLC_B,WLC_C
-  
+  integer,allocatable,protected :: ntime(:,:),itime_AdjSeq(:,:,:)
+  integer,protected :: nbead,nbeadx3,nsegx3
+  integer,protected :: ntotang
+  real(wp),protected :: qmax
+  real(wp),protected :: q_l,qr_lto2
+  integer,protected :: npchain
+  real(wp),protected :: RWS_C,RWS_D,WLC_A,WLC_B,WLC_C
   
 contains
 
-  subroutine read_inp(id,inpFile)
+  subroutine read_dlt(id,inpFile)
 
     use :: iso_fortran_env
     use :: strg_mod, only: parse,value
 
-    integer :: il,j,ntokens,u1,stat,ios,id,k
+    integer :: il,j,ntokens,u1,stat,ios,id,k,i,n,msec,tm_inf(8),icnt
+    real(wp),allocatable :: u(:)
     character(len=1024) :: line
     character(len=100) :: tokens(10)
     character(len=20) :: inpFile
 
     ! Default values
-    driver='dilute_bs'
     tplgy='Linear'
     LambdaMethod='Rouse'
-    initmode='st'
-    tend=10._wp;tss=5._wp;trst=0._wp
-    dti=0.01_wp;dtf=0.01_wp;dtSpacing='Linear';dtCalc='Self';dtScale=.false.
-    Adjust_dt=.false.
-    tol=real(1.e-4,kind=wp)
-    nroots=10**6;PrScale=1
-    CoM=.false.;CoHR=.false.
     ForceLaw='Hookean'
     TruncMethod='None'
     applFext=.false.
+    srf_tet=.false.;arm_plc='Random'
     iflow=1 
     nWi=1;Wii=0._wp;Wif=0._wp;WiSpacing='Linear'
     hstar=0._wp;HITens='RPY';DecompMeth='Cholesky';ncols=1
@@ -135,8 +135,17 @@ contains
     errormin=real(1.e-2,kind=wp)
     upfactr=50
     EVForceLaw='NoEV';dstar=1._wp;dstarCalc='Kumar';minNonBond=1
+    initmode='st';infrx=0.7_wp;infry=0._wp;infrz=0._wp
+    tend=10._wp;tss=5._wp;trst=0._wp
+    ndt=1;dti=0.01_wp;dtf=0.01_wp;dtSpacing='Linear';dtCalc='Self';dtScale=.false.
+    Adjust_dt=.false.
+    tol=real(1.e-4,kind=wp)
+    nroots=10**6;PrScale=1
+    CoM=.false.;CoHR=.false.
     frm_rt_rep=0.1_wp;frm_rt_pp=0.002_wp;frm_rt_rst=0.1;frm_rt_dmp=0.1
     StrCalc=.true.
+    cnf_srt=.false.;residx=10
+    indvlext=.false.
     TimerA=.false.
     RgCalc=.false.
     cosThCalc=.false.;cosmode='angle'
@@ -161,24 +170,53 @@ ef: do
       if (ntokens > 0) then
         do j=1,ntokens
           select case (trim(adjustl(tokens(j))))
-            case ('driver')
-              driver=trim(adjustl(tokens(j+1)))
             case ('nchain')
               call value(tokens(j+1),nchain,ios)
             case ('nseg')
               call value(tokens(j+1),nseg,ios)
             case ('tplgy')
               tplgy=trim(adjustl(tokens(j+1)))
-            case ('Arms')
-              call value(tokens(j+1),Na,ios)
-              allocate(Ia(Na+1))
-              Ia(1)=1 ! The first index is always one.
-              do k=2, Na+1
-                call value(tokens(j+k),Ia(k),ios)
-              end do
-!              print *,Ia
             case ('nseg_ar')
               call value(tokens(j+1),nseg_ar,ios)
+            case ('Arms')
+              call value(tokens(j+1),Na,ios)
+              arm_plc=trim(adjustl(tokens(j+2)))
+              allocate(Ia(Na+1))
+              Ia(1)=1 ! The first index is always one.
+              if (arm_plc == 'Fixed') then
+                do k=1, Na
+                  call value(tokens(j+2+k),Ia(k+1),ios)
+                end do
+              elseif (arm_plc == 'Stored') then
+                ! Will be read in dlt_bs routine
+              else
+                allocate(u(Na))
+                call date_and_time(values=tm_inf)
+                msec=(1000*tm_inf(7)+tm_inf(8))*((id-83)*359)
+                call random_seed(size=n)
+                call random_seed(put=(/(i*msec,i=1,n)/))
+rndmlp:         do
+                  call random_number(u)
+                  do k=1, Na
+                    Ia(k+1)=2+floor((nseg-Na*nseg_ar-1)*u(k))
+                  end do
+                  do i=1, Na
+                    do k=1, i-1
+                      if (Ia(i+1) == Ia(k+1)) then
+                        icnt=icnt+1
+                        if (icnt >= 100) then
+                          print '(" Random placement of arms did not converge.")'
+                          stop
+                        end if
+                        cycle rndmlp
+                      end if
+                    end do
+                  end do
+                  exit rndmlp
+                end do rndmlp
+                deallocate(u)
+              end if
+!              print *,'id:',id,Ia
             case ('Rel-Model')
               LambdaMethod=trim(adjustl(tokens(j+1)))
               if (LambdaMethod == 'Self') then
@@ -209,6 +247,12 @@ ef: do
                 call value(tokens(j+2),Fext0,ios)
               elseif(tokens(j+1) == 'FALSE') then
                 applFext=.false.
+              end if
+            case ('Surf-Tethered')
+              if(tokens(j+1) == 'TRUE') then
+                srf_tet=.true.
+              elseif(tokens(j+1) == 'FALSE') then
+                srf_tet=.false.
               end if
             case ('Flow-Type')
               call value(tokens(j+1),iflow,ios)
@@ -268,6 +312,10 @@ ef: do
               call value(tokens(j+1),minNonBond,ios)
             case ('initmode')
               initmode=trim(adjustl(tokens(j+1)))
+            case ('init-ext')
+              call value(tokens(j+1),infrx,ios)
+              call value(tokens(j+2),infry,ios)
+              call value(tokens(j+3),infrz,ios)
             case ('tend')
               call value(tokens(j+1),tend,ios)
             case ('tss')
@@ -338,6 +386,20 @@ ef: do
               elseif(tokens(j+1) == 'FALSE') then
                 StrCalc=.false.
               end if
+            case ('Conf-sort')
+              if(tokens(j+1) == 'TRUE') then
+                cnf_srt=.true.
+              elseif(tokens(j+1) == 'FALSE') then
+                cnf_srt=.false.
+              end if
+            case ('Indvl-ext')
+              if(tokens(j+1) == 'TRUE') then
+                indvlext=.true.
+              elseif(tokens(j+1) == 'FALSE') then
+                indvlext=.false.
+              end if
+            case ('resltn-idx')
+              call value(tokens(j+1),residx,ios)
             case ('Timer-rep')
               if(tokens(j+1) == 'TRUE') then
                 TimerA=.true.
@@ -375,7 +437,7 @@ ef: do
 
     close(u1)
 
-  end subroutine read_inp
+  end subroutine read_dlt
 
   subroutine prcs_inp(id,p)
 
@@ -537,4 +599,10 @@ ef: do
 
   end subroutine
 
-end module inp_mod
+  subroutine del_inp
+
+    deallocate(Wi,Pe,dttemp1,dt,dt_tmp,ntime,itime_AdjSeq)
+
+  end subroutine del_inp
+
+end module inp_dlt

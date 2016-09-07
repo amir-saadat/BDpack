@@ -22,7 +22,7 @@
 !%------------------------------------------------------------------------%
 module prcn_mod
 
-  use :: lapack95, only : geqrf,orgqr,syev,syevr,potrf,potri,getrf,getri,geev
+  use :: lapack95, only : geqrf,orgqr,syev,syevr,potrf,potri,getrf,getri,geev,sysv,pocon,sycon,sytrf
   use :: f95_precision, only : wp => dp
   use :: blas95, only : dot,nrm2,scal,copy,axpy,symv,gemv,gbmv,trmv,symm,gemm,trmm
 
