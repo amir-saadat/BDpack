@@ -29,6 +29,7 @@ program pdf
   integer,parameter :: dp=selected_real_kind(p=15,r=307)
 
   integer :: narg,iarg,nchain,nseg,nbead,ntotseg,k,ichain,iseg
+  integer :: iskip,nskip
   ! number of bins for specifying the range of |Qseg| nad |Qee|
   integer :: nbinSeg,nbinCh,ibinCh,ibinSeg,itotseg
   integer :: nseg_bb,nseg_ar,Na
@@ -94,6 +95,10 @@ program pdf
         call get_command_argument(iarg+1,buffer)
         read(buffer,'(i10)') nseg_ar
         print '(" No. segments in arms: ",i10)',nseg_ar
+      case ('--nSkip')
+        call get_command_argument(iarg+1,buffer)
+        read(buffer,'(i10)') nskip
+        print '(" Total number of lines to be skipped: ",i10)',nskip
       case ('--b')
         call get_command_argument(iarg+1,buffer)
         read(buffer,'(f10.3)') b
@@ -140,6 +145,9 @@ program pdf
     case ('Comb')
       nseg_bb=nseg-Na*nseg_ar
   end select
+  do iskip=1, nskip
+    read(1,*)
+  end do
   do ichain=1, nchain
     do iseg=1, nseg
       read(1,*) q(1:3,iseg,ichain)
@@ -310,6 +318,7 @@ contains
     print '(a)', ' --nSeg        No. segments in a chain'
     print '(a)', ' --nArm        No. arms if topology is Comb'
     print '(a)', ' --nSegArm     No. segments in arms if topology is Comb'
+    print '(a)', ' --nSkip       Total No. lines to be skipped'
     print '(a)', ' --b           squared maximum of segment length'
     print '(a)', ' --nbinCh      No. bins for chain pdf. def: 10'
     print '(a)', ' --nbinSeg     No. bins for segment pdf. def: 50'

@@ -33,6 +33,7 @@ module pp_mod
   real(wp),private :: qetoeAve,sdqetoeAve,sqqetoeAve,sdsqqetoeAve
   real(wp),private :: sqqsprAve,sdsqqsprAve
   real(wp),private :: XAve,sdXAve,XSqAve,sdXSqAve
+  real(wp),private :: XbbAve,sdXbbAve,XbbSqAve,sdXbbSqAve
 
   real(wp),private :: tAvesqqsprAveTot,tAvesqqetoeAveTot,tAveqetoeAveTot
   real(wp),private :: tAvesdsqqsprAveTot,tAvesdsqqetoeAveTot,tAvesdqetoeAveTot
@@ -40,6 +41,8 @@ module pp_mod
   real(wp),private :: sdtAvesqqetoeAveTot,sdtAveqetoeAveTot
   real(wp),private :: tAveXAveTot,tAvesdXAveTot,sdtAveXAveTot
   real(wp),private :: tAveXSqAveTot,tAvesdXSqAveTot,sdtAveXSqAveTot
+  real(wp),private :: tAveXbbAveTot,tAvesdXbbAveTot,sdtAveXbbAveTot
+  real(wp),private :: tAveXbbSqAveTot,tAvesdXbbSqAveTot,sdtAveXbbSqAveTot
   real(wp),private :: tAvetauxyTot,tAvetauxxyyTot,tAvetauyyzzTot
   real(wp),private :: tAvesdxyTot,tAvesdxxyyTot,tAvesdyyzzTot
   real(wp),private :: sdtAvetauxyTot,sdtAvetauxxyyTot,sdtAvetauyyzzTot
@@ -63,9 +66,9 @@ module pp_mod
 
   ! File units
   integer,private :: u7,u8,u9,u10,u11,u12,u13,u14,u15,u16,u17,u18,u19,u20
-  integer,private :: u28,u29,u30,u31,u32,u33,u35,u36,u37,u38
+  integer,private :: u28,u29,u30,u31,u32,u33,u35,u36,u37,u38,u39,u40,u41,u42
   integer,allocatable,private :: uarm(:)
-  integer,allocatable,private :: uch(:)
+  integer,allocatable,private :: uch(:),uch1(:)
 
   ! Variables in conf_sort
   real(wp),allocatable,private :: x(:),y(:),z(:),r(:)
@@ -130,6 +133,17 @@ contains
             write(uarm(Na+iarm),*) "# Wi, dt, time, <|Qee|>/|Qee|_max, sd<Qee>/|Qee|_max #" 
             write(uarm(Na+iarm),*) "# -------------------------------------------------- #"
           end do
+          if (initmode == 'rst') then
+            open(newunit=u39,file='data/trXbbRel.dat',status='unknown',position='append')
+            open(newunit=u40,file='data/trXbbSq.dat',status='unknown',position='append')
+          else
+            open(newunit=u39,file='data/trXbbRel.dat',status='replace',position='append')
+            open(newunit=u40,file='data/trXbbSq.dat',status='replace',position='append')
+          end if
+          write(u39,*) "# Wi, dt, Time, <Xbb>/Lc, sd<Xbb>/Lc #" 
+          write(u39,*) "# ---------------------------------- #"
+          write(u40,*) "# Wi, dt, Time, <Xbb.Xbb>, sd<Xbb.Xbb> #"
+          write(u40,*) "# ------------------------------------ #"
         end if
         if (iflow /= 1) then
           if (initmode == 'rst') then
@@ -168,6 +182,12 @@ contains
             write(uarm(3*Na+iarm),*) "# Wi, dt, time, <|Qee|>/|Qee|_max, sd<Qee>/|Qee|_max #" 
             write(uarm(3*Na+iarm),*) "# -------------------------------------------------- #"
           end do
+          open (newunit=u41,file='data/XbbRel.dat',status='unknown',position='append')
+          write(u41,*) "# Wi, dt, <<Xbb>/Lc>t, <sd<Xbb>/Lc>t, sd<<Xbb>/Lc>t #"
+          write(u41,*) "# ------------------------------------------------- #"
+          open (newunit=u42,file='data/XbbSq.dat',status='unknown',position='append')
+          write(u42,*) "# Wi, dt, <<Xbb.Xbb>>t, <sd<Xbb.Xbb>>t, sd<<Xbb.Xbb>>t #"
+          write(u42,*) "# ---------------------------------------------------- #"
         end if
         if (iflow /= 1) then
           open(newunit=u10,file='data/EtavsWi.dat',status='replace',position='append')
@@ -264,6 +284,21 @@ contains
         write(uch(ichain),*) "# Wi, dt, Time, <X>/Lc, sd<X>/Lc #"
         write(uch(ichain),*) "# ------------------------------ #"
       end do
+      if (tplgy == 'Comb') then
+        allocate(uch1(npchain))
+        do ichain=1, npchain
+          write(fnme1,"(A,i0.4,'.dat')") 'data/trXbbRelCh',id*npchain+ichain
+          if (initmode == 'rst') then
+            open(newunit=uch1(ichain),file=trim(adjustl(fnme1)),status='unknown',&
+                 position='append')
+          else
+            open(newunit=uch1(ichain),file=trim(adjustl(fnme1)),status='replace',&
+                 position='append')
+          end if
+          write(uch1(ichain),*) "# Wi, dt, Time, <Xbb>/Lc, sd<Xbb>/Lc #"
+          write(uch1(ichain),*) "# ---------------------------------- #"
+        end do
+      end if
     end if
 
   end subroutine pp_init
@@ -286,11 +321,14 @@ contains
       end if
       if (id == 0) then
         tAvesqqsprAveTot=0._wp;tAvesqqetoeAveTot=0._wp;tAveqetoeAveTot=0._wp
+        tAveXAveTot=0._wp;tAveXSqAveTot=0._wp
         tAvetauxyTot=0._wp;tAvetauxxyyTot=0._wp;tAvetauyyzzTot=0._wp
         tAvesdsqqsprAveTot=0._wp;tAvesdsqqetoeAveTot=0._wp;tAvesdqetoeAveTot=0._wp
+        tAvesdXAveTot=0._wp;tAvesdXSqAveTot=0._wp
         tAvesdxyTot=0._wp;tAvesdxxyyTot=0._wp;tAvesdyyzzTot=0._wp
         sdtAvesqqetoeAveTot=0._wp;sdtAveqetoeAveTot=0._wp;sdtAvetauxyTot=0._wp
         sdtAvetauxxyyTot=0._wp;sdtAvetauyyzzTot=0._wp
+        sdtAveXAveTot=0._wp;sdtAveXSqAveTot=0._wp
         if (tplgy == 'Comb') then
           if (.not.allocated(qee_art)) allocate(qee_art(Na))
           if (.not.allocated(sdqee_art)) allocate(sdqee_art(Na))
@@ -309,6 +347,9 @@ contains
             tAvsdsqqee_art=0._wp;tAvsdqee_art=0._wp
             sdtAvsqqee_art=0._wp;sdtAvqee_art=0._wp
           end do
+          tAveXbbAveTot=0._wp;tAveXbbSqAveTot=0._wp
+          tAvesdXbbAveTot=0._wp;tAvesdXbbSqAveTot=0._wp
+          sdtAveXbbAveTot=0._wp;sdtAveXbbSqAveTot=0._wp
         end if ! tplgy == Comb
         if (CoM) then
           tAveDcmAveTot=0._wp;tAvesdDcmAveTot=0._wp;sdtAveDcmAveTot=0._wp
@@ -358,6 +399,7 @@ contains
     real(wp) :: qetoeAveTot,sdqetoeAveTot,sqqetoeAveTot,sdsqqetoeAveTot
     real(wp) :: sqqsprAveTot,sdsqqsprAveTot
     real(wp) :: XAveTot,sdXAveTot,XSqAveTot,sdXSqAveTot
+    real(wp) :: XbbAveTot,sdXbbAveTot,XbbSqAveTot,sdXbbSqAveTot
     real(wp) :: cosThAve,sdcosThAve,qi(3),qj(3),qi_mag,qj_mag
     real(wp) :: DcmAve,sdDcmAve,rcmdiff(3),rchrdiff(3),DchrAve,sdDchrAve
     real(wp) :: cosThAveTot,sdcosThAveTot
@@ -391,6 +433,8 @@ contains
       if (tplgy == 'Comb') then
         call MPI_Reduce(sqqee_ar,sqqee_art,Na,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
         call MPI_Reduce(qee_ar,qee_art,Na,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+        call MPI_Reduce(XbbAve,XbbAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+        call MPI_Reduce(XbbSqAve,XbbSqAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       end if              
       call MPI_Reduce(tauxx,tauxxTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_Reduce(tauxy,tauxyTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
@@ -407,6 +451,8 @@ contains
       if (tplgy == 'Comb') then
         call MPI_Reduce(sdsqqee_ar,sdsqqee_art,Na,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
         call MPI_Reduce(sdqee_ar,sdqee_art,Na,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+        call MPI_Reduce(sdXbbAve,sdXbbAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+        call MPI_Reduce(sdXbbSqAve,sdXbbSqAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       end if              
       call MPI_Reduce(sdxx,sdxxTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_Reduce(sdxy,sdxyTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
@@ -566,6 +612,11 @@ contains
                 write(uarm(Na+iarm),2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),qee_art(iarm)/&
                                  (qmax*nseg_ar),sdqee_art(iarm)/(qmax*nseg_ar)
               end do
+              sdXbbAveTot=sqrt(abs(sdXbbAveTot-XbbAveTot**2)/(nchain-1))
+              sdXbbSqAveTot=sqrt(abs(sdXbbSqAveTot-XbbSqAveTot**2)/(nchain-1))
+              write(u39,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),XbbAveTot/(qmax*nseg_bb),&
+                           sdXbbAveTot/(qmax*nseg_bb)
+              write(u40,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),XbbSqAveTot,sdXbbSqAveTot
           end select
         else ! initmode == 'st'
           write(u31,2) Wi(iPe),dt(iPe,idt),time,sqqsprAveTot,sdsqqsprAveTot
@@ -587,6 +638,10 @@ contains
                 write(uarm(Na+iarm),2) Wi(iPe),dt(iPe,idt),time,qee_art(iarm)/(qmax*nseg_ar),&
                                     sdqee_art(iarm)/(qmax*nseg_ar)
               end do
+              sdXbbAveTot=sqrt(abs(sdXbbAveTot-XbbAveTot**2)/(nchain-1))
+              sdXbbSqAveTot=sqrt(abs(sdXbbSqAveTot-XbbSqAveTot**2)/(nchain-1))
+              write(u39,2) Wi(iPe),dt(iPe,idt),time,XbbAveTot/(qmax*nseg_bb),sdXbbAveTot/(qmax*nseg_bb)
+              write(u40,2) Wi(iPe),dt(iPe,idt),time,XbbSqAveTot,sdXbbSqAveTot
           end select
         end if
         if (iflow /= 1) then
@@ -683,6 +738,12 @@ contains
               tAvsqqee_art(iarm)=tAvsqqee_art(iarm)+sqqee_art(iarm)
               tAvqee_art(iarm)=tAvqee_art(iarm)+qee_art(iarm)
             end do
+            tAveXbbAveTot=tAveXbbAveTot+XbbAveTot
+            tAveXbbSqAveTot=tAveXbbSqAveTot+XbbSqAveTot
+            tAvesdXbbAveTot=tAvesdXbbAveTot+sdXbbAveTot
+            tAvesdXbbSqAveTot=tAvesdXbbSqAveTot+sdXbbSqAveTot
+            sdtAveXbbAveTot=sdtAveXbbAveTot+XbbAveTot*XbbAveTot
+            sdtAveXbbSqAveTot=sdtAveXbbSqAveTot+XbbSqAveTot*XbbSqAveTot
           end if
         end if
         if (CoM) then
@@ -786,6 +847,14 @@ contains
                 sdtAvsqqee_art(iarm)=sqrt(abs(sdtAvsqqee_art(iarm)-tAvsqqee_art(iarm)**2)/(jcount-1))
                 sdtAvqee_art(iarm)=sqrt(abs(sdtAvqee_art(iarm)-tAvqee_art(iarm)**2)/(jcount-1))
               end do
+              tAveXbbAveTot=tAveXbbAveTot/jcount
+              tAveXbbSqAveTot=tAveXbbSqAveTot/jcount
+              tAvesdXbbAveTot=tAvesdXbbAveTot/jcount
+              tAvesdXbbSqAveTot=tAvesdXbbSqAveTot/jcount
+              sdtAveXbbAveTot=sdtAveXbbAveTot/jcount
+              sdtAveXbbSqAveTot=sdtAveXbbSqAveTot/jcount
+              sdtAveXbbAveTot=sqrt(abs(sdtAveXbbAveTot-tAveXbbAveTot**2)/(jcount-1))
+              sdtAveXbbSqAveTot=sqrt(abs(sdtAveXbbSqAveTot-tAveXbbSqAveTot**2)/(jcount-1))              
             end if
             sdtAvetauxyTot=sqrt(abs(sdtAvetauxyTot-tAvetauxyTot**2)/(jcount-1))
             sdtAvetauxxyyTot=sqrt(abs(sdtAvetauxxyyTot-tAvetauxxyyTot**2)/(jcount-1))
@@ -811,6 +880,9 @@ contains
                                         tAvsdqee_art(iarm)/(qmax*nseg_ar),sdtAvqee_art(iarm)/&
                                         (qmax*nseg_ar)
                 end do
+                write(u41,5) Wi(iPe),dt(iPe,idt),tAveXbbAveTot/(qmax*nseg_bb),tAvesdXbbAveTot/(qmax*nseg_bb),&
+                            sdtAveXbbAveTot/(qmax*nseg_bb)
+                write(u42,5) Wi(iPe),dt(iPe,idt),tAveXbbSqAveTot,tAvesdXbbSqAveTot,sdtAveXbbSqAveTot
             end select
             if (iflow /= 1) then
               write(u10,5) Wi(iPe),dt(iPe,idt),-tAvetauxyTot/Pe(iPe),tAvesdxyTot/Pe(iPe),&
@@ -924,11 +996,13 @@ contains
     real(wp),intent(in),target :: q(:,:),rvmrc(:,:),Fphi(:,:)
     real(wp),dimension(:),pointer :: qP,qPx,qPy,qPz,RPx,RPy,RPz
     real(wp),dimension(:),pointer :: FphiPx,FphiPy,FphiPz
-    real(wp) :: sqqeetmp,qeetmp,qetoex,qetoey,qetoez,X
+    real(wp) :: sqqeetmp,qeetmp,qetoex,qetoey,qetoez,X,Xbb
     real(wp) :: sqqspr,sqqetoe,qetoe,txx,txy,tyy,tzz,txxyy,tyyzz
     real(wp),allocatable :: qee_artmp(:,:)
     integer :: ichain,iarm,os
   
+1   format(f8.2,1x,e11.3,1x,f14.7,2x,f20.8)
+
     sqqetoeAve=0._wp;qetoeAve=0._wp
     sqqsprAve=0._wp;XAve=0._wp;XSqAve=0._wp
     sdsqqetoeAve=0._wp;sdqetoeAve=0._wp
@@ -972,6 +1046,18 @@ contains
             sdsqqee_ar(iarm)=sdsqqee_ar(iarm)+sqqeetmp*sqqeetmp
             sdqee_ar(iarm)=sdqee_ar(iarm)+qeetmp*qeetmp
           end do
+          Xbb=maxval(RPx(1:nseg_bb+1))-minval(RPx(1:nseg_bb+1))
+          if (indvlext) then
+            if (initmode == 'rst') then
+              write(uch1(ichain),1) Wi(iPe),dt(iPe,idt),(time+trst*lambda),Xbb/(qmax*nseg_bb)
+            else
+              write(uch1(ichain),1) Wi(iPe),dt(iPe,idt),time,Xbb/(qmax*nseg_bb)
+            end if
+          end if
+          XbbAve=XbbAve+Xbb
+          XbbSqAve=XbbSqAve+Xbb**2
+          sdXbbAve=sdXbbAve+Xbb**2
+          sdXbbSqAve=sdXbbSqAve+Xbb**4
       end select
       sqqspr=dot_product(q(:,ichain),q(:,ichain))
       sqqetoe=qetoex**2+qetoey**2+qetoez**2
@@ -981,7 +1067,6 @@ contains
         qetoe=sqrt(sqqetoe)
       end if
       X=maxval(RPx)-minval(RPx)
-1     format(f8.2,1x,e11.3,1x,f14.7,2x,f20.8)
       if (indvlext) then
         if (initmode == 'rst') then
           write(uch(ichain),1) Wi(iPe),dt(iPe,idt),(time+trst*lambda),X/(qmax*nseg_bb)
@@ -1055,6 +1140,10 @@ contains
         sdqee_ar(iarm)=sdqee_ar(iarm)/nchain
       end do
       deallocate(qee_artmp)
+      XbbAve=XbbAve/nchain
+      XbbSqAve=XbbSqAve/nchain
+      sdXbbAve=sdXbbAve/nchain
+      sdXbbSqAve=sdXbbSqAve/nchain      
     end if
    
   end subroutine conf_anlzr
@@ -1514,6 +1603,7 @@ contains
               close(uarm(iarm))
             end do
             deallocate(uarm)
+            close(u39);close(u40);close(u41);close(u42)
         end select
       end if
       if (CoM) close(u15)
@@ -1522,7 +1612,10 @@ contains
       if (AveIterCalc) close(u19);close(u20)
       if (cosThCalc) close(u28);close(u29)
     end if
-    if (StrCalc.and.indvlext) deallocate(uch)
+    if (StrCalc.and.indvlext) then
+      deallocate(uch)
+      if (tplgy == 'Comb') deallocate(uch1)
+    end if
 
   end subroutine del_pp
 

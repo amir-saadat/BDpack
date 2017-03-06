@@ -41,7 +41,7 @@ module inp_dlt
   character(len=10),protected :: ForceLaw
   character(len=10),protected :: TruncMethod
   real(wp),protected :: qr_l
-  real(wp),protected :: RWS_v,WLC_v
+  real(wp),protected :: N_Ks,RWS_v,WLC_v
   real(wp),protected :: b
   logical,protected :: applFext
   logical,protected :: srf_tet
@@ -61,8 +61,10 @@ module inp_dlt
   real(wp),protected :: errormin
   integer,protected :: upfactr
   logical,protected :: AveIterCalc
-  character(len=10),protected :: EVForceLaw
+  character(len=10),protected :: EV_bb
+  character(len=10),protected :: EV_bw
   real(wp),protected :: zstar,dstar
+  real(wp),protected :: Aw
   character(len=10),protected :: dstarCalc
   real(wp),protected :: LJ_eps,LJ_sig,LJ_rtr,LJ_rc
   integer,protected :: minNonBond
@@ -112,6 +114,7 @@ contains
 
     use :: iso_fortran_env
     use :: strg_mod, only: parse,value
+    use :: arry_mod, only: sort
 
     integer :: il,j,ntokens,u1,stat,ios,id,k,i,n,msec,tm_inf(8),icnt
     real(wp),allocatable :: u(:)
@@ -123,7 +126,7 @@ contains
     tplgy='Linear'
     LambdaMethod='Rouse'
     ForceLaw='Hookean'
-    TruncMethod='None'
+    TruncMethod='Linear';qr_l=1._wp
     applFext=.false.
     srf_tet=.false.;arm_plc='Random'
     iflow=1 
@@ -134,7 +137,8 @@ contains
     AveIterCalc=.false.
     errormin=real(1.e-2,kind=wp)
     upfactr=50
-    EVForceLaw='NoEV';dstar=1._wp;dstarCalc='Kumar';minNonBond=1
+    EV_bb='NoEV';dstar=1._wp;dstarCalc='Kumar';minNonBond=1
+    EV_bw='NoEV';Aw=25._wp
     initmode='st';infrx=0.7_wp;infry=0._wp;infrz=0._wp
     tend=10._wp;tss=5._wp;trst=0._wp
     ndt=1;dti=0.01_wp;dtf=0.01_wp;dtSpacing='Linear';dtCalc='Self';dtScale=.false.
@@ -216,6 +220,7 @@ rndmlp:         do
                 end do rndmlp
                 deallocate(u)
               end if
+              call sort(Ia) 
 !              print *,'id:',id,Ia
             case ('Rel-Model')
               LambdaMethod=trim(adjustl(tokens(j+1)))
@@ -226,13 +231,11 @@ rndmlp:         do
               ForceLaw=trim(adjustl(tokens(j+1)))
             case ('Truncation')
               TruncMethod=trim(adjustl(tokens(j+1)))
-              if (TruncMethod == 'None') then
-                TruncMethod='Linear'
-                qr_l=1._wp
-              else
+              if (TruncMethod /= 'None') then
                 call value(tokens(j+2),qr_l,ios)
               end if
             case ('N_Ks')
+              call value(tokens(j+1),N_Ks,ios)
               select case (ForceLaw)
                 case ('RWS')
                   call value(tokens(j+1),RWS_v,ios)
@@ -296,8 +299,10 @@ rndmlp:         do
               elseif(tokens(j+1) == 'FALSE') then
                 AveIterCalc=.false.
               end if
-            case ('EVForceLaw')
-              EVForceLaw=trim(adjustl(tokens(j+1)))
+            case ('EV-bb')
+              EV_bb=trim(adjustl(tokens(j+1)))
+            case ('EV-bw')
+              EV_bw=trim(adjustl(tokens(j+1)))
             case ('zstar')
               call value(tokens(j+1),zstar,ios)
             case ('dstar')

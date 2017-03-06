@@ -45,6 +45,7 @@ contains
     real(double),dimension(nbeadx3) :: w,Ybar
     real(double),dimension(nbeadx3,nbeadx3),optional,intent(in) :: D
     real(wp),optional,intent(in) :: boxsizeinp(3)
+    real(wp),allocatable,dimension(:) :: wtemp2
     logical,optional :: msetinp
     type(decomp),intent(inout) :: decompRes
 
@@ -54,6 +55,9 @@ contains
     end if
     if (minit > mub) mub=minit
     allocate(wtemp(nbeadx3),V(nbeadx3,mub),H(mub,mub),sqrtH(mub,mub),lambdaM(mub,mub),lambdaV(mub),e1(mub))
+#ifdef USE_SP
+    allocate(wtemp2(nbeadx3))
+#endif
     e1=0.0_wp;e1(1)=1.0_wp
     H=0.0_wp
     m=minit-1
@@ -73,7 +77,12 @@ mlp:do
             call symv(D,VP,w)
           else ! means PME:
             nbead=nbeadx3/3
+#ifdef USE_DP
             call PME_cpu(VP,nbead,boxsizeinp,w)
+#elif USE_SP
+            call PME_cpu(real(VP,kind=wp),nbead,boxsizeinp,wtemp2)
+            w=real(wtemp2,kind=double)
+#endif
           end if
           if (k == m) wtemp=w
         else
@@ -145,6 +154,9 @@ mlp:do
       cycle mlp
     end do mlp
     deallocate(wtemp,V,H,sqrtH,lambdaM,lambdaV,e1)
+#ifdef USE_SP
+    deallocate(wtemp2)
+#endif
 !   write(*,'(a,g10.4,a,i4)') 'Nember of Lanczos Iteration to achieve error<',errorinp,'=',m
     minit=m
 
@@ -168,6 +180,7 @@ mlp:do
     real(double),dimension(s) :: tau
     real(double),dimension(nbeadx3,nbeadx3),optional,intent(in) :: D
     real(wp),optional,intent(in) :: boxsizeinp(3)
+    real(wp),allocatable,dimension(:) :: Wtemp2
     logical,optional :: msetinp
     type(decomp),intent(inout) :: decompRes
 
@@ -178,6 +191,10 @@ mlp:do
     if (minit > mub) mub=minit
     ms=mub*s
     allocate(Wtemp(nbeadx3,s),V(nbeadx3,ms),R(ms,s),H(ms,ms),sqrtH(ms,ms),lambdaM(ms,ms),lambdaV(ms))
+#ifdef USE_SP
+    allocate(Wtemp2(nbeadx3))
+#endif
+    
     H=0.0_wp
     a=Z;k=0
     call geqrf(a,tau=tau,info=info)
@@ -221,7 +238,12 @@ mlp:do
             do icol=1, s
               VPP => VP(:,icol)
               WPtr => W(:,icol)
+#ifdef USE_DP
               call PME_cpu(VPP,nbead,boxsizeinp,WPtr)
+#elif USE_SP
+              call PME_cpu(real(VPP,kind=wp),nbead,boxsizeinp,Wtemp2)
+              WPtr=real(Wtemp2,kind=double)
+#endif
             end do
           end if
           if (k == m) Wtemp=W
@@ -231,7 +253,7 @@ mlp:do
         if (k > 1) then
           VP => V(:,indexFkm1:indexLkm1)
           HP => H(indexFkm1:indexLkm1,indexFk:indexLk)
-          call gemm(VP,HP,W,alpha=-1.0_wp,beta=1.0_wp)
+          call gemm(VP,HP,W,alpha=-1._double,beta=1._double)
         end if
         VP => V(:,indexFk:indexLk)
         HP => H(indexFk:indexLk,indexFk:indexLk)
@@ -239,7 +261,7 @@ mlp:do
           call gemm(VP,W,HP,transa='T')
         end if
         if (k < m) then
-          call gemm(VP,HP,W,alpha=-1.0_wp,beta=1.0_wp)
+          call gemm(VP,HP,W,alpha=-1._double,beta=1._double)
           a=W
           VP => V(:,indexFkp1:indexLkp1)
           HP => H(indexFkp1:indexLkp1,indexFk:indexLk)
@@ -311,6 +333,9 @@ mlp:do
       cycle mlp
     end do mlp   
     deallocate(Wtemp,V,R,H,sqrtH,lambdaM,lambdaV)
+#ifdef USE_SP
+    deallocate(Wtemp2)
+#endif
 !    write(*,'(a,i4)') 'Nember of Lanczos Iteration=',m
     minit=m
 

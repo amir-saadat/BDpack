@@ -23,7 +23,7 @@ MKLROOT  = /data/apps/intel-compilers/2016u3/compilers_and_libraries_2016.3.210/
 GLBFLGS  = -fpp # Enables preprocessing
 GLBFLGS += -qopenmp # Enables openmp directives
 GLBFLGS += -DUSE_DP # SP or DP for single or double precision
-GLBFLGS	+= -mieee-fp -g -traceback
+GLBFLGS	+= -Ofast -traceback
 ifeq ($(FCOMP),gfortran)
 GLBFLGS += -fcray-pointer
 GLBFLGS += -fbounds-check

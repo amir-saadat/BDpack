@@ -103,16 +103,16 @@ module hi_mod
   !> Diffusion tensor
   real(wp),allocatable,target :: Diff_tens(:,:)
   !> Coefficent tensor
-  real(wp),allocatable :: Coeff_tens(:,:)
+  real(double),allocatable :: Coeff_tens(:,:)
   ! Arrays for different parts of DF when PME is used:
   !> Real part of diffusion tensor
   real(wp),allocatable,target :: Diff_tens_real(:,:)
   !> Reciprocal part of the diffusion tensor
   real(wp),allocatable,target :: Diff_tens_recip(:,:)
   !> Brownian noise: B.dw_bl
-  real(wp),allocatable,target :: dw_bltmp(:,:)
+  real(double),allocatable,target :: dw_bltmp(:,:)
   !> Brownian noise: B.dw_bl
-  real(wp),pointer :: dw_bltmpP(:) => null()
+  real(double),pointer :: dw_bltmpP(:) => null()
   !> Random vectors
   real(wp),allocatable :: dw_bl(:,:)
   !> Force on the mesh

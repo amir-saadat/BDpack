@@ -165,11 +165,11 @@ contains
           if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
             jcol=1
           end if
-          if ((mod(itime,ceiling(tend*lambda/(10*dt(idt)))) == 0) .and. (id == 0)) then
+          if ((mod(itime,ceiling(tend*lambda/(100*dt(idt)))) == 0) .and. (id == 0)) then
             rtpassed=time/lambda
             print '(1x,f10.3," Chain-Relaxation-Time(s) Passed!")',rtpassed
           end if
-  
+!print*,'itime',itime,id  
           ! Constructing the random vector,dW, for the whole Box:
           if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
             do kchain=1, nchain
@@ -207,10 +207,12 @@ contains
           jcol=jcol+1 ! col in the block of random number columns
 
         end do ! time loop
-  
-        if (doTiming) then
-          et_whole=tock(count0)
-          call reportTiming(nchain,nbead)
+
+        if (id == 0) then        
+          if (doTiming) then
+            et_whole=tock(count0)
+            call reportTiming(nchain,nbead)
+          end if
         end if
         ! resetting kchk
         if (irun /= nprun) kchk=0

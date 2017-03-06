@@ -7,7 +7,7 @@
 !|                                                                        |
 !|  This file is part of BDpack.                                          |
 !|                                                                        |
-!|  BDpack is free software: you can redistribute it and/or modify        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
 !|  it under the terms of the GNU General Public License as published by  |
 !|  the Free Software Foundation, either version 3 of the License, or     |
 !|  (at your option) any later version.                                   |
@@ -69,6 +69,16 @@ module arry_mod
      module procedure logspace_sp
      module procedure logspace_dp
   end interface logspace
+
+  public :: sort
+  interface sort
+     module procedure sort_sp
+     module procedure sort_all_sp
+     module procedure sort_dp
+     module procedure sort_all_dp
+     module procedure sort_int
+     module procedure sort_all_int
+  end interface sort
 
 contains
 
@@ -332,6 +342,139 @@ contains
 
   end subroutine print_spmatrix_dp
 
+  subroutine swap_sp(array, i, j)
+    real(sp),intent(inout) :: array(:)
+    integer,intent(in) :: i, j
+    real(sp) :: temp
+    temp = array(j)
+    array(j) = array(i)
+    array(i) = temp
+  end subroutine swap_sp
+
+  subroutine partition_sp(array, left, right, pivot_index, store_index)
+    real(sp),intent(inout) :: array(:)
+    integer,intent(in) :: left, right, pivot_index
+    integer,intent(out) :: store_index
+    real(sp) :: pivot_value
+    integer :: i
+    pivot_value = array(pivot_index)
+    call swap_sp(array, pivot_index, right)
+    store_index = left
+    do i=left, right-1
+       if(array(i) <= pivot_value) then
+          call swap_sp(array, i, store_index)
+          store_index = store_index + 1
+       end if
+    end do
+    call swap_sp(array, store_index, right)
+  end subroutine partition_sp
+
+  recursive subroutine sort_sp(array, left, right)
+    real(sp),intent(inout) :: array(:)
+    integer,intent(in) :: left, right
+    integer :: pivot_index, new_pivot_index
+    if(right > left) then
+       pivot_index = left+(right-left)/2
+       call partition_sp(array, left, right, pivot_index, new_pivot_index)
+       call sort_sp(array, left, new_pivot_index - 1)
+       call sort_sp(array, new_pivot_index + 1, right)
+    end if
+  end subroutine sort_sp
+
+  recursive subroutine sort_all_sp(array)
+    real(sp),intent(inout) :: array(:)
+    call sort_sp(array, 1, size(array))
+  end subroutine sort_all_sp
+
+  subroutine swap_dp(array, i, j)
+    implicit none
+    real(dp),intent(inout) :: array(:)
+    integer,intent(in) :: i, j
+    real(dp) :: temp
+    temp = array(j)
+    array(j) = array(i)
+    array(i) = temp
+  end subroutine swap_dp
+
+  subroutine partition_dp(array, left, right, pivot_index, store_index)
+    real(dp),intent(inout) :: array(:)
+    integer,intent(in) :: left, right, pivot_index
+    integer,intent(out) :: store_index
+    real(dp) :: pivot_value
+    integer :: i
+    pivot_value = array(pivot_index)
+    call swap_dp(array, pivot_index, right)
+    store_index = left
+    do i=left, right-1
+       if(array(i) <= pivot_value) then
+          call swap_dp(array, i, store_index)
+          store_index = store_index + 1
+       end if
+    end do
+    call swap_dp(array, store_index, right)
+  end subroutine partition_dp
+
+  recursive subroutine sort_dp(array, left, right)
+    real(dp),intent(inout) :: array(:)
+    integer,intent(in) :: left, right
+    integer :: pivot_index, new_pivot_index
+    if(right > left) then
+       pivot_index = left+(right-left)/2
+       call partition_dp(array, left, right, pivot_index, new_pivot_index)
+       call sort_dp(array, left, new_pivot_index - 1)
+       call sort_dp(array, new_pivot_index + 1, right)
+    end if
+  end subroutine sort_dp
+
+  recursive subroutine sort_all_dp(array)
+    real(dp),intent(inout) :: array(:)
+    call sort_dp(array, 1, size(array))
+  end subroutine sort_all_dp
+
+  subroutine swap_int(array, i, j)
+    implicit none
+    integer,intent(inout) :: array(:)
+    integer,intent(in) :: i, j
+    integer :: temp
+    temp = array(j)
+    array(j) = array(i)
+    array(i) = temp
+  end subroutine swap_int
+
+  subroutine partition_int(array, left, right, pivot_index, store_index)
+    integer,intent(inout) :: array(:)
+    integer,intent(in) :: left, right, pivot_index
+    integer,intent(out) :: store_index
+    integer :: pivot_value
+    integer :: i
+    pivot_value = array(pivot_index)
+    call swap_int(array, pivot_index, right)
+    store_index = left
+    do i=left, right-1
+       if(array(i) <= pivot_value) then
+          call swap_int(array, i, store_index)
+          store_index = store_index + 1
+       end if
+    end do
+    call swap_int(array, store_index, right)
+  end subroutine partition_int
+
+  recursive subroutine sort_int(array, left, right)
+    integer,intent(inout) :: array(:)
+    integer,intent(in) :: left, right
+    integer :: pivot_index, new_pivot_index
+    if(right > left) then
+       pivot_index = left+(right-left)/2
+       call partition_int(array, left, right, pivot_index, new_pivot_index)
+       call sort_int(array, left, new_pivot_index - 1)
+       call sort_int(array, new_pivot_index + 1, right)
+    end if
+  end subroutine sort_int
+
+  recursive subroutine sort_all_int(array)
+    integer,intent(inout) :: array(:)
+    call sort_int(array, 1, size(array))
+  end subroutine sort_all_int
 
 end module arry_mod
 

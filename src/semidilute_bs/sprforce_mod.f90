@@ -116,12 +116,6 @@ ef: do
               call value(tokens(j+1),b,ios)
             case ('N_Ks')
               call value(tokens(j+1),WLC_v,ios)
-              select case (ForceLaw)
-                case ('WLC_UD')
-                  WLC_A=3._wp/32-3/(8*WLC_v)-3/(2*WLC_v**2)
-                  WLC_B=(13._wp/32+0.4086_wp/WLC_v-14.79_wp/(4*WLC_v**2))/ &
-                              (1-4.225_wp/(2*WLC_v)+4.87_wp/(4*WLC_v**2))
-              end select
           end select
         end do ! j
       end if ! ntokens
@@ -130,6 +124,12 @@ ef: do
 
     qmx=sqrt(b)
   
+    select case (ForceLaw)
+      case ('WLC_UD')
+        WLC_A=3._wp/32-3/(8*WLC_v)-3/(2*WLC_v**2)
+        WLC_B=(13._wp/32+0.4086_wp/WLC_v-14.79_wp/(4*WLC_v**2))/ &
+                    (1-4.225_wp/(2*WLC_v)+4.87_wp/(4*WLC_v**2))
+    end select
   end subroutine init_sprforce
 
   !> Constructor for sprforce type

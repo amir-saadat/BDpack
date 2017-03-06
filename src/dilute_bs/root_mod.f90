@@ -7,7 +7,7 @@
 !|                                                                        |
 !|  This file is part of BDpack.                                          |
 !|                                                                        |
-!|  BDpack is free software: you can redistribute it and/or modify        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
 !|  it under the terms of the GNU General Public License as published by  |
 !|  the Free Software Foundation, either version 3 of the License, or     |
 !|  (at your option) any later version.                                   |
@@ -22,8 +22,10 @@
 !%------------------------------------------------------------------------%
 module root_mod
 
+  use :: prcn_mod  
+
   implicit none
-  integer, parameter :: double = selected_real_kind(15)
+!  integer, parameter :: double = selected_real_kind(15)
 
 contains
 
@@ -33,18 +35,18 @@ contains
     use :: lapack95, only: geev
 
     real(double),intent(in) :: coeffs(:),upper
-    real(double),intent(out) :: root
+    real(wp),intent(out) :: root
     real(double),allocatable :: M(:,:)
     real(double),allocatable :: evr(:),evi(:)
     integer :: N,i,info,nr
-    real(double) :: fctr
+    real(double) :: fctr,root_tmp
 
     ! Constructing the companion matrix
     N=size(coeffs,1)-1
     allocate(M(N,N),evr(N),evi(N))    
-    M=0.d0
+    M=0._double
     fctr=coeffs(N+1) ! We set C(N+1)=1
-    forall (i=1:N-1) M(i,i+1)=1.d0
+    forall (i=1:N-1) M(i,i+1)=1._double
     M(N,:)=-coeffs(1:N)/fctr
 
     call geev(M,evr,evi,info=info)
@@ -55,17 +57,19 @@ contains
 
     nr=0
     do i=1, N
-      if ( (evi(i) == 0.d0) .and. &
-           (evr(i) >= 0.d0) .and. &
+      if ( (evi(i) == 0._double) .and. &
+           (evr(i) >= 0._double) .and. &
            (evr(i) <= upper)) then        
-        root=evr(i)
+        root_tmp=evr(i)
         nr=nr+1
       end if
     end do
     if (nr > 1) then
       print '("Error: More than one root found in root_fndr.")'
       stop
-    end if    
+    end if
+
+    root=real(root_tmp,kind=wp)
 
     deallocate(M,evr,evi)
 
@@ -73,8 +77,9 @@ contains
 
   subroutine CubeRoot(a1,a2,a3,upper,root)
 
-    real(double) :: a1,a2,a3,upper,root
-    real(double) :: p,q,R,x,y,A,B,phi,arg1,arg2,arg3,y1,y2,y3
+    real(double),intent(in) :: a1,a2,a3,upper
+    real(wp),intent(out) :: root
+    real(double) :: p,q,R,x,y,A,B,phi,arg1,arg2,arg3,y1,y2,y3,root_tmp
     real(double),parameter :: PI=3.1415926535897958648d0
     !----------------------------------------------!
     !  subroutine returns the cuberoot, whose      !
@@ -97,7 +102,7 @@ contains
       else
         B=-(-y)**(1.d0/3)
       endif
-      root=A+B-a1/3
+      root_tmp=A+B-a1/3
     else
       phi=acos(sqrt(q**2*27/(-4*p**3)))
       if (q < 0.d0) then
@@ -116,13 +121,15 @@ contains
         y3=-2*sqrt(-p/3)*cos(arg3)-a1/3
       endif
       if ((y3 > 0.d0).and.(y3 < upper)) then
-        root=y3
+        root_tmp=y3
       elseif ((y2 > 0.d0).and.(y2 < upper)) then
-        root=y2
+        root_tmp=y2
       elseif ((y1 > 0.d0).and.(y1 < upper)) then
-        root=y1
+        root_tmp=y1
       endif
     endif
+
+    root=real(root_tmp,kind=wp)
 
   end subroutine CubeRoot
 

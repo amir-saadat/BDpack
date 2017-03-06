@@ -42,6 +42,7 @@ module tmng_mod
   !> Total time
   real(wp) :: et_whole
   real(wp) :: et_CF
+  real(wp) :: et_vlt
   real(wp) :: et_HI
   real(wp) :: et_DT
   real(wp) :: et_DEC
@@ -145,15 +146,16 @@ ef: do
     integer,intent(in) :: nchain,nbead
     integer :: u1
     
-    open (newunit=u1,file='data/Timing.dat',status='unknown',position='append')
+    open (newunit=u1,file='data/Timing.dat',status='replace',position='append')
     write(u1,*) "########## The report for timing in second #############"
     write(u1,*) "# nchain, nbead #"
     write(u1,*) "# ------------- #"
     write(u1,'(1x,2(i5,1x))') nchain, nbead
     write(u1,*) "# ------------- #"
-    write(u1,'(1x,a,1x,f18.6)') 'Time spent in whole simulation:',et_whole 
+    write(u1,'(1x,a,1x,f18.6)') 'Time spent in whole simulation:',et_whole
     write(u1,*) "# ------------- #"
     write(u1,*) 'Detail time spent in Box_move():'
+    write(u1,'(1x,a,1x,f18.6)') 'Calculating verlet list:',et_vlt
     write(u1,'(1x,a,1x,f18.6)') 'Calculating conservative forces:',et_CF
     write(u1,'(1x,a,1x,f18.6)') 'Calculating hydrodynamic interaction:',et_HI
     write(u1,'(1x,a,1x,f18.6)') 'Predictor step:',et_PR

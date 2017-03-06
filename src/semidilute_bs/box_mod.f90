@@ -386,7 +386,7 @@ ef: do
                      L1,L2,update_arng
     use :: tmng_mod, only: et_CF,et_HI,et_DT,et_DEC,et_PR,et_QR,et_PME,et_FFT,&
            et_IFFT,et_SPR,et_INT,et_INF,et_R,et_K,et_EIKR,et_EW,et_DCR,et_DCK,&
-           HIcount,PMEcount,et_CM,tick,tock,doTiming
+           HIcount,PMEcount,et_CM,tick,tock,doTiming,et_vlt
 !    use :: conv_mod, only: Bbar_vals,Bbar_cols,Bbar_rowInd
     use :: io_mod, only: Qst,rcmst,Rbst,CoMDiff
     use :: force_smdlt, only: Fphi,rFphi
@@ -446,6 +446,7 @@ ef: do
       HIcount=0;PMEcount=0
       et_CF=0._wp;et_HI=0._wp;et_DT=0._wp;et_DEC=0._wp
       et_PR=0._wp;et_R=0._wp;et_K=0._wp;et_CM=0._wp
+      et_vlt=0._wp
       select case (HIcalc_mode)
         case ('PME')
           et_PME=0._wp;et_FFT=0._wp;et_IFFT=0._wp;et_SPR=0._wp
@@ -470,6 +471,7 @@ ef: do
     !---------------------------------------------------------
     !>>> Constructing Verlet neighbor list for EV calculation:
     !---------------------------------------------------------
+    if (doTiming) call tick(count0)
     if (EVForceLaw /= 'NoEV') then
       select case (FlowType)
         case ('Equil')
@@ -485,6 +487,7 @@ ef: do
                   itime,itrst,ntotbead,ntotbeadx3)
       end select
     end if
+    if (doTiming) et_vlt=et_vlt+tock(count0)
 
     !----------------------------------------------------------
     !>>> Constructing Verlet neighbour-list for HI calculation:
@@ -538,7 +541,11 @@ ef: do
           call PME_cpu(Fphi,ntotbead,this%size,DF_tot)
           this%Rb_tilde=this%Rb_tilde+0.25_wp*dt*DF_tot
       end select
+#ifdef USE_DP
       this%Rb_tilde=this%Rb_tilde+coeff*dw_bltmp(:,col)
+#elif USE_SP
+      this%Rb_tilde=this%Rb_tilde+coeff*real(dw_bltmp(:,col),kind=wp)
+#endif
     end if
 
     if (doTiming) et_PR=et_PR+tock(count0)

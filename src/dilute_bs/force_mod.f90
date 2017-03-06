@@ -101,7 +101,7 @@ contains
 
   subroutine sprupdate(root_f,PrScale,nroots,dt,RHSP,qstar,iseg,nseg,&
                        ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tpl&
-                       &gy,Amat,nseg_bb,nseg_ar,Ia,Na)
+                       &gy,Amat,nseg_bb,nseg_ar,Ia,Na,itime)
 
     use :: arry_mod, only: print_vector,print_matrix
     use :: root_mod, only: CubeRoot,root_fndr
@@ -110,7 +110,7 @@ contains
   
     character(len=10),intent(in) :: ForceLaw,TruncMethod,tplgy
     real(wp),intent(in) :: dt
-    integer,intent(in) :: PrScale,nroots,iseg,nseg,nseg_bb,nseg_ar,Ia(:),Na
+    integer,intent(in) :: PrScale,nroots,iseg,nseg,nseg_bb,nseg_ar,Ia(:),Na,itime
     real(wp),dimension(3),intent(in) :: RHSP
     real(wp),dimension(3*(nseg+1)),intent(inout)    :: Fbarbead
     real(wp),dimension(3*(nseg)),intent(in),target  :: qstar
@@ -165,11 +165,11 @@ contains
             coeffs(4)=2/b-7*dt/(6*WLC_v*b)+dt/b*(2*WLC_A/3+WLC_B)
             coeffs(5)=RHSmag/b**2
             coeffs(6)=-1/b**2-dt/b**2*(WLC_A/3+WLC_B)
-            coeffs(7)=0.d0
+            coeffs(7)=0._wp
             coeffs(8)=WLC_B*dt/(3*b**3)
-            call root_fndr(coeffs,qmax,qmag)
+            call root_fndr(real(coeffs,kind=double),real(qmax,kind=double),qmag)
             qr=qmag/qmax
-            F=2.d0/3*(1/(1-qr**2)**2-7/(2*WLC_v*(1-qr**2))+WLC_A+WLC_B*(1-qr**2))
+            F=2._wp/3*(1/(1-qr**2)**2-7/(2*WLC_v*(1-qr**2))+WLC_A+WLC_B*(1-qr**2))
           case ('ILCCP')
             ! ILCCP, Inverse Langevin Chain (Cohen-Pade approximation)
             denom=1+dt/6
@@ -189,7 +189,7 @@ contains
                           real(a3,kind=double),real(qmax,kind=double),qmag)
             F = RWS_C/3*(1-RWS_D/RWS_C*(qmag/qmax)**2)/(1-(qmag/qmax)**2)
         end select
-        if ((qmag<=0.0_wp).or.(qmag>=qmax)) then
+        if ((qmag<=0._wp).or.(qmag>=qmax)) then
           print '(" Oops! wrong root in SegForce Routine.")'
           print '(" Root No: ",i10," |q|: ",f14.7)',iRHS,qmag
           stop
@@ -353,7 +353,7 @@ contains
         end if
 
       case default
-        call gemv(Amat,Fbarseg,Fbarbead,alpha=-1.d0,trans='T')
+        call gemv(Amat,Fbarseg,Fbarbead,alpha=-1._wp,trans='T')
     end select
 
   end subroutine sprupdate

@@ -20,7 +20,7 @@
 !|  You should have received a copy of the GNU General Public License     |
 !|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
 !%------------------------------------------------------------------------%
-subroutine HICalc(rvmrc,nseg,HITens,DiffTens,EVForceLaw,Fev)
+subroutine HICalc(rvmrc,nseg,HITens,DiffTens,EV_bb,Fev)
 
   use :: prcn_mod
   use :: arry_mod, only: print_vector,print_matrix
@@ -30,7 +30,7 @@ subroutine HICalc(rvmrc,nseg,HITens,DiffTens,EVForceLaw,Fev)
   real(wp),parameter :: PI=3.1415926535897958648_wp!4*atan(1.0_wp)
   real(wp),parameter :: sqrtPI=sqrt(PI)
   integer :: offset,offseti,offsetj
-  character(len=10) :: HITens,EVForceLaw
+  character(len=10) :: HITens,EV_bb
   real(wp),dimension(3*(nseg+1),3*(nseg+1)),intent(out) :: DiffTens
 !  real(wp),dimension(3*nseg),intent(in) :: q
   real(wp),dimension(3*(nseg+1)),intent(in) :: rvmrc
@@ -62,11 +62,11 @@ subroutine HICalc(rvmrc,nseg,HITens,DiffTens,EVForceLaw,Fev)
   end if
   rmagmin=1.0e-7_wp ! The Minimum value accepted as the |rij|
 !  qxtemp=0._wp;qytemp=0._wp;qztemp=0._wp
-  if (EVForceLaw /= 'NoEV') then
+  if (EV_bb /= 'NoEV') then
     Fev=0._wp
-    if (EVForceLaw == 'Gauss') then
+    if (EV_bb == 'Gauss') then
       prefactor=zstar/dstar**5;denom=2*dstar**2
-    elseif (EVForceLaw == 'LJ') then
+    elseif (EV_bb == 'LJ') then
       epsOVsig=LJ_eps/LJ_sig
       sigOVrtr=LJ_sig/LJ_rtr
       sigOVrtrto6=sigOVrtr*sigOVrtr*sigOVrtr*sigOVrtr*sigOVrtr*sigOVrtr
@@ -110,17 +110,17 @@ subroutine HICalc(rvmrc,nseg,HITens,DiffTens,EVForceLaw,Fev)
           write(*,*) ibead,jbead
           stop
         end if
-        if (EVForceLaw /= 'NoEV') then
+        if (EV_bb /= 'NoEV') then
           ! Note that the forces are repulsive and for Fi=+ if rij=ri-rj. But, with
           ! the algorithm used above we have used rij=rj-ri, hence we set Fi=-.
-          if (EVForceLaw == 'Gauss') then
+          if (EV_bb == 'Gauss') then
             Fev(offseti+1)=Fev(offseti+1)-prefactor*rxij*exp(-rijmag*rijmag/denom)
             Fev(offsetj+1)=Fev(offsetj+1)+prefactor*rxij*exp(-rijmag*rijmag/denom)
             Fev(offseti+2)=Fev(offseti+2)-prefactor*ryij*exp(-rijmag*rijmag/denom)
             Fev(offsetj+2)=Fev(offsetj+2)+prefactor*ryij*exp(-rijmag*rijmag/denom)
             Fev(offseti+3)=Fev(offseti+3)-prefactor*rzij*exp(-rijmag*rijmag/denom)
             Fev(offsetj+3)=Fev(offsetj+3)+prefactor*rzij*exp(-rijmag*rijmag/denom)
-          elseif (EVForceLaw == 'LJ') then
+          elseif (EV_bb == 'LJ') then
             if (abs(ibead-jbead).ge.minNonBond) then ! Only for Non-neighboring beads. Importrant!!
               if ((rijmag.gt.LJ_rtr).and.(rijmag.le.LJ_rc)) then
                 sigOVrmag=LJ_sig/rijmag
@@ -142,8 +142,8 @@ subroutine HICalc(rvmrc,nseg,HITens,DiffTens,EVForceLaw,Fev)
                 Fev(offsetj+3)=Fev(offsetj+3)+LJ_prefactor_tr*rzij/rijmag
               end if ! As else, nothing should be added to the corresponding force elements
             end if ! abs(ibead-jbead)
-          end if ! EVForceLaw
-        end if ! EVForceLaw
+          end if ! EV_bb
+        end if ! EV_bb
         if (HITens == 'RPY') then
           if (rijmag >= D) then
             Alpha=A/rijmag+B/rijmagto3;Beta=A/rijmagto3;Gamm=C/rijmagto5
@@ -200,7 +200,7 @@ subroutine HICalc(rvmrc,nseg,HITens,DiffTens,EVForceLaw,Fev)
 
 end subroutine HICalc
 
-subroutine EVCalc(rvmrc,nseg,EVForceLaw,Fev)
+subroutine EVCalc(rvmrc,nseg,EV_bb,Fev)
 
   use :: prcn_mod
   use :: arry_mod, only: print_vector,print_matrix
@@ -208,7 +208,7 @@ subroutine EVCalc(rvmrc,nseg,EVForceLaw,Fev)
 
   implicit real(wp) (a-h, o-z)
   integer :: offset,offseti,offsetj 
-  character(len=10) :: EVForceLaw 
+  character(len=10) :: EV_bb 
 !  real(wp),dimension(3*nseg),intent(in) :: q
   real(wp),dimension(3*(nseg+1)),intent(in) :: rvmrc
 !  real(wp),allocatable,dimension(:) :: qxtemp,qytemp,qztemp
@@ -220,7 +220,7 @@ subroutine EVCalc(rvmrc,nseg,EVForceLaw,Fev)
   rmagmin=1.0e-7_wp ! The Minimum value accepted as the |rij|
   Fev=0._wp
   prefactor=zstar/dstar**5;denom=2*dstar**2
-  if (EVForceLaw.eq.'LJ') then
+  if (EV_bb.eq.'LJ') then
     epsOVsig=LJ_eps/LJ_sig
     sigOVrtr=LJ_sig/LJ_rtr
     sigOVrtrto6=sigOVrtr*sigOVrtr*sigOVrtr*sigOVrtr*sigOVrtr*sigOVrtr
@@ -253,14 +253,14 @@ subroutine EVCalc(rvmrc,nseg,EVForceLaw,Fev)
         end if
         ! Note that the forces are repulsive and for Fi=+ if rij=ri-rj. But, with
         ! the algorithm used above we have used rij=rj-ri, hence we set Fi=-.        
-        if (EVForceLaw == 'Gauss') then
+        if (EV_bb == 'Gauss') then
           Fev(offseti+1)=Fev(offseti+1)-prefactor*rxij*exp(-rijmag2/denom)
           Fev(offsetj+1)=Fev(offsetj+1)+prefactor*rxij*exp(-rijmag2/denom)
           Fev(offseti+2)=Fev(offseti+2)-prefactor*ryij*exp(-rijmag2/denom)
           Fev(offsetj+2)=Fev(offsetj+2)+prefactor*ryij*exp(-rijmag2/denom)
           Fev(offseti+3)=Fev(offseti+3)-prefactor*rzij*exp(-rijmag2/denom)
           Fev(offsetj+3)=Fev(offsetj+3)+prefactor*rzij*exp(-rijmag2/denom)
-        elseif (EVForceLaw == 'LJ') then
+        elseif (EV_bb == 'LJ') then
           rijmag=sqrt(rijmag2)
           if (abs(ibead-jbead).ge.minNonBond) then ! Only for Non-neighboring beads. Importrant!!
             if ((rijmag.gt.LJ_rtr).and.(rijmag.le.LJ_rc)) then
@@ -283,7 +283,7 @@ subroutine EVCalc(rvmrc,nseg,EVForceLaw,Fev)
               Fev(offsetj+3)=Fev(offsetj+3)+LJ_prefactor_tr*rzij/rijmag
             end if ! As else, nothing should be added to the corresponding force elements
           end if ! abs(ibead-jbead)
-        end if ! EVForceLaw
+        end if ! EV_bb
       end if ! ibead /= jbead
     end do
   end do
@@ -294,7 +294,7 @@ subroutine EVUpdate(Fev,rvmrc,Fbarev)
 
   use :: prcn_mod
   use :: arry_mod, only: print_vector,print_matrix
-  use :: inp_dlt, only: nseg,EVForceLaw,zstar,dstar,LJ_eps,LJ_sig,LJ_rtr,LJ_rc,minNonBond
+  use :: inp_dlt, only: nseg,EV_bb,zstar,dstar,LJ_eps,LJ_sig,LJ_rtr,LJ_rc,minNonBond
 
   implicit real(wp) (a-h, o-z)
   integer :: offset,offseti,offsetj
@@ -313,7 +313,7 @@ subroutine EVUpdate(Fev,rvmrc,Fbarev)
   rmagmin=1.0e-6_wp ! The Minimum value accepted as the |rij|
   Fstarev=0._wp
   prefactor=zstar/dstar**5;denom=2*dstar**2
-  if (EVForceLaw.eq.'LJ') then
+  if (EV_bb.eq.'LJ') then
     epsOVsig=LJ_eps/LJ_sig
     sigOVrtr=LJ_sig/LJ_rtr
     sigOVrtrto6=sigOVrtr*sigOVrtr*sigOVrtr*sigOVrtr*sigOVrtr*sigOVrtr
@@ -340,14 +340,14 @@ subroutine EVUpdate(Fev,rvmrc,Fbarev)
           write(*,*) ibead,jbead
           stop
         end if
-        if (EVForceLaw == 'Gauss') then
+        if (EV_bb == 'Gauss') then
           Fstarev(offseti+1)=Fstarev(offseti+1)-prefactor*rxij*exp(-rijmag2/denom)
           Fstarev(offsetj+1)=Fstarev(offsetj+1)+prefactor*rxij*exp(-rijmag2/denom)
           Fstarev(offseti+2)=Fstarev(offseti+2)-prefactor*ryij*exp(-rijmag2/denom)
           Fstarev(offsetj+2)=Fstarev(offsetj+2)+prefactor*ryij*exp(-rijmag2/denom)
           Fstarev(offseti+3)=Fstarev(offseti+3)-prefactor*rzij*exp(-rijmag2/denom)
           Fstarev(offsetj+3)=Fstarev(offsetj+3)+prefactor*rzij*exp(-rijmag2/denom)
-        elseif (EVForceLaw == 'LJ') then
+        elseif (EV_bb == 'LJ') then
           rijmag=sqrt(rijmag2)
           if (abs(ibead-jbead).ge.minNonBond) then
             if ((rijmag.gt.LJ_rtr).and.(rijmag.le.LJ_rc)) then
@@ -370,7 +370,7 @@ subroutine EVUpdate(Fev,rvmrc,Fbarev)
               Fstarev(offsetj+3)=Fstarev(offsetj+3)+LJ_prefactor_tr*rzij/rijmag
             end if ! As else, nothing should be added to the corresponding force elements
           end if ! abs(ibead - jbead)
-        end if ! EVForceLaw 
+        end if ! EV_bb 
       end if ! ibead /= jbead
     end do
   end do

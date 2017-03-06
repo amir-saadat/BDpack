@@ -26,10 +26,12 @@ module dlt_mod
   use :: iso_fortran_env
   use :: inp_dlt
   use :: prcn_mod
-  use :: arry_mod, only: logspace,linspace,print_vector,print_matrix
+  use :: arry_mod, only: logspace,linspace,print_vector,print_matrix,sort
   use :: force_mod, only: sprforce,sprupdate,bndforce,bndupdate,tetforce,tetupdate
   use :: dcmp_mod, only: Lanczos,BlockLanczos,MKLsyevr,BlockChebyshev
   use :: pp_mod, only: pp_init,pp_init_tm,data_prcs,conf_sort,del_pp
+!  use :: hiev_mod, only: hi_init,ev_init,hicalc2,evcalc2,evupdate2,intrncalc
+  use :: hiev_mod, only: hi_init,ev_init,evbw_init,intrncalc
 
   implicit none
 
@@ -343,6 +345,7 @@ contains
       end if
       close(u39)
     end if
+    call sort(Ia)
 
     !----------------------------------------------------------------
     !>>>>> Constant tensors in SDE:
@@ -535,13 +538,14 @@ contains
         CoeffTens(:,:,ichain)=Eye
       end do
     end if
-    if (EVForceLaw == 'NoEV') Fev=0._wp;Fbarev=0._wp
+    if (EV_bb == 'NoEV') Fev=0._wp;Fbarev=0._wp
     if (ForceLaw /= 'WLC_GEN') Fbnd=0._wp;Fbarbnd=0._wp
     if (DecompMeth == 'Chebyshev') then
 !      Eye=0._wp
       forall (i=1:nbeadx3) uminus(i)=real((-1)**i,kind=wp)
       forall (i=1:nbeadx3) uplus(i)=1.0_wp
     end if
+
 
     !----------------------------------------------------------------
     !>>>>> Configuration initialization:
@@ -647,6 +651,14 @@ contains
     close (u2);if (CoM) close (u3);if (CoHR) close(u4)
     
     allocate(root_f(PrScale*nroots))
+
+    !----------------------------------------------------------------
+    !>>>>> HI and EV initialization:
+    !----------------------------------------------------------------
+
+    call hi_init()
+    call ev_init()
+    call evbw_init()
 
     !----------------------------------------------------------------
     !>>>>> Time integration of SDE:
@@ -789,14 +801,19 @@ contains
             ! Constructing an array for each individual chain
             qc(:)=q(:,ichain)
             rvmrcP => rvmrc(:,ichain)
+            if (CoM) rcmP => rcm(:,ichain)
             call sprforce(qc,nseg,ForceLaw,TruncMethod,Fseg)
             if (ForceLaw == 'WLC_GEN') call bndforce(nbead_bb,qc,Fbnd,itime)
             ! Calculation of Diffusion Tensor and Excluded Volume Force
             EVcalcd=.false.
             if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
               if ((hstar /= 0._wp).or.(DecompMeth /= 'Cholesky')) then
-                if (EVForceLaw /= 'NoEV') EVcalcd=.true.
-                call HICalc(rvmrcP,nseg,HITens,DiffTensP,EVForceLaw,Fev)
+                if (EV_bb /= 'NoEV') EVcalcd=.true.
+!call hicalc2(rvmrcP,nseg,DiffTensP,Fev)
+!call print_matrix(DiffTensP,'d1')
+                  call HICalc(rvmrcP,nseg,HITens,DiffTensP,EV_bb,Fev)
+!call print_matrix(DiffTensP,'d2')
+!                  call intrncalc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,calchi=.true.,calcev=.true.)
               end if
               if (DecompMeth == 'Cholesky') then
                 if (hstar /= 0._wp) then
@@ -816,30 +833,24 @@ contains
                 if ((mod(itime,upfactr*ncols) == 1) .or. (upfactr == 1)) then
                   mrestart=mBlLan
                   if (ncols == 1) then
-                    call Lanczos(real(DiffTensP,kind=double),real(wbl,kind=doubl&
-                                 &e),real(WBlLan,kind=double),real(Ybar,kind=dou&
-                                 &ble),nbeadx3,real(errormin,kind=double),mubBlL&
-                                 &an,mrestart,wbltempP1,msetinp=mset)
+                  call Lanczos(real(DiffTensP,kind=double),real(wbl,kind=double),real(WBlLan,kind=double),&
+                              real(Ybar,kind=double),nbeadx3,real(errormin,kind=double),mubBlLan,mrestart,&
+                              wbltempP1,msetinp=mset)
                   else
-                    call BlockLanczos(real(DiffTensP,kind=double),real(wbl,kind=&
-                                      &double),real(aBlLan,kind=double),real(WBl&
-                                      &Lan,kind=double),real(Ybar,kind=double),n&
-                                      &beadx3,ncols,real(errormin,kind=double),m&
-                                      &ubBlLan,mrestart,wbltempP1,msetinp=mset)
+                  call BlockLanczos(real(DiffTensP,kind=double),real(wbl,kind=double),real(aBlLan,kind=double),&
+                      real(WBlLan,kind=double),real(Ybar,kind=double),nbeadx3,ncols,real(errormin,kind=double),&
+                      mubBlLan,mrestart,wbltempP1,msetinp=mset)
                   endif
                   mch(ichain)=mrestart
                 else
                   if (ncols == 1) then
-                    call Lanczos(real(DiffTensP,kind=double),real(wbl,kind=doubl&
-                                 &e),real(WBlLan,kind=double),real(Ybar,kind=dou&
-                                 &ble),nbeadx3,real(errormin,kind=double),mubBlL&
-                                 &an,mch(ichain),wbltempP1,msetinp=mset)
+                  call Lanczos(real(DiffTensP,kind=double),real(wbl,kind=double),real(WBlLan,kind=double),&
+                           real(Ybar,kind=double),nbeadx3,real(errormin,kind=double),mubBlLan,mch(ichain),&
+                           wbltempP1,msetinp=mset)
                   else
-                    call BlockLanczos(real(DiffTensP,kind=double),real(wbl,kind=&
-                                      &double),real(aBlLan,kind=double),real(WBl&
-                                      &Lan,kind=double),real(Ybar,kind=double),n&
-                                      &beadx3,ncols,real(errormin,kind=double),m&
-                                      &ubBlLan,mch(ichain),wbltempP1,msetinp=mset)
+                  call BlockLanczos(real(DiffTensP,kind=double),real(wbl,kind=double),real(aBlLan,kind=double),&
+                      real(WBlLan,kind=double),real(Ybar,kind=double),nbeadx3,ncols,real(errormin,kind=double),&
+                      mubBlLan,mch(ichain),wbltempP1,msetinp=mset)
                   end if
                 end if
               elseif (DecompMeth == 'Chebyshev') then
@@ -852,12 +863,9 @@ contains
                   lambdaminFixman=dot(uminus,Ddotuminus)/nbeadx3
                   lambdamaxFixman=dot(uplus,Ddotuplus)/nbeadx3
                   lambdaBE=(/lambdaminFixman/2,2*lambdamaxFixman/)
-                  call BlockChebyshev(real(DiffTensP,kind=double),real(Eye,kind=&
-                                      &double),real(Dsh,kind=double),real(wbl,ki&
-                                      &nd=double),nbeadx3,ncols,Lub,Lrestart,wbl&
-                                      &tempP1,real(Ybar,kind=double),MKLsyevr,re&
-                                      &al(errormin,kind=double),lambdainp=real(l&
-                                      &ambdaBE,kind=double),Lsetinp=Lset)
+                  call BlockChebyshev(real(DiffTensP,kind=double),real(Eye,kind=double),real(Dsh,kind=double),&
+                            real(wbl,kind=double),nbeadx3,ncols,Lub,Lrestart,wbltempP1,real(Ybar,kind=double),&
+                            MKLsyevr,real(errormin,kind=double),lambdainp=real(lambdaBE,kind=double),Lsetinp=Lset)
                   Lch(ichain)=Lrestart
                 else
                   ! Calculation of dmin and dmax passed with lambdain to 
@@ -867,22 +875,18 @@ contains
                   lambdaminFixman=dot(uminus,Ddotuminus)/nbeadx3
                   lambdamaxFixman=dot(uplus,Ddotuplus)/nbeadx3
                   lambdaBE=(/lambdaminFixman/2,2*lambdamaxFixman/)
-                  call BlockChebyshev(real(DiffTensP,kind=double),real(Eye,kind=&
-                                      &double),real(Dsh,kind=double),real(wbl,ki&
-                                      &nd=double),nbeadx3,ncols,Lub,Lch(ichain),&
-                                      &wbltempP1,real(Ybar,kind=double),MKLsyevr&
-                                      &,real(errormin,kind=double),lambdainp=rea&
-                                      &l(lambdaBE,kind=double),Lsetinp=Lset)
+                  call BlockChebyshev(real(DiffTensP,kind=double),real(Eye,kind=double),real(Dsh,kind=double),&
+                         real(wbl,kind=double),nbeadx3,ncols,Lub,Lch(ichain),wbltempP1,real(Ybar,kind=double),&
+                         MKLsyevr,real(errormin,kind=double),lambdainp=real(lambdaBE,kind=double),Lsetinp=Lset)
                 end if
               end if
               do lcol=1, ncols
                 wbltempP2 => wbltemp(:,lcol,ichain)
                 FBrblP => FBrbl(:,lcol,ichain)
                 if (tplgy == 'Linear') then
-                  call gbmv(AmatBF,real(wbltempP2,kind=wp),FBrblP,&
-                            kl=0,m=nsegx3,alpha=coeff)
+                  call gbmv(AmatBF,real(wbltempP2,kind=wp),FBrblP,kl=0,m=nsegx3,alpha=coeff)
                 else
-                  call gemv(Amat,wbltempP2,FBrblP,alpha=coeff)
+                  call gemv(Amat,real(wbltempP2,kind=wp),FBrblP,alpha=coeff)
                 end if
               end do
               ! Calculation of AdotD=Amat.D, to be used in Predictor-Corrector
@@ -893,8 +897,10 @@ contains
               end if
             end if
             FBr=FBrbl(:,jcol,ichain)
-            if ((EVForceLaw /= 'NoEV') .and. (.not.EVcalcd)) then
-                call EVCalc(rvmrcP,nseg,EVForceLaw,Fev)
+            if ((EV_bb /= 'NoEV') .and. (.not.EVcalcd)) then
+                call EVCalc(rvmrcP,nseg,EV_bb,Fev)
+!              call intrncalc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,calcev=.true.)
+!call evcalc2(rvmrcP,nseg,Fev)
             end if
             !============ Predictor-Corrector =============!
             !--------Predictor Algorithm----------!
@@ -912,7 +918,7 @@ contains
             if (tplgy == 'Linear') then
               call gbmv(AmatBF,Fseg,Fbead,kl=0,m=nsegx3,alpha=-1.0_wp,trans='T')
             else
-              call gemv(Amat,Fseg,Fbead,alpha=-1.d0,trans='T')
+              call gemv(Amat,Fseg,Fbead,alpha=-1._wp,trans='T')
             end if
             call copy(qc,qstar)
             call axpy(Kdotq,qstar)
@@ -946,8 +952,13 @@ contains
             call gemv(Bmat,qstar,rvmrcP) 
             call copy(qc,RHS)
             call axpy(Kdotq,RHS,a=0.5_wp)
-            if (EVForceLaw /= 'NoEV') then
+            if (EV_bb /= 'NoEV') then
               call EVUpdate(Fev,rvmrcP,Fbarev)
+!call intrncalc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,updtev=.true.)
+!call print_vector(Fev,'fev3')
+!call evupdate2(Fev,rvmrcP,nseg,Fbarev)
+!call print_vector(Fev,'fev4')
+!stop
             end if
             if (ForceLaw == 'WLC_GEN') then
               call bndupdate(nbead_bb,Fbnd,qstar,Fbarbnd,itime)
@@ -976,7 +987,7 @@ contains
               call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
               call sprupdate(root_f,PrScale,nroots,dt(iPe,idt),RHSP,qstar,iseg,nseg,&
                               ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,Amat,&
-                              nseg_bb,nseg_ar,Ia,Na)
+                              nseg_bb,nseg_ar,Ia,Na,itime)
             end do
             !----------Second Corrector Algorithm----------!
             ! q=qbar;Fseg=Fbarseg;Fbead=Fbarbead           !
@@ -1008,7 +1019,7 @@ contains
                 call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
                 call sprupdate(root_f,PrScale,nroots,dt(iPe,idt),RHSP,qbar,iseg,nseg,&
                                ForceLaw,TruncMethod,qc,Fseg,Fbead,tplgy,Amat,nseg_bb,&
-                               nseg_ar,Ia,Na)
+                               nseg_ar,Ia,Na,itime)
               end do
               eps=nrm2(qc-qctemp)/nrm2(qctemp)         
               icount=icount+1
@@ -1360,7 +1371,7 @@ contains
               coeffs(4)=2/b-7*dttmp/(6*WLC_v*b)+dttmp/b*(2*WLC_A/3+WLC_B)
               coeffs(5)=rhsmag/b**2
               coeffs(6)=-1/b**2-dttmp/b**2*(WLC_A/3+WLC_B)
-              coeffs(7)=0.d0
+              coeffs(7)=0._wp
               coeffs(8)=WLC_B*dttmp/(3*b**3)
             case ('ILCCP')
               ! ILCCP, Inverse Langevin Chain (Cohen-Pade approximation)
@@ -1381,7 +1392,7 @@ contains
               a3=rhsmag*b/denom
           end select
           if ((ForceLaw == 'WLC_UD').or.(ForceLaw == 'WLC_GEN')) then
-            call root_fndr(coeffs,qmax,root_f(nr+1))
+            call root_fndr(real(coeffs,kind=double),real(qmax,kind=double),root_f(nr+1))
           else
             call CubeRoot(real(a1,kind=double),real(a2,kind=double)  ,&
                           real(a3,kind=double),real(qmax,kind=double),&

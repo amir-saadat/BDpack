@@ -484,8 +484,8 @@ ef: do
       if (nrun > 1) then
         if (myrank == 0) then
           open (newunit=u36,file='data/rAveReeSq.dat',status='unknown',position='append')
-          write(u36,*) "# nbead, Wi, dt, <Ree2>r, <sd(Ree2)>r, sd<Ree2>r #"
-          write(u36,*) "# ---------------------------------------------- #"            
+          write(u36,*) "# nbead, Wi, dt, <<Ree2>t>r, <sd(<Ree2>t)>r, sd<Ree2>r #"
+          write(u36,*) "# ---------------------------------------------------- #"            
           open (newunit=u29,file='data/rAveRee.dat',status='unknown',position='append')
           write(u29,*) "# Wi, dt, <<|Qee|>/|Qee|_mx>r, <sd<|Qee|>/|Qee|_mx>r, sd<<|Qee|>/|Qee|_mx>r #"
           write(u29,*) "# ------------------------------------------------------------------------- #"

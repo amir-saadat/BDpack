@@ -55,11 +55,18 @@ contains
 
     if (HIcalc_mode == 'Ewald') then
 
-      if (DecompMeth == 'Cholesky') then
-        
+      if (DecompMeth == 'Cholesky') then 
+#ifdef USE_DP
         dw_bltmp=dw_bl
+#elif USE_SP
+        dw_bltmp=real(dw_bl,kind=double)
+#endif
         if (hstar /= 0._wp) then
+#ifdef USE_DP
           Coeff_tens=Diff_tens
+#elif USE_SP
+          Coeff_tens=real(Diff_tens,kind=double)
+#endif
           call potrf(Coeff_tens,info=info)
           if (info /= 0) then
             print '(" Unsuccessful Cholesky factorization of diffusion matrix")'
@@ -82,17 +89,17 @@ contains
 #elif USE_SP
             ! Note!!: Even if the working precision is sp, the decomposition has to be done with dp.
             call Lanczos(real(dw_bl,kind=double),real(WBlLan,kind=double),real(Ybar,kind=double),ntotbeadx3,&
-real(errormin,kind=double),mubBlLan,mrst,real(dw_bltmp,kind=double),decompRes,D=real(Diff_tens,kind=double),&
-msetinp=mset)
+                  real(errormin,kind=double),mubBlLan,mrst,dw_bltmp,decompRes,D=real(Diff_tens,kind=double),&
+                  msetinp=mset)
 #endif
           else
 #ifdef USE_DP
             call BlockLanczos(dw_bl,aBlLan,WBlLan,Ybar,ntotbeadx3,ncols,errormin,mubBlLan,mrst,dw_bltmp,&
-decompRes,D=Diff_tens,msetinp=mset)
+                              decompRes,D=Diff_tens,msetinp=mset)
 #elif USE_SP
-            call BlockLanczos(real(dw_bl,kind=double),real(aBlLan,kind=double),real(WBlLan,kind=double)    ,&
-real(Ybar,kind=double),ntotbeadx3,ncols,real(errormin,kind=double),mubBlLan,mrst,real(dw_bltmp,kind=double),&
-decompRes,D=real(Diff_tens,kind=double),msetinp=mset)
+            call BlockLanczos(real(dw_bl,kind=double),real(aBlLan,kind=double),real(WBlLan,kind=double),&
+                       real(Ybar,kind=double),ntotbeadx3,ncols,real(errormin,kind=double),mubBlLan,mrst,&
+                       dw_bltmp,decompRes,D=real(Diff_tens,kind=double),msetinp=mset)
 #endif
           endif
           mst=mrst
@@ -100,20 +107,20 @@ decompRes,D=real(Diff_tens,kind=double),msetinp=mset)
           if (ncols == 1) then
 #ifdef USE_DP
             call Lanczos(dw_bl,WBlLan,Ybar,ntotbeadx3,errormin,mubBlLan,mst,dw_bltmp,decompRes,D=Diff_tens,&
-msetinp=mset)
+                         msetinp=mset)
 #elif USE_SP
             call Lanczos(real(dw_bl,kind=double),real(WBlLan,kind=double),real(Ybar,kind=double),ntotbeadx3,&
-real(errormin,kind=double),mubBlLan,mst,real(dw_bltmp,kind=double),decompRes,D=real(Diff_tens,kind=double) ,&
-msetinp=mset)
+                   real(errormin,kind=double),mubBlLan,mst,dw_bltmp,decompRes,D=real(Diff_tens,kind=double),&
+                   msetinp=mset)
 #endif
           else
 #ifdef USE_DP
             call BlockLanczos(dw_bl,aBlLan,WBlLan,Ybar,ntotbeadx3,ncols,errormin,mubBlLan,mst,dw_bltmp,&
-decompRes,D=Diff_tens,msetinp=mset)
+                              decompRes,D=Diff_tens,msetinp=mset)
 #elif USE_SP
-            call BlockLanczos(real(dw_bl,kind=double),real(aBlLan,kind=double),real(WBlLan,kind=double)   ,&
-real(Ybar,kind=double),ntotbeadx3,ncols,real(errormin,kind=double),mubBlLan,mst,real(dw_bltmp,kind=double),&
-decompRes,D=real(Diff_tens,kind=double),msetinp=mset)
+            call BlockLanczos(real(dw_bl,kind=double),real(aBlLan,kind=double),real(WBlLan,kind=double),&
+                        real(Ybar,kind=double),ntotbeadx3,ncols,real(errormin,kind=double),mubBlLan,mst,&
+                        dw_bltmp,decompRes,D=real(Diff_tens,kind=double),msetinp=mset)
 #endif
           end if
         end if
@@ -129,40 +136,40 @@ decompRes,D=real(Diff_tens,kind=double),msetinp=mset)
           mrst=mBlLan
           if (ncols == 1) then
 #ifdef USE_DP
-            call Lanczos(dw_bl,WBlLan,Ybar,ntotbeadx3,errormin,mubBlLan,mrst,dw_bltmp,decompRes,boxsizeinp=boxsize,&
-msetinp=mset)
+            call Lanczos(dw_bl,WBlLan,Ybar,ntotbeadx3,errormin,mubBlLan,mrst,dw_bltmp,decompRes,&
+                         boxsizeinp=boxsize,msetinp=mset)
 #elif USE_SP
             call Lanczos(real(dw_bl,kind=double),real(WBlLan,kind=double),real(Ybar,kind=double),ntotbeadx3,&
-real(errormin,kind=double),mubBlLan,mrst,real(dw_bltmp,kind=double),decompRes,boxsizeinp=boxsize,msetinp=mset)
+                 real(errormin,kind=double),mubBlLan,mrst,dw_bltmp,decompRes,boxsizeinp=boxsize,msetinp=mset)
 #endif
           else
 #ifdef USE_DP
             call BlockLanczos(dw_bl,aBlLan,WBlLan,Ybar,ntotbeadx3,ncols,errormin,mubBlLan,mrst,dw_bltmp,&
-decompRes,boxsizeinp=boxsize,msetinp=mset)
+                              decompRes,boxsizeinp=boxsize,msetinp=mset)
 #elif USE_SP
-            call BlockLanczos(real(dw_bl,kind=double),real(aBlLan,kind=double),real(WBlLan,kind=double)    ,&
-real(Ybar,kind=double),ntotbeadx3,ncols,real(errormin,kind=double),mubBlLan,mrst,real(dw_bltmp,kind=double),&
-decompRes,boxsizeinp=boxsize,msetinp=mset)
+            call BlockLanczos(real(dw_bl,kind=double),real(aBlLan,kind=double),real(WBlLan,kind=double),&
+                       real(Ybar,kind=double),ntotbeadx3,ncols,real(errormin,kind=double),mubBlLan,mrst,&
+                       dw_bltmp,decompRes,boxsizeinp=boxsize,msetinp=mset)
 #endif
           endif
           mst=mrst
         else
           if (ncols == 1) then
 #ifdef USE_DP
-            call Lanczos(dw_bl,WBlLan,Ybar,ntotbeadx3,errormin,mubBlLan,mst,dw_bltmp,decompRes,boxsizeinp=boxsize,&
-msetinp=mset)
+            call Lanczos(dw_bl,WBlLan,Ybar,ntotbeadx3,errormin,mubBlLan,mst,dw_bltmp,decompRes,&
+                         boxsizeinp=boxsize,msetinp=mset)
 #elif USE_SP
             call Lanczos(real(dw_bl,kind=double),real(WBlLan,kind=double),real(Ybar,kind=double),ntotbeadx3,&
-real(errormin,kind=double),mubBlLan,mst,real(dw_bltmp,kind=double),decompRes,boxsizeinp=boxsize,msetinp=mset)
+                  real(errormin,kind=double),mubBlLan,mst,dw_bltmp,decompRes,boxsizeinp=boxsize,msetinp=mset)
 #endif
           else
 #ifdef USE_DP
             call BlockLanczos(dw_bl,aBlLan,WBlLan,Ybar,ntotbeadx3,ncols,errormin,mubBlLan,mst,dw_bltmp,&
-decompRes,boxsizeinp=boxsize,msetinp=mset)
+                              decompRes,boxsizeinp=boxsize,msetinp=mset)
 #elif USE_SP
-            call BlockLanczos(real(dw_bl,kind=double),real(aBlLan,kind=double),real(WBlLan,kind=double)   ,&
-real(Ybar,kind=double),ntotbeadx3,ncols,real(errormin,kind=double),mubBlLan,mst,real(dw_bltmp,kind=double),&
-decompRes,boxsizeinp=boxsize,msetinp=mset)
+            call BlockLanczos(real(dw_bl,kind=double),real(aBlLan,kind=double),real(WBlLan,kind=double),&
+                        real(Ybar,kind=double),ntotbeadx3,ncols,real(errormin,kind=double),mubBlLan,mst,&
+                        dw_bltmp,decompRes,boxsizeinp=boxsize,msetinp=mset)
 #endif
           end if
         end if

@@ -50,7 +50,6 @@ module verlet_mod
   type verlet
    
     private
-
     !> The number of the cells per side
     integer :: ncps(3)
     !> Total number of cells in the cubic box
@@ -98,6 +97,8 @@ module verlet_mod
     final :: del_verlet_t
 
   end type verlet
+    !> The array which contains the number of beads in cells
+    integer,allocatable :: head(:)
 
 
   ! Private module variables:
@@ -421,15 +422,15 @@ ef: do
     use :: trsfm_mod, only: eps_m,tanb,sinth,costh
 
     class(verlet),intent(inout) :: this
-    real(wp),intent(in) :: Rbx(:)
-    real(wp),intent(in) :: Rby(:)
-    real(wp),intent(in) :: Rbz(:)
+    real(wp),intent(in),contiguous :: Rbx(:)
+    real(wp),intent(in),contiguous :: Rby(:)
+    real(wp),intent(in),contiguous :: Rbz(:)
     real(wp),intent(in) :: rc
     integer,intent(in) :: itime,ntotbead,ntotbeadx3
     integer,allocatable,intent(inout) :: nlst(:,:)
     integer,allocatable :: beadi_tmp(:),beadj(:),beadj_tmp(:)
     logical,allocatable :: pair(:)
-    integer :: i,j,nab,idx,cll,beadi,k
+    integer :: i,j,nab,idx,cll,beadi,k,intidx
     real(wp) :: bs(3),invbs(3),rcsq
 
     this%iidx=0
@@ -491,100 +492,44 @@ ef: do
     deallocate(beadj)
     deallocate(beadj_tmp)
     deallocate(pair)
-!print *,'idx',idx
-!print *,maxval(this%iidx)
-!print *,maxval(this%jidx)
-!print *,size(Rbx)
-!print *,size(this%Rijx)
-!print *,size(this%iidx)
-!print *,'n5'
-!call print_vector(this%iidx(1:idx),'iidx')
-!call print_vector(this%jidx(1:idx),'jidx')
-
-    this%Rijx(1:idx)=Rbx(this%iidx(1:idx))-Rbx(this%jidx(1:idx))
-    this%Rijy(1:idx)=Rby(this%iidx(1:idx))-Rby(this%jidx(1:idx))
-    this%Rijz(1:idx)=Rbz(this%iidx(1:idx))-Rbz(this%jidx(1:idx))
-!if (itime==8479)then
-!print*,'i,j',this%iidx(16),this%jidx(16)
-!print*,'ri',Rbx(this%iidx(16)),Rby(this%iidx(16)),Rbz(this%iidx(16))
-!print*,'rj',Rbx(this%jidx(16)),Rby(this%jidx(16)),Rbz(this%jidx(16))
-!print*,'rijx1',this%Rijx(16)
-!print*,'rijy1',this%Rijy(16)
-!print*,'rijz1',this%Rijz(16)
-!endif
-!print *,'bs',bs
-!print *,'invbs',invbs
-    ! Minimum Image Covention:
-    this%Rijx(1:idx)=this%Rijx(1:idx)-nint(this%Rijx(1:idx)*invbs(1))*bs(1)
-    this%Rijy(1:idx)=this%Rijy(1:idx)-nint(this%Rijy(1:idx)*invbs(2))*bs(2)
-    this%Rijz(1:idx)=this%Rijz(1:idx)-nint(this%Rijz(1:idx)*invbs(3))*bs(3)
-    select case (FlowType)
-      case ('PSF')
-        this%Rijx(1:idx)=this%Rijx(1:idx)+eps_m*this%Rijy(1:idx)
-      case ('PEF')
-        this%Rijytmp=this%Rijy
-        this%Rijx=this%Rijx+tanb*this%Rijytmp
-        this%Rijy=sinth*this%Rijx+costh*this%Rijytmp
-        this%Rijx=costh*this%Rijx-sinth*this%Rijytmp
-    end select
-    this%Rijsq(1:idx)=this%Rijx(1:idx)*this%Rijx(1:idx) + &
-                      this%Rijy(1:idx)*this%Rijy(1:idx) + &
-                      this%Rijz(1:idx)*this%Rijz(1:idx)
-!if (itime==8479)then
-!print*,'rijx2',this%Rijx(16)
-!print*,'rijy2',this%Rijy(16)
-!print*,'rijz2',this%Rijz(16)
-!print*,'r22',this%Rijsq(16)
-!endif
-!    this%inside(1:idx)=this%Rijsq(1:idx) <= rs**2
+     
+!$omp parallel default(private) shared(this,Rbx,Rby,Rbz,eps_m,sinth,costh,tanb,rc)
+!$omp do simd
+    do intidx=1, idx
+      this%Rijx(intidx)=Rbx(this%iidx(intidx))-Rbx(this%jidx(intidx))
+      this%Rijy(intidx)=Rby(this%iidx(intidx))-Rby(this%jidx(intidx))
+      this%Rijz(intidx)=Rbz(this%iidx(intidx))-Rbz(this%jidx(intidx))
+      ! Minimum Image Covention:
+      this%Rijx(intidx)=this%Rijx(intidx)-nint(this%Rijx(intidx)*invbs(1))*bs(1)
+      this%Rijy(intidx)=this%Rijy(intidx)-nint(this%Rijy(intidx)*invbs(2))*bs(2)
+      this%Rijz(intidx)=this%Rijz(intidx)-nint(this%Rijz(intidx)*invbs(3))*bs(3)
+      select case (FlowType)
+        case ('PSF')
+          this%Rijx(intidx)=this%Rijx(intidx)+eps_m*this%Rijy(intidx)
+        case ('PEF')
+          this%Rijytmp(intidx)=this%Rijy(intidx)
+          this%Rijx(intidx)=this%Rijx(intidx)+tanb*this%Rijytmp(intidx)
+          this%Rijy(intidx)=sinth*this%Rijx(intidx)+costh*this%Rijytmp(intidx)
+          this%Rijx(intidx)=costh*this%Rijx(intidx)-sinth*this%Rijytmp(intidx)
+      end select
+      this%Rijsq(intidx)=this%Rijx(intidx)*this%Rijx(intidx) + &
+                         this%Rijy(intidx)*this%Rijy(intidx) + &
+                         this%Rijz(intidx)*this%Rijz(intidx)
+    end do
+!$omp end do simd
     this%inside=.false.
-    this%inside(1:idx)=this%Rijsq(1:idx) <= rc**2
+!$omp do simd
+    do intidx=1, idx
+      this%inside(intidx)=this%Rijsq(intidx) <= rc**2
+    end do
+!$omp end do simd
+!$omp end parallel
+!$ivdep
     nab=count(this%inside)
-
-!if(itime==6028)then
-!k=0
-!do i=1,idx
-!if(this%iidx(i)==0.or.this%jidx(i)==0)then
-!print*,'ohoh'
-!stop
-!print*,this%iidx(i),this%jidx(i)
-!endif
-!if(this%inside(i))then
-!k=k+1
-!print*,'idx',i,k
-!print*,this%iidx(i),this%jidx(i)
-!endif
-!enddo
-!print*,'idx',idx
-!call print_vector(this%iidx(1:idx),'iidx')
-!call print_vector(this%jidx(1:idx),'jidx')
-!print*,'nab',nab
-!endif
-
-
     if(allocated(nlst)) deallocate(nlst)
     allocate(nlst(nab,2))
     nlst(:,1)=pack(this%iidx,mask=this%inside)
     nlst(:,2)=pack(this%jidx,mask=this%inside)
-!if(itime==6028)then
-!do i=1,nab
-!if(nlst(i,1)==0.or.nlst(i,2)==0)then
-!print*,'ohoh'
-!print*,'i',i
-!endif
-!enddo
-!endif
-
-!do i=1, num_int
-!  if (this%iidx(i) /= 0) then
-!    print *,'beadi,j',this%iidx(i),this%jidx(i)
-!    print *,'r:',this%Rijx(i),this%Rijy(i),this%Rijz(i)
-!    print *,'rijmag',this%Rijsq(i),rc**2
-!    print *,'ins',this%inside(i)
-!  end if
-!end do
-!call print_matrix(nlst,'nlst')
-! print *,'nab',nab
 
   end subroutine cnstr_nablst
   
