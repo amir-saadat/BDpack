@@ -27,7 +27,11 @@ contains
     osi=3*(i-1)
 
     if (EV_bw == 'Cubic') then
-      Fev(osi+2)=Fev(osi+2)+3*evbw_prm%prf*(ry-evbw_prm%delw)**2
+
+      if (ry <= evbw_prm%delw ) then
+        Fev(osi+2)=Fev(osi+2)+3*evbw_prm%prf*(ry-evbw_prm%delw)**2
+      end if
+
     elseif (EV_bw == 'Gaussian') then
     end if ! EV_bw
 

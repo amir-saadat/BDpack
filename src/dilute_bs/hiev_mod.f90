@@ -153,7 +153,9 @@ contains
 
 
   subroutine intrncalc(rvmrc,rcm,nseg,DiffTens,Fev,Fbarev,calchi,&
-                        calcev,calcevbw,updtev)
+                        calcev,calcevbw,updtev,updtevbw)
+
+    use :: inp_dlt, only: EV_bb,EV_bw
 
     integer,intent(in) :: nseg
     real(wp),intent(in) :: rvmrc(:)
@@ -165,8 +167,8 @@ contains
     real(wp) :: ry,rimrc(3),rjmrc(3)
     real(wp),allocatable :: Fstarev(:)
     real(wp) :: DiffTens(:,:),Fev(:),Fbarev(:)
-    logical :: clhi,clev,clevbw,upev
-    logical,optional :: calchi,calcev,calcevbw,updtev
+    logical :: clhi,clev,clevbw,upev,upevbw
+    logical,optional :: calchi,calcev,calcevbw,updtev,updtevbw
 
 !print *,'here'
     if (present(calchi)) then
@@ -174,24 +176,29 @@ contains
     else
       clhi=.false.
     end if
-    if (present(calcev)) then
+    if ((present(calcev)).and.(EV_bb/='NoEV')) then
       clev=calcev
     else
       clev=.false.
     end if
-    if (present(calcevbw)) then
+    if ((present(calcevbw)).and.(EV_bw/='NoEV')) then
       clevbw=calcevbw
     else
       clevbw=.false.
     end if
-    if (present(updtev)) then
+    if ((present(updtev)).and.(EV_bb/='NoEV')) then
       upev=updtev
     else
       upev=.false.
     end if
+    if ((present(updtevbw)).and.(EV_bw/='NoEV')) then
+      upevbw=updtevbw
+    else
+      upevbw=.false.
+    end if
 
     if (clev.or.clevbw) Fev=0._wp
-    if (upev) then
+    if ((upev).or.(upevbw)) then
       allocate(Fstarev(3*(nseg+1)))
       Fstarev=0._wp
     end if
@@ -230,10 +237,14 @@ contains
         ry=rjmrc(2)+rcm(2)
         call evbwcalc(jbead,ry,Fev)
       end if
+      if (upevbw) then
+        ry=rjmrc(2)+rcm(2)
+        call evbwcalc(jbead,ry,Fstarev)
+      end if
 
     end do ! jbead
 
-    if (upev) then
+    if ((upev).or.(upevbw)) then
       Fbarev=0.5*(Fev+Fstarev)
       deallocate(Fstarev)
     end if

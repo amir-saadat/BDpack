@@ -86,7 +86,8 @@ contains
 !    real(double) :: tA0,tA1
     real(single) :: time_begin,time_end
     ! Logicals:
-    logical :: newSeq,EVcalcd
+    logical :: newSeq
+!    logical :: newSeq,EVcalcd
     ! Non-allocatable flow arrays
     integer,dimension(3) :: ipiv
     real(wp),dimension(2) :: lambdaBE
@@ -805,15 +806,17 @@ contains
             call sprforce(qc,nseg,ForceLaw,TruncMethod,Fseg)
             if (ForceLaw == 'WLC_GEN') call bndforce(nbead_bb,qc,Fbnd,itime)
             ! Calculation of Diffusion Tensor and Excluded Volume Force
-            EVcalcd=.false.
+!            EVcalcd=.false.
             if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
               if ((hstar /= 0._wp).or.(DecompMeth /= 'Cholesky')) then
-                if (EV_bb /= 'NoEV') EVcalcd=.true.
+!                if (EV_bb /= 'NoEV') EVcalcd=.true.
+!                if (EV_bw /= 'NoEV') EVbwcalcd=.true.
 !call hicalc2(rvmrcP,nseg,DiffTensP,Fev)
 !call print_matrix(DiffTensP,'d1')
-                  call HICalc(rvmrcP,nseg,HITens,DiffTensP,EV_bb,Fev)
+!                  call HICalc(rvmrcP,nseg,HITens,DiffTensP,EV_bb,Fev)
 !call print_matrix(DiffTensP,'d2')
-!                  call intrncalc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,calchi=.true.,calcev=.true.)
+                call intrncalc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
+                          calchi=.true.,calcev=.true.,calcevbw=.true.)
               end if
               if (DecompMeth == 'Cholesky') then
                 if (hstar /= 0._wp) then
@@ -897,9 +900,10 @@ contains
               end if
             end if
             FBr=FBrbl(:,jcol,ichain)
-            if ((EV_bb /= 'NoEV') .and. (.not.EVcalcd)) then
-                call EVCalc(rvmrcP,nseg,EV_bb,Fev)
-!              call intrncalc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,calcev=.true.)
+            if (hstar == 0._wp) then
+!                call EVCalc(rvmrcP,nseg,EV_bb,Fev)
+              call intrncalc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
+                                      calcev=.true.,calcevbw=.true.)
 !call evcalc2(rvmrcP,nseg,Fev)
             end if
             !============ Predictor-Corrector =============!
@@ -952,9 +956,10 @@ contains
             call gemv(Bmat,qstar,rvmrcP) 
             call copy(qc,RHS)
             call axpy(Kdotq,RHS,a=0.5_wp)
-            if (EV_bb /= 'NoEV') then
-              call EVUpdate(Fev,rvmrcP,Fbarev)
-!call intrncalc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,updtev=.true.)
+            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
+!              call EVUpdate(Fev,rvmrcP,Fbarev)
+              call intrncalc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
+                             updtev=.true.,updtevbw=.true.)
 !call print_vector(Fev,'fev3')
 !call evupdate2(Fev,rvmrcP,nseg,Fbarev)
 !call print_vector(Fev,'fev4')
@@ -969,8 +974,8 @@ contains
               Fbar(nbeadx3-2)=Fbar(nbeadx3-2)+Fext0
             end if
             if (srf_tet) then
-              call tetupdate(Ftet,rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),Fbartet,&
-                             rf0(:,ichain),itime)
+              call tetupdate(Ftet,rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),&
+                             Fbartet,rf0(:,ichain),itime)
               Fbar(1:3)=Fbar(1:3)+Fbartet(1:3)
             end if
             call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
