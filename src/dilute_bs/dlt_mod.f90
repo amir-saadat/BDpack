@@ -759,7 +759,7 @@ contains
               rvmrcP => rvmrc(:,jchain)
               call gemv(Bmat,qP,rvmrcP)
               if (srf_tet) then
-                rf0(:,jchain)=rvmrc(1:3,jchain)+rcmstart(:,jchain)
+                rf0(:,jchain)=0.0!rvmrc(1:3,jchain)+rcmstart(:,jchain)
               end if
             end do
             if (CoM) rcm=rcmstart
@@ -1296,7 +1296,7 @@ contains
           jcol=jcol+1 ! col in the block of random number columns
         end do ! time loop
         ! resetting restart time
-        if (initmode == 'st') trst=0._wp 
+        if (initmode == 'rst') trst=0._wp 
       end do ! dt loop
     end do ! Pe loop
   

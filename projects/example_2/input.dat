@@ -2,16 +2,16 @@ driver        : dilute_bs
 #------------------------------------------
 # Configuration parameters
 #------------------------------------------
-nchain        : 50000
+nchain        : 48000
 nseg          : 1
 Rel-Model     : Self 1.0 
 #------------------------------------------
 # SDE parameters
 #------------------------------------------
-initmode      : st
+initmode      : rst
 tend          : 30.0
 tss           : 5.0
-trst          : 0.0
+trst          : 5.5
 ndt           : 1
 dt            : 5.d-2 5.d-2 Linear Self
 tol           : 1.d-4
@@ -27,8 +27,8 @@ SPR-Force     : Hookean
 # Flow parameters
 #------------------------------------------
 Flow-Type     : 2
-nWi           : 10
-Wi            : 1.0 10.0 Linear
+nWi           : 2
+Wi            : 9.0 10.0 Linear
 #------------------------------------------
 # HI parameters
 #------------------------------------------

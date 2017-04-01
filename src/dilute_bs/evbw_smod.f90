@@ -10,7 +10,8 @@ contains
 
     ! Bead-wall excluded volume interaction
     if (EV_bw == 'Cubic') then
-      evbw_prm%delw=0.5_wp*sqrt( (nseg**2-1._wp)/(2._wp*nseg) )
+!      evbw_prm%delw=0.5_wp*sqrt( (nseg**2-1._wp)/(2._wp*nseg) )
+      evbw_prm%delw=0.5_wp*sqrt( 3.0 )
       evbw_prm%prf=Aw*N_Ks/(3*qmax*evbw_prm%delw**2)
     end if
 
