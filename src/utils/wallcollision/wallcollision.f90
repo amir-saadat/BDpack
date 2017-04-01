@@ -22,8 +22,6 @@ program wallcollision
   integer :: totcollisions
   integer :: iwall_idx,iaway_idx
   integer :: nbin,ibin
-  !real(dp),allocatable :: dbin(:)
-  !integer, allocatable :: alpha(:),beta(:)
   real(dp),allocatable :: midbin(:,:)
   real(dp), allocatable :: Prob_t_wall(:,:),Prob_t_away(:,:)
   character(len=20) :: arg,buffer,dmpFile
@@ -35,16 +33,21 @@ program wallcollision
   logical, allocatable,dimension(:,:,:) :: nearwall
   integer,allocatable,target :: collisions(:)
   integer,allocatable,target :: t_wall(:,:), t_away(:,:)
-  integer,allocatable ::  t_wall_curr(:,:), t_away_curr(:,:), t_curr(:,:)
+  integer,allocatable :: t_wall_curr(:,:), t_away_curr(:,:), t_curr(:,:)
   integer,allocatable :: wall_idx(:),away_idx(:)
+  real(dp),allocatable,dimension(:) :: rx_mean,ry_mean,rz_mean
 
   !----------------------------------------
   !         formats
   !----------------------------------------
 1 format(3(e14.7,1x))
+!2 format(f9.4,1x,f16.9)
 2 format(f9.4,1x,e14.7)
 3 format(i,1x,e14.7)
 4 format(i,1x,i)
+5 format(i)
+6 format(i,1x,f11.6,1x,f11.6,1x,f11.6)
+7 format(f11.6,1x,f11.6,1x,f11.6)
 
   !----------------------------------------
   !         reading in inputs
@@ -110,18 +113,19 @@ program wallcollision
   allocate(t_wall(nseg,ntime*nchain),t_away(nseg,ntime*nchain))
   allocate(t_curr(nseg,nchain))
   allocate(wall_idx(nseg),away_idx(nseg))
-  !allocate(alpha(nseg),beta(nseg))
-  !allocate(dbin(nseg))
   allocate(midbin(nseg,nbin))
   allocate(Prob_t_wall(nseg,nbin),Prob_t_away(nseg,nbin))
+  allocate(rx_mean(nseg),ry_mean(nseg),rz_mean(nseg))
 
   !----------------------------------------
   !         opening files
   !----------------------------------------
   open (unit=1,file=adjustl(dmpFile),status='old')
-  open (unit=2,file='bw_pdf.dat',status='unknown')
-  open (unit=3,file='t_wall.dat',status='unknown')
-  open (unit=4,file='t_away.dat',status='unknown')
+  open (unit=2,file='wallcoll_bw_pdf.dat',status='unknown')
+  open (unit=3,file='wallcoll_t_wall.dat',status='unknown')
+  open (unit=4,file='wallcoll_t_away.dat',status='unknown')
+  open (unit=5,file='wallcoll_r_mean.dat',status='unknown')
+  open (unit=6,file='wallcoll_endbead.dat',status='unknown')
 
   !----------------------------------------
   !  data initialization & read in data
@@ -136,6 +140,8 @@ program wallcollision
   t_wall = 0; t_away = 0
   wall_idx = 0; away_idx = 0
   t_curr = 1 !initialized to 1, because the first time step will happen regardless.
+  Prob_t_wall = 0; Prob_t_away = 0
+  rx_mean = 0; ry_mean= 0; rz_mean = 0
 
   !read in files
   ! do iskip=1, nskip
@@ -152,11 +158,24 @@ program wallcollision
           rx(iseg,ichain,itime) = Qeex(ichain,itime)
           ry(iseg,ichain,itime) = Qeey(ichain,itime)
           rz(iseg,ichain,itime) = Qeez(ichain,itime)
-        else
         end if
       end do !segs
     end do !chains
   end do !time
+
+  do iseg=1,nseg
+    do ichain=1, nchain
+      do itime=1, ntime
+        rx_mean(iseg) = rx_mean(iseg) + rx(iseg,ichain,itime)
+        ry_mean(iseg) = ry_mean(iseg) + ry(iseg,ichain,itime)
+        rz_mean(iseg) = rz_mean(iseg) + rz(iseg,ichain,itime)
+
+      end do
+    end do
+    rx_mean(iseg) = rx_mean(iseg)/(nchain*ntime)
+    ry_mean(iseg) = ry_mean(iseg)/(nchain*ntime)
+    rz_mean(iseg) = rz_mean(iseg)/(nchain*ntime)
+  end do
 
   !----------------------------------------
   !    consider the first time step
@@ -223,88 +242,41 @@ program wallcollision
   !note that wall_idx(iseg), is exactly the number of elements in t_wall(iseg,:). i.e. wall_idx(iseg)+1 and so on will be 0's.
 
   !----------------------------------------
-  !     pdf of time near wall
-  !----------------------------------------
-  ! do iseg = 1,nseg
-  !   alpha(iseg) = minval(t_wall(iseg,1:wall_idx(iseg)))
-  !   beta(iseg) = maxval(t_wall(iseg,1:wall_idx(iseg)))
-  !   dbin(iseg) = float(beta(iseg)-alpha(iseg))/nbin
-  ! end do
-  !
-  ! do iseg = 1,nseg
-  !   do ibin=1, nbin
-  !     midbin(iseg,ibin)=alpha(iseg)+(dbin(iseg)/2)+(ibin-1)*dbin(iseg)
-  !   end do
-  ! end do
-  !
-  ! do iseg = 1,nseg
-  !   do iwall_idx = 1,wall_idx(iseg)
-  !     do ibin = 1,nbin
-  !       if (ibin /= nbin) then
-  !         if (t_wall(iseg,iwall_idx)>=(alpha(iseg) + dbin(iseg)*(ibin-1)) .and. t_wall(iseg,iwall_idx)<(alpha(iseg) + dbin(iseg)*(ibin))) then
-  !           Prob_t_wall(iseg,ibin) = Prob_t_wall(iseg,ibin) + 1/(dbin(iseg)*wall_idx(iseg))
-  !         end if
-  !       else
-  !         if (t_wall(iseg,iwall_idx)>=(alpha(iseg) + dbin(iseg)*(ibin-1)) .and. t_wall(iseg,iwall_idx)<=(alpha(iseg) + dbin(iseg)*(ibin))) then
-  !           Prob_t_wall(iseg,ibin) = Prob_t_wall(iseg,ibin) + 1/(dbin(iseg)*wall_idx(iseg))
-  !         end if
-  !       end if
-  !     end do
-  !   end do
-  ! end do
-
-  !----------------------------------------
-  !     pdf of time away from wall
-  !----------------------------------------
-  ! do iseg = 1,nseg
-  !   alpha(iseg) = minval(t_away(iseg,1:away_idx(iseg)))
-  !   beta(iseg) = maxval(t_away(iseg,1:away_idx(iseg)))
-  !   dbin(iseg) = float(beta(iseg)-alpha(iseg))/nbin
-  ! end do
-  !
-  ! do iseg = 1,nseg
-  !   do ibin=1, nbin
-  !     midbin(iseg,ibin)=alpha(iseg)+(dbin(iseg)/2)+(ibin-1)*dbin(iseg)
-  !   end do
-  ! end do
-  !
-  ! do iseg = 1,nseg
-  !   do iaway_idx = 1,away_idx(iseg)
-  !     do ibin = 1,nbin
-  !       if (ibin /= nbin) then
-  !         if (t_away(iseg,iaway_idx)>=(alpha(iseg) + dbin(iseg)*(ibin-1)) .and. t_away(iseg,iaway_idx)<(alpha(iseg) + dbin(iseg)*(ibin))) then
-  !           Prob_t_away(iseg,ibin) = Prob_t_away(iseg,ibin) + 1/(dbin(iseg)*away_idx(iseg))
-  !         end if
-  !       else
-  !         if (t_away(iseg,iaway_idx)>=(alpha(iseg) + dbin(iseg)*(ibin-1)) .and. t_away(iseg,iaway_idx)<=(alpha(iseg) + dbin(iseg)*(ibin))) then
-  !           Prob_t_away(iseg,ibin) = Prob_t_away(iseg,ibin) + 1/(dbin(iseg)*away_idx(iseg))
-  !         end if
-  !       end if
-  !     end do
-  !   end do
-  ! end do
-
-
-  !----------------------------------------
-  !     writing output
+  !    calculate pdfs and write output
   !----------------------------------------
   !collision pdf
   do iseg = 1,nseg
     write(2,3) iseg, (float(collisions(iseg))/totcollisions)
   end do
 
+  !mean polymer shape
+  do iseg = 1,nseg
+    write(5,6) iseg, rx_mean(iseg), ry_mean(iseg), rz_mean(iseg)
+  end do
+
+  !mean polymer shape
+  do itime = 1,ntime
+    do ichain = 1,nchain
+      write(6,7) rx(nseg,ichain,itime), ry(nseg,ichain,itime), rz(nseg,ichain,itime)
+    end do
+  end do
+
   !t_wall for end bead
   call pdf(t_wall,wall_idx,nseg,nbin,Prob_t_wall,midbin)
-  iseg = nseg
-  do ibin = 1,nbin
-    write(3,2) midbin(iseg,ibin), Prob_t_wall(iseg,ibin)
+  do iseg =1, nseg
+    write(3,5) iseg
+    do ibin = 1,nbin
+      write(3,2) midbin(iseg,ibin), Prob_t_wall(iseg,ibin)
+    end do
   end do
 
   !t_away for end bead
   call pdf(t_away,away_idx,nseg,nbin,Prob_t_away,midbin)
-  iseg = nseg
-  do ibin = 1,nbin
-    write(4,2) midbin(iseg,ibin), Prob_t_away(iseg,ibin)
+  do iseg =1, nseg
+    write(4,5) iseg
+    do ibin = 1,nbin
+      write(4,2) midbin(iseg,ibin), Prob_t_away(iseg,ibin)
+    end do
   end do
 
   !----------------------------------------
@@ -318,16 +290,15 @@ program wallcollision
   deallocate(t_wall,t_away)
   deallocate(t_curr)
   deallocate(wall_idx,away_idx)
-  !deallocate(alpha,beta)
-  !deallocate(dbin)
   deallocate(midbin)
   deallocate(Prob_t_wall,Prob_t_away)
+  deallocate(rx_mean,ry_mean,rz_mean)
 
 contains
 
-  !subroutine to calculate the pdf
+!subroutine to calculate the pdf
   subroutine pdf(times,times_idx,nseg,nbin,Prob,midbin)
-
+    implicit none
     !arguments to the subroutine
     integer, intent(in):: times(:,:)
     integer, intent(in) :: times_idx(:)
@@ -339,10 +310,13 @@ contains
     integer :: iseg, ibin, idx
     real(dp),allocatable :: dbin(:)
     integer, allocatable :: alpha(:),beta(:)
+    real(dp), allocatable :: sum(:)
 
     allocate(alpha(nseg),beta(nseg))
     allocate(dbin(nseg))
+    allocate(sum(nseg))
 
+    sum = 0._dp
 
     do iseg = 1,nseg
       alpha(iseg) = minval(times(iseg,1:times_idx(iseg)))
@@ -361,20 +335,33 @@ contains
         do ibin = 1,nbin
           if (ibin /= nbin) then
             if (times(iseg,idx)>=(alpha(iseg) + dbin(iseg)*(ibin-1)) .and. times(iseg,idx)<(alpha(iseg) + dbin(iseg)*(ibin))) then
-              Prob(iseg,ibin) = Prob(iseg,ibin) + 1/(dbin(iseg)*times_idx(iseg))
+              Prob(iseg,ibin) = Prob(iseg,ibin) + 1._dp/(dbin(iseg)*times_idx(iseg))
             end if
           else
-            if (times(iseg,idx)>=(alpha(iseg) + dbin(iseg)*(ibin-1)) .and. times(iseg,idx)<=(alpha(iseg) + dbin(iseg)*(ibin))) then
-              Prob(iseg,ibin) = Prob(iseg,ibin) + 1/(dbin(iseg)*times_idx(iseg))
+            !if (times(iseg,idx)>=(alpha(iseg) + dbin(iseg)*(ibin-1)) .and. times(iseg,idx)<=(alpha(iseg) + dbin(iseg)*(ibin))) then
+            if (times(iseg,idx)>=(alpha(iseg) + dbin(iseg)*(ibin-1)) .and. times(iseg,idx)<=  beta(iseg)) then
+            !if (times(iseg,idx)>=(alpha(iseg) + dbin(iseg)*(ibin-1))) then
+              Prob(iseg,ibin) = Prob(iseg,ibin) + 1._dp/(dbin(iseg)*times_idx(iseg))
             end if
           end if
         end do
       end do
     end do
 
+
+    do iseg = 1,nseg
+      do ibin = 1,nbin
+        sum(iseg) = sum(iseg) + Prob(iseg,ibin)* dbin(iseg)
+      end do
+      if (abs(sum(iseg)-1)>1.e-10) then
+        print *, 'Sum of probs for bead', iseg, ' is >1E-10'
+      end if
+    end do
+
     !deallocate the variables used in this subroutine
     deallocate(alpha, beta)
     deallocate(dbin)
+    deallocate(sum)
 
   end subroutine pdf
 
@@ -391,6 +378,7 @@ contains
     print '(a)', ' --b           squared maximum of segment length'
     print '(a)', ' --delw        the distance from the wall where F_ev acts'
     print '(a)', ' --nTime       number of time steps'
+    print '(a)', ' --nbin        number of bins for the pdf'
   end subroutine print_help
 
 end program wallcollision
