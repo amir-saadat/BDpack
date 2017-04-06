@@ -4,6 +4,7 @@ OBJLIBS	 = ../libdlt_bs.a
 CMNOBJS += ../common/arry_mod.o 
 CMNOBJS += ../common/prcn_mod.o 
 CMNOBJS += ../common/strg_mod.o
+CMNOBJS += ../common/cmn_io_mod.o
 OBJS	 = inp_dlt.o dcmp_mod.o root_mod.o 
 OBJS    += force_mod.o HIEVCalc.o pp_mod.o 
 OBJS    += hiev_mod.o hi_smod.o ev_smod.o
@@ -38,3 +39,6 @@ $(OBJS): %.o: %.$(FEXT)
 clean :
 	$(ECHO) cleaning up in dilute_bs
 	$(RM) -f $(OBJS)
+	if [ "$(ls -A ./inc)" ];then     \
+		$(RM) ./inc/*.mod;       \
+	fi

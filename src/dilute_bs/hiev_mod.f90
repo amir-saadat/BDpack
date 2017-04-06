@@ -5,7 +5,8 @@ module hiev_mod
   implicit none
 
 !  public :: hicalc2,evcalc2,evupdate2,hi_init,ev_init,intrncalc
-  public :: hi_init,ev_init,evbw_init,intrncalc
+  public :: hi_init,ev_init,evbw_init,intrncalc,wall_rflc,&
+            del_evbw
 
   private
 
@@ -33,6 +34,10 @@ module hiev_mod
     real(wp) :: delw
     real(wp) :: prf
     real(wp) :: rmagmin
+    ! For Reflc-bc
+    real(wp) :: a
+    integer,allocatable :: w_coll(:)
+    integer,allocatable :: ia_time(:,:)
   end type
 
   type(hi),save :: hi_prm
@@ -94,6 +99,13 @@ module hiev_mod
       real(wp),intent(in) :: ry
       real(wp),intent(inout) :: Fev(:)
     end subroutine evbwcalc
+
+    module subroutine wall_rflc(Ry,rcmy)
+      real(wp),intent(inout) :: Ry(:),rcmy
+    end subroutine wall_rflc
+
+    module subroutine del_evbw()
+    end subroutine del_evbw
 
   end interface
 

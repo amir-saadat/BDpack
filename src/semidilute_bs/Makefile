@@ -36,3 +36,6 @@ $(OBJS): %.o: %.$(FEXT)
 clean :
 	$(ECHO) cleaning up in semidilute_bs
 	$(RM) -f $(OBJS)
+	if [ "$(ls -A ./inc)" ];then     \
+		$(RM) ./inc/*.mod;       \
+	fi

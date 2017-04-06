@@ -31,7 +31,7 @@ module dlt_mod
   use :: dcmp_mod, only: Lanczos,BlockLanczos,MKLsyevr,BlockChebyshev
   use :: pp_mod, only: pp_init,pp_init_tm,data_prcs,conf_sort,del_pp
 !  use :: hiev_mod, only: hi_init,ev_init,hicalc2,evcalc2,evupdate2,intrncalc
-  use :: hiev_mod, only: hi_init,ev_init,evbw_init,intrncalc
+  use :: hiev_mod, only: hi_init,ev_init,evbw_init,intrncalc,wall_rflc
 
   implicit none
 
@@ -101,9 +101,9 @@ contains
     real(wp),allocatable,dimension(:) :: Ddotuminus,Ddotuplus
     real(wp),allocatable,dimension(:) :: Fbnd,Fbarbnd,Fbar
     real(wp),allocatable,dimension(:),target :: RHS,RHSbase,qc,Fseg,DdotF
-    real(wp),dimension(:),pointer  :: RHSP,RHSbaseP,qcP,FsegP,FBrblP,rcmP,rchrP
-    real(wp),dimension(:),pointer :: FphiP,DdotFPx,DdotFPy,DdotFPz,qP
-    real(wp),dimension(:),pointer :: rvmrcP
+    real(wp),dimension(:),pointer  :: RHSP,RHSbaseP,qcP,FsegP,FBrblP,rcmP,rcmPy
+    real(wp),dimension(:),pointer :: rchrP,FphiP,DdotFPx,DdotFPy,DdotFPz,qP
+    real(wp),dimension(:),pointer :: rvmrcP,rvmrcPy
     real(double),dimension(:),pointer :: wbltempP2,BdotwP,BdotwPx,BdotwPy,BdotwPz
     real(wp),allocatable,dimension(:,:) :: Kappa,Amat,Bmat,wbl,aBlLan,WBlLan
     real(wp),allocatable,dimension(:,:) :: VBlLan,VcntBlLan,Eye,Dsh
@@ -237,6 +237,27 @@ contains
           open(newunit=u41,file='data/cnf_tp.dat',status='replace',position='append')
         end if
       end if
+      ! ia_time, inter-arrival time
+      ! if (EV_bw == 'Rflc_bc') then
+      !   ia_tm_sizes=[nseg,ntime,nchain,p]
+      !   ia_tm_subsizes=[nseg,ntime,nchain,1]
+      !   ia_tm_starts=0
+      !   call MPI_Type_create_subarray(2,ia_tm_sizes,cnf_subsizes,cnf_tp_starts,&
+      !                                 MPI_ORDER_FORTRAN,MPI_INTEGER,cnf_tp_recvsuba&
+      !                                 &rray,ierr)
+      !   call MPI_Type_commit(cnf_tp_recvsubarray,ierr)
+      !   cnf_tp_extent=sizeof(intvar)
+      !   cnf_tp_start=0
+      !   call MPI_Type_create_resized(cnf_tp_recvsubarray,cnf_tp_start,cnf_tp_extent,&
+      !                                cnf_tp_resizedrecvsubarray,ierr)
+      !   call MPI_Type_commit(cnf_tp_resizedrecvsubarray,ierr)
+      !   allocate(cnf_tpTot(npchain,p))
+      !   if (initmode == 'rst') then
+      !     open(newunit=u41,file='data/cnf_tp.dat',status='unknown',position='append')
+      !   else
+      !     open(newunit=u41,file='data/cnf_tp.dat',status='replace',position='append')
+      !   end if
+      ! end if
       ! allocation of total random number
       allocate(rdnt(nbeadx3,ncols,nchain))
       allocate(qTot(nsegx3,npchain,p))
@@ -802,7 +823,13 @@ contains
             ! Constructing an array for each individual chain
             qc(:)=q(:,ichain)
             rvmrcP => rvmrc(:,ichain)
-            if (CoM) rcmP => rcm(:,ichain)
+            rvmrcPy => rvmrcP(2:nbeadx3-1:3)
+            if (CoM) then
+              rcmP => rcm(:,ichain)
+            end if
+            if (EV_bw == 'Rflc_bc') then
+              call wall_rflc(rvmrcPy,rcmP(2))
+            end if
             call sprforce(qc,nseg,ForceLaw,TruncMethod,Fseg)
             if (ForceLaw == 'WLC_GEN') call bndforce(nbead_bb,qc,Fbnd,itime)
             ! Calculation of Diffusion Tensor and Excluded Volume Force
@@ -1055,7 +1082,7 @@ contains
             ! Calculating center of mass and/or center of hydrodynamic resistance movement
             if (CoM) then
               FphiP => Fphi(:,ichain)
-              rcmP => rcm(:,ichain)
+              rcmP => rcm(:,ichain) ! might be redundant
               BdotwPx => wbltemp(1:nbeadx3-2:3,jcol,ichain)
               BdotwPy => wbltemp(2:nbeadx3-1:3,jcol,ichain)
               BdotwPz => wbltemp(3:nbeadx3:3,jcol,ichain)
@@ -1134,6 +1161,9 @@ contains
               call gemv(WeightTens,real(BdotwP,kind=wp),LdotBdotw)
               rchrP=rchrP+Pe(iPe)*matmul(kappareg,rchrP)*dt(iPe,idt)+coeff*LdotBdotw
             end if
+            ! if (EV_bw == 'Rflc_bc') then
+            !   call wall_rflc(rvmrcPy,rcmP(2))
+            ! end if
           end do ! ichain loop
  
           !----------------------------------------------------------------

@@ -494,8 +494,8 @@ contains
         do jchain=1, npchain
           rcmP => rcm(:,jchain)
           rcmdiff=rcmP-rcmstart(:,jchain)                
-!                DcmAve=DcmAve+dot(rcmP,rcmP)
-!                sdDcmAve=sdDcmAve+(dot(rcmP,rcmP))**2                       
+          ! DcmAve=DcmAve+dot(rcmP,rcmP)
+          ! sdDcmAve=sdDcmAve+(dot(rcmP,rcmP))**2                       
           DcmAve=DcmAve+dot(rcmdiff,rcmdiff)
           sdDcmAve=sdDcmAve+(dot(rcmdiff,rcmdiff))**2                       
         end do
@@ -508,8 +508,8 @@ contains
         do jchain=1, npchain
           rchrP => rchr(:,jchain)
           rchrdiff=rchrP-rcmstart(:,jchain)
-!                DchrAve=DchrAve+dot(rchrP,rchrP)                      
-!                sdDchrAve=sdDchrAve+(dot(rchrP,rchrP))**2                       
+          ! DchrAve=DchrAve+dot(rchrP,rchrP)                      
+          ! sdDchrAve=sdDchrAve+(dot(rchrP,rchrP))**2                       
           DchrAve=DchrAve+dot(rchrdiff,rchrdiff)                      
           sdDchrAve=sdDchrAve+(dot(rchrdiff,rchrdiff))**2
         end do
@@ -522,7 +522,7 @@ contains
         do jchain=1, npchain
           qP => q(:,jchain)
           rvmrcP => rvmrc(:,jchain)
-!                call gemv(Bmat,qP,rvmrcP)
+          ! call gemv(Bmat,qP,rvmrcP)
           do j=1, 3
             RPj => rvmrcP(j:nbeadx3-(3-j):3)
             do i=1, 3
@@ -579,7 +579,7 @@ contains
 
     if (id == 0) then
 
-      if (StrCalc) then          
+      if (StrCalc) then
         sdsqqsprAveTot=sqrt(abs(sdsqqsprAveTot-sqqsprAveTot**2)/(nchain-1))
         sdsqqetoeAveTot=sqrt(abs(sdsqqetoeAveTot-sqqetoeAveTot**2)/(nchain-1))
         sdqetoeAveTot=sqrt(abs(sdqetoeAveTot-qetoeAveTot**2)/(nchain-1))
