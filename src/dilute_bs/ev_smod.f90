@@ -177,6 +177,10 @@ contains
 !
 !  end procedure evupdate2
 
+  module procedure init_evbb
+
+  end procedure init_evbb
+
   module procedure ev_init
     
     use :: inp_dlt, only: EV_bb,zstar,dstar

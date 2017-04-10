@@ -2,7 +2,26 @@ submodule (hiev_mod) evbw_smod
 
   implicit none
 
+  ! type :: evbw
+  !   ! For Cubic
+  !   real(wp) :: delw
+  !   real(wp) :: prf
+  !   real(wp) :: rmagmin
+  !   ! For Reflc-bc
+  !   real(wp) :: a
+  !   integer,allocatable :: w_coll(:)
+  !   integer,allocatable :: ia_time(:,:)
+  ! contains
+  !   procedure,pass(this) :: init => evbw_init
+  !   procedure,pass(this) :: updt => evbw_updt
+  !   procedure,pass(this) :: 
+  ! end type
+
 contains
+
+  module procedure init_evbw
+
+  end procedure init_evbw
 
   module procedure evbw_init
     

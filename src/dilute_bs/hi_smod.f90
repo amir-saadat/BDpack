@@ -2,17 +2,44 @@ submodule (hiev_mod) hi_smod
 
   implicit none
 
+  !--------------------------------------------
+  !>>>> Interface to routines for hibb and hibw
+  !--------------------------------------------
   interface
-    !> Calculates HI between particles
+    !> initializes HI between beads
+    !! \param this hibb object
+    module subroutine init_hibb(this)
+      class(hibb_t),intent(inout) :: this
+    end subroutine init_hibb
+    !> initializes HI between beads and the wall
+    !! \param this hibw object
+    module subroutine init_hibw(this)
+      class(hibw_t),intent(inout) :: this
+    end subroutine init_hibw
+    !> calculates HI between beads
+    !! \param this hibb object
     !! \param i bead i index
     !! \param j bead j index
     !! \param rij data type for inter particle distance
     !! \param DiffTens diffusion tensor
-    module subroutine hibbcalc(i,j,rij,DiffTens)
+    module subroutine calc_hibb(this,i,j,rij,DiffTens)
+      class(hibb_t),intent(inout) :: this
       integer,intent(in) :: i,j 
       type(dis),intent(in) :: rij
       real(wp),intent(out) :: DiffTens(:,:)
-    end subroutine hibbcalc
+    end subroutine calc_hibb
+    !> calculates HI between beads and the wall
+    !! \param this hibw object
+    !! \param i bead i index
+    !! \param j bead j index
+    !! \param rij data type for inter particle distance
+    !! \param DiffTens diffusion tensor
+    module subroutine calc_hibw(this,i,j,rij,DiffTens)
+      class(hibw_t),intent(inout) :: this
+      integer,intent(in) :: i,j 
+      type(dis),intent(in) :: rij
+      real(wp),intent(out) :: DiffTens(:,:)
+    end subroutine calc_hibw
   end interface
 
 contains
@@ -162,6 +189,11 @@ contains
 !    
 !  end procedure HICalc2
 
+  module procedure init_hi
+    call init_hibb(this%hibb)
+    call init_hibw(this%hibw)
+  end procedure init_hi
+
   module procedure hi_init
 
     use :: inp_dlt, only: HITens,hstar
@@ -202,7 +234,8 @@ contains
       stop
     end if
 
-    call hibbcalc(i,j,rij,DiffTens)
+    call calc_hibb(this%hibb,i,j,rij,DiffTens)
+    call calc_hibw(this%hibw,i,j,rij,DiffTens)
     
   end procedure hicalc3
 

@@ -4,7 +4,38 @@ submodule (hiev_mod:hi_smod) hibb_smod
 
 contains
 
-  module procedure hibbcalc
+  module procedure init_hibb
+
+    use :: inp_dlt, only: HITens,hstar
+
+    real(wp),parameter :: PI=3.1415926535897958648_wp
+    real(wp),parameter :: sqrtPI=sqrt(PI)
+
+    if (HITens == 'RPY') then
+      ! For Rotne-Prager-Yamakawa Tensor:
+      this%A=0.75*hstar*sqrtPI
+      this%B=hstar**3*PI*sqrtPI/2
+      this%C=(3.0_wp/2)*hstar**3*PI*sqrtPI
+      this%D=2*sqrtPI*hstar
+      this%E=9/(32*sqrtPI*hstar)
+      this%F=3/(32*sqrtPI*hstar)
+    elseif (HITens == 'OB') then
+      ! For Oseen-Burgers Tensor:
+      this%G=0.75*hstar*sqrtPI
+    elseif (HITens == 'RegOB') then
+      ! For Reguralized Oseen-Burgers Tensor (introduced in HCO book):
+      this%G=0.75*hstar*sqrtPI
+      this%O=4*PI*hstar**2/3
+      this%P=14*PI*hstar**2/3
+      this%R=8*PI**2*hstar**4
+      this%S=2*PI*hstar**2
+      this%T=this%R/3
+    end if
+    this%rmagmin=1.e-7_wp ! The Minimum value accepted as the |rij|
+
+  end procedure init_hibb
+
+  module procedure calc_hibb
 
     use :: inp_dlt, only: HITens,hstar
 
@@ -77,7 +108,7 @@ contains
       DiffTens(osi+3,osj+3)=Upsilon+Omega*rij%z*rij%z
     end if ! HITens
 
-  end procedure hibbcalc
+  end procedure calc_hibb
 
 
 end submodule hibb_smod

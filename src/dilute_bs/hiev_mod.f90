@@ -4,22 +4,52 @@ module hiev_mod
 
   implicit none
 
-!  public :: hicalc2,evcalc2,evupdate2,hi_init,ev_init,intrncalc
-  public :: hi_init,ev_init,evbw_init,intrncalc,wall_rflc,&
+  public :: intrn_t,&
+            hi_init,&
+            ev_init,&
+            evbw_init,&
+            intrncalc,&
+            wall_rflc,&
             del_evbw
 
   private
 
-  type :: hi
-    ! For RPY
+
+  !------------------------------------
+  !>>>> Definition for different types
+  !------------------------------------
+
+  ! hi
+  !------------------------------------------
+  type :: hibb_t
+    ! RPY
     real(wp) :: A,B,C,D,E,F
-    ! For OB
+    ! Oseen-Burgers
     real(wp) :: G
-    ! For Regularized OB
+    ! regularized OB
+    real(wp) :: O,P,R,S,T
+    real(wp) :: rmagmin
+  end type hibb_t
+  type :: hibw_t
+  end type hibw_t
+  type :: hi_t
+    type(hibb_t) :: hibb
+    type(hibw_t) :: hibw
+  end type hi_t
+  !------------------------------------------
+
+  type :: hi
+    ! RPY
+    real(wp) :: A,B,C,D,E,F
+    ! Oseen-Burgers
+    real(wp) :: G
+    ! regularized OB
     real(wp) :: O,P,R,S,T
     real(wp) :: rmagmin
   end type
 
+  ! ev
+  !------------------------------------------
   type :: evbb
     ! For Gaussian
     real(wp) :: prefactor,denom
@@ -28,7 +58,6 @@ module hiev_mod
     real(wp) :: LJ_prefactor_tr
     real(wp) :: rmagmin
   end type
-
   type :: evbw
     ! For Cubic
     real(wp) :: delw
@@ -39,6 +68,23 @@ module hiev_mod
     integer,allocatable :: w_coll(:)
     integer,allocatable :: ia_time(:,:)
   end type
+  type :: evbb_t
+  end type evbb_t
+  type :: evbw_t
+  end type evbw_t
+  !------------------------------------------
+
+  ! intrn
+  !------------------------------------------
+  type :: intrn_t
+    type(hi_t) :: hi
+    type(evbb_t) :: evbb
+    type(evbw_t) :: evbw
+  contains
+    procedure,pass(this) :: init => init_intrn
+    procedure,pass(this) :: calc => calc_intrn
+  end type intrn_t
+  !------------------------------------------
 
   type(hi),save :: hi_prm
   type(evbb),save :: evbb_prm
@@ -49,29 +95,43 @@ module hiev_mod
     real(wp) :: mag,mag2
   end type
 
-   
+  !-----------------------------------------------------
+  !>>>> Interface to routines for different interactions
+  !-----------------------------------------------------
   interface
+    ! hi
+    !------------------------------------------
 
-!    module subroutine hicalc2(rvmrc,nseg,DiffTens,Fev)
-!      integer,intent(in) :: nseg
-!      real(wp),intent(in) :: rvmrc(:)
-!      real(wp),intent(out) :: DiffTens(:,:),Fev(:)
-!    end subroutine hicalc2
-!
-!    module subroutine evcalc2(rvmrc,nseg,Fev)
-!      integer,intent(in) :: nseg
-!      real(wp),intent(in) :: rvmrc(:)
-!      real(wp),intent(out) :: Fev(:)
-!    end subroutine evcalc2
-!
-!    module subroutine evupdate2(Fev,rvmrc,nseg,Fbarev)
-!      integer,intent(in) :: nseg
-!      real(wp),intent(in) :: Fev(:),rvmrc(:)
-!      real(wp),intent(out) :: Fbarev(:)
-!    end subroutine evupdate2
-
+    !> initializes the hi type
+    module subroutine init_hi(this)
+      class(hi_t),intent(inout) :: this
+    end subroutine init_hi
+    !> initializes the hi type
     module subroutine hi_init()
     end subroutine hi_init
+    !> calculates HI
+    !! \param this hi object
+    !! \param i bead i index
+    !! \param j bead j index
+    !! \param rij data type for inter particle distance
+    !! \param DiffTens diffusion tensor
+    module subroutine hicalc3(this,i,j,rij,DiffTens)
+      class(hi_t),intent(inout) :: this
+      integer,intent(in) :: i,j
+      type(dis),intent(in) :: rij
+      real(wp),intent(inout) :: DiffTens(:,:)
+    end subroutine hicalc3
+    !------------------------------------------
+
+    ! ev
+    !------------------------------------------
+    module subroutine init_evbb(this)
+      class(evbb_t),intent(inout) :: this
+    end subroutine init_evbb
+
+    module subroutine init_evbw(this)
+      class(evbw_t),intent(inout) :: this
+    end subroutine init_evbw
 
     module subroutine ev_init()
     end subroutine ev_init
@@ -79,20 +139,14 @@ module hiev_mod
     module subroutine evbw_init()
     end subroutine evbw_init
 
-    module subroutine hicalc3(i,j,rij,DiffTens)
-      integer,intent(in) :: i,j
-      type(dis),intent(in) :: rij
-      real(wp),intent(inout) :: DiffTens(:,:)
-    end subroutine hicalc3
-
     module subroutine evcalc3(i,j,rij,Fev)
       integer,intent(in) :: i,j
       type(dis),intent(in) :: rij
       real(wp),intent(inout) :: Fev(:)
     end subroutine evcalc3
 
-    !> Calculates EV force between particles and the wall
-    !! \param ry the vertical distance of particle with the wall
+    !> calculates EV force between particles and the wall
+    !! \param ry the vertical distance of particle & the wall
     !! \param Fev EV force
     module subroutine evbwcalc(i,ry,Fev)
       integer,intent(in) :: i
@@ -106,10 +160,26 @@ module hiev_mod
 
     module subroutine del_evbw()
     end subroutine del_evbw
+    !------------------------------------------
 
   end interface
 
 contains
+
+  subroutine init_intrn(this)
+
+    class(intrn_t),intent(inout) :: this
+
+    call init_hi(this%hi)
+    call init_evbb(this%evbb)
+    call init_evbw(this%evbw)
+
+  end subroutine init_intrn
+
+  subroutine calc_intrn(this)
+    class(intrn_t),intent(inout) :: this
+
+  end subroutine calc_intrn
 
 !  subroutine hi_init()
 !
@@ -164,11 +234,12 @@ contains
 !  end subroutine ev_init
 
 
-  subroutine intrncalc(rvmrc,rcm,nseg,DiffTens,Fev,Fbarev,calchi,&
-                        calcev,calcevbw,updtev,updtevbw)
+  subroutine intrncalc(this,rvmrc,rcm,nseg,DiffTens,Fev,Fbarev,calchi,&
+                       calcev,calcevbw,updtev,updtevbw)
 
     use :: inp_dlt, only: EV_bb,EV_bw
 
+    class(intrn_t),intent(inout) :: this
     integer,intent(in) :: nseg
     real(wp),intent(in) :: rvmrc(:)
     real(wp),intent(in) :: rcm(:)
@@ -238,7 +309,7 @@ contains
           rij%mag2=rij%x**2+rij%y**2+rij%z**2
           rij%mag=sqrt(rij%mag2)
 
-          if (clhi) call hicalc3(ibead,jbead,rij,DiffTens)
+          if (clhi) call hicalc3(this%hi,ibead,jbead,rij,DiffTens)
           if (clev) call evcalc3(ibead,jbead,rij,Fev)
           if (upev) call evcalc3(ibead,jbead,rij,Fstarev)
 

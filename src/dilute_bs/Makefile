@@ -8,8 +8,8 @@ CMNOBJS += ../common/cmn_io_mod.o
 OBJS	 = inp_dlt.o dcmp_mod.o root_mod.o 
 OBJS    += force_mod.o HIEVCalc.o pp_mod.o 
 OBJS    += hiev_mod.o hi_smod.o ev_smod.o
-OBJS    += hibb_smod.o evbb_smod.o evbw_smod.o
-OBJS    += dlt_mod.o
+OBJS    += hibb_smod.o hibw_smod.o evbb_smod.o
+OBJS    += evbw_smod.o dlt_mod.o
 INCS	 = -I ../common/inc
 INCS    += -I ./inc
 ifeq ($(FCOMP),gfortran)
@@ -39,6 +39,6 @@ $(OBJS): %.o: %.$(FEXT)
 clean :
 	$(ECHO) cleaning up in dilute_bs
 	$(RM) -f $(OBJS)
-	if [ "$(ls -A ./inc)" ];then     \
+	if [ "$(ls -A ./inc)" ];then \
 		$(RM) ./inc/*.mod;       \
 	fi
