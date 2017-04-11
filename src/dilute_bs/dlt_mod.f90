@@ -31,7 +31,7 @@ module dlt_mod
   use :: dcmp_mod, only: Lanczos,BlockLanczos,MKLsyevr,BlockChebyshev
   use :: pp_mod, only: pp_init,pp_init_tm,data_prcs,conf_sort,del_pp
 !  use :: hiev_mod, only: hi_init,ev_init,hicalc2,evcalc2,evupdate2,intrncalc
-  use :: hiev_mod, only: intrn_t,hi_init,ev_init,evbw_init,intrncalc,wall_rflc
+  use :: intrn_mod, only: intrn_t,ev_init,evbw_init,wall_rflc
 
   implicit none
 
@@ -684,7 +684,7 @@ contains
     call myintrn%init()
 
 
-    call hi_init()
+    ! call hi_init()
     call ev_init()
     call evbw_init()
 
@@ -848,8 +848,8 @@ contains
 !call print_matrix(DiffTensP,'d1')
 !                  call HICalc(rvmrcP,nseg,HITens,DiffTensP,EV_bb,Fev)
 !call print_matrix(DiffTensP,'d2')
-                call intrncalc(myintrn,rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
-                          calchi=.true.,calcev=.true.,calcevbw=.true.)
+                call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
+                              calchi=.true.,calcev=.true.,calcevbw=.true.)
               end if
               if (DecompMeth == 'Cholesky') then
                 if (hstar /= 0._wp) then
@@ -935,8 +935,8 @@ contains
             FBr=FBrbl(:,jcol,ichain)
             if (hstar == 0._wp) then
 !                call EVCalc(rvmrcP,nseg,EV_bb,Fev)
-              call intrncalc(myintrn,rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
-                                      calcev=.true.,calcevbw=.true.)
+              call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
+                                       calcev=.true.,calcevbw=.true.)
 !call evcalc2(rvmrcP,nseg,Fev)
             end if
             !============ Predictor-Corrector =============!
@@ -991,8 +991,8 @@ contains
             call axpy(Kdotq,RHS,a=0.5_wp)
             if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
 !              call EVUpdate(Fev,rvmrcP,Fbarev)
-              call intrncalc(myintrn,rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
-                             updtev=.true.,updtevbw=.true.)
+              call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
+                                        updtev=.true.,updtevbw=.true.)
 !call print_vector(Fev,'fev3')
 !call evupdate2(Fev,rvmrcP,nseg,Fbarev)
 !call print_vector(Fev,'fev4')

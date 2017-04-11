@@ -1,4 +1,4 @@
-submodule (hiev_mod:hi_smod) hibw_smod
+submodule (intrn_mod:hi_smod) hibw_smod
 
   implicit none
 
