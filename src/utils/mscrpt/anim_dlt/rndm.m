@@ -1,16 +1,16 @@
-function an=random_unit_vector(varargin)
-% random_unit_vector
-% random_unit_vector(n)
-% random_unit_vector(m,n)
-% random_unit_vector([m n])
-% random_unit_vector('double')
-% random_unit_vector(n,'double')
-% random_unit_vector(m,n,'double')
-% random_unit_vector([m n],'double')
-% random_unit_vector('single')
-% random_unit_vector(n,'single')
-% random_unit_vector(m,n,'single')
-% random_unit_vector([m n],'single')
+function an=rndm(varargin)
+% rndm
+% rndm(n)
+% rndm(m,n)
+% rndm([m n])
+% rndm('double')
+% rndm(n,'double')
+% rndm(m,n,'double')
+% rndm([m n],'double')
+% rndm('single')
+% rndm(n,'single')
+% rndm(m,n,'single')
+% rndm([m n],'single')
 
 % m - dimentionarity 
 % n - number of unit vectors

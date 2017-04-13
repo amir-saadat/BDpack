@@ -101,7 +101,7 @@ set(gca,'FontName','Times New Roman','FontSize',18,'FontWeight',...
 set(gcf,'Renderer','opengl','DoubleBuffer','off');
 
 h = zeros(nseg+1);
-[K u0] = sphere_wp(50);
+[K u0] = sphere(50);
 
 color_b=zeros(nseg+1,3);
 iarm=1;

@@ -1,22 +1,22 @@
-function  varargout=sphere_wp(varargin)
+function  varargout=sphere(varargin)
 % plot sphere or return geometry info
 % use as matlab built in function "shere"
 % it makes sphere without poles
 % shere consist of triangles
 % usage:
-% sphere_wp    plot sphere use 500 vertexes radius=1
-% sphere_wp(n)  plot sphere use n vertexes
-% sphere_wp(n,true) plot sphere use n vertexes, vertecies uniformly distributed
-% sphere_wp(n,false) plot sphere use n vertexes, vertecies not uniformly distributed
+% sphere    plot sphere use 500 vertexes radius=1
+% sphere(n)  plot sphere use n vertexes
+% sphere(n,true) plot sphere use n vertexes, vertecies uniformly distributed
+% sphere(n,false) plot sphere use n vertexes, vertecies not uniformly distributed
 % by default it always makes uniformly distributed vertecies
 % uniformly distributed vertecies takes longer time to calulate
-% [K u]=sphere_wp(...) works the same but not plot shere
+% [K u]=sphere(...) works the same but not plot shere
 % and return data:
 % K  triangles defined in the m-by-3 face matrix K as a surface
 % m - number of trangles
 % u is n-by-3 matrix with vertex coordinaties 
 % use it as in example:
-% [K u] = sphere_wp;
+% [K u] = sphere;
 % trisurf(K,u(:,1),u(:,2),u(:,3));
 
 
