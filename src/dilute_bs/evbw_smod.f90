@@ -80,8 +80,16 @@ contains
     !   evbw_prm%ia_time(ib,evbw_prm%w_coll(ib)) = &
     !   evbw_prm%ia_time(ib,evbw_prm%w_coll(ib))+1+floor( Ry(ib)/qmax )
     ! end do
-    Ry=abs(Ry)-2*evbw_prm%a*floor( Ry/qmax )
-    rcmy=sum(Ry)/nbead
+
+    !Ry=abs(Ry)-2*evbw_prm%a*floor( Ry/qmax )
+    rcmy=Ry(1)
+    do ib=2, nbead
+      if (Ry(ib) < evbw_prm%a) then
+        Ry(ib)=abs(Ry(ib))!+2*evbw_prm%a
+      end if
+      rcmy=rcmy+Ry(ib)
+    end do
+    rcmy=rcmy/nbead
     Ry=Ry-rcmy
 
   end procedure wall_rflc

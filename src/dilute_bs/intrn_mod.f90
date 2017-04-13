@@ -92,6 +92,8 @@ module intrn_mod
   type :: dis
     real(wp) :: x,y,z
     real(wp) :: mag,mag2
+    real(wp) :: yim
+    real(wp) :: mag2im
   end type
 
   !-----------------------------------------------------
@@ -244,9 +246,13 @@ contains
           end if
         else
           rimrc=rvmrc(osi+1:osi+3)
-          rij%x=rjmrc(1)-rimrc(1)
-          rij%y=rjmrc(2)-rimrc(2)
-          rij%z=rjmrc(3)-rimrc(3)
+          ! rij%x=rjmrc(1)-rimrc(1)
+          ! rij%y=rjmrc(2)-rimrc(2)
+          ! rij%z=rjmrc(3)-rimrc(3)
+          rij%x=rimrc(1)-rjmrc(1)
+          rij%y=rimrc(2)-rjmrc(2)
+          rij%z=rimrc(3)-rjmrc(3)
+          rij%yim=rjmrc(2)+rcm(2)
           rij%mag2=rij%x**2+rij%y**2+rij%z**2
           rij%mag=sqrt(rij%mag2)
 

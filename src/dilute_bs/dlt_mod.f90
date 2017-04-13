@@ -1167,9 +1167,9 @@ contains
               call gemv(WeightTens,real(BdotwP,kind=wp),LdotBdotw)
               rchrP=rchrP+Pe(iPe)*matmul(kappareg,rchrP)*dt(iPe,idt)+coeff*LdotBdotw
             end if
-            ! if (EV_bw == 'Rflc_bc') then
-            !   call wall_rflc(rvmrcPy,rcmP(2))
-            ! end if
+            if (EV_bw == 'Rflc_bc') then
+              call wall_rflc(rvmrcPy,rcmP(2))
+            end if
           end do ! ichain loop
  
           !----------------------------------------------------------------
