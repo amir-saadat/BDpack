@@ -132,12 +132,12 @@ program pdf
   allocate(qmagSeg(ntotseg),qmagSegRel(ntotseg),qmagSegSq(ntotseg))
   allocate(ProbSeg(nbinSeg),ProbCh(nbinCh))
   allocate(midSeg(nbinSeg),midCh(nbinCh))
-        
+
   ! input files for the connecting vecotrs of chain segments.
   open (unit=1,file=adjustl(dmpFile),status='old')
   open (unit=2,file='PQee.dat',status='unknown')
   open (unit=3,file='PQspr.dat',status='unknown')
-  ! Initial positions 
+  ! Initial positions
   Qee=0._dp;Qeex=0._dp;Qeey=0._dp;Qeez=0._dp
   select case (tplgy)
     case ('Linear')
@@ -152,9 +152,9 @@ program pdf
     do iseg=1, nseg
       read(1,*) q(1:3,iseg,ichain)
       if (iseg <= nseg_bb) then
-        Qeex(ichain)=Qeex(ichain)+q(1,iseg,ichain) 
-        Qeey(ichain)=Qeey(ichain)+q(2,iseg,ichain) 
-        Qeez(ichain)=Qeez(ichain)+q(3,iseg,ichain) 
+        Qeex(ichain)=Qeex(ichain)+q(1,iseg,ichain)
+        Qeey(ichain)=Qeey(ichain)+q(2,iseg,ichain)
+        Qeez(ichain)=Qeez(ichain)+q(3,iseg,ichain)
       else
       end if
     end do
@@ -220,13 +220,13 @@ program pdf
   dCh=(betaCh-alfaCh)/nbinCh
   dSeg=(betaSeg-alfaSeg)/nbinSeg
   print *,'bin length for chain and segment discretization:',dCh,dSeg
-  ! the middle points of intervals        
+  ! the middle points of intervals
   do ibinCh=1, nbinCh
     midCh(ibinCh)=alfaCh+(dCh/2)+(ibinCh-1)*dCh
-  end do 
+  end do
   do ibinSeg=1, nbinSeg
     midSeg(ibinSeg)=alfaSeg+(dSeg/2)+(ibinSeg-1)*dSeg
-  end do 
+  end do
 
   ProbCh=0._dp;ProbSeg=0._dp
   x=alfaCh;k=1;Tol=real(1.e-14,kind=dp);sum=0._dp
@@ -247,7 +247,7 @@ program pdf
           elseif (yaxis == 'prob') then
             ProbCh(k)=ProbCh(k)+1._dp/nchain
           end if
-        end if      
+        end if
       endif
     end do
     write(2,2) midCh(k),ProbCh(k)
@@ -281,7 +281,7 @@ program pdf
           elseif (yaxis == 'prob') then
             ProbSeg(k)=ProbSeg(k)+1._dp/ntotseg
           end if
-        endif      
+        endif
       end if
     end do
     write(3,2) midSeg(k),ProbSeg(k)

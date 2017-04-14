@@ -10,7 +10,7 @@ INCS	+= -I ./dilute_bs/inc
 INCS	+= -I ./semidilute_bs/inc
 
 UTILSDIR = ./utils
-UTILS    = pdf cnfgen
+UTILS    = pdf cnfgen wallcollision
 
 all : $(EXE)
 
@@ -49,6 +49,10 @@ pdf: force_look
 cnfgen: force_look
 	$(ECHO) looking into cnfgen : $(MAKE) $(MFLAGS)
 	cd $(UTILSDIR)/cnfgen; $(MAKE) $(MFLAGS)
+	
+wallcollision: force_look
+	$(ECHO) looking into wallcollision : $(MAKE) $(MFLAGS)
+	cd $(UTILSDIR)/wallcollision; $(MAKE) $(MFLAGS)
 
 clean :
 	$(ECHO) cleaning up in .

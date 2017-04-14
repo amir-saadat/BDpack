@@ -23,18 +23,18 @@ program wallcollision
   integer :: iwall_idx,iaway_idx
   integer :: nbin,ibin
   real(dp),allocatable :: midbin(:,:)
-  real(dp), allocatable :: Prob_t_wall(:,:),Prob_t_away(:,:)
-  character(len=20) :: arg,buffer,dmpFile
+  real(dp), allocatable :: Prob_t_away(:,:)
+  character(len=20) :: arg,buffer,dmpFile_R,dmpFile_C
   logical :: dmpExist
   real(dp) :: b,delw
-  real(dp),allocatable :: q(:,:,:,:)
-  real(dp),allocatable,dimension(:,:) :: Qeex,Qeey,Qeez
+  real(dp),allocatable :: rrel(:,:,:,:)
+  real(dp),allocatable :: CoM(:,:,:)
+
   real(dp),allocatable,dimension(:,:,:) :: rx,ry,rz
-  logical, allocatable,dimension(:,:,:) :: nearwall
   integer,allocatable,target :: collisions(:)
-  integer,allocatable,target :: t_wall(:,:), t_away(:,:)
-  integer,allocatable :: t_wall_curr(:,:), t_away_curr(:,:), t_curr(:,:)
-  integer,allocatable :: wall_idx(:),away_idx(:)
+  integer,allocatable,target :: t_away(:,:)
+  integer,allocatable :: t_away_curr(:,:), t_curr(:,:)
+  integer,allocatable :: away_idx(:)
   real(dp),allocatable,dimension(:) :: rx_mean,ry_mean,rz_mean
 
   !----------------------------------------
@@ -57,14 +57,23 @@ program wallcollision
   do iarg=1, narg
     call get_command_argument(iarg,arg)
     select case (adjustl(arg))
-      case ('--file')
-        call get_command_argument(iarg+1,dmpFile)
-        inquire(file=dmpFile,exist=dmpExist)!check if it exist
+      case ('--fileR')
+        call get_command_argument(iarg+1,dmpFile_R)
+        inquire(file=dmpFile_R,exist=dmpExist)!check if it exist
         if(.not.dmpExist)then
-          print '(" File ",a,"not found")',dmpFile
+          print '(" File ",a,"not found")',dmpFile_R
           stop
         else
-          print '(" File Name: ",a)',dmpFile
+          print '(" Relative position file Name: ",a)',dmpFile_R
+        end if
+      case ('--fileC')
+        call get_command_argument(iarg+1,dmpFile_C)
+        inquire(file=dmpFile_C,exist=dmpExist)!check if it exist
+        if(.not.dmpExist)then
+          print '(" File ",a,"not found")',dmpFile_C
+          stop
+        else
+          print '(" CoM file Name: ",a)',dmpFile_C
         end if
       case ('--nCh')
         call get_command_argument(iarg+1,buffer)
@@ -91,7 +100,7 @@ program wallcollision
       case ('--nTime')
         call get_command_argument(iarg+1,buffer)
         read(buffer,'(i10)') ntime
-        print '(" No. chains: ",i10)',ntime
+        print '(" No. time steps: ",i10)',ntime
       case ('--nbin')
         call get_command_argument(iarg+1,buffer)
         read(buffer,'(i10)') nbin
@@ -105,42 +114,40 @@ program wallcollision
   !----------------------------------------
   !         variable allocations
   !----------------------------------------
-  allocate(q(3,nseg,nchain,ntime))
+  allocate(rrel(3,nseg,nchain,ntime))
+  allocate(CoM(3,nchain,ntime))
   allocate(collisions(nseg))
-  allocate(Qeex(nchain,ntime),Qeey(nchain,ntime),Qeez(nchain,ntime))
   allocate(rx(nseg,nchain,ntime),ry(nseg,nchain,ntime),rz(nseg,nchain,ntime))
-  allocate(nearwall(nseg,nchain,ntime))
-  allocate(t_wall(nseg,ntime*nchain),t_away(nseg,ntime*nchain))
+  allocate(t_away(nseg,ntime*nchain))
   allocate(t_curr(nseg,nchain))
-  allocate(wall_idx(nseg),away_idx(nseg))
+  allocate(away_idx(nseg))
   allocate(midbin(nseg,nbin))
-  allocate(Prob_t_wall(nseg,nbin),Prob_t_away(nseg,nbin))
+  allocate(Prob_t_away(nseg,nbin))
   allocate(rx_mean(nseg),ry_mean(nseg),rz_mean(nseg))
 
   !----------------------------------------
   !         opening files
   !----------------------------------------
-  open (unit=1,file=adjustl(dmpFile),status='old')
+  open (unit=1,file=adjustl(dmpFile_R),status='old')
   open (unit=2,file='wallcoll_bw_pdf.dat',status='unknown')
-  open (unit=3,file='wallcoll_t_wall.dat',status='unknown')
+  !open (unit=3,file='wallcoll_t_wall.dat',status='unknown')
   open (unit=4,file='wallcoll_t_away.dat',status='unknown')
   open (unit=5,file='wallcoll_r_mean.dat',status='unknown')
   open (unit=6,file='wallcoll_endbead.dat',status='unknown')
+  open (unit=7,file=adjustl(dmpFile_C),status='old')
 
   !----------------------------------------
   !  data initialization & read in data
   !----------------------------------------
   !recall that a=0, sets all elements of a to 0
   nseg_bb=nseg
-  Qeex=0._dp;Qeey=0._dp;Qeez=0._dp
   rx=0._dp;ry=0._dp;rz=0._dp
   collisions = 0
-  nearwall = .FALSE.
   totcollisions = 0
-  t_wall = 0; t_away = 0
-  wall_idx = 0; away_idx = 0
+  t_away = 0
+  away_idx = 0
   t_curr = 1 !initialized to 1, because the first time step will happen regardless.
-  Prob_t_wall = 0; Prob_t_away = 0
+  Prob_t_away = 0
   rx_mean = 0; ry_mean= 0; rz_mean = 0
 
   !read in files
@@ -149,16 +156,14 @@ program wallcollision
   ! end do
   do itime=1, ntime
     do ichain=1, nchain
+      read(7,*) CoM(1:3,ichain,itime)
+      read(1,*) !don't need coordinate of the tethered bead
       do iseg=1, nseg
-        read(1,*) q(1:3,iseg,ichain,itime)
-        if (iseg <= nseg_bb) then
-          Qeex(ichain,itime)=Qeex(ichain,itime)+q(1,iseg,ichain,itime)
-          Qeey(ichain,itime)=Qeey(ichain,itime)+q(2,iseg,ichain,itime)
-          Qeez(ichain,itime)=Qeez(ichain,itime)+q(3,iseg,ichain,itime)
-          rx(iseg,ichain,itime) = Qeex(ichain,itime)
-          ry(iseg,ichain,itime) = Qeey(ichain,itime)
-          rz(iseg,ichain,itime) = Qeez(ichain,itime)
-        end if
+        read(1,*) rrel(1:3,iseg,ichain,itime)
+
+        rx(iseg,ichain,itime) = CoM(1,ichain,itime)+ rrel(1,iseg,ichain,itime)
+        ry(iseg,ichain,itime) = CoM(2,ichain,itime)+ rrel(2,iseg,ichain,itime)
+        rz(iseg,ichain,itime) = CoM(3,ichain,itime)+ rrel(3,iseg,ichain,itime)
       end do !segs
     end do !chains
   end do !time
@@ -187,11 +192,9 @@ program wallcollision
       !if it's now near the wall
       if (ry(iseg,ichain,itime)<=delw) then
         collisions(iseg) = collisions(iseg)+1
-        nearwall(iseg,ichain,itime) = .TRUE.
       elseif (ry(iseg,ichain,itime)>delw) then
-        nearwall(iseg,ichain,itime) = .FALSE.
+        !do nothing
       end if
-
     end do
   end do
 
@@ -202,43 +205,53 @@ program wallcollision
     do ichain=1, nchain
       do iseg=1, nseg
 
-        !if it's now near the wall, and it wasn't previously
-        if (ry(iseg,ichain,itime)<=delw .AND. nearwall(iseg,ichain,itime-1)==.FALSE.) then
-          collisions(iseg) = collisions(iseg) + 1
-          nearwall(iseg,ichain,itime) = .TRUE.
+        ! !if it's now near the wall, and it wasn't previously
+        ! if (ry(iseg,ichain,itime)<=delw .AND. ry(iseg,ichain,itime-1)>delw) then
+        !   collisions(iseg) = collisions(iseg) + 1
+        !
+        !   away_idx(iseg) = away_idx(iseg) + 1
+        !   t_away(iseg,away_idx(iseg)) = t_curr(iseg,ichain)
+        !   t_curr(iseg,ichain) = 1
+        !
+        ! !it's not near the wall, and it wasn't previously
+        ! elseif (ry(iseg,ichain,itime)>delw .AND. ry(iseg,ichain,itime-1)>delw) then
+        !   t_curr(iseg,ichain) = t_curr(iseg,ichain) + 1
+        !
+        ! !it's near the wall, but was already here the last time step
+        ! elseif (ry(iseg,ichain,itime)<=delw .AND. ry(iseg,ichain,itime-1)<=delw) then
+        !   collisions(iseg) = collisions(iseg) + 1
+        !   away_idx(iseg) = away_idx(iseg) + 1
+        !   t_away(iseg,away_idx(iseg)) = t_curr(iseg,ichain)
+        !   t_curr(iseg,ichain) = 1
+        !
+        ! !the bead just left the wall
+        ! elseif (ry(iseg,ichain,itime)>delw .AND. ry(iseg,ichain,itime-1)<=delw) then
+        !   t_curr(iseg,ichain) = 1
+        ! end if
 
+        !if it's now near the wall, and it wasn't previously
+        if (ry(iseg,ichain,itime)<=delw) then
+          collisions(iseg) = collisions(iseg) + 1
           away_idx(iseg) = away_idx(iseg) + 1
           t_away(iseg,away_idx(iseg)) = t_curr(iseg,ichain)
           t_curr(iseg,ichain) = 1
 
         !it's not near the wall, and it wasn't previously
-        elseif (ry(iseg,ichain,itime)>delw .AND. nearwall(iseg,ichain,itime-1)==.FALSE.) then
-          nearwall(iseg,ichain,itime) = .FALSE.
+        elseif (ry(iseg,ichain,itime)>delw) then
           t_curr(iseg,ichain) = t_curr(iseg,ichain) + 1
-
-        !it's near the wall, but was already here the last time step
-        elseif (ry(iseg,ichain,itime)<=delw .AND. nearwall(iseg,ichain,itime-1)==.TRUE.) then
-          nearwall(iseg,ichain,itime) = .TRUE.
-          t_curr(iseg,ichain) = t_curr(iseg,ichain) + 1
-
-        !the bead just left the wall
-        elseif (ry(iseg,ichain,itime)>delw .AND. nearwall(iseg,ichain,itime-1)==.TRUE.) then
-          nearwall(iseg,ichain,itime) = .FALSE.
-
-          wall_idx(iseg) = wall_idx(iseg) + 1
-          t_wall(iseg,wall_idx(iseg)) = t_curr(iseg,ichain)
-          t_curr(iseg,ichain) = 1
-
         end if
+
       end do
     end do
   end do
 
   !count up the total collisions
   do iseg = 1,nseg
+    print *, 'Number of collisions for bead ',iseg,' is: ', collisions(iseg)
     totcollisions = totcollisions + collisions(iseg)
   end do
 
+  print *, 'Total number of collisions is', totcollisions
   !note that wall_idx(iseg), is exactly the number of elements in t_wall(iseg,:). i.e. wall_idx(iseg)+1 and so on will be 0's.
 
   !----------------------------------------
@@ -254,23 +267,14 @@ program wallcollision
     write(5,6) iseg, rx_mean(iseg), ry_mean(iseg), rz_mean(iseg)
   end do
 
-  !mean polymer shape
+  !coordinates of the end bead
   do itime = 1,ntime
     do ichain = 1,nchain
       write(6,7) rx(nseg,ichain,itime), ry(nseg,ichain,itime), rz(nseg,ichain,itime)
     end do
   end do
 
-  !t_wall for end bead
-  call pdf(t_wall,wall_idx,nseg,nbin,Prob_t_wall,midbin)
-  do iseg =1, nseg
-    write(3,5) iseg
-    do ibin = 1,nbin
-      write(3,2) midbin(iseg,ibin), Prob_t_wall(iseg,ibin)
-    end do
-  end do
-
-  !t_away for end bead
+  !t_away for all beads
   call pdf(t_away,away_idx,nseg,nbin,Prob_t_away,midbin)
   do iseg =1, nseg
     write(4,5) iseg
@@ -282,16 +286,13 @@ program wallcollision
   !----------------------------------------
   !     deallocating
   !----------------------------------------
-  deallocate(q)
   deallocate(collisions)
-  deallocate(Qeex,Qeey,Qeez)
   deallocate(rx,ry,rz)
-  deallocate(nearwall)
-  deallocate(t_wall,t_away)
+  deallocate(t_away)
   deallocate(t_curr)
-  deallocate(wall_idx,away_idx)
+  deallocate(away_idx)
   deallocate(midbin)
-  deallocate(Prob_t_wall,Prob_t_away)
+  deallocate(Prob_t_away)
   deallocate(rx_mean,ry_mean,rz_mean)
 
 contains
@@ -338,9 +339,7 @@ contains
               Prob(iseg,ibin) = Prob(iseg,ibin) + 1._dp/(dbin(iseg)*times_idx(iseg))
             end if
           else
-            !if (times(iseg,idx)>=(alpha(iseg) + dbin(iseg)*(ibin-1)) .and. times(iseg,idx)<=(alpha(iseg) + dbin(iseg)*(ibin))) then
             if (times(iseg,idx)>=(alpha(iseg) + dbin(iseg)*(ibin-1)) .and. times(iseg,idx)<=  beta(iseg)) then
-            !if (times(iseg,idx)>=(alpha(iseg) + dbin(iseg)*(ibin-1))) then
               Prob(iseg,ibin) = Prob(iseg,ibin) + 1._dp/(dbin(iseg)*times_idx(iseg))
             end if
           end if
@@ -354,7 +353,7 @@ contains
         sum(iseg) = sum(iseg) + Prob(iseg,ibin)* dbin(iseg)
       end do
       if (abs(sum(iseg)-1)>1.e-10) then
-        print *, 'Sum of probs for bead', iseg, ' is >1E-10'
+        print *, 'Sum of probs for bead', iseg, ' is not 1'
       end if
     end do
 
@@ -371,7 +370,8 @@ contains
     print '(a)', 'wallcollision options:'
     print '(a)', ''
     print '(a)', ' --help        print usage information and exit'
-    print '(a)', ' --file        name of the file containing segmental q'
+    print '(a)', ' --fileR        name of the file containing R coordinate'
+    print '(a)', ' --fileC        name of the file containing CoM coordinate'
     print '(a)', ' --nCh         total No. chains'
     print '(a)', ' --nSeg        No. segments in a chain'
     print '(a)', ' --nSkip       Total No. lines to be skipped'
