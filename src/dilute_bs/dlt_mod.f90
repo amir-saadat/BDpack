@@ -933,7 +933,7 @@ contains
               end if
             end if
             FBr=FBrbl(:,jcol,ichain)
-            if (hstar == 0._wp) then
+            if (hstar == 0._wp .and. EV_bw /= 'Rflc_bc') then
 !                call EVCalc(rvmrcP,nseg,EV_bb,Fev)
               call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
                                        calcev=.true.,calcevbw=.true.)
@@ -989,7 +989,7 @@ contains
             call gemv(Bmat,qstar,rvmrcP) 
             call copy(qc,RHS)
             call axpy(Kdotq,RHS,a=0.5_wp)
-            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
+            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
 !              call EVUpdate(Fev,rvmrcP,Fbarev)
               call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
                                         updtev=.true.,updtevbw=.true.)
@@ -1167,9 +1167,9 @@ contains
               call gemv(WeightTens,real(BdotwP,kind=wp),LdotBdotw)
               rchrP=rchrP+Pe(iPe)*matmul(kappareg,rchrP)*dt(iPe,idt)+coeff*LdotBdotw
             end if
-            if (EV_bw == 'Rflc_bc') then
-              call wall_rflc(rvmrcPy,rcmP(2))
-            end if
+!            if (EV_bw == 'Rflc_bc') then
+!              call wall_rflc(rvmrcPy,rcmP(2))
+!            end if
           end do ! ichain loop
  
           !----------------------------------------------------------------
