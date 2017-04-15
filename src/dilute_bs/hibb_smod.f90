@@ -11,7 +11,7 @@ contains
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp),parameter :: sqrtPI=sqrt(PI)
 
-    if (HITens == 'RPY') then
+    if (HITens == 'RPY' .or. HITens == 'Blake') then
       ! For Rotne-Prager-Yamakawa Tensor:
       this%A=0.75*hstar*sqrtPI
       this%B=hstar**3*PI*sqrtPI/2
@@ -61,7 +61,7 @@ contains
     rijmag3=rij%mag2*rij%mag
     rijmag5=rij%mag2*rijmag3
 
-    if (HITens == 'RPY') then
+    if (HITens == 'RPY' .or. HITens == 'Blake') then
       if (rij%mag >= this%D) then
         Alpha=this%A/rij%mag+this%B/rijmag3
         Beta=this%A/rijmag3
@@ -70,11 +70,11 @@ contains
         Zeta12=Zeta*rij%x*rij%y;Zeta13=Zeta*rij%x*rij%z;Zeta23=Zeta*rij%y*rij%z
         DiffTens(osi+1,osj+1)=Alpha+Zeta*rij%x*rij%x
         DiffTens(osi+1,osj+2)=Zeta12;DiffTens(osi+2,osj+1)=Zeta12
-        DiffTens(osi+1,osj+3)=Zeta13;DiffTens(osi+3,osj+1)=Zeta13        
+        DiffTens(osi+1,osj+3)=Zeta13;DiffTens(osi+3,osj+1)=Zeta13
         DiffTens(osi+2,osj+2)=Alpha+Zeta*rij%y*rij%y
         DiffTens(osi+2,osj+3)=Zeta23;DiffTens(osi+3,osj+2)=Zeta23
         DiffTens(osi+3,osj+3)=Alpha+Zeta*rij%z*rij%z
-      else    
+      else
         Theta=1-this%E*rij%mag;Xi=this%F/rij%mag
         DiffTens(osi+1,osj+1)=1-this%E*rij%mag+this%F*rij%x*rij%x/rij%mag
         Xi12=this%F*rij%x*rij%y/rij%mag
@@ -85,7 +85,7 @@ contains
         DiffTens(osi+2,osj+2)=1-this%E*rij%mag+this%F*rij%y*rij%y/rij%mag
         DiffTens(osi+2,osj+3)=Xi23;DiffTens(osi+3,osj+2)=Xi23
         DiffTens(osi+3,osj+3)=1-this%E*rij%mag+this%F*rij%z*rij%z/rij%mag
-      end if  
+      end if
     elseif (HITens == 'Zimm') then
       Rho=sqrt(2._wp)*hstar*sqrt(1/abs(real(i-j,kind=wp)))
       DiffTens(osi+1,osj+1)=Rho
