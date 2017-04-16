@@ -18,7 +18,10 @@ MV	 = mv
 #----------------------------------------------------------------------
 # Uncomment for using <Address of MKL directory>
 #----------------------------------------------------------------------
-#MKLROOT  =
+
+#MKLROOT  = /data/apps/intel-compilers/2016u3/compilers_and_libraries_2016.3.210/linux/mkl
+MKLROOT = /share/apps/intel/intel-14/compilers_and_libraries_2016/linux/mkl
+
 
 GLBFLGS  = -fpp # Enables preprocessing
 GLBFLGS += -qopenmp # Enables openmp directives
