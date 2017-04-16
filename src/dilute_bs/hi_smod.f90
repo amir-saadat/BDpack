@@ -87,4 +87,17 @@ contains
     
   end procedure calc_hi
 
+  module procedure calc_div
+
+    use :: inp_dlt, only: hstar
+
+    real(wp),parameter :: PI=3.1415926535897958648_wp
+    real(wp),parameter :: sqrtPI=sqrt(PI)
+
+
+    divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
+
+    
+  end procedure calc_div
+
 end submodule hi_smod

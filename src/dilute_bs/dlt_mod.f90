@@ -31,7 +31,7 @@ module dlt_mod
   use :: dcmp_mod, only: Lanczos,BlockLanczos,MKLsyevr,BlockChebyshev
   use :: pp_mod, only: pp_init,pp_init_tm,data_prcs,conf_sort,del_pp
 !  use :: hiev_mod, only: hi_init,ev_init,hicalc2,evcalc2,evupdate2,intrncalc
-  use :: intrn_mod, only: intrn_t,ev_init,evbw_init,wall_rflc
+  use :: intrn_mod, only: intrn_t,ev_init,evbw_init,wall_rflc,print_wcll
 
   implicit none
 
@@ -74,7 +74,7 @@ contains
     ! Characters:
     character(len=1024) :: file1,format_str,fstat,fmt1
     ! Integers:
-    integer :: offset,offseti,offsetj,idx
+    integer :: offset,offseti,offsetj,idx,is,os
     integer :: jcheck,kcheck,iseed,jp,iseg,jbead,i,j,k,nseg_bb,iarm,ku,kl
     integer :: nu,mu,ibead,jseg,ichain,ip,iread,iPe,idt,iAdjSeq,itime
     integer :: icol,jcol,kcol,lcol,jchain,istr,info,mrestart,Lrestart
@@ -99,7 +99,7 @@ contains
     real(wp),allocatable,dimension(:) :: Fbarbead,Fev,w,FBr,Kdotq,ADFev,RHScnt
     real(wp),allocatable,dimension(:) :: Fbarev,root_f,Ybar,qctemp,uminus,uplus
     real(wp),allocatable,dimension(:) :: Ddotuminus,Ddotuplus
-    real(wp),allocatable,dimension(:) :: Fbnd,Fbarbnd,Fbar
+    real(wp),allocatable,dimension(:) :: Fbnd,Fbarbnd,Fbar,divD
     real(wp),allocatable,dimension(:),target :: RHS,RHSbase,qc,Fseg,DdotF
     real(wp),dimension(:),pointer  :: RHSP,RHSbaseP,qcP,FsegP,FBrblP,rcmP,rcmPy
     real(wp),dimension(:),pointer :: rchrP,FphiP,DdotFPx,DdotFPy,DdotFPz,qP
@@ -307,6 +307,7 @@ contains
       ! For calculating the average of iteration number    
       mch(:)=mBlLan
     end if
+    if (HITens == 'Blake') allocate(divD(nbead))
     if (CoM) allocate(rcm(3,npchain),rcmstart(3,npchain))
     if (CoHR) allocate(rchr(3,npchain),rchrstart(3,npchain),&
                        MobilTens(nbeadx3,nbeadx3),WeightTens&
@@ -686,7 +687,7 @@ contains
 
     ! call hi_init()
     call ev_init()
-    call evbw_init()
+    call evbw_init(id)
 
     !----------------------------------------------------------------
     !>>>>> Time integration of SDE:
@@ -807,7 +808,7 @@ contains
               ! Setting the random numbers for the brownian force
               do kcol=1, ncols
                 ! In case of having overlap for the #cols and adjusting sequence:
-                if ( Adjust_dt .and. (ncols > 1) ) then   
+                if ( Adjust_dt .and. (ncols > 1) ) then 
                   if ((itime+kcol) >= itime_AdjSeq(iPe,idt,iAdjSeq)) then
                     if ((iAdjSeq+1) > nAdjSeq) then
                       sqrtdt=sqrt(AdjFact(iAdjSeq)*dt_tmp(iPe,idt))
@@ -848,20 +849,36 @@ contains
 !call print_matrix(DiffTensP,'d1')
 !                  call HICalc(rvmrcP,nseg,HITens,DiffTensP,EV_bb,Fev)
 !call print_matrix(DiffTensP,'d2')
-                call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
-                              calchi=.true.,calcev=.true.,calcevbw=.true.)
+                call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
+                    calchi=.true.,calcdiv=.true.,calcev=.true.,calcevbw=.true.)
               end if
               if (DecompMeth == 'Cholesky') then
                 if (hstar /= 0._wp) then
                   CoeffTensP=real(DiffTensP,kind=double)
                   wbltempP1=real(wbl,kind=double)
-                  call potrf(CoeffTensP,info=info)
+
+                  !! I need to change the storage scheme for symmetric tensors
+                  !! for dilute solutions in the absence of the wall
+
+                  if (HITens == 'Blake') then
+                    call potrf(CoeffTensP,info=info)
+                  else
+                    call potrf(CoeffTensP,info=info)
+                  endif
+
                   if (info /= 0) then
                     print '(" Unsuccessful Cholesky fact. of D in main.")'
                     print '(" info: ",i3)',info
                     stop
                   end if
-                  call trmm(CoeffTensP,wbltempP1,transa='T')
+
+
+                  if (HITens == 'Blake') then
+                    call trmm(CoeffTensP,wbltempP1,transa='T')
+                  else
+                    call trmm(CoeffTensP,wbltempP1,transa='T')
+                  endif
+
                 else
                   wbltempP1=real(wbl,kind=double)
                 end if                 
@@ -935,8 +952,8 @@ contains
             FBr=FBrbl(:,jcol,ichain)
             if (hstar == 0._wp .and. EV_bw /= 'Rflc_bc') then
 !                call EVCalc(rvmrcP,nseg,EV_bb,Fev)
-              call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
-                                       calcev=.true.,calcevbw=.true.)
+              call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
+                                            calcev=.true.,calcevbw=.true.)
 !call evcalc2(rvmrcP,nseg,Fev)
             end if
             !============ Predictor-Corrector =============!
@@ -971,6 +988,16 @@ contains
             end if
             call gemv(AdotDP1,Fphi(:,ichain),qstar,alpha=0.25*dt(iPe,idt),&
                       beta=1._wp)
+
+            !! Blake's part
+            if (HITens == 'Blake') then
+              do is=1, nseg
+                os=(is-1)*3
+                qstar(os+2)=qstar(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
+              enddo
+            endif
+            !!-------------
+
             call axpy(FBr,qstar)
             !-------First Corrector Algorithm-------!
             ! RHS=q                                 !
@@ -991,8 +1018,8 @@ contains
             call axpy(Kdotq,RHS,a=0.5_wp)
             if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
 !              call EVUpdate(Fev,rvmrcP,Fbarev)
-              call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,Fev,Fbarev,&
-                                        updtev=.true.,updtevbw=.true.)
+              call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
+                                calcdiv=.true.,updtev=.true.,updtevbw=.true.)
 !call print_vector(Fev,'fev3')
 !call evupdate2(Fev,rvmrcP,nseg,Fbarev)
 !call print_vector(Fev,'fev4')
@@ -1012,6 +1039,17 @@ contains
               Fbar(1:3)=Fbar(1:3)+Fbartet(1:3)
             end if
             call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
+
+
+            !! Blake's part
+            if (HITens == 'Blake') then
+              do is=1, nseg
+                os=(is-1)*3
+                RHS(os+2)=RHS(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)              
+              enddo
+            endif
+            !!-------------
+
             call axpy(FBr,RHS)
             call copy(RHS,RHScnt)
             call gemv(Kappa,qstar,RHS,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1._wp)
@@ -1106,6 +1144,15 @@ contains
               SumDdotF=(/sum(DdotFPx),sum(DdotFPy),sum(DdotFPz)/)
               rcmP=rcmP+(Pe(iPe)*matmul(Kappareg,rcmP)+1._wp/(4*nbead)*SumDdotF)*&
                    dt(iPe,idt)+coeff/nbead*SumBdotw
+
+
+              !! Blake's part
+              if (HITens == 'Blake') then
+                rcmP(2)=rcmP(2)+1._wp/(4*nbead)*sum(divD)*dt(iPe,idt)
+              endif
+              !!-------------
+
+
             end if
             if (CoHR) then
               if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
@@ -1167,9 +1214,9 @@ contains
               call gemv(WeightTens,real(BdotwP,kind=wp),LdotBdotw)
               rchrP=rchrP+Pe(iPe)*matmul(kappareg,rchrP)*dt(iPe,idt)+coeff*LdotBdotw
             end if
-!            if (EV_bw == 'Rflc_bc') then
-!              call wall_rflc(rvmrcPy,rcmP(2))
-!            end if
+            if (EV_bw == 'Rflc_bc') then
+              call wall_rflc(rvmrcPy,rcmP(2))
+            end if
           end do ! ichain loop
  
           !----------------------------------------------------------------
@@ -1178,6 +1225,7 @@ contains
 
           if ( (time >= time_check3) .or. (itime == ntime(iPe,idt)) ) then
             time_check3=time_check3+frm_rt_pp*lambda
+            call print_wcll(id,MPI_REAL_WP,time)
             call data_prcs(id,itime,time,idt,iPe,q,rvmrc,Fphi,rcm,rcmstart,rchr,&
                            nseg_bb,mch,Lch,MPI_REAL_WP)
             if (cnf_srt) then

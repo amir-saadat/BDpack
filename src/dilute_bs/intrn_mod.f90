@@ -9,6 +9,7 @@ module intrn_mod
             ev_init,&
             evbw_init,&
             wall_rflc,&
+            print_wcll,&
             del_evbw
 
   private
@@ -64,8 +65,10 @@ module intrn_mod
     real(wp) :: rmagmin
     ! For Reflc-bc
     real(wp) :: a
+    integer :: u0
     integer,allocatable :: w_coll(:)
     integer,allocatable :: ia_time(:,:)
+    integer,allocatable :: w_coll_t(:)    
   end type
   type :: evbb_t
   end type evbb_t
@@ -92,8 +95,8 @@ module intrn_mod
   type :: dis
     real(wp) :: x,y,z
     real(wp) :: mag,mag2
-    real(wp) :: yim
-    real(wp) :: mag2im
+    real(wp) :: ry,yim
+    real(wp) :: magim,mag2im
   end type
 
   !-----------------------------------------------------
@@ -122,6 +125,15 @@ module intrn_mod
       type(dis),intent(in) :: rij
       real(wp),intent(inout) :: DiffTens(:,:)
     end subroutine calc_hi
+    !> calculates divergance of D
+    !! \param j bead j index
+    !! \param rjy y component of rj
+    !! \param divD divergance of D
+    module subroutine calc_div(j,rjy,divD)
+      integer,intent(in) :: j
+      real(wp),intent(in) :: rjy
+      real(wp),intent(inout) :: divD(:)
+    end subroutine calc_div
     !------------------------------------------
 
     ! ev
@@ -137,7 +149,8 @@ module intrn_mod
     module subroutine ev_init()
     end subroutine ev_init
 
-    module subroutine evbw_init()
+    module subroutine evbw_init(id)
+      integer,intent(in) :: id
     end subroutine evbw_init
 
     module subroutine evcalc3(i,j,rij,Fev)
@@ -159,8 +172,15 @@ module intrn_mod
       real(wp),intent(inout) :: Ry(:),rcmy
     end subroutine wall_rflc
 
-    module subroutine del_evbw()
+    module subroutine del_evbw(id)
+      integer,intent(in) :: id
     end subroutine del_evbw
+
+    module subroutine print_wcll(id,MPI_REAL_WP,time)
+      integer,intent(in) :: id
+      integer,intent(in) :: MPI_REAL_WP
+      real(wp),intent(in) :: time
+    end subroutine print_wcll
     !------------------------------------------
 
   end interface
@@ -177,30 +197,35 @@ contains
 
   end subroutine init_intrn
 
-  subroutine calc_intrn(this,rvmrc,rcm,nseg,DiffTens,Fev,Fbarev,calchi,&
-                                       calcev,calcevbw,updtev,updtevbw)
+  subroutine calc_intrn(this,rvmrc,rcm,nseg,DiffTens,divD,Fev,Fbarev,&
+                      calchi,calcdiv,calcev,calcevbw,updtev,updtevbw)
 
-    use :: inp_dlt, only: EV_bb,EV_bw
+    use :: inp_dlt, only: EV_bb,EV_bw,hstar,HITens
 
     class(intrn_t),intent(inout) :: this
     integer,intent(in) :: nseg
     real(wp),intent(in) :: rvmrc(:)
     real(wp),intent(in) :: rcm(:)
     type(dis) :: rij
-    integer :: ibead,jbead,os,osi,osj
+    integer :: ibead,jbead,os,osi,osj,ibead_ulim
     real(wp) :: LJ_prefactor,LJ_prefactor_tr,epsOVsig
     real(wp) :: sigOVrtr,sigOVrtrto6,sigOVrmag,sigOVrmagto6
-    real(wp) :: ry,rimrc(3),rjmrc(3)
+    real(wp) :: ry,rimrc(3),rjmrc(3),rjy
     real(wp),allocatable :: Fstarev(:)
-    real(wp) :: DiffTens(:,:),Fev(:),Fbarev(:)
-    logical :: clhi,clev,clevbw,upev,upevbw
-    logical,optional :: calchi,calcev,calcevbw,updtev,updtevbw
+    real(wp) :: DiffTens(:,:),divD(:),Fev(:),Fbarev(:)
+    logical :: clhi,cldiv,clev,clevbw,upev,upevbw
+    logical,optional :: calchi,calcdiv,calcev,calcevbw,updtev,updtevbw
 
 !print *,'here'
     if (present(calchi)) then
       clhi=calchi
     else
       clhi=.false.
+    end if
+    if (present(calcdiv)) then
+      cldiv=calcdiv
+    else
+      cldiv=.false.
     end if
     if ((present(calcev)).and.(EV_bb/='NoEV')) then
       clev=calcev
@@ -233,7 +258,22 @@ contains
       os=3*(jbead-2)
       osj=3*(jbead-1)
       rjmrc=rvmrc(osj+1:osj+3)
-      do ibead=1, jbead
+
+
+
+      !! Blake's part
+      if (hstar /= 0._wp .and. HITens == 'Blake') then
+        ibead_ulim=nseg+1
+        rjy=rjmrc(2)+rcm(2)
+        if (cldiv) call calc_div(jbead,rjy,divD)
+      else
+        ibead_ulim=jbead
+      endif
+      !!-------------
+
+
+      do ibead=1, ibead_ulim
+
         osi=3*(ibead-1)
         if (ibead == jbead) then
           if (clhi) then
@@ -252,9 +292,15 @@ contains
           rij%x=rimrc(1)-rjmrc(1)
           rij%y=rimrc(2)-rjmrc(2)
           rij%z=rimrc(3)-rjmrc(3)
-          rij%yim=rjmrc(2)+rcm(2)
           rij%mag2=rij%x**2+rij%y**2+rij%z**2
           rij%mag=sqrt(rij%mag2)
+
+          if (HITens == 'Blake') then
+            rij%ry=rjmrc(2)+rcm(2)
+            rij%yim=rimrc(2)+rcm(2)+rij%ry
+            rij%mag2im=rij%x**2+rij%yim**2+rij%z**2
+            rij%magim=sqrt(rij%mag2im)
+          endif
 
           if (clhi) call calc_hi(this%hi,ibead,jbead,rij,DiffTens)
           if (clev) call evcalc3(ibead,jbead,rij,Fev)
