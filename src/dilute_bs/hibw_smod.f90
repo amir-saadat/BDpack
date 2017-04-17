@@ -25,10 +25,10 @@ contains
     rijmag7im = rij%mag2im*rijmag5im
 
     if (HITens == 'Blake') then
-      call Sij_calc(Sij,rijmag3im,rijmag5im,rijmag7im)
-      call Pij_D_calc(Pij_D,rijmag3im,rijmag5im,rijmag7im)
-      call Sij_D_calc(Sij_D,rijmag3im,rijmag5im,rijmag7im)
-      call H_PD_calc(H_PD,rijmag3im,rijmag5im,rijmag7im)
+      call Sij_calc(Sij,rij,rijmag3im,rijmag5im,rijmag7im)
+      call Pij_D_calc(Pij_D,rij,rijmag3im,rijmag5im,rijmag7im)
+      call Sij_D_calc(Sij_D,rij,rijmag3im,rijmag5im,rijmag7im)
+      call H_PD_calc(H_PD,rij,rijmag3im,rijmag5im,rijmag7im)
 
       Omega_PF = (3*hstar/4)*(-Sij + 2*(rij%ry**2)*Pij_D - 2*rij%ry*Sij_D)
       Omega_PD = (3*hstar/4)*H_PD
@@ -41,8 +41,9 @@ contains
   end procedure calc_hibw
 
 
-  subroutine Sij_Calc(SijTens,rijmag3im,rijmag5im,rijmag7im)
+  subroutine Sij_Calc(SijTens,rij,rijmag3im,rijmag5im,rijmag7im)
     real(wp), intent(inout) :: SijTens(:,:)
+    type(dis),intent(in) :: rij
     real(wp), intent(in) :: rijmag3im,rijmag5im,rijmag7im
 
     SijTens(1,1) = 1/rij%magim + rij%x * rij%x   / rijmag3im
@@ -58,8 +59,9 @@ contains
     SijTens(3,3) = 1/rij%magim + rij%z   * rij%z / rijmag3im
   end subroutine Sij_Calc
 
-  subroutine Pij_D_Calc(Pij_DTens,rijmag3im,rijmag5im,rijmag7im)
+  subroutine Pij_D_Calc(Pij_DTens,rij,rijmag3im,rijmag5im,rijmag7im)
     real(wp), intent(inout) :: Pij_DTens(:,:)
+    type(dis),intent(in) :: rij
     real(wp), intent(in) :: rijmag3im,rijmag5im,rijmag7im
 
     Pij_DTens(1,1) =   1/rijmag3im - 3*rij%x * rij%x  /rijmag5im
@@ -75,11 +77,13 @@ contains
     Pij_DTens(3,3) =   1/rijmag3im - 3*rij%z   * rij%z/rijmag5im
   end subroutine Pij_D_Calc
 
-  subroutine Sij_D_Calc(Sij_DTens,rijmag3im,rijmag5im,rijmag7im)
+  subroutine Sij_D_Calc(Sij_DTens,rij,rijmag3im,rijmag5im,rijmag7im)
     real(wp), intent(inout) :: Sij_DTens(:,:)
+    type(dis),intent(in) :: rij
     real(wp), intent(in) :: rijmag3im,rijmag5im,rijmag7im
 
-    call Pij_D(Sij_DTens)
+    !!! please check
+    call Pij_D_Calc(Sij_DTens,rij,rijmag3im,rijmag5im,rijmag7im)
 
     Sij_DTens = rij%yim * Sij_DTens
 
@@ -96,8 +100,9 @@ contains
     Sij_DTens(3,3) = Sij_DTens(3,3)
   end subroutine Sij_D_Calc
 
-  subroutine H_PD_Calc(HTens,rijmag3im,rijmag5im,rijmag7im)
+  subroutine H_PD_Calc(HTens,rij,rijmag3im,rijmag5im,rijmag7im)
     real(wp), intent(inout) :: HTens(:,:)
+    type(dis),intent(in) :: rij
     real(wp), intent(in) :: rijmag3im,rijmag5im,rijmag7im
 
     HTens(1,1) = (1/rijmag3im) &
