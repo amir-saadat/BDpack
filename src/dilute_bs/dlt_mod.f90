@@ -778,6 +778,7 @@ contains
             print '(f7.3," Chain-Relaxation-Time(s) Passed")',rtpassed
             time_check1=time_check1+frm_rt_rep*lambda
           end if
+
           ! Things to do in the first time step:
           if (itime == 1) then
             if (.not.Adjust_dt) sqrtdt=sqrt(dt(iPe,idt))
@@ -787,7 +788,7 @@ contains
               rvmrcP => rvmrc(:,jchain)
               call gemv(Bmat,qP,rvmrcP)
               if (srf_tet) then
-                rf0(:,jchain)=0.0!rvmrc(1:3,jchain)+rcmstart(:,jchain)
+                rf0(:,jchain)=0._wp!rvmrc(1:3,jchain)+rcmstart(:,jchain)
               end if
             end do
             if (CoM) rcm=rcmstart
@@ -795,6 +796,7 @@ contains
             call pp_init_tm(id)
             istr=1 ! the index for dumpstr()
           end if
+
           do ichain=1, npchain
             ! Important Note: each chain should construct its own block, 
             ! if the vectorial components (i.e. a(:,ichain)) are going 
@@ -834,9 +836,9 @@ contains
             if (CoM) then
               rcmP => rcm(:,ichain)
             end if
-            if (EV_bw == 'Rflc_bc') then
-              call wall_rflc(rvmrcPy,rcmP(2))
-            end if
+            ! if (EV_bw == 'Rflc_bc') then
+            !   call wall_rflc(rvmrcPy,rcmP(2))
+            ! end if
             call sprforce(qc,nseg,ForceLaw,TruncMethod,Fseg)
             if (ForceLaw == 'WLC_GEN') call bndforce(nbead_bb,qc,Fbnd,itime)
             ! Calculation of Diffusion Tensor and Excluded Volume Force
@@ -950,12 +952,17 @@ contains
               end if
             end if
             FBr=FBrbl(:,jcol,ichain)
-            if (hstar == 0._wp .and. EV_bw /= 'Rflc_bc') then
+
+
+            ! rflc doesn't need this
+            if (hstar == 0._wp) then
 !                call EVCalc(rvmrcP,nseg,EV_bb,Fev)
               call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
                                             calcev=.true.,calcevbw=.true.)
 !call evcalc2(rvmrcP,nseg,Fev)
             end if
+
+
             !============ Predictor-Corrector =============!
             !--------Predictor Algorithm----------!
             ! Kdotq=dt*Pe*(Kappa.q)               !
@@ -1016,7 +1023,9 @@ contains
             call gemv(Bmat,qstar,rvmrcP) 
             call copy(qc,RHS)
             call axpy(Kdotq,RHS,a=0.5_wp)
-            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
+
+            ! rflc doesn't need this
+            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
 !              call EVUpdate(Fev,rvmrcP,Fbarev)
               call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
                                 calcdiv=.true.,updtev=.true.,updtevbw=.true.)
@@ -1025,6 +1034,8 @@ contains
 !call print_vector(Fev,'fev4')
 !stop
             end if
+
+
             if (ForceLaw == 'WLC_GEN') then
               call bndupdate(nbead_bb,Fbnd,qstar,Fbarbnd,itime)
             end if
@@ -1214,9 +1225,15 @@ contains
               call gemv(WeightTens,real(BdotwP,kind=wp),LdotBdotw)
               rchrP=rchrP+Pe(iPe)*matmul(kappareg,rchrP)*dt(iPe,idt)+coeff*LdotBdotw
             end if
+
+
+
             if (EV_bw == 'Rflc_bc') then
               call wall_rflc(rvmrcPy,rcmP(2))
             end if
+
+
+
           end do ! ichain loop
  
           !----------------------------------------------------------------
@@ -1225,7 +1242,11 @@ contains
 
           if ( (time >= time_check3) .or. (itime == ntime(iPe,idt)) ) then
             time_check3=time_check3+frm_rt_pp*lambda
-            call print_wcll(id,MPI_REAL_WP,time)
+
+
+            if (EV_bw == 'Rflc_bc') call print_wcll(id,MPI_REAL_WP,time)
+            
+
             call data_prcs(id,itime,time,idt,iPe,q,rvmrc,Fphi,rcm,rcmstart,rchr,&
                            nseg_bb,mch,Lch,MPI_REAL_WP)
             if (cnf_srt) then
