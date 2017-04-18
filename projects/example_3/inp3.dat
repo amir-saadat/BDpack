@@ -40,7 +40,7 @@ ncols         : 1
 #------------------------------------------
 # EV parameters
 #------------------------------------------
-EVForceLaw    : Gauss
+EV_bb         : Gauss
 zstar         : 1.52415
 dstar         : 0.5774 Self
 minNonBond    : 1	

@@ -168,8 +168,8 @@ module intrn_mod
       real(wp),intent(inout) :: Fev(:)
     end subroutine evbwcalc
 
-    module subroutine wall_rflc(Ry,rcmy)
-      real(wp),intent(inout) :: Ry(:),rcmy
+    module subroutine wall_rflc(qy,Ry,rcmy)
+      real(wp),intent(inout) :: qy(:),Ry(:),rcmy
     end subroutine wall_rflc
 
     module subroutine del_evbw(id)
@@ -275,16 +275,56 @@ contains
       do ibead=1, ibead_ulim
 
         osi=3*(ibead-1)
-        if (ibead == jbead) then
-          if (clhi) then
-            DiffTens(osi+1,osj+1)=1._wp
-            DiffTens(osi+1,osj+2)=0._wp
-            DiffTens(osi+1,osj+3)=0._wp
-            DiffTens(osi+2,osj+2)=1._wp
-            DiffTens(osi+2,osj+3)=0._wp
-            DiffTens(osi+3,osj+3)=1._wp
-          end if
-        else
+
+
+        ! if (ibead == jbead) then
+        !   if (clhi) then
+        !     DiffTens(osi+1,osj+1)=1._wp
+        !     DiffTens(osi+1,osj+2)=0._wp
+        !     DiffTens(osi+1,osj+3)=0._wp
+        !     DiffTens(osi+2,osj+2)=1._wp
+        !     DiffTens(osi+2,osj+3)=0._wp
+        !     DiffTens(osi+3,osj+3)=1._wp
+        !   end if
+        ! else
+        !   rimrc=rvmrc(osi+1:osi+3)
+        !   ! rij%x=rjmrc(1)-rimrc(1)
+        !   ! rij%y=rjmrc(2)-rimrc(2)
+        !   ! rij%z=rjmrc(3)-rimrc(3)
+        !   rij%x=rimrc(1)-rjmrc(1)
+        !   rij%y=rimrc(2)-rjmrc(2)
+        !   rij%z=rimrc(3)-rjmrc(3)
+        !   rij%mag2=rij%x**2+rij%y**2+rij%z**2
+        !   rij%mag=sqrt(rij%mag2)
+
+        !   if (HITens == 'Blake') then
+        !     rij%ry=rjmrc(2)+rcm(2)
+        !     rij%yim=rimrc(2)+rcm(2)+rij%ry
+        !     rij%mag2im=rij%x**2+rij%yim**2+rij%z**2
+        !     rij%magim=sqrt(rij%mag2im)
+        !   endif
+        !   if (clhi) call calc_hi(this%hi,ibead,jbead,rij,DiffTens)
+        !   if (clev) call evcalc3(ibead,jbead,rij,Fev)
+        !   if (upev) call evcalc3(ibead,jbead,rij,Fstarev)
+        ! end if ! ibead /= jbead
+
+
+
+        if (ibead /= jbead) then
+
+
+          ! if (clhi) then
+          !   DiffTens(osi+1,osj+1)=1._wp
+          !   DiffTens(osi+1,osj+2)=0._wp
+          !   DiffTens(osi+1,osj+3)=0._wp
+          !   DiffTens(osi+2,osj+2)=1._wp
+          !   DiffTens(osi+2,osj+3)=0._wp
+          !   DiffTens(osi+3,osj+3)=1._wp
+          ! end if
+
+
+        ! else
+
           rimrc=rvmrc(osi+1:osi+3)
           ! rij%x=rjmrc(1)-rimrc(1)
           ! rij%y=rjmrc(2)-rimrc(2)
@@ -295,18 +335,24 @@ contains
           rij%mag2=rij%x**2+rij%y**2+rij%z**2
           rij%mag=sqrt(rij%mag2)
 
-          if (HITens == 'Blake') then
-            rij%ry=rjmrc(2)+rcm(2)
-            rij%yim=rimrc(2)+rcm(2)+rij%ry
-            rij%mag2im=rij%x**2+rij%yim**2+rij%z**2
-            rij%magim=sqrt(rij%mag2im)
-          endif
-
-          if (clhi) call calc_hi(this%hi,ibead,jbead,rij,DiffTens)
           if (clev) call evcalc3(ibead,jbead,rij,Fev)
           if (upev) call evcalc3(ibead,jbead,rij,Fstarev)
 
         end if ! ibead /= jbead
+
+
+        ! Blake's part
+        if (HITens == 'Blake') then
+          rij%ry=rjmrc(2)+rcm(2)
+          rij%yim=rimrc(2)+rcm(2)+rij%ry
+          rij%mag2im=rij%x**2+rij%yim**2+rij%z**2
+          rij%magim=sqrt(rij%mag2im)
+        endif
+        !-------------
+
+        if (clhi) call calc_hi(this%hi,ibead,jbead,rij,DiffTens)
+
+
       end do ! ibead
 
       if (clevbw) then

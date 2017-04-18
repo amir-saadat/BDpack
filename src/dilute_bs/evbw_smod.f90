@@ -16,7 +16,7 @@ submodule (intrn_mod) evbw_smod
   !   procedure,pass(this) :: updt => evbw_updt
   !   procedure,pass(this) :: 
   ! end type
-  character(len=99),parameter :: fmt="(1x,i3,1x,i7)"
+  character(len=99),parameter :: fmtii="(1x,i3,1x,i7)"
 
 contains
 
@@ -26,7 +26,7 @@ contains
 
   module procedure evbw_init
     
-    use :: inp_dlt, only: nseg,nbead,EV_bw,Aw,N_Ks,qmax
+    use :: inp_dlt, only: nseg,nbead,EV_bw,Aw,N_Ks,qmax,ntime
     use :: cmn_io_mod, only: read_input
 
     ! Bead-wall excluded volume interaction
@@ -40,7 +40,7 @@ contains
         call read_input('Bead-rad',0,evbw_prm%a)
 
         allocate(evbw_prm%w_coll(2:nbead))
-        ! allocate(evbw_prm%ia_time(2:nbead,10000)) !! should be fixed
+        allocate(evbw_prm%ia_time(2:nbead,maxval(ntime))) !! should be fixed
         ! Initializing the variables
         evbw_prm%w_coll=0
         evbw_prm%ia_time=1
@@ -81,13 +81,14 @@ contains
 
   module procedure wall_rflc
 
-    use :: inp_dlt, only: nbead,qmax 
+    use :: inp_dlt, only: nbead,qmax,tplgy
     use :: arry_mod, only: print_vector
 
     integer :: ib
 
     ! To save memory, rcmy is added to Rvy to get rvy
     Ry=Ry+rcmy
+
     !evbw_prm%w_coll=evbw_prm%w_coll-floor( Ry(2:nbead)/qmax )
     ! do ib=2, nbead
     !   evbw_prm%ia_time(ib,evbw_prm%w_coll(ib)) = &
@@ -100,6 +101,19 @@ contains
       if (Ry(ib) < evbw_prm%a) then
         evbw_prm%w_coll(ib)=evbw_prm%w_coll(ib)+1
         Ry(ib)=abs(Ry(ib))+2*evbw_prm%a
+        select case (tplgy)
+          case ('Linear')
+            qy(ib-1)=Ry(ib)-Ry(ib-1)
+            if (ib < nbead) &
+              qy(ib)=Ry(ib+1)-Ry(ib)
+          case ('Comb')
+        end select
+      else
+
+        evbw_prm%ia_time(ib,evbw_prm%w_coll(ib)+1) = &
+        evbw_prm%ia_time(ib,evbw_prm%w_coll(ib)+1) + 1
+
+
       end if
       rcmy=rcmy+Ry(ib)
     end do
@@ -132,6 +146,9 @@ contains
 
     integer :: ib,ierr
 
+    
+    
+
     call MPI_Reduce(evbw_prm%w_coll,evbw_prm%w_coll_t,nbead-1,&
                     MPI_INTEGER,MPI_SUM,0,MPI_COMM_WORLD,ierr)
 
@@ -145,7 +162,7 @@ contains
     if (id == 0) then
       write(evbw_prm%u0,*) 'TIME',time
       do ib=2,nbead
-        write(evbw_prm%u0,fmt) ib,evbw_prm%w_coll_t(ib)
+        write(evbw_prm%u0,fmtii) ib,evbw_prm%w_coll_t(ib)
       enddo
       ! call print_vector(evbw_prm%w_coll_t,'total collisions')
     endif

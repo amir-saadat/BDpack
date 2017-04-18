@@ -82,8 +82,38 @@ contains
 
   module procedure calc_hi
 
-    call calc_hibb(this%hibb,i,j,rij,DiffTens)
-    call calc_hibw(this%hibw,i,j,rij,DiffTens)
+
+    use :: inp_dlt, only: HITens
+
+    integer :: osi,osj
+
+
+    osj=3*(j-1)
+    osi=3*(i-1)
+
+    if (i == j) then
+
+      DiffTens(osi+1,osj+1)=1._wp
+      DiffTens(osi+1,osj+2)=0._wp
+      DiffTens(osi+1,osj+3)=0._wp
+      DiffTens(osi+2,osj+2)=1._wp
+      DiffTens(osi+2,osj+3)=0._wp
+      DiffTens(osi+3,osj+3)=1._wp
+
+    else
+
+      call calc_hibb(this%hibb,i,j,rij,DiffTens)
+      
+    endif
+
+
+
+    ! Blake's part
+    if (HITens == 'Blake') then
+      call calc_hibw(this%hibw,i,j,rij,DiffTens)
+    endif
+    !------------
+
     
   end procedure calc_hi
 
