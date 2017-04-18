@@ -168,8 +168,8 @@ module intrn_mod
       real(wp),intent(inout) :: Fev(:)
     end subroutine evbwcalc
 
-    module subroutine wall_rflc(Ry,rcmy)
-      real(wp),intent(inout) :: Ry(:),rcmy
+    module subroutine wall_rflc(qy,Ry,rcmy)
+      real(wp),intent(inout) :: qy(:),Ry(:),rcmy
     end subroutine wall_rflc
 
     module subroutine del_evbw(id)

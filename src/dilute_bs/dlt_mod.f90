@@ -103,7 +103,7 @@ contains
     real(wp),allocatable,dimension(:),target :: RHS,RHSbase,qc,Fseg,DdotF
     real(wp),dimension(:),pointer  :: RHSP,RHSbaseP,qcP,FsegP,FBrblP,rcmP,rcmPy
     real(wp),dimension(:),pointer :: rchrP,FphiP,DdotFPx,DdotFPy,DdotFPz,qP
-    real(wp),dimension(:),pointer :: rvmrcP,rvmrcPy
+    real(wp),dimension(:),pointer :: rvmrcP,rvmrcPy,qPy
     real(double),dimension(:),pointer :: wbltempP2,BdotwP,BdotwPx,BdotwPy,BdotwPz
     real(wp),allocatable,dimension(:,:) :: Kappa,Amat,Bmat,wbl,aBlLan,WBlLan
     real(wp),allocatable,dimension(:,:) :: VBlLan,VcntBlLan,Eye,Dsh
@@ -682,7 +682,9 @@ contains
     !>>>>> HI and EV initialization:
     !----------------------------------------------------------------
 
+print *,'hey 1'
     call myintrn%init()
+print *,'hey 2'
 
 
     ! call hi_init()
@@ -827,16 +829,24 @@ contains
               end do
             end if
             w(:)=wbl(:,jcol)
+
+
             ! Constructing an array for each individual chain
             qc(:)=q(:,ichain)
+            qP => q(:,ichain)
             rvmrcP => rvmrc(:,ichain)
+            qPy => qP(2:nsegx3-1:3)
             rvmrcPy => rvmrcP(2:nbeadx3-1:3)
             if (CoM) then
               rcmP => rcm(:,ichain)
             end if
-            if (EV_bw == 'Rflc_bc') then
-              call wall_rflc(rvmrcPy,rcmP(2))
-            end if
+
+
+!            if (EV_bw == 'Rflc_bc') then
+!              call wall_rflc(rvmrcPy,rcmP(2))
+!            end if
+
+
             call sprforce(qc,nseg,ForceLaw,TruncMethod,Fseg)
             if (ForceLaw == 'WLC_GEN') call bndforce(nbead_bb,qc,Fbnd,itime)
             ! Calculation of Diffusion Tensor and Excluded Volume Force
@@ -950,7 +960,9 @@ contains
               end if
             end if
             FBr=FBrbl(:,jcol,ichain)
-            if (hstar == 0._wp .and. EV_bw /= 'Rflc_bc') then
+
+!            if (hstar == 0._wp .and. EV_bw /= 'Rflc_bc') then
+            if (hstar == 0._wp) then
 !                call EVCalc(rvmrcP,nseg,EV_bb,Fev)
               call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
                                             calcev=.true.,calcevbw=.true.)
@@ -1016,7 +1028,10 @@ contains
             call gemv(Bmat,qstar,rvmrcP) 
             call copy(qc,RHS)
             call axpy(Kdotq,RHS,a=0.5_wp)
-            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
+
+!            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
+
+            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
 !              call EVUpdate(Fev,rvmrcP,Fbarev)
               call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
                                 calcdiv=.true.,updtev=.true.,updtevbw=.true.)
@@ -1096,6 +1111,8 @@ contains
                 call sprupdate(root_f,PrScale,nroots,dt(iPe,idt),RHSP,qbar,iseg,nseg,&
                                ForceLaw,TruncMethod,qc,Fseg,Fbead,tplgy,Amat,nseg_bb,&
                                nseg_ar,Ia,Na,itime)
+
+
               end do
               eps=nrm2(qc-qctemp)/nrm2(qctemp)         
               icount=icount+1
@@ -1214,9 +1231,16 @@ contains
               call gemv(WeightTens,real(BdotwP,kind=wp),LdotBdotw)
               rchrP=rchrP+Pe(iPe)*matmul(kappareg,rchrP)*dt(iPe,idt)+coeff*LdotBdotw
             end if
+
+
+            
+            ! rflc part
             if (EV_bw == 'Rflc_bc') then
-              call wall_rflc(rvmrcPy,rcmP(2))
+              call wall_rflc(qPy,rvmrcPy,rcmP(2))
             end if
+            !-----
+
+
           end do ! ichain loop
  
           !----------------------------------------------------------------
@@ -1225,7 +1249,12 @@ contains
 
           if ( (time >= time_check3) .or. (itime == ntime(iPe,idt)) ) then
             time_check3=time_check3+frm_rt_pp*lambda
-            call print_wcll(id,MPI_REAL_WP,time)
+
+
+            if (EV_bw == 'Rflc_bc') call print_wcll(id,MPI_REAL_WP,time)
+
+
+
             call data_prcs(id,itime,time,idt,iPe,q,rvmrc,Fphi,rcm,rcmstart,rchr,&
                            nseg_bb,mch,Lch,MPI_REAL_WP)
             if (cnf_srt) then

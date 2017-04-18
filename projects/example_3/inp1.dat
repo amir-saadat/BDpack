@@ -9,7 +9,7 @@ Rel-Model     : Self 90.9845
 # SDE parameters
 #------------------------------------------
 initmode      : st
-tend          : 7.5
+tend          : 15.0
 tss           : 5.0
 trst          : 0.0
 ndt           : 1
@@ -40,7 +40,7 @@ ncols         : 1
 #------------------------------------------
 # EV parameters
 #------------------------------------------
-EVForceLaw    : Gauss
+EV_bb         : Gauss
 zstar         : 1.52415
 dstar         : 0.5774 Self
 minNonBond    : 1	
