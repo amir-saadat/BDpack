@@ -43,26 +43,26 @@ contains
       Omega_W = Omega_PF - (2*((sqrtPI*hstar)**2)/3)*Omega_c
 
       !for debugging...
-      print *, 'x is ', rij%x
-      print *, 'yim is ', rij%yim
-      print *, 'y is ', rij%y
-      print *, 'z is ', rij%z
-      print *, 'rjy is ', rij%rjy
-      print *, 'i is ', i
-      print *, 'j is ', j
-      call print_matrix(Sij,'Sij')
-      call print_matrix(Pij_D,'Pij_D')
-      call print_matrix(Sij_D,'Sij_D')
-      !call print_matrix(Hij_PD,'H_PD')
-      call print_matrix(Omega_PF,'Omega_PF')
-      !call print_matrix(Omegaij_PD,'Omegaij_PD')
-      call print_matrix(Omega_c,'Omega_c')
-      call print_matrix(Omega_W,'Omega_W')
+      ! print *, 'x is ', rij%x
+      ! print *, 'yim is ', rij%yim
+      ! print *, 'y is ', rij%y
+      ! print *, 'z is ', rij%z
+      ! print *, 'rjy is ', rij%rjy
+      ! print *, 'i is ', i
+      ! print *, 'j is ', j
+      ! call print_matrix(Sij,'Sij')
+      ! call print_matrix(Pij_D,'Pij_D')
+      ! call print_matrix(Sij_D,'Sij_D')
+      ! !call print_matrix(Hij_PD,'H_PD')
+      ! call print_matrix(Omega_PF,'Omega_PF')
+      ! !call print_matrix(Omegaij_PD,'Omegaij_PD')
+      ! call print_matrix(Omega_c,'Omega_c')
+      ! call print_matrix(Omega_W,'Omega_W')
 
       DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) &
                                           + Omega_W
       !call print_matrix(DiffTens(osi+1:osi+3,osj+1:osj+3),'DiffTens(osi+1:osi+3,osj+1:osj+3)')
-      call print_matrix(DiffTens,'DiffTens(osi+1:osi+3,osj+1:osj+3)')
+      ! call print_matrix(DiffTens,'DiffTens(osi+1:osi+3,osj+1:osj+3)')
     end if
 
   end procedure calc_hibw
