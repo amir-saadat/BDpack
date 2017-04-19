@@ -16,7 +16,7 @@ submodule (intrn_mod) evbw_smod
   !   procedure,pass(this) :: updt => evbw_updt
   !   procedure,pass(this) :: 
   ! end type
-  character(len=99),parameter :: fmtii="(1x,i3,1x,i7)"
+  character(len=99),parameter :: fmt3xi="(1x,i3,1x,i3,1x,i7)"
 
 contains
 
@@ -26,29 +26,40 @@ contains
 
   module procedure evbw_init
     
-    use :: inp_dlt, only: nseg,nbead,EV_bw,Aw,N_Ks,qmax,ntime
+    use :: inp_dlt, only: nseg,nbead,EV_bw,Aw,N_Ks,qmax,ntime,npchain,nchain
     use :: cmn_io_mod, only: read_input
 
     ! Bead-wall excluded volume interaction
     select case (EV_bw)
       case ('Cubic')
+
 !        evbw_prm%delw=0.5_wp*sqrt( (nseg**2-1._wp)/(2._wp*nseg) )
         evbw_prm%delw=0.5_wp*sqrt( 3.0 )
         evbw_prm%prf=Aw*N_Ks/(3*qmax*evbw_prm%delw**2)
         evbw_prm%rmagmin=1.e-7_wp ! The Minimum value accepted as the |rij|
+
       case ('Rflc_bc')
+
         call read_input('Bead-rad',0,evbw_prm%a)
 
-        allocate(evbw_prm%w_coll(2:nbead))
-        allocate(evbw_prm%ia_time(2:nbead,maxval(ntime))) !! should be fixed
+        allocate(evbw_prm%w_coll(2:nbead,npchain))
+        allocate(evbw_prm%ia_time(2:nbead,maxval(ntime),npchain))
+
         ! Initializing the variables
+
         evbw_prm%w_coll=0
         evbw_prm%ia_time=1
+
+
         if (id == 0) then
-          allocate(evbw_prm%w_coll_t(2:nbead))
-          open(newunit=evbw_prm%u0,file='data/w_coll.dat',status='replace',position='append')
-          write(evbw_prm%u0,*) "# bead index, Total number of collisions #"
-          write(evbw_prm%u0,*) "# -------------------------------------- #"
+          allocate(evbw_prm%w_coll_t(2:nbead,npchain))
+          allocate(evbw_prm%ia_time_t(2:nbead,maxval(ntime),npchain))
+          open(newunit=evbw_prm%u_wc,file='data/w_coll.dat',status='replace',position='append')
+          write(evbw_prm%u_wc,*) "# chain index, bead index, Total number of collisions #"
+          write(evbw_prm%u_wc,*) "# --------------------------------------------------- #"
+          open(newunit=evbw_prm%u_ia,file='data/ia_time.dat',status='replace',position='append')
+          write(evbw_prm%u_ia,*) "# chain index, bead index, Inter-arrival time unit #"
+          write(evbw_prm%u_ia,*) "# ------------------------------------------------ #"
         end if
         ! write(fnme,"(A,i0.2,'.dat')") 'data/ia_time',id
 
@@ -97,9 +108,12 @@ contains
 
     !Ry=abs(Ry)-2*evbw_prm%a*floor( Ry/qmax )
     rcmy=Ry(1)
+
     do ib=2, nbead
       if (Ry(ib) < evbw_prm%a) then
-        evbw_prm%w_coll(ib)=evbw_prm%w_coll(ib)+1
+
+        evbw_prm%w_coll(ib,ich)=evbw_prm%w_coll(ib,ich)+1
+
         Ry(ib)=abs(Ry(ib))+2*evbw_prm%a
         select case (tplgy)
           case ('Linear')
@@ -108,10 +122,11 @@ contains
               qy(ib)=Ry(ib+1)-Ry(ib)
           case ('Comb')
         end select
+
       else
 
-        evbw_prm%ia_time(ib,evbw_prm%w_coll(ib)+1) = &
-        evbw_prm%ia_time(ib,evbw_prm%w_coll(ib)+1) + 1
+        evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) = &
+        evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) + 1
 
 
       end if
@@ -129,10 +144,13 @@ contains
     select case (EV_bw)
       case ('Cubic')
       case ('Rflc_bc')
+
         deallocate(evbw_prm%w_coll)
         deallocate(evbw_prm%ia_time)
+
         if (id == 0) then
           deallocate(evbw_prm%w_coll_t)
+          deallocate(evbw_prm%ia_time_t)
         endif
     end  select
 
@@ -141,16 +159,74 @@ contains
   module procedure print_wcll
 
     use :: mpi
-    use :: inp_dlt, only: nbead
+    use :: inp_dlt, only: nbead,npchain,ntime
     use :: arry_mod, only: print_vector
 
-    integer :: ib,ierr
-
-    
+    integer :: ich,ib,iwc,osch,ierr,ncount_wc,ncount_ia,iproc,tag
     
 
-    call MPI_Reduce(evbw_prm%w_coll,evbw_prm%w_coll_t,nbead-1,&
-                    MPI_INTEGER,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+
+    ncount_wc=(nbead-1)*npchain
+    ncount_ia=(nbead-1)*maxval(ntime)*npchain
+
+    if (id == 0) then
+
+      write(evbw_prm%u_wc,'(" TIME: ",f9.2)') time
+      write(evbw_prm%u_ia,'(" TIME: ",f9.2)') time
+
+      do ich=1, npchain
+        do ib=2,nbead
+          write(evbw_prm%u_wc,fmt3xi) ich,ib,evbw_prm%w_coll(ib,ich)
+          do iwc=1, evbw_prm%w_coll(ib,ich)
+            write(evbw_prm%u_ia,fmt3xi) ich,ib,evbw_prm%ia_time(ib,iwc,ich)
+          enddo
+        enddo
+      enddo
+
+      do iproc=1, nproc-1
+
+        tag=1100+iproc
+
+        call MPI_Recv(evbw_prm%w_coll_t,ncount_wc,MPI_INTEGER,iproc,tag,&
+          MPI_COMM_WORLD,MPI_STATUS_IGNORE,ierr)
+
+        call MPI_Recv(evbw_prm%ia_time_t,ncount_ia,MPI_INTEGER,iproc,tag,&
+          MPI_COMM_WORLD,MPI_STATUS_IGNORE,ierr)
+
+        osch=iproc*npchain
+
+        do ich=1, npchain
+          do ib=2,nbead
+            write(evbw_prm%u_wc,fmt3xi) osch+ich,ib,evbw_prm%w_coll_t(ib,ich)
+            do iwc=1, evbw_prm%w_coll_t(ib,ich)
+              write(evbw_prm%u_ia,fmt3xi) osch+ich,ib,evbw_prm%ia_time_t(ib,iwc,ich)
+            enddo
+          enddo
+        enddo
+
+      enddo
+
+    else
+
+      tag=1100+id
+
+      call MPI_Send(evbw_prm%w_coll,ncount_wc,MPI_INTEGER,0,tag,&
+        MPI_COMM_WORLD,ierr)
+
+      call MPI_Send(evbw_prm%ia_time,ncount_ia,MPI_INTEGER,0,tag,&
+        MPI_COMM_WORLD,ierr)
+     
+    endif
+
+    ! wait untill receiving all values
+    call MPI_Barrier(MPI_COMM_WORLD,ierr)
+
+
+
+    ! call MPI_Reduce(evbw_prm%w_coll,evbw_prm%w_coll_t,nbead-1,&
+    !                   MPI_INTEGER,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+
+
 
     ! call MPI_Reduce(evbw_prm%w_coll,w_cll_tot,nbead-1,MPI_REAL_WP,&
     !   MPI_SUM,0,MPI_COMM_WORLD,ierr)
@@ -159,13 +235,13 @@ contains
     ! else
     ! call print_vector(evbw_prm%w_coll,'collisionsid1')
     ! endif
-    if (id == 0) then
-      write(evbw_prm%u0,*) 'TIME',time
-      do ib=2,nbead
-        write(evbw_prm%u0,fmtii) ib,evbw_prm%w_coll_t(ib)
-      enddo
+    ! if (id == 0) then
+    !   write(evbw_prm%u_wc,'(" TIME: ",f9.2)') time
+    !   do ib=2,nbead
+    !     write(evbw_prm%u_wc,fmtii) ib,evbw_prm%w_coll_t(ib)
+    !   enddo
       ! call print_vector(evbw_prm%w_coll_t,'total collisions')
-    endif
+    ! endif
 
   end procedure print_wcll
 

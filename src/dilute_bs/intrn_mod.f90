@@ -65,10 +65,12 @@ module intrn_mod
     real(wp) :: rmagmin
     ! For Reflc-bc
     real(wp) :: a
-    integer :: u0
-    integer,allocatable :: w_coll(:)
-    integer,allocatable :: ia_time(:,:)
-    integer,allocatable :: w_coll_t(:)    
+    integer :: u_wc
+    integer :: u_ia
+    integer,allocatable :: w_coll(:,:)
+    integer,allocatable :: ia_time(:,:,:)
+    integer,allocatable :: w_coll_t(:,:)    
+    integer,allocatable :: ia_time_t(:,:,:)
   end type
   type :: evbb_t
   end type evbb_t
@@ -177,8 +179,8 @@ module intrn_mod
       integer,intent(in) :: id
     end subroutine del_evbw
 
-    module subroutine print_wcll(id,MPI_REAL_WP,time)
-      integer,intent(in) :: id
+    module subroutine print_wcll(id,nproc,MPI_REAL_WP,time)
+      integer,intent(in) :: id,nproc
       integer,intent(in) :: MPI_REAL_WP
       real(wp),intent(in) :: time
     end subroutine print_wcll
@@ -335,7 +337,7 @@ contains
           rij%z=rimrc(3)-rjmrc(3)
           rij%mag2=rij%x**2+rij%y**2+rij%z**2
           rij%mag=sqrt(rij%mag2)
-          
+
         if (ibead /= jbead) then
 
           if (clev) call evcalc3(ibead,jbead,rij,Fev)

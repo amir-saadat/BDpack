@@ -1249,7 +1249,7 @@ module dlt_mod
 
           ! rflc part
           if (EV_bw == 'Rflc_bc') then
-            call wall_rflc(qPy,rvmrcPy,rcmP(2))
+            call wall_rflc(ichain,qPy,rvmrcPy,rcmP(2))
           end if
           !-----
 
@@ -1264,7 +1264,7 @@ module dlt_mod
           time_check3=time_check3+frm_rt_pp*lambda
 
 
-          if (EV_bw == 'Rflc_bc') call print_wcll(id,MPI_REAL_WP,time)
+          if (EV_bw == 'Rflc_bc') call print_wcll(id,p,MPI_REAL_WP,time)
 
 
           call data_prcs(id,itime,time,idt,iPe,q,rvmrc,Fphi,rcm,rcmstart,rchr,&
