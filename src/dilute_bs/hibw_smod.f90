@@ -59,10 +59,17 @@ contains
       ! call print_matrix(Omega_c,'Omega_c')
       ! call print_matrix(Omega_W,'Omega_W')
 
-      DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) &
+      if ((rij%rjy < hstar*sqrtPI) .OR. (rij%riy < hstar*sqrtPI) .OR. (rij%mag<2*hstar*sqrtPI))then
+        DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3)
+      else
+        DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) &
                                           + Omega_W
+      end if
       !call print_matrix(DiffTens(osi+1:osi+3,osj+1:osj+3),'DiffTens(osi+1:osi+3,osj+1:osj+3)')
-      ! call print_matrix(DiffTens,'DiffTens(osi+1:osi+3,osj+1:osj+3)')
+       !if (i == 3 .AND. j == 3)then
+        !call print_matrix(DiffTens,'DiffTens(osi+1:osi+3,osj+1:osj+3)')
+    !    call print_matrix(DiffTens-TRANSPOSE(DiffTens),'Difftens - transpose')
+      !end if
     end if
 
   end procedure calc_hibw

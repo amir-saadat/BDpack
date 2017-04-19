@@ -24,7 +24,7 @@ submodule (intrn_mod) hi_smod
     !! \param DiffTens diffusion tensor
     module subroutine calc_hibb(this,i,j,rij,DiffTens)
       class(hibb_t),intent(inout) :: this
-      integer,intent(in) :: i,j 
+      integer,intent(in) :: i,j
       type(dis),intent(in) :: rij
       real(wp),intent(out) :: DiffTens(:,:)
     end subroutine calc_hibb
@@ -36,7 +36,7 @@ submodule (intrn_mod) hi_smod
     !! \param DiffTens diffusion tensor
     module subroutine calc_hibw(this,i,j,rij,DiffTens)
       class(hibw_t),intent(inout) :: this
-      integer,intent(in) :: i,j 
+      integer,intent(in) :: i,j
       type(dis),intent(in) :: rij
       real(wp),intent(inout) :: DiffTens(:,:)
     end subroutine calc_hibw
@@ -103,7 +103,7 @@ contains
     else
 
       call calc_hibb(this%hibb,i,j,rij,DiffTens)
-      
+
     endif
 
 
@@ -114,7 +114,7 @@ contains
     endif
     !------------
 
-    
+
   end procedure calc_hi
 
   module procedure calc_div
@@ -124,10 +124,19 @@ contains
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp),parameter :: sqrtPI=sqrt(PI)
 
+    !divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
 
-    divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
 
-    
+    !debugging
+    if (j == 1 .OR. rjy<hstar*sqrtPI) then
+      divD(j)=0
+    else
+      divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
+    end if
+
+    !print *, 'divD(',j, ') is: ', divD(j)
+    !print *, 'rjy is', rjy
+
   end procedure calc_div
 
 end submodule hi_smod
