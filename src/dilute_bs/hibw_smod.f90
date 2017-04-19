@@ -11,11 +11,16 @@ contains
   module procedure calc_hibw
 
     use :: inp_dlt, only: HITens, hstar
+    use :: arry_mod, only: print_vector, print_matrix
+
+    real(wp),parameter :: PI=3.1415926535897958648_wp
+    real(wp),parameter :: sqrtPI=sqrt(PI)
 
     integer :: osi,osj
     real(wp) :: rijmag3im, rijmag5im, rijmag7im
     real(wp), dimension(3,3) :: Sij,Pij_D,Sij_D,H_PD
-    real(wp), dimension(3,3) :: Omega_PF,Omega_PD,Omega_c
+    real(wp), dimension(3,3) :: Omega_PF,Omega_PD,Omega_c, Omega_W
+    !real(wp), dimension(3,3) :: Omega_PD_trans
 
     osi=3*(i-1)
     osj=3*(j-1)
@@ -30,18 +35,38 @@ contains
       call Sij_D_calc(Sij_D,rij,rijmag3im,rijmag5im,rijmag7im)
       call H_PD_calc(H_PD,rij,rijmag3im,rijmag5im,rijmag7im)
 
-      Omega_PF = (3*hstar/4)*(-Sij + 2*(rij%ry**2)*Pij_D - 2*rij%ry*Sij_D)
-      Omega_PD = (3*hstar/4)*H_PD
-      Omega_c = (1/2)*(Omega_PD+TRANSPOSE(Omega_PD))
+      Omega_PF = (3*sqrtPI*hstar/4)*(-Sij + 2*(rij%ry**2)*Pij_D - 2*rij%ry*Sij_D)
+      Omega_PD = (3*sqrtPI*hstar/4)*H_PD
+      Omega_c = (1._wp/2)*(Omega_PD+TRANSPOSE(Omega_PD))
+      Omega_W = Omega_PF - (2*((sqrtPI*hstar)**2)/3)*Omega_c
+
+      !for debugging...
+      ! print *, 'x is ', rij%x
+      ! print *, 'yim is ', rij%yim
+      ! print *, 'y is ', rij%y
+      ! print *, 'z is ', rij%z
+      ! print *, 'ry is ', rij%ry
+      ! call print_matrix(Sij,'Sij')
+      ! call print_matrix(Pij_D,'Pij_D')
+      ! call print_matrix(Sij_D,'Sij_D')
+      ! call print_matrix(H_PD,'H_PD')
+      ! call print_matrix(Omega_PF,'Omega_PF')
+      ! call print_matrix(Omega_PD,'Omega_PD')
+      ! call print_matrix(Omega_c,'Omega_c')
+      ! call print_matrix(Omega_W,'Omega_W')
 
       DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) &
-                                          + Omega_PF - (2*(hstar**2)/3)*Omega_c
+                                          + Omega_W
     end if
 
   end procedure calc_hibw
 
 
   subroutine Sij_Calc(SijTens,rij,rijmag3im,rijmag5im,rijmag7im)
+
+    !use :: arry_mod, only: print_vector, print_matrix
+
+
     real(wp), intent(inout) :: SijTens(:,:)
     type(dis),intent(in) :: rij
     real(wp), intent(in) :: rijmag3im,rijmag5im,rijmag7im
@@ -57,12 +82,16 @@ contains
     SijTens(3,1) = 0           + rij%x   * rij%z / rijmag3im
     SijTens(3,2) = 0           + rij%yim * rij%z / rijmag3im
     SijTens(3,3) = 1/rij%magim + rij%z   * rij%z / rijmag3im
+    !call print_matrix(SijTens,'Sij tensor')
+
   end subroutine Sij_Calc
 
   subroutine Pij_D_Calc(Pij_DTens,rij,rijmag3im,rijmag5im,rijmag7im)
+    !use :: arry_mod, only: print_vector, print_matrix
     real(wp), intent(inout) :: Pij_DTens(:,:)
     type(dis),intent(in) :: rij
     real(wp), intent(in) :: rijmag3im,rijmag5im,rijmag7im
+
 
     Pij_DTens(1,1) =   1/rijmag3im - 3*rij%x * rij%x  /rijmag5im
     Pij_DTens(1,2) = -(0           - 3*rij%x * rij%yim/rijmag5im)
@@ -75,12 +104,16 @@ contains
     Pij_DTens(3,1) =   0           - 3*rij%x   * rij%z/rijmag5im
     Pij_DTens(3,2) = -(0           - 3*rij%yim * rij%z/rijmag5im)
     Pij_DTens(3,3) =   1/rijmag3im - 3*rij%z   * rij%z/rijmag5im
+
+    !call print_matrix(Pij_DTens,'Pij_D tensor')
   end subroutine Pij_D_Calc
 
   subroutine Sij_D_Calc(Sij_DTens,rij,rijmag3im,rijmag5im,rijmag7im)
+    !use :: arry_mod, only: print_vector, print_matrix
     real(wp), intent(inout) :: Sij_DTens(:,:)
     type(dis),intent(in) :: rij
     real(wp), intent(in) :: rijmag3im,rijmag5im,rijmag7im
+
 
     !!! please check
     call Pij_D_Calc(Sij_DTens,rij,rijmag3im,rijmag5im,rijmag7im)
@@ -98,12 +131,15 @@ contains
     Sij_DTens(3,1) = Sij_DTens(3,1)
     Sij_DTens(3,2) = Sij_DTens(3,2) - (rij%z /rijmag3im)
     Sij_DTens(3,3) = Sij_DTens(3,3)
+    !call print_matrix(Sij_DTens,'Sij_D tensor')
   end subroutine Sij_D_Calc
 
   subroutine H_PD_Calc(HTens,rij,rijmag3im,rijmag5im,rijmag7im)
+    !use :: arry_mod, only: print_vector, print_matrix
     real(wp), intent(inout) :: HTens(:,:)
     type(dis),intent(in) :: rij
     real(wp), intent(in) :: rijmag3im,rijmag5im,rijmag7im
+
 
     HTens(1,1) = (1/rijmag3im) &
                  - 3*(rij%x**2)/rijmag5im &
@@ -136,6 +172,7 @@ contains
                  + 3*(rij%yim)*(5*rij%yim - 6*rij%ry) / rijmag5im &
                  - 30*(rij%yim**3)*(rij%yim - rij%ry)/rijmag7im
 
+    !call print_matrix(HTens,'H tensor')
   end subroutine H_PD_Calc
 
 end submodule hibw_smod
