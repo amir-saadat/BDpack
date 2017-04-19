@@ -95,7 +95,7 @@ module intrn_mod
   type :: dis
     real(wp) :: x,y,z
     real(wp) :: mag,mag2
-    real(wp) :: ry,yim
+    real(wp) :: riy,rjy,yim
     real(wp) :: magim,mag2im
   end type
 
@@ -169,6 +169,7 @@ module intrn_mod
     end subroutine evbwcalc
 
     module subroutine wall_rflc(qy,Ry,rcmy)
+      !integer,intent(in) :: ich
       real(wp),intent(inout) :: qy(:),Ry(:),rcmy
     end subroutine wall_rflc
 
@@ -343,8 +344,9 @@ contains
 
         ! Blake's part
         if (HITens == 'Blake') then
-          rij%ry=rjmrc(2)+rcm(2)
-          rij%yim=rimrc(2)+rcm(2)+rij%ry
+          rij%rjy=rjmrc(2)+rcm(2)
+          rij%riy=rimrc(2)+rcm(2)
+          rij%yim=rimrc(2)+rcm(2)+rij%rjy
           rij%mag2im=rij%x**2+rij%yim**2+rij%z**2
           rij%magim=sqrt(rij%mag2im)
         endif
