@@ -168,8 +168,8 @@ module intrn_mod
       real(wp),intent(inout) :: Fev(:)
     end subroutine evbwcalc
 
-    module subroutine wall_rflc(qy,Ry,rcmy)
-      !integer,intent(in) :: ich
+    module subroutine wall_rflc(ich,qy,Ry,rcmy)
+      integer,intent(in) :: ich
       real(wp),intent(inout) :: qy(:),Ry(:),rcmy
     end subroutine wall_rflc
 
@@ -311,7 +311,7 @@ contains
 
 
 
-        if (ibead /= jbead) then
+        ! if (ibead /= jbead) then
 
 
           ! if (clhi) then
@@ -335,6 +335,8 @@ contains
           rij%z=rimrc(3)-rjmrc(3)
           rij%mag2=rij%x**2+rij%y**2+rij%z**2
           rij%mag=sqrt(rij%mag2)
+          
+        if (ibead /= jbead) then
 
           if (clev) call evcalc3(ibead,jbead,rij,Fev)
           if (upev) call evcalc3(ibead,jbead,rij,Fstarev)
