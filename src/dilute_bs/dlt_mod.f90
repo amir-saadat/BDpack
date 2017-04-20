@@ -1043,7 +1043,7 @@ module dlt_mod
           if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
             !              call EVUpdate(Fev,rvmrcP,Fbarev)
             call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
-              calcdiv=.true.,updtev=.true.,updtevbw=.true.)
+              updtev=.true.,updtevbw=.true.)
             !call print_vector(Fev,'fev3')
             !call evupdate2(Fev,rvmrcP,nseg,Fbarev)
             !call print_vector(Fev,'fev4')
