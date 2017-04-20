@@ -43,7 +43,7 @@ contains
         call read_input('Bead-rad',0,evbw_prm%a)
 
         allocate(evbw_prm%w_coll(2:nbead,npchain))
-        allocate(evbw_prm%ia_time(2:nbead,maxval(ntime),npchain))
+        allocate(evbw_prm%ia_time(2:nbead,500,npchain))
 
         ! Initializing the variables
 
@@ -53,7 +53,7 @@ contains
 
         if (id == 0) then
           allocate(evbw_prm%w_coll_t(2:nbead,npchain))
-          allocate(evbw_prm%ia_time_t(2:nbead,maxval(ntime),npchain))
+          allocate(evbw_prm%ia_time_t(2:nbead,500,npchain))
           open(newunit=evbw_prm%u_wc,file='data/w_coll.dat',status='replace',position='append')
           write(evbw_prm%u_wc,*) "# chain index, bead index, Total number of collisions #"
           write(evbw_prm%u_wc,*) "# --------------------------------------------------- #"
@@ -92,10 +92,12 @@ contains
 
   module procedure wall_rflc
 
-    use :: inp_dlt, only: nbead,qmax,tplgy
+    use :: mpi
+    use :: inp_dlt, only: nbead,qmax,tplgy,npchain,lambda
     use :: arry_mod, only: print_vector
 
-    integer :: ib
+    integer :: ib,ierr,sz,sz_t
+    integer,allocatable :: ia_tmp(:,:,:)
 
     ! To save memory, rcmy is added to Rvy to get rvy
     Ry=Ry+rcmy
@@ -110,9 +112,16 @@ contains
     rcmy=Ry(1)
 
     do ib=2, nbead
+
       if (Ry(ib) < evbw_prm%a) then
 
-        evbw_prm%w_coll(ib,ich)=evbw_prm%w_coll(ib,ich)+1
+
+        if (evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) > int(lambda/dt)) then
+
+          evbw_prm%w_coll(ib,ich)=evbw_prm%w_coll(ib,ich)+1
+
+        endif
+
 
         Ry(ib)=abs(Ry(ib))+2*evbw_prm%a
         select case (tplgy)
@@ -125,11 +134,38 @@ contains
 
       else
 
+
         evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) = &
         evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) + 1
 
 
       end if
+
+
+      sz=size(evbw_prm%ia_time,dim=2)
+
+      if ( evbw_prm%w_coll(ib,ich)+1 > size(evbw_prm%ia_time,dim=2) ) then
+        print '(" Geometric resizing of ia_time array... in rank: ",i5)',id
+        sz=2*size(evbw_prm%ia_time,dim=2)
+        allocate(ia_tmp(2:nbead,sz,npchain))
+        ia_tmp=1
+        ia_tmp(:,1:sz/2,:)=evbw_prm%ia_time(:,:,:)
+        call move_alloc(from=ia_tmp,to=evbw_prm%ia_time)
+      endif
+
+      call MPI_Reduce(sz,sz_t,1,MPI_INTEGER,MPI_MAX,0,MPI_COMM_WORLD,ierr)
+
+      if (id == 0) then
+        if ( sz_t > size(evbw_prm%ia_time_t,dim=2) ) then
+          print '(" Geometric resizing of ia_time_t array: ",i5)',id
+          allocate(ia_tmp(2:nbead,sz_t,npchain))
+          ! ia_tmp=1
+          ! ia_tmp(1:sz_t/2)=evbw_prm%ia_time_t
+          call move_alloc(from=ia_tmp,to=evbw_prm%ia_time_t)
+        endif
+      endif
+
+
       rcmy=rcmy+Ry(ib)
     end do
     rcmy=rcmy/nbead
@@ -167,7 +203,7 @@ contains
 
 
     ncount_wc=(nbead-1)*npchain
-    ncount_ia=(nbead-1)*maxval(ntime)*npchain
+    ncount_ia=(nbead-1)*size(evbw_prm%ia_time,dim=2)*npchain
 
     if (id == 0) then
 
@@ -182,6 +218,8 @@ contains
           enddo
         enddo
       enddo
+
+      ncount_ia=(nbead-1)*size(evbw_prm%ia_time_t,dim=2)*npchain
 
       do iproc=1, nproc-1
 
@@ -244,5 +282,6 @@ contains
     ! endif
 
   end procedure print_wcll
+
 
 end submodule
