@@ -43,7 +43,7 @@ contains
         call read_input('Bead-rad',0,evbw_prm%a)
 
         allocate(evbw_prm%w_coll(2:nbead,npchain))
-        allocate(evbw_prm%ia_time(2:nbead,500,npchain))
+        allocate(evbw_prm%ia_time(2:nbead,5,npchain))
 
         ! Initializing the variables
 
@@ -53,7 +53,7 @@ contains
 
         if (id == 0) then
           allocate(evbw_prm%w_coll_t(2:nbead,npchain))
-          allocate(evbw_prm%ia_time_t(2:nbead,500,npchain))
+          allocate(evbw_prm%ia_time_t(2:nbead,5,npchain))
           open(newunit=evbw_prm%u_wc,file='data/w_coll.dat',status='replace',position='append')
           write(evbw_prm%u_wc,*) "# chain index, bead index, Total number of collisions #"
           write(evbw_prm%u_wc,*) "# --------------------------------------------------- #"
@@ -119,6 +119,10 @@ contains
         if (evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) > int(lambda/dt)) then
 
           evbw_prm%w_coll(ib,ich)=evbw_prm%w_coll(ib,ich)+1
+
+        else
+
+          evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) = 1
 
         endif
 
