@@ -14,7 +14,7 @@ submodule (intrn_mod) evbw_smod
   ! contains
   !   procedure,pass(this) :: init => evbw_init
   !   procedure,pass(this) :: updt => evbw_updt
-  !   procedure,pass(this) :: 
+  !   procedure,pass(this) ::
   ! end type
   character(len=99),parameter :: fmt3xi="(1x,i3,1x,i3,1x,i7)"
 
@@ -25,7 +25,7 @@ contains
   end procedure init_evbw
 
   module procedure evbw_init
-    
+
     use :: inp_dlt, only: nseg,nbead,EV_bw,Aw,N_Ks,qmax,ntime,npchain,nchain
     use :: cmn_io_mod, only: read_input
 
@@ -43,7 +43,7 @@ contains
         call read_input('Bead-rad',0,evbw_prm%a)
 
         allocate(evbw_prm%w_coll(2:nbead,npchain))
-        allocate(evbw_prm%ia_time(2:nbead,5,npchain))
+        allocate(evbw_prm%ia_time(2:nbead,500,npchain))
 
         ! Initializing the variables
 
@@ -53,7 +53,7 @@ contains
 
         if (id == 0) then
           allocate(evbw_prm%w_coll_t(2:nbead,npchain))
-          allocate(evbw_prm%ia_time_t(2:nbead,5,npchain))
+          allocate(evbw_prm%ia_time_t(2:nbead,500,npchain))
           open(newunit=evbw_prm%u_wc,file='data/w_coll.dat',status='replace',position='append')
           write(evbw_prm%u_wc,*) "# chain index, bead index, Total number of collisions #"
           write(evbw_prm%u_wc,*) "# --------------------------------------------------- #"
@@ -203,7 +203,7 @@ contains
     use :: arry_mod, only: print_vector
 
     integer :: ich,ib,iwc,osch,ierr,ncount_wc,ncount_ia,iproc,tag
-    
+
 
 
     ncount_wc=(nbead-1)*npchain
@@ -257,7 +257,7 @@ contains
 
       call MPI_Send(evbw_prm%ia_time,ncount_ia,MPI_INTEGER,0,tag,&
         MPI_COMM_WORLD,ierr)
-     
+
     endif
 
     ! wait untill receiving all values
