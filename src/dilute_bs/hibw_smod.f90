@@ -28,7 +28,7 @@ contains
     rijmag3im = rij%mag2im*rij%magim
     rijmag5im = rij%mag2im*rijmag3im
     rijmag7im = rij%mag2im*rijmag5im
-    !call print_matrix(DiffTens,'DiffTens(osi+1:osi+3,osj+1:osj+3)')
+
     if (HITens == 'Blake') then
       call Sij_calc(Sij,rij,rijmag3im,rijmag5im,rijmag7im)
       call Pij_D_calc(Pij_D,rij,rijmag3im,rijmag5im,rijmag7im)
@@ -50,6 +50,7 @@ contains
       ! print *, 'rjy is ', rij%rjy
       ! print *, 'i is ', i
       ! print *, 'j is ', j
+
       ! call print_matrix(Sij,'Sij')
       ! call print_matrix(Pij_D,'Pij_D')
       ! call print_matrix(Sij_D,'Sij_D')
@@ -59,14 +60,32 @@ contains
       ! call print_matrix(Omega_c,'Omega_c')
       ! call print_matrix(Omega_W,'Omega_W')
 
-      if ((rij%rjy < hstar*sqrtPI) .OR. (rij%riy < hstar*sqrtPI) .OR. (rij%mag<2*hstar*sqrtPI))then
+      if (i==1 .AND. j==1) then
         DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3)
       else
         DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) &
                                           + Omega_W
       end if
+
+      ! !sketchy regularization
+      ! if ((rij%rjy < hstar*sqrtPI) .OR. (rij%riy < hstar*sqrtPI) .OR. (rij%mag<2*hstar*sqrtPI))then
+      ! !if ((rij%rjy < hstar*sqrtPI) .OR. (rij%riy < hstar*sqrtPI))then
+      !   DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3)
+      !
+      ! else
+      !   DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) &
+      !                                     + Omega_W
+      !   !print *, 'beads are not close!'
+      ! end if
+
+      !if (i==1 .AND. j==1)then
+        !print *, DiffTens(osi+3,osj+1)
+        !call print_matrix(DiffTens(osi+1:osi+3,osj+1:osj+3),'DiffTens(osi+1:osi+3,osj+1:osj+3)')
+      !end if
       !call print_matrix(DiffTens(osi+1:osi+3,osj+1:osj+3),'DiffTens(osi+1:osi+3,osj+1:osj+3)')
-       !if (i == 3 .AND. j == 3)then
+
+
+      !if (i == 3 .AND. j == 3)then
         !call print_matrix(DiffTens,'DiffTens(osi+1:osi+3,osj+1:osj+3)')
     !    call print_matrix(DiffTens-TRANSPOSE(DiffTens),'Difftens - transpose')
       !end if

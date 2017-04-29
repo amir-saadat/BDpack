@@ -100,6 +100,11 @@ contains
       DiffTens(osi+2,osj+3)=0._wp
       DiffTens(osi+3,osj+3)=1._wp
 
+      !Tiras addition
+      DiffTens(osi+2,osj+1)=0._wp
+      DiffTens(osi+3,osj+1)=0._wp
+      DiffTens(osi+3,osj+2)=0._wp
+
     else
 
       call calc_hibb(this%hibb,i,j,rij,DiffTens)
@@ -128,7 +133,8 @@ contains
 
 
     !debugging
-    if (j == 1 .OR. rjy<hstar*sqrtPI) then
+    !if (j == 1 .OR. rjy<hstar*sqrtPI) then
+    if (j == 1) then
       divD(j)=0
     else
       divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
