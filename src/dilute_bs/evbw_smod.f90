@@ -43,7 +43,7 @@ contains
         call read_input('Bead-rad',0,evbw_prm%a)
 
         allocate(evbw_prm%w_coll(2:nbead,npchain))
-        allocate(evbw_prm%ia_time(2:nbead,5,npchain))
+        allocate(evbw_prm%ia_time(2:nbead,500,npchain))
 
         ! Initializing the variables
 
@@ -53,7 +53,7 @@ contains
 
         if (id == 0) then
           allocate(evbw_prm%w_coll_t(2:nbead,npchain))
-          allocate(evbw_prm%ia_time_t(2:nbead,5,npchain))
+          allocate(evbw_prm%ia_time_t(2:nbead,500,npchain))
           open(newunit=evbw_prm%u_wc,file='data/w_coll.dat',status='replace',position='append')
           write(evbw_prm%u_wc,*) "# chain index, bead index, Total number of collisions #"
           write(evbw_prm%u_wc,*) "# --------------------------------------------------- #"
@@ -98,6 +98,11 @@ contains
 
     integer :: ib,ierr,sz,sz_t
     integer,allocatable :: ia_tmp(:,:,:)
+
+    if ((it == 1)) then
+      evbw_prm%w_coll(:,ich)=0
+      evbw_prm%ia_time(:,:,ich)=1
+    endif
 
     ! To save memory, rcmy is added to Rvy to get rvy
     Ry=Ry+rcmy
@@ -148,7 +153,7 @@ contains
 
       sz=size(evbw_prm%ia_time,dim=2)
 
-      if ( evbw_prm%w_coll(ib,ich)+1 > size(evbw_prm%ia_time,dim=2) ) then
+      if ( evbw_prm%w_coll(ib,ich)+1 > sz ) then
         print '(" Geometric resizing of ia_time array... in rank: ",i5)',id
         sz=2*size(evbw_prm%ia_time,dim=2)
         allocate(ia_tmp(2:nbead,sz,npchain))

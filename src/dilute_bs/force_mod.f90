@@ -191,7 +191,7 @@ contains
         end select
         if ((qmag<=0._wp).or.(qmag>=qmax)) then
           print '(" Oops! wrong root in SegForce Routine.")'
-          print '(" Root No: ",i10," |q|: ",f14.7)',iRHS,qmag
+          print '(" Root No: ",i20," |q|: ",f24.7)',iRHS,qmag
           stop
         end if
       else

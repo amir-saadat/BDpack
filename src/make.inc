@@ -25,13 +25,15 @@ MV	 = mv
 GLBFLGS  = -fpp # Enables preprocessing
 GLBFLGS += -qopenmp # Enables openmp directives
 GLBFLGS += -DUSE_DP # SP or DP for single or double precision
-GLBFLGS	+= -Ofast -traceback
+GLBFLGS	+= -Ofast -fp-stack-check -g -traceback -gen-interfaces -warn interfaces -check arg_temp_created
 ifeq ($(FCOMP),gfortran)
 GLBFLGS += -fcray-pointer
 GLBFLGS += -fbounds-check
 else ifeq ($(FCOMP),ifort)
-GLBFLGS += -heap-arrays 10
+GLBFLGS += -heap-arrays
 GLBFLGS += -check bounds
+GLBFLGs += -check-pointers=rw
+GLBFLGs +=
 endif
 
 

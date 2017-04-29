@@ -170,9 +170,9 @@ module intrn_mod
       real(wp),intent(inout) :: Fev(:)
     end subroutine evbwcalc
 
-    module subroutine wall_rflc(dt,id,ich,qy,Ry,rcmy)
+    module subroutine wall_rflc(dt,it,id,ich,qy,Ry,rcmy)
       real(wp),intent(in) :: dt
-      integer,intent(in) :: id,ich
+      integer,intent(in) :: it,id,ich
       real(wp),intent(inout) :: qy(:),Ry(:),rcmy
     end subroutine wall_rflc
 
@@ -220,7 +220,8 @@ contains
     logical :: clhi,cldiv,clev,clevbw,upev,upevbw
     logical,optional :: calchi,calcdiv,calcev,calcevbw,updtev,updtevbw
 
-!print *,'here'
+
+
     if (present(calchi)) then
       clhi=calchi
     else

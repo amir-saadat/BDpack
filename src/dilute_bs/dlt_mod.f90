@@ -307,7 +307,8 @@ module dlt_mod
       ! For calculating the average of iteration number    
       mch(:)=mBlLan
     end if
-    if (HITens == 'Blake') allocate(divD(nbead))
+    ! if (HITens == 'Blake') allocate(divD(nbead))
+    allocate(divD(nbead))
     if (CoM) allocate(rcm(3,npchain),rcmstart(3,npchain))
     if (CoHR) allocate(rchr(3,npchain),rchrstart(3,npchain),&
      MobilTens(nbeadx3,nbeadx3),WeightTens&
@@ -764,8 +765,7 @@ module dlt_mod
         ! Scattering the generated random numbers from rank 0 the owner. 
         if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
           call MPI_Scatter(rdnt,3*nbead*ncols*npchain,MPI_REAL_WP,rdn,&
-           3*nbead*ncols*npchain,MPI_REAL_WP,0,MPI_COM&
-           &M_WORLD,ierr)
+           3*nbead*ncols*npchain,MPI_REAL_WP,0,MPI_COMM_WORLD,ierr)
           jcol=1
         end if
         if ((time >= time_check1) .and. (id == 0)) then
@@ -1249,7 +1249,7 @@ module dlt_mod
 
           ! rflc part
           if (EV_bw == 'Rflc_bc') then
-            call wall_rflc(dt(iPe,idt),id,ichain,qPy,rvmrcPy,rcmP(2))
+            call wall_rflc(dt(iPe,idt),itime,id,ichain,qPy,rvmrcPy,rcmP(2))
           end if
           !-----
 
