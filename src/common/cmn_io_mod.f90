@@ -55,11 +55,12 @@ contains
   !! \param os offset from the starting argument, first argument for var
   !! \param nvar the number of variables
   !! \param var the actual variables
-  subroutine read_input_ch(inp_ph,os,var)
+  subroutine read_input_ch(inp_ph,os,var,def)
  
     integer,intent(in) :: os
     character(len=*),intent(in) :: inp_ph
     character(len=*),intent(inout) :: var
+    character(len=*),intent(in),optional :: def
     integer :: i,j,ntokens,u1,il,stat
     character(len=1024) :: line
     character(len=100) :: tokens(10)
@@ -76,6 +77,9 @@ contains
     open (newunit=u1,action='read',file=inpFile,status='old')
     il=1
 
+    if (present(def)) then
+      var=def
+    endif
 ef: do
       read(u1,'(A)',iostat=stat) line
       if (stat == iostat_end) then
@@ -106,13 +110,14 @@ ef: do
   !! \param id the MPI id
   !! \param inp_ph the input phrase used for the variable
   !! \param os offset from the starting argument, first argument for var
-  !! \param nvar the number of variables
-  !! \param var the actual variables
-  subroutine read_input_int(inp_ph,os,var)
+  !! \param var the value of variable
+  !! \param def the default value of var
+  subroutine read_input_int(inp_ph,os,var,def)
     
     integer,intent(in) :: os
     character(len=*),intent(in) :: inp_ph
     integer,intent(inout) :: var
+    integer,intent(in),optional :: def
     integer :: i,j,ntokens,u1,il,stat
     character(len=1024) :: line
     character(len=100) :: tokens(10)
@@ -129,6 +134,9 @@ ef: do
     open (newunit=u1,action='read',file=inpFile,status='old')
     il=1
 
+    if (present(def)) then
+      var=def
+    endif
 ef: do
       read(u1,'(A)',iostat=stat) line
       if (stat == iostat_end) then
@@ -162,7 +170,7 @@ ef: do
   !! \param os offset from the starting argument, first argument for var
   !! \param nvar the number of variables for var
   !! \param var the actual variables
-  subroutine read_input_wp(inp_ph,os,var)
+  subroutine read_input_wp(inp_ph,os,var,def)
 
     use :: strg_mod
     use :: iso_fortran_env
@@ -170,6 +178,7 @@ ef: do
     integer,intent(in) :: os
     character(len=*),intent(in) :: inp_ph
     real(wp),intent(inout) :: var
+    real(wp),intent(in),optional :: def
     integer :: i,j,ntokens,u1,il,stat
     character(len=1024) :: line
     character(len=100) :: tokens(10)
@@ -186,6 +195,9 @@ ef: do
     open (newunit=u1,action='read',file=inpFile,status='old')
     il=1
 
+    if (present(def)) then
+      var=def
+    endif
 ef: do
       read(u1,'(A)',iostat=stat) line
       if (stat == iostat_end) then

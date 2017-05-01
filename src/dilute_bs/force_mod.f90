@@ -28,12 +28,13 @@ module force_mod
 
 contains
 
-  subroutine sprforce(q,nseg,ForceLaw,TruncMethod,Fseg)
+  subroutine sprforce(id,q,nseg,ForceLaw,TruncMethod,Fseg)
 
+    use :: mpi_mod, only: forced_exit
     use :: inp_dlt, only: b,qr_l,RWS_v,WLC_v,qmax,qr_lto2,q_l,RWS_C,RWS_D,&
                           WLC_A,WLC_B
     
-    integer,intent(in) :: nseg
+    integer,intent(in) :: id,nseg
     character(len=10) :: ForceLaw,TruncMethod
     real(wp),dimension(3*nseg),intent(in),target :: q
     real(wp),dimension(3*nseg),intent(inout),target :: Fseg
@@ -89,7 +90,8 @@ contains
           F = 1._wp
         case default
           print '(" Not a valid Force Law.")'
-          stop
+          ! stop
+          call forced_exit(id)
       end select
   
       call copy(qP,FsegP)! FsegP=qP
@@ -99,10 +101,11 @@ contains
   
   end subroutine sprforce
 
-  subroutine sprupdate(root_f,PrScale,nroots,dt,RHSP,qstar,iseg,nseg,&
-                       ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tpl&
-                       &gy,Amat,nseg_bb,nseg_ar,Ia,Na,itime)
+  subroutine sprupdate(id,root_f,PrScale,nroots,dt,RHSP,qstar,iseg,nseg,&
+                       ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,&
+                       Amat,nseg_bb,nseg_ar,Ia,Na,itime)
 
+    use :: mpi_mod, only: forced_exit
     use :: arry_mod, only: print_vector,print_matrix
     use :: root_mod, only: CubeRoot,root_fndr
     use :: inp_dlt, only: b,qr_l,RWS_v,WLC_v,qmax,qr_lto2,q_l,RWS_C,RWS_D,&
@@ -110,7 +113,7 @@ contains
   
     character(len=10),intent(in) :: ForceLaw,TruncMethod,tplgy
     real(wp),intent(in) :: dt
-    integer,intent(in) :: PrScale,nroots,iseg,nseg,nseg_bb,nseg_ar,Ia(:),Na,itime
+    integer,intent(in) :: id,PrScale,nroots,iseg,nseg,nseg_bb,nseg_ar,Ia(:),Na,itime
     real(wp),dimension(3),intent(in) :: RHSP
     real(wp),dimension(3*(nseg+1)),intent(inout)    :: Fbarbead
     real(wp),dimension(3*(nseg)),intent(in),target  :: qstar
@@ -192,7 +195,8 @@ contains
         if ((qmag<=0._wp).or.(qmag>=qmax)) then
           print '(" Oops! wrong root in SegForce Routine.")'
           print '(" Root No: ",i20," |q|: ",f24.7)',iRHS,qmag
-          stop
+          ! stop
+          call forced_exit(id)
         end if
       else
         slope=root_f(iRHS+2) - root_f(iRHS+1)

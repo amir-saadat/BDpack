@@ -26,11 +26,11 @@ module dlt_mod
   use :: iso_fortran_env
   use :: inp_dlt
   use :: prcn_mod
+  use :: cmn_io_mod, only: read_input
   use :: arry_mod, only: logspace,linspace,print_vector,print_matrix,sort
   use :: force_mod, only: sprforce,sprupdate,bndforce,bndupdate,tetforce,tetupdate
   use :: dcmp_mod, only: Lanczos,BlockLanczos,MKLsyevr,BlockChebyshev
   use :: pp_mod, only: pp_init,pp_init_tm,data_prcs,conf_sort,del_pp
-  !  use :: hiev_mod, only: hi_init,ev_init,hicalc2,evcalc2,evupdate2,intrncalc
   use :: intrn_mod, only: intrn_t,ev_init,evbw_init,wall_rflc,print_wcll
 
   implicit none
@@ -91,7 +91,7 @@ module dlt_mod
     ! Non-allocatable flow arrays
     integer,dimension(3) :: ipiv
     real(wp),dimension(2) :: lambdaBE
-    real(wp),dimension(3) :: SumBdotw,SumDdotF,LdotBdotw,Ftet,Fbartet
+    real(wp),dimension(3) :: SumBdotw,SumDdotF,LdotBdotw,Ftet,Fbartet,rf_in
     real(wp),dimension(3,3) :: kappareg,totMobilTens,invtotMobilTens
     ! Allocatable arrays:
     integer,allocatable,dimension(:) :: mch,Lch
@@ -313,7 +313,12 @@ module dlt_mod
     if (CoHR) allocate(rchr(3,npchain),rchrstart(3,npchain),&
      MobilTens(nbeadx3,nbeadx3),WeightTens&
      &(3,nbeadx3),weightTenstmp(3,nbeadx3))
-    if (srf_tet) allocate(rf0(3,npchain))
+    if (srf_tet) then
+      allocate(rf0(3,npchain))
+      call read_input('rf-in',0,rf_in(1),def=0._wp)
+      call read_input('rf-in',1,rf_in(2),def=0._wp)
+      call read_input('rf-in',2,rf_in(3),def=0._wp)
+    endif
     ! For making the output
     allocate (q_counts(p),q_disps(p))
     allocate (R_counts(p),R_disps(p))
@@ -787,7 +792,7 @@ module dlt_mod
             rvmrcP => rvmrc(:,jchain)
             call gemv(Bmat,qP,rvmrcP)
             if (srf_tet) then
-              rf0(:,jchain)=0._wp!rvmrc(1:3,jchain)+rcmstart(:,jchain)
+              rf0(:,jchain)=rf_in(1:3)!rvmrc(1:3,jchain)+rcmstart(:,jchain)
             end if
           end do
           if (CoM) rcm=rcmstart
@@ -846,7 +851,7 @@ module dlt_mod
           ! end if
 
 
-          call sprforce(qc,nseg,ForceLaw,TruncMethod,Fseg)
+          call sprforce(id,qc,nseg,ForceLaw,TruncMethod,Fseg)
 
 
           if (ForceLaw == 'WLC_GEN') call bndforce(nbead_bb,qc,Fbnd,itime)
@@ -1089,9 +1094,9 @@ module dlt_mod
             RHSP => RHS(offset+1:offset+3)
             AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
             call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
-            call sprupdate(root_f,PrScale,nroots,dt(iPe,idt),RHSP,qstar,iseg,nseg,&
-              ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,Amat,&
-              nseg_bb,nseg_ar,Ia,Na,itime)
+            call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qstar,iseg,&
+              nseg,ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,Amat,nseg_bb,&
+              nseg_ar,Ia,Na,itime)
           end do
           !----------Second Corrector Algorithm----------!
           ! q=qbar;Fseg=Fbarseg;Fbead=Fbarbead           !
@@ -1121,10 +1126,9 @@ module dlt_mod
               call gemv(Kappareg,qcP,RHSP,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1.0_wp)
               call axpy(FsegP,RHSP,a=0.5*dt(iPe,idt))
               call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
-              call sprupdate(root_f,PrScale,nroots,dt(iPe,idt),RHSP,qbar,iseg,nseg,&
-               ForceLaw,TruncMethod,qc,Fseg,Fbead,tplgy,Amat,nseg_bb,&
-               nseg_ar,Ia,Na,itime)
-
+              call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qbar,iseg,&
+                nseg,ForceLaw,TruncMethod,qc,Fseg,Fbead,tplgy,Amat,nseg_bb,nseg_ar,&
+                Ia,Na,itime)
 
             end do
             eps=nrm2(qc-qctemp)/nrm2(qctemp)         
