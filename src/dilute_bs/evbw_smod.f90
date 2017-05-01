@@ -114,6 +114,16 @@ contains
     ! end do
 
     !Ry=abs(Ry)-2*evbw_prm%a*floor( Ry/qmax )
+    
+    ! Reflection of the first bead
+    Ry(1)=abs(Ry(1))+2*evbw_prm%a
+    select case (tplgy)
+    case ('Linear')
+      qy(1)=Ry(2)-Ry(1)
+    case ('Comb')
+    end select
+
+
     rcmy=Ry(1)
 
     do ib=2, nbead
