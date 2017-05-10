@@ -26,7 +26,6 @@ $(OBJS): %.o: %.$(FEXT)
 	$(ECHO) compiling $< using $(COMP)
 	$(COMP) $(GLBFLGS) $(GLBINCS) $(INCS) $(MOD) -c $< -o $@
 
-
 clean :
 	$(ECHO) cleaning up in common
 	$(RM) -f $(OBJS) $(OBJSLIB)
