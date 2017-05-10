@@ -83,6 +83,10 @@ contains
 ef: do
       read(u1,'(A)',iostat=stat) line
       if (stat == iostat_end) then
+        if (.not.present(def)) then
+          print '(" Error: variable ",a," was not found.")',inp_ph
+          stop ! should be changed
+        endif
         exit ef ! end of file
       elseif (stat > 0) then
         print '(" cmn_io_mod: Error reading line ", i0)',il
@@ -98,6 +102,8 @@ ef: do
         do j=1,ntokens
           if(trim(adjustl(tokens(j))) == inp_ph) then
             var=trim(adjustl(tokens(j+os+1)))
+            print '(" ",a," = ",a)',inp_ph,var
+            exit ef
           end if
         end do ! j
       end if ! ntokens
@@ -140,6 +146,10 @@ ef: do
 ef: do
       read(u1,'(A)',iostat=stat) line
       if (stat == iostat_end) then
+        if (.not.present(def)) then
+          print '(" Error: variable ",a," was not found.")',inp_ph
+          stop ! should be changed
+        endif
         exit ef ! end of file
       elseif (stat > 0) then
         print '(" cmn_io_mod: Error reading line ", i0)',il
@@ -155,6 +165,8 @@ ef: do
         do j=1,ntokens
           if(trim(adjustl(tokens(j))) == inp_ph) then
             call value(tokens(j+os+1),var,ios)
+            print '(" ",a," = ",i)',inp_ph,var
+            exit ef
           end if
         end do ! j
       end if ! ntokens
@@ -201,6 +213,10 @@ ef: do
 ef: do
       read(u1,'(A)',iostat=stat) line
       if (stat == iostat_end) then
+        if (.not.present(def)) then
+          print '(" Error: variable ",a," was not found.")',inp_ph
+          stop ! should be changed
+        endif
         exit ef ! end of file
       elseif (stat > 0) then
         print '(" cmn_io_mod: Error reading line ", i0)',il
@@ -216,6 +232,8 @@ ef: do
         do j=1,ntokens
           if(trim(adjustl(tokens(j))) == inp_ph) then
             call value(tokens(j+os+1),var,ios)
+            print '(" ",a," = ",f20.5)',inp_ph,var
+            exit ef
           end if
         end do ! j
       end if ! ntokens

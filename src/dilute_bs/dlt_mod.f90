@@ -78,7 +78,7 @@ module dlt_mod
     integer :: jcheck,kcheck,iseed,jp,iseg,jbead,i,j,k,nseg_bb,iarm,ku,kl
     integer :: nu,mu,ibead,jseg,ichain,ip,iread,iPe,idt,iAdjSeq,itime
     integer :: icol,jcol,kcol,lcol,jchain,istr,info,mrestart,Lrestart
-    integer :: icount,iglob,jglob,nbead_bb
+    integer :: icount,iglob,jglob,nbead_bb,tgap_dmp
     ! Reals:
     real(wp) :: xxkappa,xykappa,yykappa,zzkappa,strain,fctr,lambdaminFixman
     real(wp) :: lambdamaxFixman,time,time_check1,time_check2,time_check3
@@ -711,9 +711,9 @@ module dlt_mod
         write (*,*) "| ***Start of time integration in all processes*** |"
         write (*,*) "%--------------------------------------------------%"
         write (*,*)
-        write(*,'(7x,a)') 'Wi            dt'
-        write(*,'(7x,a)') '----------------'
-        write(*,'(f14.7,1x,e10.2,1x,i6)') Wi(iPe),dt(iPe,idt)
+        write(*,'(7x,a)') 'Wi            dt            ntime'
+        write(*,'(7x,a)') '---------------------------------'
+        write(*,'(f14.7,1x,e10.2,1x,i10)') Wi(iPe),dt(iPe,idt),ntime(iPe,idt)
         write (*,*)
       end if
 
@@ -727,8 +727,18 @@ module dlt_mod
       time=0._wp
       time_check1=frm_rt_rep*lambda ! For reporting the time passed.
       time_check2=tss*lambda+frm_rt_dmp*lambda ! For making dump files.
+
+      tgap_dmp=ceiling(frm_rt_dmp*lambda/dt(iPe,idt))
+
+
       time_check3=frm_rt_pp*lambda ! For post processing.
       time_check4=frm_rt_rst*lambda ! For making restart files.
+
+      if (id == 0) then
+        print *
+        print '(" Number of iterations for dumping:",i10)',tgap_dmp
+        print *
+      end if
 
       do itime=1, ntime(iPe,idt)
         if (Adjust_dt) then
@@ -736,7 +746,7 @@ module dlt_mod
            (iAdjSeq <= (nAdjSeq-1)) ) newSeq=.true.
           if (newSeq) then
             ! increment the sequence after the first adjustment itime.
-            if (itime /= 1) iAdjSeq=iAdjSeq+1 
+            if (itime /= 1) iAdjSeq=iAdjSeq+1
             dt(iPe,idt)=dt_tmp(iPe,idt)*AdjFact(iAdjSeq)
             newSeq=.false.
             sqrtdt=sqrt(dt(iPe,idt))
@@ -745,9 +755,10 @@ module dlt_mod
               print '(1x,a,1x,i2)', 'Adjusting Sequence:',iAdjSeq
               print *, 'Note!!: Time step adjustment has changed as follows:'
               print *
-              print '(7x,a)', 'Wi            Pe            dt'
-              print '(7x,a)', '------------------------------'
-              print '(f14.7,1x,f14.7,1x,e10.2)', Wi(iPe),Pe(iPe),dt(iPe,idt)
+              print '(7x,a)', 'Wi            Pe            dt          ntime'
+              print '(7x,a)', '---------------------------------------------'
+              print '(f14.7,1x,f14.7,1x,e10.2,1x,i10)', Wi(iPe),Pe(iPe),dt(iPe,idt),&
+                  ntime(iPe,idt)
               print *
             end if
             call lookup_tab(dt(iPe,idt))
@@ -1363,7 +1374,12 @@ module dlt_mod
             end if
           end if ! id == 0
         end if ! mod(itime,lambda/dt)==0
-        if (time >= time_check2) then
+
+
+
+        ! if (time >= time_check2) then
+        if ((time >= tss*lambda) .and. (mod(itime,tgap_dmp) == 0)) then
+
           time_check2=time_check2+frm_rt_dmp*lambda
           ! For writing equilibrium or final data to the output file
           call MPI_Gatherv(q,nsegx3*npchain,MPI_REAL_WP,qTot,q_counts,q_disps,&
@@ -1424,6 +1440,7 @@ module dlt_mod
             end do 
           end if ! id==0
         end if ! time >= ...
+
         jcol=jcol+1 ! col in the block of random number columns
       end do ! time loop
       ! resetting restart time
