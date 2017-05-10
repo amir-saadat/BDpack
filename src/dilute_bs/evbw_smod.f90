@@ -14,7 +14,7 @@ submodule (intrn_mod) evbw_smod
   ! contains
   !   procedure,pass(this) :: init => evbw_init
   !   procedure,pass(this) :: updt => evbw_updt
-  !   procedure,pass(this) :: 
+  !   procedure,pass(this) ::
   ! end type
   character(len=99),parameter :: fmt3xi="(1x,i3,1x,i3,1x,i7)"
 
@@ -25,7 +25,7 @@ contains
   end procedure init_evbw
 
   module procedure evbw_init
-    
+
     use :: inp_dlt, only: nseg,nbead,EV_bw,Aw,N_Ks,qmax,ntime,npchain,nchain
     use :: cmn_io_mod, only: read_input
 
@@ -132,8 +132,8 @@ contains
 
       if (Ry(ib) < evbw_prm%a) then
 
-
-        if (evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) > int(lambda/dt)) then
+        !if ia time is less than half of a relaxation time, record.
+        if (evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) > int(lambda/dt/2._wp)) then
 
           evbw_prm%w_coll(ib,ich)=evbw_prm%w_coll(ib,ich)+1
 
@@ -220,7 +220,7 @@ contains
     use :: arry_mod, only: print_vector
 
     integer :: ich,ib,iwc,osch,ierr,ncount_wc,ncount_ia,iproc,tag
-    
+
 
 
     ncount_wc=(nbead-1)*npchain
@@ -274,7 +274,7 @@ contains
 
       call MPI_Send(evbw_prm%ia_time,ncount_ia,MPI_INTEGER,0,tag,&
         MPI_COMM_WORLD,ierr)
-     
+
     endif
 
     ! wait untill receiving all values
