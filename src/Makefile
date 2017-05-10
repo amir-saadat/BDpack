@@ -16,7 +16,7 @@ all : $(EXE)
 
 $(EXE) : cmnobjs $(OBJLIBS) $(OBJS)
 	$(COMP) $(GLBFLGS) $(GLBINCS) $(INCS) $(OBJS) -o $(EXE) $(LIBS) $(GLBLIBS)
-	$(ECHO) ">>> BDpack compiled on `hostname -s` with  $(COMP) <<<"
+	$(ECHO) ">>> BDpack compiled on `hostname -s` with $(COMP) <<<"
 	if [ ! -d "../bin" ];then     \
                 mkdir ../bin;         \
         fi
