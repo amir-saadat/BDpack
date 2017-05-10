@@ -60,12 +60,15 @@ contains
       ! call print_matrix(Omega_c,'Omega_c')
       ! call print_matrix(Omega_W,'Omega_W')
 
-      if (i==1 .AND. j==1) then
-        DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3)
-      else
-        DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) &
-                                          + Omega_W
-      end if
+      ! if (i==1 .AND. j==1) then
+      !   DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3)
+      ! else
+      !   DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) &
+      !                                     + Omega_W
+      ! end if
+
+      DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) &
+                                        + Omega_W
 
       ! !sketchy regularization
       ! if ((rij%rjy < hstar*sqrtPI) .OR. (rij%riy < hstar*sqrtPI) .OR. (rij%mag<2*hstar*sqrtPI))then
@@ -85,8 +88,8 @@ contains
       !call print_matrix(DiffTens(osi+1:osi+3,osj+1:osj+3),'DiffTens(osi+1:osi+3,osj+1:osj+3)')
 
 
-      !if (i == 3 .AND. j == 3)then
-        !call print_matrix(DiffTens,'DiffTens(osi+1:osi+3,osj+1:osj+3)')
+      !if (i == 5 .AND. j == 5)then
+      !  call print_matrix(DiffTens,'DiffTens')
     !    call print_matrix(DiffTens-TRANSPOSE(DiffTens),'Difftens - transpose')
       !end if
     end if
