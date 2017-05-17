@@ -133,7 +133,7 @@ contains
       if (Ry(ib) < evbw_prm%a) then
 
         !if ia time is less than half of a relaxation time, record.
-        if (evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) > int(lambda/dt/2._wp)) then
+        if (evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) > int(lambda/dt/100._wp)) then
 
           evbw_prm%w_coll(ib,ich)=evbw_prm%w_coll(ib,ich)+1
 
