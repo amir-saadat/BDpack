@@ -251,6 +251,7 @@ print *,ndmp
 
   do idmp=1, ndmp
     t0=idmp*tgap ! TAU0
+
     select case (cf_tp)
     case ('xx')
       CF0=x(:,idmp) - xbar ! cf(TAU0)
@@ -261,8 +262,15 @@ print *,ndmp
     case ('pp')
       CF0=ph(:,idmp) - phbar ! cf(TAU0)
     end select
-    tt0_mx=min(trun,t0+tcrr) ! ( TAU+TAU0 )max
-    tt0_mn=max(tgap,t0-tcrr) ! ( TAU+TAU0 )min
+
+    !fixed the integer division...
+    tt0_mx=min(trun,t0+(tcrr/tgap)*tgap) ! ( TAU+TAU0 )max
+    tt0_mn=max(tgap,t0-(tcrr/tgap)*tgap) ! ( TAU+TAU0 )min
+
+    !what if tcrr isn't a multiple of tgap?? bug here...
+    !tt0_mx=min(trun,t0+tcrr) ! ( TAU+TAU0 )max
+    !tt0_mn=max(tgap,t0-tcrr) ! ( TAU+TAU0 )min
+
     do tt0=tt0_mn, tt0_mx, tgap ! TAU+TAU0
       tt0_idmp=tt0/tgap
       t=tt0-t0
