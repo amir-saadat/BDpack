@@ -159,10 +159,10 @@ module dlt_mod
       ! Choice of iseed: 0 <= iseed <= 2000000000 (2E+9);
       iseed=657483726
       call ranils(iseed)
-      write (*,*) 
+      write (*,*)
       write (*,*) "%------------------------------------------------------------%"
       write (*,*) "| ***Start of BDpack program to perform Brownian dynamics*** |"
-      write (*,*) "|         simulation for infinitely dilute solution          |" 
+      write (*,*) "|         simulation for infinitely dilute solution          |"
       write (*,*) "%------------------------------------------------------------%"
       ! For making output
       ! q
@@ -299,12 +299,12 @@ module dlt_mod
     if (DecompMeth == 'Chebyshev') then
       allocate(Dsh(nbeadx3,nbeadx3),Ybar(nbeadx3),uminus(nbeadx3),uplus(nbeadx3))
       allocate(Ddotuminus(nbeadx3),Ddotuplus(nbeadx3),Lch(npchain))
-      ! For calculating the average of iteration number    
+      ! For calculating the average of iteration number
       Lch(:)=LCheb
     elseif (DecompMeth == 'Lanczos') then
       allocate(aBlLan(nbeadx3,ncols),WBlLan(nbeadx3,ncols),VBlLan(nbeadx3,mBlLan*ncols))
       allocate(Ybar(nbeadx3),VcntBlLan(nbeadx3,ncols),mch(npchain))
-      ! For calculating the average of iteration number    
+      ! For calculating the average of iteration number
       mch(:)=mBlLan
     end if
     ! if (HITens == 'Blake') allocate(divD(nbead))
@@ -363,17 +363,17 @@ module dlt_mod
       else
         Ia(1)=1
         do ip=1, p
-          if (ip == 1) then              
+          if (ip == 1) then
             open(newunit=u39,file='data/ia.dat',status='old',position='rewind')
             do iread=1, id
               read(u39,*)
             end do
           end if
-          if (id == ip-1) then 
+          if (id == ip-1) then
             read(u39,*) Ia(2:Na+1)
           end if
           call MPI_Barrier(MPI_COMM_WORLD,ierr)
-        end do 
+        end do
       end if
       close(u39)
     end if
@@ -411,7 +411,7 @@ module dlt_mod
       zzkappa=0._wp
     end if
 
-    ! To be used in Predictor-Corrector step 
+    ! To be used in Predictor-Corrector step
     Kappa=0._wp
     forall (iseg=1:3*(nseg-1)+1:3)
       Kappa(iseg,iseg)=xxkappa
@@ -501,11 +501,11 @@ module dlt_mod
         do jseg=1, nseg
           offsetj=3*(jseg-1)
           if (ibead > jseg) then
-            forall (i=1:3) 
+            forall (i=1:3)
               Bmat(offseti+i,offsetj+i)=jseg/real(nbead,kind=wp)
             end forall
           else
-            forall (i=1:3) 
+            forall (i=1:3)
               Bmat(offseti+i,offsetj+i)=-(1-jseg/real(nbead,kind=wp))
             end forall
           end if
@@ -519,7 +519,7 @@ module dlt_mod
      do iarm=1, Na
        fctr=(Na-iarm+1)*nseg_ar/real(nbead,kind=wp)
        do k=Ia(iarm), Ia(iarm+1)-1
-         forall (i=1:3) 
+         forall (i=1:3)
            Bmat(i,3*(k-1)+i)=Bmat(i,3*(k-1)+i)-fctr
          end forall
        end do ! k
@@ -612,7 +612,7 @@ module dlt_mod
     elseif (initmode == 'rst') then
       ! In order to prevent probable race condition
       do ip=1, p
-        if (ip == 1) then              
+        if (ip == 1) then
           open(newunit=u2,file='data/q.rst.dat',status='old',position='rewind')
           if (CoM) then
             open(newunit=u3,file='data/CoM.rst.dat',status='old',position='rewind')
@@ -638,7 +638,7 @@ module dlt_mod
           end do
         end if
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
-      end do          
+      end do
     end if ! initmode
   else ! iflow /= 1
     do ip=1, p
@@ -778,14 +778,14 @@ module dlt_mod
             end do
           end if
         end if
-        ! Scattering the generated random numbers from rank 0 the owner. 
+        ! Scattering the generated random numbers from rank 0 the owner.
         if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
           call MPI_Scatter(rdnt,3*nbead*ncols*npchain,MPI_REAL_WP,rdn,&
            3*nbead*ncols*npchain,MPI_REAL_WP,0,MPI_COMM_WORLD,ierr)
           jcol=1
         end if
         if ((time >= time_check1) .and. (id == 0)) then
-          if (initmode == 'rst') then 
+          if (initmode == 'rst') then
             rtpassed=(time+trst*lambda)/lambda
           else
             rtpassed=time/lambda
@@ -813,8 +813,8 @@ module dlt_mod
         end if
 
         do ichain=1, npchain
-          ! Important Note: each chain should construct its own block, 
-          ! if the vectorial components (i.e. a(:,ichain)) are going 
+          ! Important Note: each chain should construct its own block,
+          ! if the vectorial components (i.e. a(:,ichain)) are going
           ! to be used in the rest of the program. These tensors are
           ! used for "ncols" time steps for EACH CHAIN:
           DiffTensP => DiffTens(:,:,ichain)
@@ -825,7 +825,7 @@ module dlt_mod
             ! Setting the random numbers for the brownian force
             do kcol=1, ncols
               ! In case of having overlap for the #cols and adjusting sequence:
-              if ( Adjust_dt .and. (ncols > 1) ) then 
+              if ( Adjust_dt .and. (ncols > 1) ) then
                 if ((itime+kcol) >= itime_AdjSeq(iPe,idt,iAdjSeq)) then
                   if ((iAdjSeq+1) > nAdjSeq) then
                     sqrtdt=sqrt(AdjFact(iAdjSeq)*dt_tmp(iPe,idt))
@@ -910,7 +910,7 @@ module dlt_mod
 
               else
                 wbltempP1=real(wbl,kind=double)
-              end if                 
+              end if
             elseif (DecompMeth == 'Lanczos') then
               if ((mod(itime,upfactr*ncols) == 1) .or. (upfactr == 1)) then
                 mrestart=mBlLan
@@ -938,7 +938,7 @@ module dlt_mod
             elseif (DecompMeth == 'Chebyshev') then
               if ((mod(itime,upfactr*ncols) == 1) .or. (upfactr == 1)) then
                 Lrestart=LCheb
-                ! Calculation of dmin and dmax passed with lambdain to 
+                ! Calculation of dmin and dmax passed with lambdain to
                 ! BlockChebyshev routine
                 call symv(DiffTensP,uminus,Ddotuminus)
                 call symv(DiffTensP,uplus,Ddotuplus)
@@ -950,7 +950,7 @@ module dlt_mod
                   MKLsyevr,real(errormin,kind=double),lambdainp=real(lambdaBE,kind=double),Lsetinp=Lset)
                 Lch(ichain)=Lrestart
               else
-                ! Calculation of dmin and dmax passed with lambdain to 
+                ! Calculation of dmin and dmax passed with lambdain to
                 ! BlockChebyshev routine
                 call symv(DiffTensP,uminus,Ddotuminus)
                 call symv(DiffTensP,uplus,Ddotuplus)
@@ -1003,7 +1003,7 @@ module dlt_mod
           ! qstar:=qstar+(1/4)*dt*(AdotD.Fbnd)  !
           ! qstar:=qstar+FBr                    !
           !-------------------------------------!
-          call gbmv(KappaBF,qc,Kdotq,kl=0,alpha=Pe(iPe)*dt(iPe,idt)) 
+          call gbmv(KappaBF,qc,Kdotq,kl=0,alpha=Pe(iPe)*dt(iPe,idt))
           if (tplgy == 'Linear') then
             call gbmv(AmatBF,Fseg,Fbead,kl=0,m=nsegx3,alpha=-1.0_wp,trans='T')
           else
@@ -1041,7 +1041,7 @@ module dlt_mod
           ! RHS:=RHS+1/2*Kdotq (from Predictor)   !
           ! Fbarev:=Fev+Fstarev                   !
           ! RHS:=RHS+(1/4)dt*(AdotD.Fev)          !
-          ! RHS:=RHS+FBr (from Predictor)         ! 
+          ! RHS:=RHS+FBr (from Predictor)         !
           ! RHScnt=RHS(part of it for 2ndCorr.)   !
           ! RHS:=RHS+1/2*dt*(Pe*Kappa.qstar)      !
           ! RHS:=RHS+(1/2)*dt*Fseg                !
@@ -1050,7 +1050,7 @@ module dlt_mod
           ! RHSP:=RHSP+(1/4)*dt*(AdotDP.Fbarbead) !
           ! Fbarbead=-A'.Fbarseg                  !
           !---------------------------------------!
-          call gemv(Bmat,qstar,rvmrcP) 
+          call gemv(Bmat,qstar,rvmrcP)
           call copy(qc,RHS)
           call axpy(Kdotq,RHS,a=0.5_wp)
 
@@ -1088,7 +1088,7 @@ module dlt_mod
           if (HITens == 'Blake') then
             do is=1, nseg
               os=(is-1)*3
-              RHS(os+2)=RHS(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)              
+              RHS(os+2)=RHS(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
             enddo
           endif
           !!-------------
@@ -1119,7 +1119,7 @@ module dlt_mod
           ! RHSP:=RHSP+(1/4)dt*(AdotDP.Fbead)            !
           ! Updating q based on Seg. Cubic Eq.           !
           ! Fbead=-A'.Fseg                               !
-          !----------------------------------------------!  
+          !----------------------------------------------!
           call copy(qbar,qc)
           call copy(Fbarseg,Fseg)
           call copy(Fbarbead,Fbead)
@@ -1142,7 +1142,7 @@ module dlt_mod
                 Ia,Na,itime)
 
             end do
-            eps=nrm2(qc-qctemp)/nrm2(qctemp)         
+            eps=nrm2(qc-qctemp)/nrm2(qctemp)
             icount=icount+1
             if (icount > 5000) then
               print *
@@ -1165,7 +1165,7 @@ module dlt_mod
           !==================================================!
 
           ! Inserting back the final result to original arrays
-          q(:,ichain)=qc(:)          
+          q(:,ichain)=qc(:)
           Fphi(:,ichain)=Fbead(:)+Fbar(:)
           call gemv(Bmat,qc,rvmrcP)
           ! Calculating center of mass and/or center of hydrodynamic resistance movement
@@ -1205,7 +1205,7 @@ module dlt_mod
               if (DecompMeth == 'Cholesky') then
                 MobilTens=CoeffTensP
               else
-                MobilTens=DiffTensP            
+                MobilTens=DiffTensP
                 call potrf(MobilTens,info=info)
                 if (info /= 0) then
                   print '(" Unsuccessful Cholesky fact. of Mobility Tensor in main.")'
@@ -1237,7 +1237,7 @@ module dlt_mod
                     totMobilTens=totMobilTens+MobilTensP2
                   else
                     totMobilTens=totMobilTens+MobilTensP2+transpose(MobilTensP2)
-                  end if       
+                  end if
                 end do
               end do
               invtotMobilTens=totMobilTens
@@ -1264,7 +1264,7 @@ module dlt_mod
 
           ! rflc part
           if (EV_bw == 'Rflc_bc') then
-            call wall_rflc(dt(iPe,idt),itime,id,ichain,qPy,rvmrcPy,rcmP(2))
+            call wall_rflc(dt(iPe,idt),itime,time,id,ichain,qPy,rvmrcPy,rcmP(2))
           end if
           !-----
 
@@ -1338,11 +1338,11 @@ module dlt_mod
           ! For writing restart data to the output file
           call MPI_Gatherv(q,nsegx3*npchain,MPI_REAL_WP,qTot,q_counts,q_disps,&
            q_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
-          if (CoM) then 
+          if (CoM) then
             call MPI_Gatherv(rcm,3*npchain,MPI_REAL_WP,rcmT,rc_counts,rc_disps,&
              rc_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
           end if
-          if (CoHR) then 
+          if (CoHR) then
             call MPI_Gatherv(rchr,3*npchain,MPI_REAL_WP,rchrT,rc_counts,rc_disps,&
              rc_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
           end if
@@ -1360,7 +1360,7 @@ module dlt_mod
                 if (CoHR) write(u23,1) rchrT(1:3,ichain,ip)
               end do
             end do
-            if (initmode == 'rst') then 
+            if (initmode == 'rst') then
               rtpassed=(time+trst*lambda)/lambda
             else
               rtpassed=time/lambda
@@ -1386,11 +1386,11 @@ module dlt_mod
            q_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
           call MPI_Gatherv(rvmrc,nbeadx3*npchain,MPI_REAL_WP,RTot,R_counts,R_disps,&
            R_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
-          if (CoM) then 
+          if (CoM) then
             call MPI_Gatherv(rcm,3*npchain,MPI_REAL_WP,rcmT,rc_counts,rc_disps,&
              rc_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
           end if
-          if (CoHR) then 
+          if (CoHR) then
             call MPI_Gatherv(rchr,3*npchain,MPI_REAL_WP,rchrT,rc_counts,rc_disps,&
              rc_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
           end if
@@ -1437,17 +1437,17 @@ module dlt_mod
                 if (CoM) write(u26,1) rcmT(1:3,ichain,ip)
                 if (CoHR) write(u27,1) rchrT(1:3,ichain,ip)
               end do
-            end do 
+            end do
           end if ! id==0
         end if ! time >= ...
 
         jcol=jcol+1 ! col in the block of random number columns
       end do ! time loop
       ! resetting restart time
-      if (initmode == 'rst') trst=0._wp 
+      if (initmode == 'rst') trst=0._wp
     end do ! dt loop
   end do ! Pe loop
-  
+
   !----------------------------------------------------------------
   !>>>>> Deallocation of arrays and closing files:
   !----------------------------------------------------------------
@@ -1459,14 +1459,14 @@ module dlt_mod
     if (DumpstrCalc) close(u40)
     if (cnf_srt) close(u41)
   end if
-  
+
   if (id == 0) then
     deallocate (rdnt)
     deallocate (qTot,qxT,qyT,qzT)
     if (CoM) deallocate(rcmT)
     if (CoHR) deallocate(rchrT)
   end if
-  
+
   deallocate(rdn)
   deallocate(qc,qstar,Fseg,w,wbl,wbltemp,Kappa,Amat,FBr,FBrbl,Kdotq,AdotD)
   deallocate(Fbead,RHS,RHScnt,RHSbase,Fbarseg,ADFev,qbar,Fbarbead,Fev,Fphi)
@@ -1496,7 +1496,7 @@ module dlt_mod
   !----------------------------------------------------------------
   !>>>>> Inline subroutines:
   !----------------------------------------------------------------
-  
+
   ! Setting up the lookup table For using in Corrector:
   subroutine lookup_tab(dttmp)
 
@@ -1504,7 +1504,7 @@ module dlt_mod
 
     real(wp) :: dttmp,a1,a2,a3,coeffs(8),rhsmag,denom
     integer :: nr
-    
+
     if (ForceLaw /= 'Hookean') then
       do nr=1, (PrScale*nroots)-1
         ! Note!!: the root of rhsmag=(0.01/PrScale) is root_f(2).
@@ -1556,7 +1556,7 @@ module dlt_mod
     end if
 
   end subroutine lookup_tab
-  
+
   ! Random numeber seeding (from H. C. Ottinger):
   subroutine ranils(iseed)
 
@@ -1613,7 +1613,7 @@ module dlt_mod
    ranuls=an*iy
    return
 
- end function ranuls  
+ end function ranuls
 
  ! Gaussian random number generator (from H. C. Ottinger):
  real(wp) function rangls()
@@ -1626,7 +1626,7 @@ module dlt_mod
 
  if(iflag == 0) then
   10 continue
-  
+
   ! pair of uniform random numbers in [-1,1]x[-1,1]
   x1=2*ranuls()-1
   x2=2*ranuls()-1
@@ -1651,4 +1651,3 @@ end function rangls
 end subroutine dlt_bs
 
 end module dlt_mod
-

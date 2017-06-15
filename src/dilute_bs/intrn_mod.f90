@@ -66,10 +66,13 @@ module intrn_mod
     ! For Reflc-bc
     real(wp) :: a
     integer :: u_wc
+    integer :: u_wc_all
     integer :: u_ia
     integer,allocatable :: w_coll(:,:)
+    integer,allocatable :: w_coll_all(:,:)
     integer,allocatable :: ia_time(:,:,:)
-    integer,allocatable :: w_coll_t(:,:)    
+    integer,allocatable :: w_coll_t(:,:)
+    integer,allocatable :: w_coll_all_t(:,:)
     integer,allocatable :: ia_time_t(:,:,:)
   end type
   type :: evbb_t
@@ -93,7 +96,7 @@ module intrn_mod
   type(hi),save :: hi_prm
   type(evbb),save :: evbb_prm
   type(evbw),save :: evbw_prm
- 
+
   type :: dis
     real(wp) :: x,y,z
     real(wp) :: mag,mag2
@@ -170,8 +173,8 @@ module intrn_mod
       real(wp),intent(inout) :: Fev(:)
     end subroutine evbwcalc
 
-    module subroutine wall_rflc(dt,it,id,ich,qy,Ry,rcmy)
-      real(wp),intent(in) :: dt
+    module subroutine wall_rflc(dt,it,time,id,ich,qy,Ry,rcmy)
+      real(wp),intent(in) :: dt,time
       integer,intent(in) :: it,id,ich
       real(wp),intent(inout) :: qy(:),Ry(:),rcmy
     end subroutine wall_rflc
@@ -380,5 +383,5 @@ contains
     end if
 
   end subroutine calc_intrn
- 
+
 end module intrn_mod

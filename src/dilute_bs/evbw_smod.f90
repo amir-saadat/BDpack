@@ -43,20 +43,26 @@ contains
         call read_input('Bead-rad',0,evbw_prm%a)
 
         allocate(evbw_prm%w_coll(2:nbead,npchain))
+        allocate(evbw_prm%w_coll_all(2:nbead,npchain))
         allocate(evbw_prm%ia_time(2:nbead,500,npchain))
 
         ! Initializing the variables
 
         evbw_prm%w_coll=0
+        evbw_prm%w_coll_all=0
         evbw_prm%ia_time=1
 
 
         if (id == 0) then
           allocate(evbw_prm%w_coll_t(2:nbead,npchain))
+          allocate(evbw_prm%w_coll_all_t(2:nbead,npchain))
           allocate(evbw_prm%ia_time_t(2:nbead,500,npchain))
           open(newunit=evbw_prm%u_wc,file='data/w_coll.dat',status='replace',position='append')
           write(evbw_prm%u_wc,*) "# chain index, bead index, Total number of collisions #"
           write(evbw_prm%u_wc,*) "# --------------------------------------------------- #"
+          open(newunit=evbw_prm%u_wc_all,file='data/w_coll_all.dat',status='replace',position='append')
+          write(evbw_prm%u_wc_all,*) "# chain index, bead index, Total number of collisions #"
+          write(evbw_prm%u_wc_all,*) "# --------------------------------------------------- #"
           open(newunit=evbw_prm%u_ia,file='data/ia_time.dat',status='replace',position='append')
           write(evbw_prm%u_ia,*) "# chain index, bead index, Inter-arrival time unit #"
           write(evbw_prm%u_ia,*) "# ------------------------------------------------ #"
@@ -93,14 +99,16 @@ contains
   module procedure wall_rflc
 
     use :: mpi
-    use :: inp_dlt, only: nbead,qmax,tplgy,npchain,lambda
+    use :: inp_dlt, only: nbead,qmax,tplgy,npchain,lambda,tss
     use :: arry_mod, only: print_vector
 
     integer :: ib,ierr,sz,sz_t
     integer,allocatable :: ia_tmp(:,:,:)
 
+
     if ((it == 1)) then
       evbw_prm%w_coll(:,ich)=0
+      evbw_prm%w_coll_all(:,ich)=0
       evbw_prm%ia_time(:,:,ich)=1
     endif
 
@@ -132,15 +140,21 @@ contains
 
       if (Ry(ib) < evbw_prm%a) then
 
-        !if ia time is less than half of a relaxation time, record.
-        if (evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) > int(lambda/dt/100._wp)) then
+        if (time>lambda*tss) then
+          !all collisions are recorded here
+          evbw_prm%w_coll_all(ib,ich)=evbw_prm%w_coll_all(ib,ich)+1
 
-          evbw_prm%w_coll(ib,ich)=evbw_prm%w_coll(ib,ich)+1
+          !if ia time is less than some fraction of a relaxation time, record.
+          if (evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) > int(lambda/dt/100._wp)) then
+          !if (evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) > 0) then
 
-        else
+            evbw_prm%w_coll(ib,ich)=evbw_prm%w_coll(ib,ich)+1
 
-          evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) = 1
+          else
 
+            evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) = 1
+
+          endif
         endif
 
 
@@ -155,10 +169,10 @@ contains
 
       else
 
-
-        evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) = &
-        evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) + 1
-
+        if (time>lambda*tss) then
+          evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) = &
+          evbw_prm%ia_time(ib,evbw_prm%w_coll(ib,ich)+1,ich) + 1
+        endif
 
       end if
 
@@ -216,11 +230,10 @@ contains
   module procedure print_wcll
 
     use :: mpi
-    use :: inp_dlt, only: nbead,npchain,ntime
+    use :: inp_dlt, only: nbead,npchain,ntime,tss,lambda
     use :: arry_mod, only: print_vector
 
     integer :: ich,ib,iwc,osch,ierr,ncount_wc,ncount_ia,iproc,tag
-
 
 
     ncount_wc=(nbead-1)*npchain
@@ -228,12 +241,14 @@ contains
 
     if (id == 0) then
 
-      write(evbw_prm%u_wc,'(" TIME: ",f9.2)') time
-      write(evbw_prm%u_ia,'(" TIME: ",f9.2)') time
+      write(evbw_prm%u_wc,'(" TIME SINCE tss: ",f9.2)') time-lambda*tss
+      write(evbw_prm%u_wc_all,'(" TIME SINCE tss: ",f9.2)') time-lambda*tss
+      write(evbw_prm%u_ia,'(" TIME SINCE tss: ",f9.2)') time-lambda*tss
 
       do ich=1, npchain
         do ib=2,nbead
           write(evbw_prm%u_wc,fmt3xi) ich,ib,evbw_prm%w_coll(ib,ich)
+          write(evbw_prm%u_wc_all,fmt3xi) ich,ib,evbw_prm%w_coll_all(ib,ich)
           do iwc=1, evbw_prm%w_coll(ib,ich)
             write(evbw_prm%u_ia,fmt3xi) ich,ib,evbw_prm%ia_time(ib,iwc,ich)
           enddo
@@ -249,6 +264,9 @@ contains
         call MPI_Recv(evbw_prm%w_coll_t,ncount_wc,MPI_INTEGER,iproc,tag,&
           MPI_COMM_WORLD,MPI_STATUS_IGNORE,ierr)
 
+        call MPI_Recv(evbw_prm%w_coll_all_t,ncount_wc,MPI_INTEGER,iproc,tag,&
+          MPI_COMM_WORLD,MPI_STATUS_IGNORE,ierr)
+
         call MPI_Recv(evbw_prm%ia_time_t,ncount_ia,MPI_INTEGER,iproc,tag,&
           MPI_COMM_WORLD,MPI_STATUS_IGNORE,ierr)
 
@@ -257,6 +275,7 @@ contains
         do ich=1, npchain
           do ib=2,nbead
             write(evbw_prm%u_wc,fmt3xi) osch+ich,ib,evbw_prm%w_coll_t(ib,ich)
+            write(evbw_prm%u_wc_all,fmt3xi) osch+ich,ib,evbw_prm%w_coll_all_t(ib,ich)
             do iwc=1, evbw_prm%w_coll_t(ib,ich)
               write(evbw_prm%u_ia,fmt3xi) osch+ich,ib,evbw_prm%ia_time_t(ib,iwc,ich)
             enddo
@@ -271,7 +290,8 @@ contains
 
       call MPI_Send(evbw_prm%w_coll,ncount_wc,MPI_INTEGER,0,tag,&
         MPI_COMM_WORLD,ierr)
-
+      call MPI_Send(evbw_prm%w_coll_all,ncount_wc,MPI_INTEGER,0,tag,&
+        MPI_COMM_WORLD,ierr)
       call MPI_Send(evbw_prm%ia_time,ncount_ia,MPI_INTEGER,0,tag,&
         MPI_COMM_WORLD,ierr)
 
