@@ -102,7 +102,7 @@ ef: do
         do j=1,ntokens
           if(trim(adjustl(tokens(j))) == inp_ph) then
             var=trim(adjustl(tokens(j+os+1)))
-            print '(" ",a," = ",a)',inp_ph,var
+            !print '(" ",a," = ",a)',inp_ph,var
             exit ef
           end if
         end do ! j
@@ -165,7 +165,7 @@ ef: do
         do j=1,ntokens
           if(trim(adjustl(tokens(j))) == inp_ph) then
             call value(tokens(j+os+1),var,ios)
-            print '(" ",a," = ",i)',inp_ph,var
+            !print '(" ",a," = ",i)',inp_ph,var
             exit ef
           end if
         end do ! j
@@ -232,7 +232,7 @@ ef: do
         do j=1,ntokens
           if(trim(adjustl(tokens(j))) == inp_ph) then
             call value(tokens(j+os+1),var,ios)
-            print '(" ",a," = ",f20.5)',inp_ph,var
+            !print '(" ",a," = ",f20.5)',inp_ph,var
             exit ef
           end if
         end do ! j

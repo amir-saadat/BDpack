@@ -212,7 +212,8 @@ print *,ndmp
       do ich=1,nchain
         do j=1,3
           do i=1,3
-            RgLSqTens(i,j) = 1._wp/nbead*dot(rb(i,:,ich,idmp)-rb(i,1,ich,idmp),rb(j,:,ich,idmp)-rb(j,1,ich,idmp))
+            RgLSqTens(i,j) = 1._wp/nbead*dot(rb(i,:,ich,idmp)-&
+                     rb(i,1,ich,idmp),rb(j,:,ich,idmp)-rb(j,1,ich,idmp))
           enddo
         enddo
         ph(ich,idmp) = (1._wp/2) * ATAN(2._wp*RgLSqTens(1,2)/(RgLSqTens(1,1)-RgLSqTens(2,2)))

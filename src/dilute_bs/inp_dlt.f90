@@ -544,9 +544,6 @@ rndmlp:         do
         end do
         dttemp2=floor(factor*dt(iWi,idt))
         dt(iWi,idt)=dttemp2/factor
-        if (id == 0) then
-          write(*,'(f14.7,1x,f14.7,1x,e10.2,1x,i10)') Wi(iWi),Pe(iWi),dt(iWi,idt),ntime(iWi,idt)
-        end if
         dt_tmp(iWi,idt)=dt(iWi,idt) ! It is used to store the original value of dt.
         if (Adjust_dt) then
           ! Calculating the ntime based on AdjSeq and AdjFact:
@@ -567,6 +564,9 @@ rndmlp:         do
            ceiling( (tend-AdjSeq(nAdjSeq))*lambda/(dt(iWi,idt)*AdjFact(nAdjSeq)) )
         else
           ntime(iWi,idt)=ceiling(tend*lambda/dt(iWi,idt))
+        end if
+        if (id == 0) then
+          write(*,'(f14.7,1x,f14.7,1x,e10.2,1x,i10)') Wi(iWi),Pe(iWi),dt(iWi,idt),ntime(iWi,idt)
         end if
       end do ! idt
     end do ! iWi

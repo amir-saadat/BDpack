@@ -101,7 +101,7 @@ contains
           open(newunit=u33,file='data/trQeeSq.dat',status='unknown',position='append')
           open(newunit=u7,file='data/trQeeRel.dat',status='unknown',position='append')
           open(newunit=u35,file='data/trXRel.dat',status='unknown',position='append')
-          open(newunit=u36,file='data/trXSq.dat',status='unknown',position='append')
+          open(newunit=u36,file='data/trXSqRel.dat',status='unknown',position='append')
           open(newunit=u44,file='data/trYRel.dat',status='unknown',position='append')
           open(newunit=u45,file='data/trYSq.dat',status='unknown',position='append')
         else
@@ -109,7 +109,7 @@ contains
           open(newunit=u33,file='data/trQeeSq.dat',status='replace',position='append')
           open(newunit=u7,file='data/trQeeRel.dat',status='replace',position='append')
           open(newunit=u35,file='data/trXRel.dat',status='replace',position='append')
-          open(newunit=u36,file='data/trXSq.dat',status='replace',position='append')
+          open(newunit=u36,file='data/trXSqRel.dat',status='replace',position='append')
           open(newunit=u44,file='data/trYRel.dat',status='replace',position='append')
           open(newunit=u45,file='data/trYSq.dat',status='replace',position='append')
         end if
@@ -121,8 +121,8 @@ contains
         write(u7,*) "# ------------------------------------ #"
         write(u35,*) "# Wi, dt, Time, <X>/Lc, sd<X>/Lc #" 
         write(u35,*) "# ------------------------------ #"
-        write(u36,*) "# Wi, dt, Time, <X.X>, sd<X.X> #"
-        write(u36,*) "# ---------------------------- #"
+        write(u36,*) "# Wi, dt, Time, <X.X>/Lc^2, sd<X.X> #"
+        write(u36,*) "# --------------------------------- #"
         write(u44,*) "# Wi, dt, Time, <Y>/Lc, sd<Y>/Lc #" 
         write(u44,*) "# ------------------------------ #"
         write(u45,*) "# Wi, dt, Time, <Y.Y>, sd<Y.Y> #"
@@ -664,7 +664,8 @@ contains
         if (initmode == 'rst') then
           write(u31,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),sqqsprAveTot,sdsqqsprAveTot
           write(u33,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),sqqetoeAveTot,sdsqqetoeAveTot
-          write(u36,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),XSqAveTot,sdXSqAveTot
+          write(u36,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),XSqAveTot/(qmax*nseg_bb)**2,&
+                        sdXSqAveTot/(qmax*nseg_bb)**2
           write(u45,2) Wi(iPe),dt(iPe,idt),(time+trst*lambda),YSqAveTot,sdYSqAveTot
           select case (tplgy)
             case ('Linear')
@@ -698,7 +699,8 @@ contains
         else ! initmode == 'st'
           write(u31,2) Wi(iPe),dt(iPe,idt),time,sqqsprAveTot,sdsqqsprAveTot
           write(u33,2) Wi(iPe),dt(iPe,idt),time,sqqetoeAveTot,sdsqqetoeAveTot
-          write(u36,2) Wi(iPe),dt(iPe,idt),time,XSqAveTot,sdXSqAveTot
+          write(u36,2) Wi(iPe),dt(iPe,idt),time,XSqAveTot/(qmax*nseg_bb)**2,&
+                        sdXSqAveTot/(qmax*nseg_bb)**2
           write(u45,2) Wi(iPe),dt(iPe,idt),time,YSqAveTot,sdYSqAveTot
           select case (tplgy)
             case ('Linear')
