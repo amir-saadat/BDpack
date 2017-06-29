@@ -37,6 +37,7 @@ program wallcollision
   integer,allocatable,target :: ia_times_idx(:)
   real(dp), allocatable :: Prob_ia_times(:,:)
   real(dp),allocatable,dimension(:) :: rx_mean,ry_mean,rz_mean
+  real(dp),allocatable,dimension(:,:) :: rx_mean_time,ry_mean_time,rz_mean_time
   real(dp) :: temp1,temp2,time
 
   !----------------------------------------
@@ -173,6 +174,8 @@ program wallcollision
   allocate(midbin(nseg,nbin))
   allocate(Prob_ia_times(nseg,nbin))
   allocate(rx_mean(nseg),ry_mean(nseg),rz_mean(nseg))
+  allocate(rx_mean_time(nseg,ntime),ry_mean_time(nseg,ntime),rz_mean_time(nseg,ntime))
+
 
   !----------------------------------------
   !         opening files
@@ -189,6 +192,7 @@ program wallcollision
   open (unit=10,file=adjustl(wcdmpFile),status='old')
   open (unit=11,file=adjustl(wcalldmpFile),status='old')
   open (unit=12,file='wc_collfreq.dat',status='unknown')
+  open (unit=13,file='wc_r_mean_time.dat',status='unknown')
 
 
   !----------------------------------------
@@ -203,6 +207,7 @@ program wallcollision
   totcollisions_all = 0
   Prob_ia_times = 0
   rx_mean = 0; ry_mean= 0; rz_mean = 0
+  rx_mean_time = 0; ry_mean_time= 0; rz_mean_time = 0
 
   !read in files
   ! do iskip=1, nskip
@@ -233,6 +238,21 @@ program wallcollision
     ry_mean(iseg) = ry_mean(iseg)/(nchain*ntime)
     rz_mean(iseg) = rz_mean(iseg)/(nchain*ntime)
   end do
+
+  do iseg=1,nseg
+    do itime=1,ntime
+      do ichain=1,nchain
+        rx_mean_time(iseg,itime) = rx_mean_time(iseg,itime) + rx(iseg,ichain,itime)
+        ry_mean_time(iseg,itime) = ry_mean_time(iseg,itime) + ry(iseg,ichain,itime)
+        rz_mean_time(iseg,itime) = rz_mean_time(iseg,itime) + rz(iseg,ichain,itime)
+      end do
+      rx_mean_time(iseg,itime) = rx_mean_time(iseg,itime)/(nchain)
+      ry_mean_time(iseg,itime) = ry_mean_time(iseg,itime)/(nchain)
+      rz_mean_time(iseg,itime) = rz_mean_time(iseg,itime)/(nchain)
+    end do
+  end do
+
+
 
   read(10,*) !number of lines to skip
   read(10,*) !number of lines to skip
@@ -298,6 +318,13 @@ program wallcollision
     write(5,6) iseg, rx_mean(iseg), ry_mean(iseg), rz_mean(iseg)
   end do
 
+  !mean polymer shape as a function of time
+  do itime = 1,ntime
+    do iseg = 1,nseg
+      write(13,6) iseg, rx_mean_time(iseg,itime), ry_mean_time(iseg,itime), rz_mean_time(iseg,itime)
+    end do
+  end do
+
   !coordinates of the end bead
   do itime = 1,ntime
     do ichain = 1,nchain
@@ -336,6 +363,7 @@ program wallcollision
   deallocate(midbin)
   deallocate(Prob_ia_times)
   deallocate(rx_mean,ry_mean,rz_mean)
+  deallocate(rx_mean_time,ry_mean_time,rz_mean_time)
   deallocate(ia_times)
   deallocate(ia_times_idx)
 
