@@ -117,13 +117,13 @@ module dlt_mod
     real(double),dimension(:,:),pointer :: CoeffTensP
     real(wp),allocatable,dimension(:,:,:) :: rdnt,rdn
     ! For gathering data by rank 0
-    real(wp),allocatable,dimension(:,:,:),target :: qxT,qyT,qzT,qTot,RTot,rcmT
+    real(wp),allocatable,dimension(:,:,:),target :: qxT,qyT,qzT,qTot,RTot,rcmT,FphiTot
     real(wp),allocatable,dimension(:,:,:),target :: rchrT,FBrbl,DiffTens,AdotD
     real(double),allocatable,dimension(:,:,:),target :: CoeffTens,wbltemp
     integer,allocatable,dimension(:) :: cnf_tp
     integer,allocatable,dimension(:,:) :: iaTot,cnf_tpTot
     ! File units
-    integer :: u2,u3,u4,u21,u22,u23,u24,u25,u26,u27,u34,u39,u40,u41
+    integer :: u2,u3,u4,u21,u22,u23,u24,u25,u26,u27,u34,u39,u40,u41,u42
     ! objects
     type(intrn_t) :: myintrn
 
@@ -268,6 +268,7 @@ module dlt_mod
       allocate(qyT(npchain,nseg,p))
       allocate(qzT(npchain,nseg,p))
       allocate(RTot(nbeadx3,npchain,p))
+      allocate(FphiTot(nbeadx3,npchain,p))
       if (CoM) allocate(rcmT(3,npchain,p))
       if (CoHR) allocate(rchrT(3,npchain,p))
     end if ! id.eq.0
@@ -1386,6 +1387,8 @@ module dlt_mod
            q_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
           call MPI_Gatherv(rvmrc,nbeadx3*npchain,MPI_REAL_WP,RTot,R_counts,R_disps,&
            R_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
+          call MPI_Gatherv(Fphi,nbeadx3*npchain,MPI_REAL_WP,FphiTot,R_counts,R_disps,&
+           R_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
           if (CoM) then
             call MPI_Gatherv(rcm,3*npchain,MPI_REAL_WP,rcmT,rc_counts,rc_disps,&
              rc_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
@@ -1415,13 +1418,16 @@ module dlt_mod
               if (iflow == 1) then
                 open(newunit=u34,file='data/q.equil.dat',status=fstat,position='append')
                 open(newunit=u25,file='data/R.equil.dat',status=fstat,position='append')
+                open(newunit=u42,file='data/fphi.equil.dat',status=fstat,position='append')
                 if (CoM) open(newunit=u26,file='data/CoM.equil.dat',status=fstat,position='append')
                 if (CoHR) open(newunit=u27,file='data/CoHR.equil.dat',status=fstat,position='append')
               else
                 open(newunit=u34,file='data/q.flow.dat',status=fstat,position='append')
                 open(newunit=u25,file='data/R.flow.dat',status=fstat,position='append')
+                open(newunit=u42,file='data/fphi.flow.dat',status=fstat,position='append')
                 if (CoM) open(newunit=u26,file='data/CoM.flow.dat',status=fstat,position='append')
                 if (CoHR) open(newunit=u27,file='data/CoHR.flow.dat',status=fstat,position='append')
+
               end if ! iflow == 1
             end if ! jcheck
             do ip = 1, p
@@ -1433,6 +1439,7 @@ module dlt_mod
                 do ibead = 1, nbead
                   offset=3*(ibead-1)
                   write(u25,1) RTot(offset+1:offset+3,ichain,ip)
+                  write(u42,1) FphiTot(offset+1:offset+3,ichain,ip)
                 end do
                 if (CoM) write(u26,1) rcmT(1:3,ichain,ip)
                 if (CoHR) write(u27,1) rchrT(1:3,ichain,ip)
@@ -1462,7 +1469,7 @@ module dlt_mod
 
   if (id == 0) then
     deallocate (rdnt)
-    deallocate (qTot,qxT,qyT,qzT)
+    deallocate (qTot,qxT,qyT,qzT,RTot,FphiTot)
     if (CoM) deallocate(rcmT)
     if (CoHR) deallocate(rchrT)
   end if
