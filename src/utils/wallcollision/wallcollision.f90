@@ -25,7 +25,7 @@ program wallcollision
   integer :: nbin,ibin
   real(dp),allocatable :: midbin(:,:)
   !character(len=20) :: arg,buffer,dmpFile_R,dmpFile_C,dmpFile_ia,dmpFile_coll,dmpFile_collall
-  character(len=20) :: RdmpFile,rcdmpFile,iadmpFile,wcdmpFile,wcalldmpFile
+  character(len=20) :: RdmpFile,rcdmpFile,iadmpFile,wcdmpFile,wcalldmpFile,fphidmpFile
   character(len=20) :: temp
   real(dp) :: lambda
   real(dp),allocatable :: rrel(:,:,:,:)
@@ -38,6 +38,9 @@ program wallcollision
   real(dp), allocatable :: Prob_ia_times(:,:)
   real(dp),allocatable,dimension(:) :: rx_mean,ry_mean,rz_mean
   real(dp),allocatable,dimension(:,:) :: rx_mean_time,ry_mean_time,rz_mean_time
+  real(dp),allocatable,dimension(:,:,:) :: fphix,fphiy,fphiz
+  real(dp),allocatable,dimension(:,:) :: fphix_mean_time,fphiy_mean_time,fphiz_mean_time
+  real(dp),allocatable,dimension(:) :: fphix_mean,fphiy_mean,fphiz_mean
   real(dp) :: temp1,temp2,time
 
   !----------------------------------------
@@ -51,95 +54,6 @@ program wallcollision
 6 format(i,1x,f11.6,1x,f11.6,1x,f11.6)
 7 format(f11.6,1x,f11.6,1x,f11.6)
 
-  ! !----------------------------------------
-  ! !         reading in inputs
-  ! !----------------------------------------
-  ! narg=command_argument_count()
-  !
-  ! do iarg=1, narg
-  !   call get_command_argument(iarg,arg)
-  !   select case (adjustl(arg))
-  !     case ('--fileR')
-  !       call get_command_argument(iarg+1,dmpFile_R)
-  !       inquire(file=dmpFile_R,exist=dmpExist)!check if it exist
-  !       if(.not.dmpExist)then
-  !         print '(" File ",a,"not found")',dmpFile_R
-  !         stop
-  !       else
-  !         print '(" Relative position file Name: ",a)',dmpFile_R
-  !       end if
-  !     case ('--fileC')
-  !       call get_command_argument(iarg+1,dmpFile_C)
-  !       inquire(file=dmpFile_C,exist=dmpExist)!check if it exist
-  !       if(.not.dmpExist)then
-  !         print '(" File ",a,"not found")',dmpFile_C
-  !         stop
-  !       else
-  !         print '(" CoM file Name: ",a)',dmpFile_C
-  !       end if
-  !     case ('--fileia')
-  !       call get_command_argument(iarg+1,dmpFile_ia)
-  !       inquire(file=dmpFile_ia,exist=dmpExist)!check if it exist
-  !       if(.not.dmpExist)then
-  !         print '(" File ",a,"not found")',dmpFile_ia
-  !         stop
-  !       else
-  !         print '(" ia times file Name: ",a)',dmpFile_ia
-  !       end if
-  !     case ('--filecoll')
-  !       call get_command_argument(iarg+1,dmpFile_coll)
-  !       inquire(file=dmpFile_coll,exist=dmpExist)!check if it exist
-  !       if(.not.dmpExist)then
-  !         print '(" File ",a,"not found")',dmpFile_coll
-  !         stop
-  !       else
-  !         print '(" wallcollisions file Name: ",a)',dmpFile_coll
-  !       end if
-  !     case ('--filecollall')
-  !       call get_command_argument(iarg+1,dmpFile_collall)
-  !       inquire(file=dmpFile_collall,exist=dmpExist)!check if it exist
-  !       if(.not.dmpExist)then
-  !         print '(" File ",a,"not found")',dmpFile_collall
-  !         stop
-  !       else
-  !         print '(" wallcollisions (all) file Name: ",a)',dmpFile_collall
-  !       end if
-  !     case ('--nCh')
-  !       call get_command_argument(iarg+1,buffer)
-  !       read(buffer,'(i10)') nchain
-  !       print '(" No. chains: ",i10)',nchain
-  !     case ('--nSeg')
-  !       call get_command_argument(iarg+1,buffer)
-  !       read(buffer,'(i10)') nseg
-  !       nbead=nseg+1
-  !       print '(" No. segments: ",i10)',nseg
-  !       ntotseg=nchain*nseg
-  !     case ('--nSkip')
-  !       call get_command_argument(iarg+1,buffer)
-  !       read(buffer,'(i10)') nskip
-  !       print '(" Total number of lines to be skipped: ",i10)',nskip
-  !     case ('--b')
-  !       call get_command_argument(iarg+1,buffer)
-  !       read(buffer,'(f10.3)') b
-  !       print '(" b: ",f10.3)',b
-  !     !case ('--delw')
-  !     !  call get_command_argument(iarg+1,buffer)
-  !     !  read(buffer,'(f10.3)') delw
-  !     !  print '(" Min distance from wall (collision) ",f10.3)',delw
-  !     case ('--nTime')
-  !       call get_command_argument(iarg+1,buffer)
-  !       read(buffer,'(i10)') ntime
-  !       print '(" No. time steps: ",i10)',ntime
-  !     case ('--nbin')
-  !       call get_command_argument(iarg+1,buffer)
-  !       read(buffer,'(i10)') nbin
-  !       print '(" number of bins ",i10)',nbin
-  !     case ('--help')
-  !       call print_help()
-  !       stop
-  !   end select
-  ! end do ! iarg
-
   !----------------------------------------
   !         read inputs from input file
   !----------------------------------------
@@ -152,6 +66,7 @@ program wallcollision
   call read_input('iadmpFile', 0,iadmpFile, def='ia_time.dat')
   call read_input('wcdmpFile',0,wcdmpFile,def='w_coll.dat')
   call read_input('wcalldmpFile',0,wcalldmpFile,def='w_coll_all.dat')
+  call read_input('fphidmpFile',0,fphidmpFile,def='fphi.flow.dat')
   call read_input('nchain',0,nchain)
   call read_input('nseg', 0,nseg )
   call read_input('lambda', 0,lambda)
@@ -164,18 +79,20 @@ program wallcollision
   !----------------------------------------
   !         variable allocations
   !----------------------------------------
-  allocate(rrel(3,nseg,nchain,ntime))
+  allocate(rrel(3,nseg+1,nchain,ntime))
   allocate(CoM(3,nchain,ntime))
   allocate(collisions(nseg))
   allocate(collisions_chain(nseg,nchain))
   allocate(collisions_all(nseg))
   allocate(collisions_all_chain(nseg,nchain))
-  allocate(rx(nseg,nchain,ntime),ry(nseg,nchain,ntime),rz(nseg,nchain,ntime))
+  allocate(rx(nseg+1,nchain,ntime),ry(nseg+1,nchain,ntime),rz(nseg+1,nchain,ntime))
   allocate(midbin(nseg,nbin))
   allocate(Prob_ia_times(nseg,nbin))
-  allocate(rx_mean(nseg),ry_mean(nseg),rz_mean(nseg))
-  allocate(rx_mean_time(nseg,ntime),ry_mean_time(nseg,ntime),rz_mean_time(nseg,ntime))
-
+  allocate(rx_mean(nseg+1),ry_mean(nseg+1),rz_mean(nseg+1))
+  allocate(rx_mean_time(nseg+1,ntime),ry_mean_time(nseg+1,ntime),rz_mean_time(nseg+1,ntime))
+  allocate(fphix(nseg+1,nchain,ntime),fphiy(nseg+1,nchain,ntime),fphiz(nseg+1,nchain,ntime))
+  allocate(fphix_mean_time(nseg+1,ntime),fphiy_mean_time(nseg+1,ntime),fphiz_mean_time(nseg+1,ntime))
+  allocate(fphix_mean(nseg+1),fphiy_mean(nseg+1),fphiz_mean(nseg+1))
 
   !----------------------------------------
   !         opening files
@@ -193,6 +110,9 @@ program wallcollision
   open (unit=11,file=adjustl(wcalldmpFile),status='old')
   open (unit=12,file='wc_collfreq.dat',status='unknown')
   open (unit=13,file='wc_r_mean_time.dat',status='unknown')
+  open (unit=14,file=adjustl(fphidmpFile),status='old')
+  open (unit=15,file='wc_fphi_mean_time.dat',status='unknown')
+  open (unit=16,file='wc_fphi_mean.dat',status='unknown')
 
 
   !----------------------------------------
@@ -208,16 +128,16 @@ program wallcollision
   Prob_ia_times = 0
   rx_mean = 0; ry_mean= 0; rz_mean = 0
   rx_mean_time = 0; ry_mean_time= 0; rz_mean_time = 0
+  fphix = 0;fphiy = 0; fphiz = 0;
+  fphix_mean_time = 0;fphiy_mean_time = 0;fphiz_mean_time = 0;
+  fphix_mean = 0;fphiy_mean = 0;fphiz_mean = 0;
 
-  !read in files
-  ! do iskip=1, nskip
-  !   read(1,*)
-  ! end do
+  !reading in bead coordinates
   do itime=1, ntime
     do ichain=1, nchain
       read(7,*) CoM(1:3,ichain,itime)
-      read(1,*) !don't need coordinate of the tethered bead
-      do iseg=1, nseg
+      !read(1,*) !don't need coordinate of the tethered bead
+      do iseg=1, nseg+1
         read(1,*) rrel(1:3,iseg,ichain,itime)
         rx(iseg,ichain,itime) = CoM(1,ichain,itime)+ rrel(1,iseg,ichain,itime)
         ry(iseg,ichain,itime) = CoM(2,ichain,itime)+ rrel(2,iseg,ichain,itime)
@@ -226,7 +146,20 @@ program wallcollision
     end do !chains
   end do !time
 
-  do iseg=1,nseg
+  !reading in forces
+  do itime=1, ntime
+    do ichain=1, nchain
+      do iseg=1, nseg+1
+        read(14,*) fphix(iseg,ichain,itime),fphiy(iseg,ichain,itime),fphiz(iseg,ichain,itime)
+      end do !segs
+    end do !chains
+  end do !time
+
+  !----------------------------------------
+  !  calculations
+  !----------------------------------------
+  !calculating mean coordinates
+  do iseg=1,nseg+1
     do ichain=1, nchain
       do itime=1, ntime
         rx_mean(iseg) = rx_mean(iseg) + rx(iseg,ichain,itime)
@@ -239,7 +172,8 @@ program wallcollision
     rz_mean(iseg) = rz_mean(iseg)/(nchain*ntime)
   end do
 
-  do iseg=1,nseg
+  !calculating mean coordinates as a function of time
+  do iseg=1,nseg+1
     do itime=1,ntime
       do ichain=1,nchain
         rx_mean_time(iseg,itime) = rx_mean_time(iseg,itime) + rx(iseg,ichain,itime)
@@ -252,8 +186,35 @@ program wallcollision
     end do
   end do
 
+  !calculating mean forces
+  do iseg=1,nseg+1
+    do ichain=1, nchain
+      do itime=1, ntime
+        fphix_mean(iseg) = fphix_mean(iseg) + fphix(iseg,ichain,itime)
+        fphiy_mean(iseg) = fphiy_mean(iseg) + fphiy(iseg,ichain,itime)
+        fphiz_mean(iseg) = fphiz_mean(iseg) + fphiz(iseg,ichain,itime)
+      end do
+    end do
+    fphix_mean(iseg) = fphix_mean(iseg)/(nchain*ntime)
+    fphiy_mean(iseg) = fphiy_mean(iseg)/(nchain*ntime)
+    fphiz_mean(iseg) = fphiz_mean(iseg)/(nchain*ntime)
+  end do
 
+  !calculating average forces on each bead
+  do iseg=1,nseg+1
+    do itime=1,ntime
+      do ichain=1,nchain
+        fphix_mean_time(iseg,itime) = fphix_mean_time(iseg,itime) + fphix(iseg,ichain,itime)
+        fphiy_mean_time(iseg,itime) = fphiy_mean_time(iseg,itime) + fphiy(iseg,ichain,itime)
+        fphiz_mean_time(iseg,itime) = fphiz_mean_time(iseg,itime) + fphiz(iseg,ichain,itime)
+      end do
+      fphix_mean_time(iseg,itime) = fphix_mean_time(iseg,itime)/(nchain)
+      fphiy_mean_time(iseg,itime) = fphiy_mean_time(iseg,itime)/(nchain)
+      fphiz_mean_time(iseg,itime) = fphiz_mean_time(iseg,itime)/(nchain)
+    end do
+  end do
 
+  !reading in collision data
   read(10,*) !number of lines to skip
   read(10,*) !number of lines to skip
   read(10,*) !number of lines to skip
@@ -283,7 +244,6 @@ program wallcollision
     totcollisions_all = totcollisions_all + collisions_all(iseg)
   end do
 
-  !allocate(ia_times_chain(nseg,nchain))
   allocate(ia_times(nseg,maxval(collisions(:))))
   allocate(ia_times_idx(nseg))
   ia_times_idx=1
@@ -313,15 +273,29 @@ program wallcollision
     write(12,3) iseg, (float(collisions_all(iseg))/(time/lambda)/nchain)
   end do
 
-  !mean polymer shape
-  do iseg = 1,nseg
+  !mean polymer shape averaged over time
+  do iseg = 1,nseg+1
     write(5,6) iseg, rx_mean(iseg), ry_mean(iseg), rz_mean(iseg)
   end do
 
   !mean polymer shape as a function of time
   do itime = 1,ntime
-    do iseg = 1,nseg
+    do iseg = 1,nseg+1
       write(13,6) iseg, rx_mean_time(iseg,itime), ry_mean_time(iseg,itime), rz_mean_time(iseg,itime)
+    end do
+  end do
+
+  !mean fphi averaged over time
+
+  do iseg = 1,nseg+1
+    write(16,6) iseg, fphix_mean(iseg), fphiy_mean(iseg), fphiz_mean(iseg)
+  end do
+
+
+  !mean fphi as a function of time
+  do itime = 1,ntime
+    do iseg = 1,nseg+1
+      write(15,6) iseg, fphix_mean_time(iseg,itime), fphiy_mean_time(iseg,itime), fphiz_mean_time(iseg,itime)
     end do
   end do
 
@@ -335,7 +309,7 @@ program wallcollision
   !coordinates of all beads
   do itime = 1,ntime
     do ichain = 1,nchain
-      do iseg = 1,nseg
+      do iseg = 1,nseg+1
         write(8,7) rx(iseg,ichain,itime), ry(iseg,ichain,itime), rz(iseg,ichain,itime)
       end do
     end do
@@ -364,6 +338,9 @@ program wallcollision
   deallocate(Prob_ia_times)
   deallocate(rx_mean,ry_mean,rz_mean)
   deallocate(rx_mean_time,ry_mean_time,rz_mean_time)
+  deallocate(fphix,fphiy,fphiz)
+  deallocate(fphix_mean_time,fphiy_mean_time,fphiz_mean_time)
+  deallocate(fphix_mean,fphiy_mean,fphiz_mean)
   deallocate(ia_times)
   deallocate(ia_times_idx)
 
@@ -458,7 +435,6 @@ contains
     print '(a)', ' --nSeg        No. segments in a chain'
     print '(a)', ' --nSkip       Total No. lines to be skipped'
     print '(a)', ' --b           squared maximum of segment length'
-    !print '(a)', ' --delw        the distance from the wall where F_ev acts'
     print '(a)', ' --nTime       number of time steps'
     print '(a)', ' --nbin        number of bins for the pdf'
   end subroutine print_help
