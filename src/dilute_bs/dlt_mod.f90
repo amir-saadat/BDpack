@@ -103,7 +103,7 @@ module dlt_mod
     real(wp),allocatable,dimension(:),target :: RHS,RHSbase,qc,Fseg,DdotF
     real(wp),dimension(:),pointer  :: RHSP,RHSbaseP,qcP,FsegP,FBrblP,rcmP,rcmPy
     real(wp),dimension(:),pointer :: rchrP,FphiP,DdotFPx,DdotFPy,DdotFPz,qP
-    real(wp),dimension(:),pointer :: rvmrcP,rvmrcPy,qPy
+    real(wp),dimension(:),pointer :: rvmrcP,rvmrcPx,rvmrcPy,rvmrcPz,qPx,qPy,qPz
     real(double),dimension(:),pointer :: wbltempP2,BdotwP,BdotwPx,BdotwPy,BdotwPz
     real(wp),allocatable,dimension(:,:) :: Kappa,Amat,Bmat,wbl,aBlLan,WBlLan
     real(wp),allocatable,dimension(:,:) :: VBlLan,VcntBlLan,Eye,Dsh
@@ -851,8 +851,12 @@ module dlt_mod
           qc(:)=q(:,ichain)
           qP => q(:,ichain)
           rvmrcP => rvmrc(:,ichain)
+          qPx => qP(1:nsegx3-2:3)
           qPy => qP(2:nsegx3-1:3)
+          qPz => qP(3:nsegx3:3)
+          rvmrcPx => rvmrcP(1:nbeadx3-2:3)
           rvmrcPy => rvmrcP(2:nbeadx3-1:3)
+          rvmrcPz => rvmrcP(3:nbeadx3:3)
           if (CoM) then
             rcmP => rcm(:,ichain)
           end if
@@ -1080,6 +1084,7 @@ module dlt_mod
             call tetupdate(Ftet,rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),&
              Fbartet,rf0(:,ichain),itime)
             Fbar(1:3)=Fbar(1:3)+Fbartet(1:3)
+            !call print_vector(Fbartet(1:3),'Tether force')
           end if
           call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
 
@@ -1265,7 +1270,9 @@ module dlt_mod
 
           ! rflc part
           if (EV_bw == 'Rflc_bc') then
-            call wall_rflc(dt(iPe,idt),itime,time,id,ichain,qPy,rvmrcPy,rcmP(2))
+            !call wall_rflc(dt(iPe,idt),itime,time,id,ichain,qPy,rvmrcPy,rcmP(2),rf_in)
+            call wall_rflc(dt(iPe,idt),itime,time,id,ichain,qPx,qPy,qPz,&
+              rvmrcPx,rvmrcPy,rvmrcPz,rcmP(1),rcmP(2),rcmP(3),rf_in)
           end if
           !-----
 

@@ -173,10 +173,14 @@ module intrn_mod
       real(wp),intent(inout) :: Fev(:)
     end subroutine evbwcalc
 
-    module subroutine wall_rflc(dt,it,time,id,ich,qy,Ry,rcmy)
+    module subroutine wall_rflc(dt,it,time,id,ich,qx,qy,qz,Rx,Ry,Rz,&
+      rcmx,rcmy,rcmz,rf_in)
+      real(wp),intent(in),dimension(3) :: rf_in
       real(wp),intent(in) :: dt,time
       integer,intent(in) :: it,id,ich
-      real(wp),intent(inout) :: qy(:),Ry(:),rcmy
+      real(wp),intent(inout) :: qx(:),qy(:),qz(:)
+      real(wp),intent(inout) :: Rx(:),Ry(:),Rz(:)
+      real(wp),intent(inout) :: rcmx,rcmy,rcmz
     end subroutine wall_rflc
 
     module subroutine del_evbw(id)

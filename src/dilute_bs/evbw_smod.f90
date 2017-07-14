@@ -113,7 +113,9 @@ contains
     endif
 
     ! To save memory, rcmy is added to Rvy to get rvy
+    Rx=Rx+rcmx
     Ry=Ry+rcmy
+    Rz=Rz+rcmz
 
     !evbw_prm%w_coll=evbw_prm%w_coll-floor( Ry(2:nbead)/qmax )
     ! do ib=2, nbead
@@ -123,18 +125,32 @@ contains
 
     !Ry=abs(Ry)-2*evbw_prm%a*floor( Ry/qmax )
 
+    ! ! Reflection of the first bead
+    ! if (Ry(1) < evbw_prm%a) then
+    !   !Ry(1)=2*evbw_prm%a - Ry(1)
+    !   Ry(1)=rf_in(2)
+    !   select case (tplgy)
+    !   case ('Linear')
+    !     qy(1)=Ry(2)-Ry(1)
+    !   case ('Comb')
+    !   end select
+    ! endif
+
     ! Reflection of the first bead
-    if (Ry(1) < evbw_prm%a) then
-      Ry(1)=2*evbw_prm%a - Ry(1)
-      select case (tplgy)
-      case ('Linear')
-        qy(1)=Ry(2)-Ry(1)
-      case ('Comb')
-      end select
-    endif
+    Rx(1)=rf_in(1)
+    Ry(1)=rf_in(2)
+    Rz(1)=rf_in(3)
+    select case (tplgy)
+    case ('Linear')
+      qx(1)=Rx(2)-Rx(1)
+      qy(1)=Ry(2)-Ry(1)
+      qz(1)=Rz(2)-Rz(1)
+    case ('Comb')
+    end select
 
-
+    rcmx=Rx(1)
     rcmy=Ry(1)
+    rcmz=Rz(1)
 
     do ib=2, nbead
 
@@ -200,11 +216,16 @@ contains
         endif
       endif
 
-
+      rcmx=rcmx+Rx(ib)
       rcmy=rcmy+Ry(ib)
+      rcmz=rcmz+Rz(ib)
     end do
+    rcmx=rcmx/nbead
     rcmy=rcmy/nbead
+    rcmz=rcmz/nbead
+    Rx=Rx-rcmx
     Ry=Ry-rcmy
+    Rz=Rz-rcmz
 
   end procedure wall_rflc
 
