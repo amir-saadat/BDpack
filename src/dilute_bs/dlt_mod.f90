@@ -975,8 +975,7 @@ module dlt_mod
 
                 !TYL: HI for tethered bead -------------------------------------
                 if (srf_tet) then
-                  call gbmv(AmatBF(:,1:3),real(wbltempP2(1:3),kind=wp),FBrblP,&
-                    kl=0,m=3,alpha=-coeff)
+                  call gemv(Amat(:,1:3),real(wbltempP2(1:3),kind=wp),FBrblP,alpha=-coeff)
                 end if
                 !TYL: HI for tethered bead -------------------------------------
 
