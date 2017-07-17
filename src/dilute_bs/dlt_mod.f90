@@ -972,6 +972,14 @@ module dlt_mod
               FBrblP => FBrbl(:,lcol,ichain)
               if (tplgy == 'Linear') then
                 call gbmv(AmatBF,real(wbltempP2,kind=wp),FBrblP,kl=0,m=nsegx3,alpha=coeff)
+
+                !TYL: HI for tethered bead -------------------------------------
+                if (srf_tet) then
+                  call gbmv(AmatBF(:,1:3),real(wbltempP2(1:3),kind=wp),FBrblP,&
+                    kl=0,m=3,alpha=-coeff)
+                end if
+                !TYL: HI for tethered bead -------------------------------------
+
               else
                 call gemv(Amat,real(wbltempP2,kind=wp),FBrblP,alpha=coeff)
               end if
@@ -1029,6 +1037,12 @@ module dlt_mod
           call gemv(AdotDP1,Fphi(:,ichain),qstar,alpha=0.25*dt(iPe,idt),&
             beta=1._wp)
 
+          !TYL: HI for tethered bead -------------------------------------------
+          if (srf_tet) then
+            call gemv(AdotDP1(:,1:3),Fphi(1:3,ichain),qstar,&
+              alpha=-0.25*dt(iPe,idt),beta=1._wp)
+          end if
+          !TYL: HI for tethered bead -------------------------------------------
 
           !! Blake's part
           if (HITens == 'Blake') then
@@ -1088,6 +1102,12 @@ module dlt_mod
           end if
           call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
 
+          !TYL: HI for tethered bead -------------------------------------------
+          if (srf_tet) then
+            call gemv(AdotDP1(:,1:3),Fbar(1:3),RHS,alpha=-0.25*dt(iPe,idt),&
+              beta=1._wp)
+          end if
+          !TYL: HI for tethered bead -------------------------------------------
 
 
           !! Blake's part
@@ -1111,6 +1131,14 @@ module dlt_mod
             RHSP => RHS(offset+1:offset+3)
             AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
             call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
+
+            !TYL: HI for tethered bead -----------------------------------------
+            if (srf_tet) then
+              call gemv(AdotDP2(:,1:3),Fbarbead(1:3),RHSP,&
+              alpha=-0.25*dt(iPe,idt),beta=1._wp)
+            end if
+            !TYL: HI for tethered bead -----------------------------------------
+
             call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qstar,iseg,&
               nseg,ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,Amat,nseg_bb,&
               nseg_ar,Ia,Na,itime)
@@ -1143,6 +1171,14 @@ module dlt_mod
               call gemv(Kappareg,qcP,RHSP,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1.0_wp)
               call axpy(FsegP,RHSP,a=0.5*dt(iPe,idt))
               call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
+
+              !TYL: HI for tethered bead ---------------------------------------
+              if (srf_tet) then
+                call gemv(AdotDP2(:,1:3),Fbead(1:3),RHSP,&
+                alpha=-0.25*dt(iPe,idt),beta=1._wp)
+              end if
+              !TYL: HI for tethered bead ---------------------------------------
+
               call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qbar,iseg,&
                 nseg,ForceLaw,TruncMethod,qc,Fseg,Fbead,tplgy,Amat,nseg_bb,nseg_ar,&
                 Ia,Na,itime)
