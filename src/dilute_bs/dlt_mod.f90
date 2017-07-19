@@ -974,9 +974,14 @@ module dlt_mod
                 call gbmv(AmatBF,real(wbltempP2,kind=wp),FBrblP,kl=0,m=nsegx3,alpha=coeff)
 
                 !TYL: HI for tethered bead -------------------------------------
+                !print *, 'Brownian force calculaton------------'
+                !call print_matrix(Amat,'Amat')
+                !call print_vector(real(wbltempP2,kind=wp),'W')
+                !call print_vector(FBrblP, 'Br force BEFORE')
                 if (srf_tet) then
                   call gemv(Amat(:,1:3),real(wbltempP2(1:3),kind=wp),FBrblP,alpha=-coeff,&
                     beta=1._wp)
+                  !call print_vector(FBrblP, 'Br force AFTER')
                 end if
                 !TYL: HI for tethered bead -------------------------------------
 
@@ -1038,9 +1043,14 @@ module dlt_mod
             beta=1._wp)
 
           !TYL: HI for tethered bead -------------------------------------------
+          !print *, 'Predictor calculaton------------'
+          !call print_matrix(AdotDP1,'AdotDP1')
+          !call print_vector(Fphi(:,ichain),'Fphi(:,ichain)')
+          !call print_vector(qstar,'qstar BEFORE')
           if (srf_tet) then
             call gemv(AdotDP1(:,1:3),Fphi(1:3,ichain),qstar,&
               alpha=-0.25*dt(iPe,idt),beta=1._wp)
+            !call print_vector(qstar,'qstar AFTER')
           end if
           !TYL: HI for tethered bead -------------------------------------------
 
@@ -1103,9 +1113,14 @@ module dlt_mod
           call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
 
           !TYL: HI for tethered bead -------------------------------------------
+          !print *, 'First corrector calculaton------------'
+          !call print_matrix(AdotDP1,'AdotDP1')
+          !call print_vector(Fbar,'Fbar')
+          !call print_vector(RHS,'RHS BEFORE')
           if (srf_tet) then
             call gemv(AdotDP1(:,1:3),Fbar(1:3),RHS,alpha=-0.25*dt(iPe,idt),&
               beta=1._wp)
+            !call print_vector(RHS,'RHS AFTER')
           end if
           !TYL: HI for tethered bead -------------------------------------------
 
@@ -1133,9 +1148,14 @@ module dlt_mod
             call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
 
             !TYL: HI for tethered bead -----------------------------------------
+            !print *, 'First corrector calculaton per segment------------'
+            !call print_matrix(AdotDP2,'AdotDP2')
+            !call print_vector(Fbarbead,'Fbarbead')
+            !call print_vector(RHSP,'RHSP BEFORE')
             if (srf_tet) then
               call gemv(AdotDP2(:,1:3),Fbarbead(1:3),RHSP,&
               alpha=-0.25*dt(iPe,idt),beta=1._wp)
+              !call print_vector(RHSP,'RHSP AFTER')
             end if
             !TYL: HI for tethered bead -----------------------------------------
 
@@ -1173,9 +1193,14 @@ module dlt_mod
               call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
 
               !TYL: HI for tethered bead ---------------------------------------
+              !print *, 'Second corrector calculaton perbead------------'
+              !call print_matrix(AdotDP2,'AdotDP2')
+              !call print_vector(Fbead,'Fbead')
+              !call print_vector(RHSP,'RHSP BEFORE')
               if (srf_tet) then
                 call gemv(AdotDP2(:,1:3),Fbead(1:3),RHSP,&
                 alpha=-0.25*dt(iPe,idt),beta=1._wp)
+                !call print_vector(RHSP,'RHSP AFTER')
               end if
               !TYL: HI for tethered bead ---------------------------------------
 
@@ -1220,11 +1245,27 @@ module dlt_mod
             SumBdotw=[sum(real(BdotwPx,kind=wp)),&
             sum(real(BdotwPy,kind=wp)),&
             sum(real(BdotwPz,kind=wp))]
+
+            !TYL: HI for tethered bead ---------------------------------------
+            if (srf_tet) then
+              SumBdotw = SumBdotw - [real(BdotwPx(1),kind=wp),&
+              real(BdotwPy(1),kind=wp),&
+              real(BdotwPz(1),kind=wp)]
+            end if
+            !TYL: HI for tethered bead ---------------------------------------
+
             if (hstar.ne.0._wp) then
               call symv(DiffTensP,FphiP,DdotF)
             else
               DdotF=FphiP
             end if
+
+            !TYL: HI for tethered bead ---------------------------------------
+            if (srf_tet) then
+              call gemv(DiffTensP(:,1:3),FphiP(1:3),DdotF,alpha=-1._wp,beta=1._wp)
+            end if
+            !TYL: HI for tethered bead ---------------------------------------
+
             DdotFPx => DdotF(1:nbeadx3-2:3)
             DdotFPy => DdotF(2:nbeadx3-1:3)
             DdotFPz => DdotF(3:nbeadx3:3)
