@@ -225,8 +225,7 @@ module dlt_mod
         cnf_tp_subsizes=[npchain,1]
         cnf_tp_starts=0
         call MPI_Type_create_subarray(2,cnf_tp_sizes,cnf_tp_subsizes,cnf_tp_starts,&
-          MPI_ORDER_FORTRAN,MPI_INTEGER,cnf_tp_recvsuba&
-          &rray,ierr)
+          MPI_ORDER_FORTRAN,MPI_INTEGER,cnf_tp_recvsubarray,ierr)
         call MPI_Type_commit(cnf_tp_recvsubarray,ierr)
         cnf_tp_extent=sizeof(intvar)
         cnf_tp_start=0
@@ -308,8 +307,8 @@ module dlt_mod
       ! For calculating the average of iteration number
       mch(:)=mBlLan
     end if
-    ! if (HITens == 'Blake') allocate(divD(nbead))
-    allocate(divD(nbead))
+    if ((hstar /= 0._WP) .and. HITens == 'Blake')) allocate(divD(nbead))
+    ! allocate(divD(nbead))
     if (CoM) allocate(rcm(3,npchain),rcmstart(3,npchain))
     if (CoHR) allocate(rchr(3,npchain),rchrstart(3,npchain),&
      MobilTens(nbeadx3,nbeadx3),WeightTens&
@@ -1055,7 +1054,7 @@ module dlt_mod
           !TYL: HI for tethered bead -------------------------------------------
 
           !! Blake's part
-          if (HITens == 'Blake') then
+          if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
             do is=1, nseg
               os=(is-1)*3
               qstar(os+2)=qstar(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
@@ -1126,7 +1125,7 @@ module dlt_mod
 
 
           !! Blake's part
-          if (HITens == 'Blake') then
+          if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
             do is=1, nseg
               os=(is-1)*3
               RHS(os+2)=RHS(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
@@ -1276,7 +1275,7 @@ module dlt_mod
 
 
             !! Blake's part
-            if (HITens == 'Blake') then
+            if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
               rcmP(2)=rcmP(2)+1._wp/(4*nbead)*sum(divD)*dt(iPe,idt)
             endif
             !!-------------
