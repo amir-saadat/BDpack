@@ -307,7 +307,7 @@ module dlt_mod
       ! For calculating the average of iteration number
       mch(:)=mBlLan
     end if
-    if ((hstar /= 0._WP) .and. HITens == 'Blake')) allocate(divD(nbead))
+    if ((hstar /= 0._WP) .and. (HITens == 'Blake')) allocate(divD(nbead))
     ! allocate(divD(nbead))
     if (CoM) allocate(rcm(3,npchain),rcmstart(3,npchain))
     if (CoHR) allocate(rchr(3,npchain),rchrstart(3,npchain),&
