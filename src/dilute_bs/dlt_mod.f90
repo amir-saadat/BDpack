@@ -721,6 +721,7 @@ module dlt_mod
       if (TimerA) then
         !          if (id == 0) tA0=MPI_Wtime()
         if (id.eq.0) call cpu_time(time_begin)
+
       end if
 
       newSeq=.true.

@@ -53,6 +53,7 @@ program wallcollision
 5 format(i)
 6 format(i,1x,f11.6,1x,f11.6,1x,f11.6)
 7 format(f11.6,1x,f11.6,1x,f11.6)
+8 format(i,1x,i)
 
   !----------------------------------------
   !         read inputs from input file
@@ -265,7 +266,7 @@ program wallcollision
   !----------------------------------------
   !collision pdf
   do iseg = 1,nseg
-    write(2,3) iseg, collisions(iseg)
+    write(2,8) iseg, collisions(iseg)
   end do
 
   !collision frequency
@@ -302,7 +303,7 @@ program wallcollision
   !coordinates of the end bead
   do itime = 1,ntime
     do ichain = 1,nchain
-      write(6,7) rx(nseg,ichain,itime), ry(nseg,ichain,itime), rz(nseg,ichain,itime)
+      write(6,7) rx(nseg+1,ichain,itime), ry(nseg+1,ichain,itime), rz(nseg+1,ichain,itime)
     end do
   end do
 
