@@ -31,7 +31,7 @@ module dlt_mod
   use :: force_mod, only: sprforce,sprupdate,bndforce,bndupdate,tetforce,tetupdate
   use :: dcmp_mod, only: Lanczos,BlockLanczos,MKLsyevr,BlockChebyshev
   use :: pp_mod, only: pp_init,pp_init_tm,data_prcs,conf_sort,del_pp
-  use :: intrn_mod, only: intrn_t,ev_init,evbw_init,wall_rflc,print_wcll
+  use :: intrn_mod, only: intrn_t,wall_rflc,print_wcll
 
   implicit none
 
@@ -688,11 +688,11 @@ module dlt_mod
   !>>>>> HI and EV-bb initialization:
   !----------------------------------------------------------------
 
-  call myintrn%init()
+  call myintrn%init(id)
 
   ! call hi_init()
-  call ev_init()
-  call evbw_init(id)
+  ! call ev_init()
+  ! call evbw_init(id)
 
   !----------------------------------------------------------------
   !>>>>> Time integration of SDE:
@@ -882,7 +882,7 @@ module dlt_mod
               !call print_matrix(DiffTensP,'d2')
 
               call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
-                calchi=.true.,calcdiv=.true.,calcev=.true.,calcevbw=.true.)
+                calchi=.true.,calcdiv=.true.,calcevbb=.true.,calcevbw=.true.)
 
             end if
             if (DecompMeth == 'Cholesky') then
@@ -1003,7 +1003,7 @@ module dlt_mod
           if (hstar == 0._wp) then
             !                call EVCalc(rvmrcP,nseg,EV_bb,Fev)
             call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
-              calcev=.true.,calcevbw=.true.)
+              calcevbb=.true.,calcevbw=.true.)
             !call evcalc2(rvmrcP,nseg,Fev)
           end if
 
@@ -1087,7 +1087,7 @@ module dlt_mod
           if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
             !              call EVUpdate(Fev,rvmrcP,Fbarev)
             call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
-              updtev=.true.,updtevbw=.true.)
+              updtevbb=.true.,updtevbw=.true.)
             !call print_vector(Fev,'fev3')
             !call evupdate2(Fev,rvmrcP,nseg,Fbarev)
             !call print_vector(Fev,'fev4')
@@ -1347,8 +1347,9 @@ module dlt_mod
           ! rflc part
           if (EV_bw == 'Rflc_bc') then
             !call wall_rflc(dt(iPe,idt),itime,time,id,ichain,qPy,rvmrcPy,rcmP(2),rf_in)
-            call wall_rflc(dt(iPe,idt),itime,time,id,ichain,qPx,qPy,qPz,&
-              rvmrcPx,rvmrcPy,rvmrcPz,rcmP(1),rcmP(2),rcmP(3),rf_in)
+            call wall_rflc(myintrn%evbw,dt(iPe,idt),itime,time,id,ichain,&
+              qPx,qPy,qPz,rvmrcPx,rvmrcPy,rvmrcPz,rcmP(1),rcmP(2),rcmP(3),&
+              rf_in)
           end if
           !-----
 
@@ -1364,7 +1365,7 @@ module dlt_mod
 
 
           if (EV_bw == 'Rflc_bc') then
-            if (itime == ntime(iPe,idt)) call print_wcll(id,p,MPI_REAL_WP,time)
+            if (itime == ntime(iPe,idt)) call print_wcll(myintrn%evbw,id,p,MPI_REAL_WP,time)
           endif
 
 

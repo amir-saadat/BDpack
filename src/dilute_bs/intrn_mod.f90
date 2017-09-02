@@ -5,9 +5,9 @@ module intrn_mod
   implicit none
 
   public :: intrn_t,&
-            hi_init,&
-            ev_init,&
-            evbw_init,&
+            ! hi_init,&
+            ! ev_init,&
+            ! evbw_init,&
             wall_rflc,&
             print_wcll,&
             del_evbw
@@ -38,27 +38,54 @@ module intrn_mod
   end type hi_t
   !------------------------------------------
 
-  type :: hi
-    ! RPY
-    real(wp) :: A,B,C,D,E,F
-    ! Oseen-Burgers
-    real(wp) :: G
-    ! regularized OB
-    real(wp) :: O,P,R,S,T
-    real(wp) :: rmagmin
-  end type
+  ! type :: hi
+  !   ! RPY
+  !   real(wp) :: A,B,C,D,E,F
+  !   ! Oseen-Burgers
+  !   real(wp) :: G
+  !   ! regularized OB
+  !   real(wp) :: O,P,R,S,T
+  !   real(wp) :: rmagmin
+  ! end type
 
   ! ev
   !------------------------------------------
-  type :: evbb
+  ! type :: evbb
+  !   ! For Gaussian
+  !   real(wp) :: prefactor,denom
+  !   ! For LJ
+  !   real(wp) :: epsOVsig,sigOVrtr,sigOVrtrto6
+  !   real(wp) :: LJ_prefactor_tr
+  !   real(wp) :: rmagmin
+  ! end type
+  ! type :: evbw
+  !   ! For Cubic
+  !   real(wp) :: delw
+  !   real(wp) :: prf
+  !   real(wp) :: rmagmin
+  !   ! For Reflc-bc
+  !   real(wp) :: a
+  !   integer :: u_wc
+  !   integer :: u_wc_all
+  !   integer :: u_ia
+  !   integer,allocatable :: w_coll(:,:)
+  !   integer,allocatable :: w_coll_all(:,:)
+  !   integer,allocatable :: ia_time(:,:,:)
+  !   integer,allocatable :: w_coll_t(:,:)
+  !   integer,allocatable :: w_coll_all_t(:,:)
+  !   integer,allocatable :: ia_time_t(:,:,:)
+  ! end type
+  ! ev
+  !------------------------------------------
+  type :: evbb_t
     ! For Gaussian
     real(wp) :: prefactor,denom
     ! For LJ
     real(wp) :: epsOVsig,sigOVrtr,sigOVrtrto6
     real(wp) :: LJ_prefactor_tr
     real(wp) :: rmagmin
-  end type
-  type :: evbw
+  end type evbb_t
+  type :: evbw_t
     ! For Cubic
     real(wp) :: delw
     real(wp) :: prf
@@ -74,10 +101,6 @@ module intrn_mod
     integer,allocatable :: w_coll_t(:,:)
     integer,allocatable :: w_coll_all_t(:,:)
     integer,allocatable :: ia_time_t(:,:,:)
-  end type
-  type :: evbb_t
-  end type evbb_t
-  type :: evbw_t
   end type evbw_t
   !------------------------------------------
 
@@ -93,9 +116,9 @@ module intrn_mod
   end type intrn_t
   !------------------------------------------
 
-  type(hi),save :: hi_prm
-  type(evbb),save :: evbb_prm
-  type(evbw),save :: evbw_prm
+  ! type(hi),save :: hi_prm
+  ! type(evbb),save :: evbb_prm
+  ! type(evbw),save :: evbw_prm
 
   type :: dis
     real(wp) :: x,y,z
@@ -108,16 +131,16 @@ module intrn_mod
   !>>>> Interface to routines for different interactions
   !-----------------------------------------------------
   interface
+
     ! hi
     !------------------------------------------
-
     !> initializes the hi type
     module subroutine init_hi(this)
       class(hi_t),intent(inout) :: this
     end subroutine init_hi
-    !> initializes the hi type
-    module subroutine hi_init()
-    end subroutine hi_init
+    ! !> initializes the hi type
+    ! module subroutine hi_init()
+    ! end subroutine hi_init
     !> calculates HI
     !! \param this hi object
     !! \param i bead i index
@@ -141,40 +164,40 @@ module intrn_mod
     end subroutine calc_div
     !------------------------------------------
 
-    ! ev
+    ! evbb
     !------------------------------------------
     module subroutine init_evbb(this)
       class(evbb_t),intent(inout) :: this
     end subroutine init_evbb
-
-    module subroutine init_evbw(this)
-      class(evbw_t),intent(inout) :: this
-    end subroutine init_evbw
-
-    module subroutine ev_init()
-    end subroutine ev_init
-
-    module subroutine evbw_init(id)
-      integer,intent(in) :: id
-    end subroutine evbw_init
-
-    module subroutine evcalc3(i,j,rij,Fev)
+    module subroutine calc_evbb(this,i,j,rij,Fev)
+      class(evbb_t),intent(inout) :: this
       integer,intent(in) :: i,j
       type(dis),intent(in) :: rij
       real(wp),intent(inout) :: Fev(:)
-    end subroutine evcalc3
+    end subroutine calc_evbb
+    !------------------------------------------
 
+    !evbw
+    !------------------------------------------
+    ! module subroutine evbw_init(id)
+    !   integer,intent(in) :: id
+    ! end subroutine evbw_init
+    module subroutine init_evbw(this,id)
+      class(evbw_t),intent(inout) :: this
+      integer,intent(in) :: id
+    end subroutine init_evbw
     !> calculates EV force between particles and the wall
     !! \param ry the vertical distance of particle & the wall
     !! \param Fev EV force
-    module subroutine evbwcalc(i,ry,Fev)
+    module subroutine calc_evbw(this,i,ry,Fev)
+      class(evbw_t),intent(inout) :: this
       integer,intent(in) :: i
       real(wp),intent(in) :: ry
       real(wp),intent(inout) :: Fev(:)
-    end subroutine evbwcalc
-
-    module subroutine wall_rflc(dt,it,time,id,ich,qx,qy,qz,Rx,Ry,Rz,&
+    end subroutine calc_evbw
+    module subroutine wall_rflc(this,dt,it,time,id,ich,qx,qy,qz,Rx,Ry,Rz,&
       rcmx,rcmy,rcmz,rf_in)
+      class(evbw_t),intent(inout) :: this
       real(wp),intent(in),dimension(3) :: rf_in
       real(wp),intent(in) :: dt,time
       integer,intent(in) :: it,id,ich
@@ -182,12 +205,12 @@ module intrn_mod
       real(wp),intent(inout) :: Rx(:),Ry(:),Rz(:)
       real(wp),intent(inout) :: rcmx,rcmy,rcmz
     end subroutine wall_rflc
-
-    module subroutine del_evbw(id)
+    module subroutine del_evbw(this,id)
+      class(evbw_t),intent(inout) :: this
       integer,intent(in) :: id
     end subroutine del_evbw
-
-    module subroutine print_wcll(id,nproc,MPI_REAL_WP,time)
+    module subroutine print_wcll(this,id,nproc,MPI_REAL_WP,time)
+      class(evbw_t),intent(inout) :: this
       integer,intent(in) :: id,nproc
       integer,intent(in) :: MPI_REAL_WP
       real(wp),intent(in) :: time
@@ -198,18 +221,19 @@ module intrn_mod
 
 contains
 
-  subroutine init_intrn(this)
+  subroutine init_intrn(this,id)
 
     class(intrn_t),intent(inout) :: this
+    integer,intent(in) :: id
 
     call init_hi(this%hi)
     call init_evbb(this%evbb)
-    call init_evbw(this%evbw)
+    call init_evbw(this%evbw,id)
 
   end subroutine init_intrn
 
   subroutine calc_intrn(this,rvmrc,rcm,nseg,DiffTens,divD,Fev,Fbarev,&
-                      calchi,calcdiv,calcev,calcevbw,updtev,updtevbw)
+                      calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw)
 
     use :: inp_dlt, only: EV_bb,EV_bw,hstar,HITens
 
@@ -224,8 +248,8 @@ contains
     real(wp) :: ry,rimrc(3),rjmrc(3),rjy
     real(wp),allocatable :: Fstarev(:)
     real(wp) :: DiffTens(:,:),divD(:),Fev(:),Fbarev(:)
-    logical :: clhi,cldiv,clev,clevbw,upev,upevbw
-    logical,optional :: calchi,calcdiv,calcev,calcevbw,updtev,updtevbw
+    logical :: clhi,cldiv,clevbb,clevbw,upevbb,upevbw
+    logical,optional :: calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw
 
 
 
@@ -239,20 +263,20 @@ contains
     else
       cldiv=.false.
     end if
-    if ((present(calcev)).and.(EV_bb/='NoEV')) then
-      clev=calcev
+    if ((present(calcevbb)).and.(EV_bb/='NoEV')) then
+      clevbb=calcevbb
     else
-      clev=.false.
+      clevbb=.false.
     end if
     if ((present(calcevbw)).and.(EV_bw/='NoEV')) then
       clevbw=calcevbw
     else
       clevbw=.false.
     end if
-    if ((present(updtev)).and.(EV_bb/='NoEV')) then
-      upev=updtev
+    if ((present(updtevbb)).and.(EV_bb/='NoEV')) then
+      upevbb=updtevbb
     else
-      upev=.false.
+      upevbb=.false.
     end if
     if ((present(updtevbw)).and.(EV_bw/='NoEV')) then
       upevbw=updtevbw
@@ -260,8 +284,8 @@ contains
       upevbw=.false.
     end if
 
-    if (clev.or.clevbw) Fev=0._wp
-    if ((upev).or.(upevbw)) then
+    if (clevbb.or.clevbw) Fev=0._wp
+    if ((upevbb).or.(upevbw)) then
       allocate(Fstarev(3*(nseg+1)))
       Fstarev=0._wp
     end if
@@ -349,8 +373,8 @@ contains
 
         if (ibead /= jbead) then
 
-          if (clev) call evcalc3(ibead,jbead,rij,Fev)
-          if (upev) call evcalc3(ibead,jbead,rij,Fstarev)
+          if (clevbb) call calc_evbb(this%evbb,ibead,jbead,rij,Fev)
+          if (upevbb) call calc_evbb(this%evbb,ibead,jbead,rij,Fstarev)
 
         end if ! ibead /= jbead
 
@@ -372,16 +396,16 @@ contains
 
       if (clevbw) then
         ry=rjmrc(2)+rcm(2)
-        call evbwcalc(jbead,ry,Fev)
+        call calc_evbw(this%evbw,jbead,ry,Fev)
       end if
       if (upevbw) then
         ry=rjmrc(2)+rcm(2)
-        call evbwcalc(jbead,ry,Fstarev)
+        call calc_evbw(this%evbw,jbead,ry,Fstarev)
       end if
 
     end do ! jbead
 
-    if ((upev).or.(upevbw)) then
+    if ((upevbb).or.(upevbw)) then
       Fbarev=0.5*(Fev+Fstarev)
       deallocate(Fstarev)
     end if

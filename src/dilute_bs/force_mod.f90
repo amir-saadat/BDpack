@@ -365,12 +365,13 @@ contains
   subroutine bndforce(nbead_bb,q,Fbnd,itime)
 
     use :: arry_mod, only: print_vector
-    use :: inp_dlt, only: WLC_v,WLC_C,tplgy,nseg_ar,Na,Ia
+    use :: inp_dlt, only: WLC_v,WLC_C,tplgy,nseg_ar,Na,Ia,srf_tet
 
     integer,intent(in) :: itime
     real(wp),intent(in) :: q(:)
     real(wp),intent(inout) :: Fbnd(:)
     real(wp) :: thta(-1:1),cost(-1:1),thtal,thtar,costl,costr
+    real(wp) :: thta_s,cost_s
     real(wp) :: qtmp(3,-2:1),qmg(-2:1),ehat(3,-2:1)
     real(wp) :: qtmpl(3),qtmpr(3),qmgl,qmgr,ehatl(3),ehatr(3)
     integer :: nbead,ib,os,nbead_bb,osl,iarm
@@ -379,6 +380,8 @@ contains
 
     do ib=1, nbead_bb
 
+!      if (((ib == 1).and.(nbead_bb > 2)) .or.
+!          ((ib == 1).and.srf_tet)) then
       if ((ib == 1).and.(nbead_bb > 2)) then
         qtmp(:,0)=q(1:3)
         qtmp(:,1)=q(4:6)

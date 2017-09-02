@@ -34,8 +34,8 @@ GLBFLGS += -fcray-pointer
 GLBFLGS += -fbounds-check
 else ifeq ($(FCOMP),ifort)
 #GLBFLGS += -heap-arrays
-GLBFLGS += -check bounds
-GLBFLGs += -check-pointers=rw
+GLBFLGS += -check bounds -traceback -g
+#GLBFLGs += -check-pointers=rw
 GLBFLGs +=
 endif
 

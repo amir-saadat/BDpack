@@ -45,6 +45,7 @@ module cmn_io_mod
     module procedure read_input_int
     module procedure read_input_wp
     module procedure read_input_ch
+    module procedure read_input_lg
   end interface read_input
 
 contains
@@ -174,6 +175,79 @@ ef: do
     close(u1)
 
   end subroutine read_input_int
+
+
+  !> Reads the input for logical
+  !! \param id the MPI id
+  !! \param inp_ph the input phrase used for the variable
+  !! \param os offset from the starting argument, first argument for var
+  !! \param var the value of variable
+  !! \param def the default value of var
+  subroutine read_input_lg(inp_ph,os,var,def)
+    
+    integer,intent(in) :: os
+    character(len=*),intent(in) :: inp_ph
+    logical,intent(inout) :: var
+    logical,intent(in),optional :: def
+    integer :: i,j,ntokens,u1,il,stat
+    character(len=1024) :: line
+    character(len=100) :: tokens(10)
+    character(len=20) :: inpFile
+
+    narg=command_argument_count()
+
+    if (narg /= 0) then
+      call get_command_argument(1,inpFile)
+    else
+      inpFile='input.dat'
+    end if
+
+    open (newunit=u1,action='read',file=inpFile,status='old')
+    il=1
+
+    if (present(def)) then
+      var=def
+    endif
+ef: do
+      read(u1,'(A)',iostat=stat) line
+      if (stat == iostat_end) then
+        if (.not.present(def)) then
+          print '(" Error: variable ",a," was not found.")',inp_ph
+          stop ! should be changed
+        endif
+        exit ef ! end of file
+      elseif (stat > 0) then
+        print '(" cmn_io_mod: Error reading line ", i0)',il
+        stop
+      elseif (line(1:1) == '#') then
+        il=il+1
+        cycle ef ! commented line
+      else
+        il=il+1
+      end if
+      call parse(line,': ',tokens,ntokens)
+      if (ntokens > 0) then
+        do j=1,ntokens
+          if(trim(adjustl(tokens(j))) == inp_ph) then
+            if (tokens(j+1) == 'TRUE') then
+              var=.true.
+            elseif (tokens(j+1) == 'FALSE') then
+              var=.false.
+            else
+              print '(" cmn_io_mod: Error reading input ", a)',inp_ph
+              stop
+            endif
+            !print '(" ",a," = ",*)',inp_ph,var
+            exit ef
+          end if
+        end do ! j
+      end if ! ntokens
+    end do ef
+    close(u1)
+
+  end subroutine read_input_lg
+
+
 
 
   !> Reads the input for character
