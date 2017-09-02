@@ -1,9 +1,9 @@
 !-------------------------------------------------------------------------
 !Tiras Y. Lin
 !
-!March 24, 2017
-!Program to count the number of times each bead contacts the wall and
-!determines PDFs of the times between contacts and times spent at the wall
+!Sept. 1, 2017
+!Program to postprocess wall tethered simulations data. Calculates
+!interarrival time distributions. 
 !-------------------------------------------------------------------------
 
 program wallcollision
@@ -24,7 +24,6 @@ program wallcollision
   integer :: totcollisions,totcollisions_all
   integer :: nbin,ibin
   real(dp),allocatable :: midbin(:,:)
-  !character(len=20) :: arg,buffer,dmpFile_R,dmpFile_C,dmpFile_ia,dmpFile_coll,dmpFile_collall
   character(len=20) :: RdmpFile,rcdmpFile,iadmpFile,wcdmpFile,wcalldmpFile,fphidmpFile
   character(len=20) :: temp
   real(dp) :: lambda
@@ -421,23 +420,5 @@ contains
     deallocate(sum)
 
   end subroutine pdf
-
-  subroutine print_help()
-    print '(a)', 'usage: [OPTIONS]'
-    print '(a)', ''
-    print '(a)', 'wallcollision options:'
-    print '(a)', ''
-    print '(a)', ' --help        print usage information and exit'
-    print '(a)', ' --fileR        name of the file containing R coordinate'
-    print '(a)', ' --fileC        name of the file containing CoM coordinate'
-    print '(a)', ' --fileia        name of the file containing IA times'
-    print '(a)', ' --filecoll        name of the file containing collisions'
-    print '(a)', ' --nCh         total No. chains'
-    print '(a)', ' --nSeg        No. segments in a chain'
-    print '(a)', ' --nSkip       Total No. lines to be skipped'
-    print '(a)', ' --b           squared maximum of segment length'
-    print '(a)', ' --nTime       number of time steps'
-    print '(a)', ' --nbin        number of bins for the pdf'
-  end subroutine print_help
 
 end program wallcollision
