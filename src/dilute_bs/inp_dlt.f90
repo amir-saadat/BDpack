@@ -574,12 +574,14 @@ rndmlp:         do
     qmax=sqrt(b) ! Segmental max extension
     q_l=qr_l*qmax
     qr_lto2=qr_l*qr_l
+    ! Figure out how many chains are going to each process:
+    npchain = (nchain - 1) / p + 1
     ! Checking the number of processors:
     if ((mod(nchain,p) /= 0) .and. (id == 0)) then
-      print '(" No. processors not appropriately chosen; mod(nchain,p)/=0.")'
-      stop
+      print '(" No. processors not evenly chosen; mod(nchain,p)/=0.")'
+      print '(" chains per processor: ",i)',npchain
     end if
-    npchain=int(nchain/p)
+    ! npchain=int(nchain/p)
 
     ! Specifying 'RWS','WLC-UD', or 'WLC-GEN' parameters:
     select case (ForceLaw)
