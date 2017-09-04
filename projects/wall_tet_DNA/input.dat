@@ -1,0 +1,59 @@
+driver        : dilute_bs
+#------------------------------------------
+# Configuration parameters
+#------------------------------------------
+nchain        : 320
+nseg          : 16
+Rel-Model     : Self 173.33
+#------------------------------------------
+# SDE parameters
+#------------------------------------------
+tend          : 40.0
+tss           : 10.0
+trst          : 0.0
+ndt           : 1
+dt            : 1.d-2 1.d-2 Linear Self
+tol           : 1.d-4
+nroots        : 1000000
+PrScale       : 10
+CoM           : TRUE
+CoHR          : FALSE
+#------------------------------------------
+# Force parameters
+#------------------------------------------
+SPR-Force     : WLC_GEN
+N_Ks          : 10
+b             : 30.0
+Surf-Tethered : TRUE
+rf-in	      : 0.0 0.1767 0.0
+#------------------------------------------
+# Flow parameters
+#------------------------------------------
+Flow-Type     : 2
+nWi           : 3
+Wi            : 0.25 5.0 Linear
+#------------------------------------------
+# HI parameters
+#------------------------------------------
+hstar         : 0.0997
+HITens        : Blake
+DecompMeth    : Cholesky
+ncols         : 1
+#------------------------------------------
+# EV parameters
+#------------------------------------------
+EV-bb         : Gauss
+zstar	      : 0.2425
+EV-bw         : Rflc_bc
+Bead-rad      : 0.1767
+#------------------------------------------
+# Output parameters
+#------------------------------------------
+frm-rt-rep    : 2.0
+frm-rt-pp     : 0.05
+frm-rt-rst    : 0.1
+frm-rt-dmp    : 0.02
+Conf-anal     : TRUE
+Timer-rep     : FALSE
+Rg            : TRUE
+cosTh         : FALSE
