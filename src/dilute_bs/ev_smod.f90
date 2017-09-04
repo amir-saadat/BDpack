@@ -14,11 +14,11 @@ submodule (intrn_mod) ev_smod
     !! \param j bead j index
     !! \param rij data type for inter particle distance
     !! \param Fev EV force
-    module subroutine evbbcalc(i,j,rij,Fev)
-      integer,intent(in) :: i,j 
-      type(dis),intent(in) :: rij
-      real(wp),intent(inout) :: Fev(:)
-    end subroutine evbbcalc
+    ! module subroutine evbbcalc(i,j,rij,Fev)
+    !   integer,intent(in) :: i,j 
+    !   type(dis),intent(in) :: rij
+    !   real(wp),intent(inout) :: Fev(:)
+    ! end subroutine evbbcalc
 
 
   end interface
@@ -177,44 +177,44 @@ contains
 !
 !  end procedure evupdate2
 
-  module procedure init_evbb
+  ! module procedure init_evbb
 
-  end procedure init_evbb
+  ! end procedure init_evbb
 
-  module procedure ev_init
+  ! module procedure ev_init
     
-    use :: inp_dlt, only: EV_bb,zstar,dstar
-    use :: inp_dlt, only: LJ_eps,LJ_sig,LJ_rtr,LJ_rc,minNonBond
+  !   use :: inp_dlt, only: EV_bb,zstar,dstar
+  !   use :: inp_dlt, only: LJ_eps,LJ_sig,LJ_rtr,LJ_rc,minNonBond
 
-    ! Bead-bead excluded volume interaction
-    if (EV_bb == 'Gauss') then
-      evbb_prm%prefactor=zstar/dstar**5
-      evbb_prm%denom=2*dstar**2
-    elseif (EV_bb == 'LJ') then
-      evbb_prm%epsOVsig=LJ_eps/LJ_sig
-      evbb_prm%sigOVrtr=LJ_sig/LJ_rtr
-      evbb_prm%sigOVrtrto6=evbb_prm%sigOVrtr*evbb_prm%sigOVrtr*evbb_prm%sigOVrtr* &
-                         evbb_prm%sigOVrtr*evbb_prm%sigOVrtr*evbb_prm%sigOVrtr
-      evbb_prm%LJ_prefactor_tr=4*evbb_prm%epsOVsig*                           &
-                             ( 12*(evbb_prm%sigOVrtrto6*evbb_prm%sigOVrtrto6* &
-                                   evbb_prm%sigOVrtr) -                       &
-                                6*(evbb_prm%sigOVrtrto6*evbb_prm%sigOVrtr))
-    end if
-    evbb_prm%rmagmin=1.e-7_wp ! The Minimum value accepted as the |rij|
+  !   ! Bead-bead excluded volume interaction
+  !   if (EV_bb == 'Gauss') then
+  !     evbb_prm%prefactor=zstar/dstar**5
+  !     evbb_prm%denom=2*dstar**2
+  !   elseif (EV_bb == 'LJ') then
+  !     evbb_prm%epsOVsig=LJ_eps/LJ_sig
+  !     evbb_prm%sigOVrtr=LJ_sig/LJ_rtr
+  !     evbb_prm%sigOVrtrto6=evbb_prm%sigOVrtr*evbb_prm%sigOVrtr*evbb_prm%sigOVrtr* &
+  !                        evbb_prm%sigOVrtr*evbb_prm%sigOVrtr*evbb_prm%sigOVrtr
+  !     evbb_prm%LJ_prefactor_tr=4*evbb_prm%epsOVsig*                           &
+  !                            ( 12*(evbb_prm%sigOVrtrto6*evbb_prm%sigOVrtrto6* &
+  !                                  evbb_prm%sigOVrtr) -                       &
+  !                               6*(evbb_prm%sigOVrtrto6*evbb_prm%sigOVrtr))
+  !   end if
+  !   evbb_prm%rmagmin=1.e-7_wp ! The Minimum value accepted as the |rij|
 
-  end subroutine ev_init
+  ! end subroutine ev_init
 
-  module procedure evcalc3
+  ! module procedure evcalc3
   
-    if (rij%mag2<=evbb_prm%rmagmin**2) then
-      write(*,*) 'Warning: The |rij| is lower than the accepted value in routine evcalc'
-      write(*,'(1x,a,f7.2,1x,a,f7.2)') '|rij|:',rij%mag2,'|rij|min:',evbb_prm%rmagmin**2
-      write(*,*) i,j
-      stop
-    end if
+  !   if (rij%mag2<=evbb_prm%rmagmin**2) then
+  !     write(*,*) 'Warning: The |rij| is lower than the accepted value in routine evcalc'
+  !     write(*,'(1x,a,f7.2,1x,a,f7.2)') '|rij|:',rij%mag2,'|rij|min:',evbb_prm%rmagmin**2
+  !     write(*,*) i,j
+  !     stop
+  !   end if
 
-    call evbbcalc(i,j,rij,Fev)
+  !   call evbbcalc(i,j,rij,Fev)
 
-  end procedure evcalc3
+  ! end procedure evcalc3
 
 end submodule ev_smod

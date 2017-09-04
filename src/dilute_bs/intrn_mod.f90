@@ -5,9 +5,6 @@ module intrn_mod
   implicit none
 
   public :: intrn_t,&
-            ! hi_init,&
-            ! ev_init,&
-            ! evbw_init,&
             wall_rflc,&
             print_wcll,&
             del_evbw
@@ -38,43 +35,6 @@ module intrn_mod
   end type hi_t
   !------------------------------------------
 
-  ! type :: hi
-  !   ! RPY
-  !   real(wp) :: A,B,C,D,E,F
-  !   ! Oseen-Burgers
-  !   real(wp) :: G
-  !   ! regularized OB
-  !   real(wp) :: O,P,R,S,T
-  !   real(wp) :: rmagmin
-  ! end type
-
-  ! ev
-  !------------------------------------------
-  ! type :: evbb
-  !   ! For Gaussian
-  !   real(wp) :: prefactor,denom
-  !   ! For LJ
-  !   real(wp) :: epsOVsig,sigOVrtr,sigOVrtrto6
-  !   real(wp) :: LJ_prefactor_tr
-  !   real(wp) :: rmagmin
-  ! end type
-  ! type :: evbw
-  !   ! For Cubic
-  !   real(wp) :: delw
-  !   real(wp) :: prf
-  !   real(wp) :: rmagmin
-  !   ! For Reflc-bc
-  !   real(wp) :: a
-  !   integer :: u_wc
-  !   integer :: u_wc_all
-  !   integer :: u_ia
-  !   integer,allocatable :: w_coll(:,:)
-  !   integer,allocatable :: w_coll_all(:,:)
-  !   integer,allocatable :: ia_time(:,:,:)
-  !   integer,allocatable :: w_coll_t(:,:)
-  !   integer,allocatable :: w_coll_all_t(:,:)
-  !   integer,allocatable :: ia_time_t(:,:,:)
-  ! end type
   ! ev
   !------------------------------------------
   type :: evbb_t
@@ -116,10 +76,6 @@ module intrn_mod
   end type intrn_t
   !------------------------------------------
 
-  ! type(hi),save :: hi_prm
-  ! type(evbb),save :: evbb_prm
-  ! type(evbw),save :: evbw_prm
-
   type :: dis
     real(wp) :: x,y,z
     real(wp) :: mag,mag2
@@ -138,9 +94,6 @@ module intrn_mod
     module subroutine init_hi(this)
       class(hi_t),intent(inout) :: this
     end subroutine init_hi
-    ! !> initializes the hi type
-    ! module subroutine hi_init()
-    ! end subroutine hi_init
     !> calculates HI
     !! \param this hi object
     !! \param i bead i index
