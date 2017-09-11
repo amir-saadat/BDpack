@@ -33,15 +33,15 @@ contains
     use :: mpi_mod, only: forced_exit
     use :: inp_dlt, only: b,qr_l,RWS_v,WLC_v,qmax,qr_lto2,q_l,RWS_C,RWS_D,&
                           WLC_A,WLC_B
-    
+
     integer,intent(in) :: id,nseg
     character(len=10) :: ForceLaw,TruncMethod
     real(wp),dimension(3*nseg),intent(in),target :: q
     real(wp),dimension(3*nseg),intent(inout),target :: Fseg
-    real(wp),dimension(:), pointer    :: qP,FsegP 
+    real(wp),dimension(:), pointer    :: qP,FsegP
     real(wp) :: qmag,F,qmagsq,qr,qrsq
     integer :: iseg,offset
-  
+
     do iseg=1,nseg
 
       offset=3*(iseg-1)
@@ -49,7 +49,7 @@ contains
       qmagsq=dot(qP,qP)!;qmag=sqrt(qmag)
       FsegP => Fseg(offset+1:offset+3)
       qrsq=qmagsq/b
-  
+
       select case (ForceLaw)
         case ('FENE')
           if (qmagsq.lt.q_l**2) then
@@ -57,10 +57,10 @@ contains
           else
             qr=sqrt(qrsq)
             if (TruncMethod.eq.'Linear') then
-              F=(1/qr)*( qr_l/(1-qr_lto2) + (1+qr_lto2)/(1-qr_lto2)**2*& 
+              F=(1/qr)*( qr_l/(1-qr_lto2) + (1+qr_lto2)/(1-qr_lto2)**2*&
                 (qr-qr_l) )
             elseif (TruncMethod.eq.'Cnst') then
-              F=(1/qr)*( qr_l/(1-qr_lto2) )            
+              F=(1/qr)*( qr_l/(1-qr_lto2) )
             else
                print '(" Warning!!: Wrong Truncation method for spring F-E.")'
             end if
@@ -93,12 +93,12 @@ contains
           ! stop
           call forced_exit(id)
       end select
-  
+
       call copy(qP,FsegP)! FsegP=qP
       call scal(FsegP,F) ! FsegP:=F*FsegP
 
     end do
-  
+
   end subroutine sprforce
 
   subroutine sprupdate(id,root_f,PrScale,nroots,dt,RHSP,qstar,iseg,nseg,&
@@ -110,7 +110,7 @@ contains
     use :: root_mod, only: CubeRoot,root_fndr
     use :: inp_dlt, only: b,qr_l,RWS_v,WLC_v,qmax,qr_lto2,q_l,RWS_C,RWS_D,&
                           WLC_A,WLC_B
-  
+
     character(len=10),intent(in) :: ForceLaw,TruncMethod,tplgy
     real(wp),intent(in) :: dt
     integer,intent(in) :: id,PrScale,nroots,iseg,nseg,nseg_bb,nseg_ar,Ia(:),Na,itime
@@ -119,13 +119,13 @@ contains
     real(wp),dimension(3*(nseg)),intent(in),target  :: qstar
     real(wp),dimension(:),pointer                   :: qcheck
     real(wp),dimension(3*nseg),intent(inout),target :: qbar,Fbarseg
-    real(wp),dimension(:), pointer                  :: qbarP,FbarsegP 
+    real(wp),dimension(:), pointer                  :: qbarP,FbarsegP
     real(wp),dimension(PrScale*nroots) :: root_f
     real(wp),dimension(3*nseg,3*(nseg+1)),intent(in) :: Amat
     real(wp) :: denom
     real(wp) :: RHSmag,qcheckmag,a1,a2,a3,qmag,F,coeffs(8),qr,slope,qden
     integer :: iRHS,offset,iarm,iseg_ar,offset_ar
-  
+
     RHSmag=dot(RHSP,RHSP);RHSmag=sqrt(RHSmag)
     iRHS=int(RHSmag/(0.01_wp/PrScale)) ! Based on LookUp table definitions
     offset=3*(iseg-1)
@@ -133,12 +133,12 @@ contains
     FbarsegP => Fbarseg(offset+1:offset+3)
     !-------------------------------------------------------------------!
     ! qcheck is introduced to check the extent of extension of segments.!
-    ! So in high extensions, the coefficients a1, a2, a3 are going to   ! 
+    ! So in high extensions, the coefficients a1, a2, a3 are going to   !
     ! be evaluated exactly.                                             !
     !-------------------------------------------------------------------!
     qcheck => qstar(offset+1:offset+3)
     qcheckmag=dot(qcheck,qcheck);qcheckmag=sqrt(qcheckmag)
-  
+
     if (ForceLaw /= 'Hookean') then
       if ((iRHS > (nroots*PrScale)) .or. (qcheckmag > (0.9_wp*qmax)) .or. &
           (PrScale > 100)) then
@@ -211,7 +211,7 @@ contains
                 F=(1/qr)*( qr_l/(1-qr_lto2) + &
                   (1+qr_lto2)/(1-qr_lto2)**2*(qr-qr_l) )
               elseif (TruncMethod == 'Cnst') then
-                F=(1/qr)*( qr_l/(1-qr_lto2) )            
+                F=(1/qr)*( qr_l/(1-qr_lto2) )
               else
                  print '(" Wrong Truncation method for spring F-E.")'
               end if
@@ -241,7 +241,7 @@ contains
       ! Note that for the Hookean case the force is always 1.
       F=1._wp
     end if
-  
+
     ! Extra caution, Can be waived.
     qden=1+dt*F/2
     call copy(RHSP,qbarP)! qbarP=RHSP
@@ -283,7 +283,7 @@ contains
         F=RWS_C/3*(1-RWS_D/RWS_C*qr**2)/(1-qr**2)
     end select
     call scal(FbarsegP,F)       ! FbarsegP:=F*qbarP  !
-    
+
     select case (tplgy)
 
       case ('Linear')
@@ -305,7 +305,7 @@ contains
             Fbarbead(offset+4:offset+6)=Fbarseg(offset+4:offset+6)-&
                                         Fbarseg(offset+1:offset+3)
           end if
-        end if                       
+        end if
 
       case ('Comb')
 !        call gemv(Amat,Fbarseg,Fbarbead,alpha=-1.d0,trans='T')
@@ -470,7 +470,7 @@ contains
 
     if (tplgy == 'Comb') then
       do iarm=1, Na
-        
+
         do ib=1, nseg_ar+2
 
           ! Before and after grafting point:
@@ -611,7 +611,7 @@ contains
             os=(nbead_bb+(iarm-1)*nseg_ar+ib-3)*3
             Fbnd(os+1:os+3)=WLC_C*(1/qmg(-1)*(-cost(-1)*ehat(:,-1)+ehat(:,-2)))
           end if
-    
+
         end do ! ib
 
       end do ! iarm
