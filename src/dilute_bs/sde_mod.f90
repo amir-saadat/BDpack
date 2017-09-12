@@ -247,11 +247,11 @@ contains
   !update the configurations of the chains with the SDE
   subroutine advance_sde(this,myintrn,id,iPe,idt,ichain,itime,Kdotq,qc,Fseg,Fbead,Fev,Fbnd,qstar,Fphi,&
     rvmrcP,rcm,DiffTensP,Ftet,rf0,AdotDP1,divD,FBr,RHS,rcmP,Fbarev,nbead_bb,Fbarbnd,Fbar,Fbartet,&
-    RHScnt,Fbarseg,Fbarbead,root_f,qbar,Na,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE)
+    RHScnt,Fbarseg,Fbarbead,root_f,qbar,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE)
 
     !variables used from other places
     use :: inp_dlt, only: nseg,nbead,tplgy,dt,Pe,nsegx3,nbeadx3,applFext,Fext0,srf_tet,&
-      hstar,HITens,EV_bb,EV_bw,ForceLaw,PrScale,nroots,TruncMethod,nseg_ar,tol,DecompMeth,Ia
+      hstar,HITens,EV_bb,EV_bw,ForceLaw,PrScale,nroots,TruncMethod,nseg_ar,tol,DecompMeth,Ia,Na
     use :: force_mod, only: tetforce,bndupdate,tetupdate,sprupdate
     use :: intrn_mod, only: intrn_t
 
@@ -283,7 +283,7 @@ contains
     real(wp), intent(inout) :: root_f(:)
     real(wp), intent(inout) :: qbar(:)
     real(wp), intent(inout), target :: AdotD(:,:,:)
-    integer, intent(inout) :: Na,nseg_bb
+    integer, intent(inout) :: nseg_bb
     real(wp), intent(inout),target :: RHSbase(:)
     real(wp), intent(inout) :: qctemp(:)
     integer,intent(inout) :: mch(:),Lch(:)
@@ -294,7 +294,6 @@ contains
     real(wp) :: eps
     real(wp),dimension(:),pointer  :: RHSP,RHSbaseP,qcP,FsegP
     real(wp),dimension(:,:),pointer :: AdotDP2
-
 
     !============ Predictor-Corrector =============!
     !--------Predictor Algorithm----------!
