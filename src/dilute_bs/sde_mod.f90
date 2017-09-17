@@ -27,13 +27,16 @@ module sde_mod
 contains
 
   !define parameters needed for the SDE
-  subroutine init_sde(this)
+  subroutine init_sde(this,Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF)
 
     !variables used from other places
     use :: inp_dlt, only: iflow,nseg,nbead,nsegx3,nbeadx3,tplgy,Na,nseg_ar,Ia
+    use :: arry_mod, only: print_vector, print_matrix
 
     !input and output arguments
     class(sde_t),intent(inout) :: this
+    real(wp), intent(inout) :: Kappareg(:,:),Kappa(:,:),Amat(:,:),Bmat(:,:),KappaBF(:,:),AmatBF(:,:)
+
 
     !variables used inside init_sde
     integer :: iseg,jseg,nseg_bb,nbead_bb,offseti,offsetj,ibead,jbead,i,j,k,iarm
@@ -240,6 +243,16 @@ contains
      end do ! iarm
    end select
    !line 563
+   !call print_matrix(this%Kappa,'this%Kappa')
+
+   
+
+   Kappareg(:,:) = this%Kappareg(:,:)
+   Kappa(:,:) = this%Kappa(:,:)
+   Amat(:,:) = this%Amat(:,:)
+   Bmat(:,:) = this%Bmat(:,:)
+   KappaBF(:,:) = this%KappaBF(:,:)
+   AmatBF(:,:) = this%AmatBF(:,:)
 
   end subroutine init_sde
 
@@ -254,6 +267,7 @@ contains
       hstar,HITens,EV_bb,EV_bw,ForceLaw,PrScale,nroots,TruncMethod,nseg_ar,tol,DecompMeth,Ia,Na
     use :: force_mod, only: tetforce,bndupdate,tetupdate,sprupdate
     use :: intrn_mod, only: intrn_t
+    use :: arry_mod, only: print_vector, print_matrix
 
     !input and output arguments
     class(sde_t),intent(inout) :: this
@@ -294,6 +308,9 @@ contains
     real(wp) :: eps
     real(wp),dimension(:),pointer  :: RHSP,RHSbaseP,qcP,FsegP
     real(wp),dimension(:,:),pointer :: AdotDP2
+
+    !debug
+    !call print_vector(qc,'qc')
 
     !============ Predictor-Corrector =============!
     !--------Predictor Algorithm----------!
