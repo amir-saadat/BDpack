@@ -32,6 +32,7 @@ module dlt_mod
   use :: dcmp_mod, only: Lanczos,BlockLanczos,MKLsyevr,BlockChebyshev
   use :: pp_mod, only: pp_init,pp_init_tm,data_prcs,conf_sort,del_pp
   use :: intrn_mod, only: intrn_t,wall_rflc,print_wcll
+  !use :: rand_mod, only: ranils,ranuls,rangls
 
   implicit none
 

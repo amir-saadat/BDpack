@@ -2,6 +2,7 @@ include ../make.inc
 
 OBJSLIB	= ../lib/libcmn.a
 OBJS	= prcn_mod.o arry_mod.o strg_mod.o
+#OBJS   += cmn_io_mod.o mpi_mod.o rand_mod.o
 OBJS   += cmn_io_mod.o mpi_mod.o
 INCS	= -I ./inc
 ifeq ($(FCOMP),gfortran)

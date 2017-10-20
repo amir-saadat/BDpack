@@ -6,11 +6,14 @@ CMNOBJS += ../common/prcn_mod.o
 CMNOBJS += ../common/strg_mod.o
 CMNOBJS += ../common/cmn_io_mod.o
 CMNOBJS += ../common/mpi_mod.o
+#CMNOBJS += ../common/rand_mod.o
 OBJS	 = inp_dlt.o dcmp_mod.o root_mod.o 
 OBJS    += force_mod.o HIEVCalc.o pp_mod.o 
 OBJS    += intrn_mod.o hi_smod.o hibb_smod.o 
 OBJS	+= hibw_smod.o evbb_smod.o evbw_smod.o 
 OBJS	+= dlt_mod.o
+#OBJS	+= sde_mod.o dlt_mod.o
+
 INCS	 = -I ../common/inc
 INCS    += -I ./inc
 ifeq ($(FCOMP),gfortran)
