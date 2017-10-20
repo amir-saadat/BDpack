@@ -1,7 +1,7 @@
 include ../make.inc
 
 OBJLIBS	 = ../libdlt_bs.a
-CMNOBJS += ../common/arry_mod.o 
+CMNOBJS  = ../common/arry_mod.o 
 CMNOBJS += ../common/prcn_mod.o 
 CMNOBJS += ../common/strg_mod.o
 CMNOBJS += ../common/cmn_io_mod.o
@@ -17,6 +17,8 @@ ifeq ($(FCOMP),gfortran)
 MOD      = -J ./inc
 else ifeq ($(FCOMP),ifort)
 MOD      = -module ./inc
+else ifeq ($(FCOMP),tau_f90.sh)
+MOD     = -module ./inc
 endif
 
 

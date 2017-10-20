@@ -189,6 +189,7 @@ contains
                       calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw)
 
     use :: inp_dlt, only: EV_bb,EV_bw,hstar,HITens
+    use :: arry_mod, only: print_vector
 
     class(intrn_t),intent(inout) :: this
     integer,intent(in) :: nseg
@@ -203,7 +204,6 @@ contains
     real(wp) :: DiffTens(:,:),divD(:),Fev(:),Fbarev(:)
     logical :: clhi,cldiv,clevbb,clevbw,upevbb,upevbw
     logical,optional :: calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw
-
 
 
     if (present(calchi)) then
@@ -324,6 +324,7 @@ contains
           rij%mag2=rij%x**2+rij%y**2+rij%z**2
           rij%mag=sqrt(rij%mag2)
 
+
         if (ibead /= jbead) then
 
           if (clevbb) call calc_evbb(this%evbb,ibead,jbead,rij,Fev)
@@ -343,7 +344,6 @@ contains
         !-------------
 
         if (clhi) call calc_hi(this%hi,ibead,jbead,rij,DiffTens)
-
 
       end do ! ibead
 

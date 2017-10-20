@@ -16,6 +16,8 @@ ifeq ($(FCOMP),gfortran)
 MOD      = -J ./inc
 else ifeq ($(FCOMP),ifort)
 MOD      = -module ./inc
+else ifeq ($(FCOMP),tau_f90.sh)
+MOD     = -module ./inc
 endif
 
 all : makeinc $(OBJLIBS)

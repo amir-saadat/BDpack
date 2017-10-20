@@ -22,13 +22,13 @@
 !%------------------------------------------------------------------------%
 module prcn_mod
 
+  use :: blas95, only : dot,nrm2,scal,copy,axpy,symv,gemv,gbmv,trmv,symm,gemm,trmm
   use :: lapack95, only : geqrf,orgqr,syev,syevr,potrf,potri,getrf,getri,geev,sysv,pocon,sycon,sytrf
 #ifdef USE_DP
   use :: f95_precision, only : wp => dp
 #elif USE_SP
   use :: f95_precision, only : wp => sp
 #endif
-  use :: blas95, only : dot,nrm2,scal,copy,axpy,symv,gemv,gbmv,trmv,symm,gemm,trmm
 
   implicit none
   save
@@ -37,6 +37,7 @@ module prcn_mod
 
   integer,parameter :: single=selected_real_kind(p=6,r=37)
   integer,parameter :: double=selected_real_kind(p=15,r=307)
+!  integer,parameter :: wp=selected_real_kind(p=15,r=307)
   integer,parameter :: short=selected_int_kind(4)
   integer,parameter :: long=selected_int_kind(9)
 

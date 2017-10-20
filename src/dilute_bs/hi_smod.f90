@@ -128,15 +128,32 @@ contains
 
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp),parameter :: sqrtPI=sqrt(PI)
+    real(wp) :: rjy_r
+    integer,parameter :: longlong=selected_int_kind(15)
+    integer(longlong) :: int_rjy
+
 
     !divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
 
 
     !debugging
     if (j == 1) then
-      divD(j)=0
+      divD(j)=0._wp
     else
-      divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
+
+      ! rjy_inv=1/rjy
+
+      ! print*,'before',rjy**4,int((rjy**4)*10**9,kind=longlong)
+
+      ! int_rjy=int((rjy**4)*10**9,kind=longlong)
+
+      ! rjy_r=int_rjy/10._wp**9
+
+      ! print*,'after',rjy_r
+
+      ! stop
+
+      divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4!_r
     end if
 
     !print *, 'divD(',j, ') is: ', divD(j)

@@ -882,6 +882,14 @@ module dlt_mod
               !                  call HICalc(rvmrcP,nseg,HITens,DiffTensP,EV_bb,Fev)
               !call print_matrix(DiffTensP,'d2')
 
+  ! if (ichain==1) then    
+  !   if (itime>4250 .and. mod(itime,5)==0) then
+  !     print*,'itime',itime
+  !     call print_vector(rvmrcP,'rvmrc')
+  !     read(*,*)      
+  !   endif
+  ! endif
+
               call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
                 calchi=.true.,calcdiv=.true.,calcevbb=.true.,calcevbw=.true.)
 
@@ -1082,7 +1090,8 @@ module dlt_mod
           call gemv(Bmat,qstar,rvmrcP)
           call copy(qc,RHS)
           call axpy(Kdotq,RHS,a=0.5_wp)
-
+!print*,'id',id
+!call print_vector(rvmrcP,'R-updt')
           ! rflc doesn't need this
           !            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
           if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
@@ -1229,6 +1238,8 @@ module dlt_mod
               stop
             end if
           end do ! while loop
+!print*,'id---',id
+!call print_vector(rvmrcP,'R-updt---')
           !==================================================!
 
           ! Inserting back the final result to original arrays
@@ -1263,6 +1274,8 @@ module dlt_mod
             !TYL: HI for tethered bead ---------------------------------------
             if (srf_tet) then
               call gemv(DiffTensP(:,1:3),FphiP(1:3),DdotF,alpha=-1._wp,beta=1._wp)
+              !call gemv(DiffTensP(1:3,:),FphiP(1:3),DdotF,alpha=-1._wp,&
+              !  beta=1._wp,trans='T')
             end if
             !TYL: HI for tethered bead ---------------------------------------
 
@@ -1273,14 +1286,11 @@ module dlt_mod
             rcmP=rcmP+(Pe(iPe)*matmul(Kappareg,rcmP)+1._wp/(4*nbead)*SumDdotF)*&
             dt(iPe,idt)+coeff/nbead*SumBdotw
 
-
-
             !! Blake's part
             if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
               rcmP(2)=rcmP(2)+1._wp/(4*nbead)*sum(divD)*dt(iPe,idt)
             endif
             !!-------------
-
 
           end if
           if (CoHR) then
@@ -1344,7 +1354,6 @@ module dlt_mod
             rchrP=rchrP+Pe(iPe)*matmul(kappareg,rchrP)*dt(iPe,idt)+coeff*LdotBdotw
           end if
 
-
           ! rflc part
           if (EV_bw == 'Rflc_bc') then
             !call wall_rflc(dt(iPe,idt),itime,time,id,ichain,qPy,rvmrcPy,rcmP(2),rf_in)
@@ -1353,7 +1362,6 @@ module dlt_mod
               rf_in)
           end if
           !-----
-
 
         end do ! ichain loop
 

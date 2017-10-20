@@ -579,7 +579,7 @@ rndmlp:         do
     ! Checking the number of processors:
     if ((mod(nchain,p) /= 0) .and. (id == 0)) then
       print '(" No. processors not evenly chosen; mod(nchain,p)/=0.")'
-      print '(" chains per processor: ",i)',npchain
+      print '(" chains per processor: ",i0)',npchain
     end if
     ! npchain=int(nchain/p)
 
