@@ -224,7 +224,7 @@ contains
     ny = size(a,2)
     write(fmt,'("(",I3.3,"(f20.10,1x))")') ny
     print *, myname
-    do i=1,nx       
+    do i=1,nx
        write(*,fmt) a(i,:)
     end do
 
@@ -337,7 +337,7 @@ contains
       print *,'Conversion interrupted in ith row;'
       print *,'i:',info
     end if
-   
+
     deallocate(acsr,ja)
 
   end subroutine print_spmatrix_dp
@@ -477,4 +477,3 @@ contains
   end subroutine sort_all_int
 
 end module arry_mod
-

@@ -125,35 +125,100 @@ contains
   module procedure calc_div
 
     use :: inp_dlt, only: hstar
+    use :: mpi
 
-    real(wp),parameter :: PI=3.1415926535897958648_wp
-    real(wp),parameter :: sqrtPI=sqrt(PI)
-    real(wp) :: rjy_r
-    integer,parameter :: longlong=selected_int_kind(15)
-    integer(longlong) :: int_rjy
+    real(real128),parameter :: PI=3.1415926535897958648_real128
+    real(real128),parameter :: sqrtPI=sqrt(PI)
+    real(wp) :: rjy4_r,rjy2_r!,rjy_inv
+    real(real128) :: rjy_r
+    real(real128) :: rjy2_hp, rjy_inv_hp, a3_hp, divD_hp,a_rjy_hp
+    integer :: digits
+    integer,parameter :: longlong=selected_int_kind(18)
+    integer(kind=longlong) :: int_rjy4,int_rjy2,int_rjy
+    integer :: ierr
 
 
     !divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
 
+    digits = 14
 
-    !debugging
     if (j == 1) then
       divD(j)=0._wp
     else
 
-      ! rjy_inv=1/rjy
-
-      ! print*,'before',rjy**4,int((rjy**4)*10**9,kind=longlong)
-
-      ! int_rjy=int((rjy**4)*10**9,kind=longlong)
-
-      ! rjy_r=int_rjy/10._wp**9
-
+      !rjy_inv=1/rjy
+      ! print*,'before',rjy**4,int((rjy**4)*10**15,kind=longlong)
+      ! int_rjy=int((rjy**4)*10**15,kind=longlong)
+      ! rjy_r=int_rjy/10._wp**15
       ! print*,'after',rjy_r
-
       ! stop
 
-      divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4!_r
+
+      ! print*,'before',rjy**4,(rjy**4)*int(10m,kind=longlong)**15
+      ! int_rjy=(rjy**4)*int(10,kind=longlong)**15
+      ! rjy_r=int_rjy/10._wp**15
+      ! print*,'after',rjy_r
+
+      int_rjy4=int((rjy**4)*10_longlong**digits,kind=longlong) ! integer of rjy^4: cast to longlong integer
+      int_rjy2=int((rjy**2)*10_longlong**digits,kind=longlong) ! integer of rjy^2: cast to longlong integer
+      int_rjy=int((real(rjy,kind=real128))*10_longlong**digits,kind=longlong) ! integer of rjy: cast to longlong integer
+
+      rjy4_r=int_rjy4/(10._wp**digits)
+      rjy2_r=int_rjy2/(10._wp**digits)
+      rjy_r=int_rjy/(10._real128**digits)
+
+      !-------------- debug
+      ! print*,'-------------------------'
+      ! print*,'before r^4: ',rjy**4
+      ! print*,'before r^2: ',rjy**2
+      !
+      ! print*,'integer r^4: ',int_rjy4
+      ! print*,'integer r^2: ',int_rjy2
+      !
+      ! print*,'after r^4: ',rjy4_r
+      ! print*,'after r^2: ',rjy2_r
+      !stop
+      !-------------- debug
+
+      !original
+      !divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
+
+      !sketchy rounding
+      !divD(j)=1.125_wp*sqrtPI*hstar/rjy2_r - 1.5_wp*(sqrtPI*hstar)**3/rjy4_r
+
+      !factoring out rjy**2
+      rjy_inv_hp = 1._real128/rjy_r
+      a3_hp = sqrtPI*hstar*sqrtPI*hstar*sqrtPI*hstar
+
+      a_rjy_hp = sqrtPI*.0795_real128*rjy_inv_hp
+      !print*,sqrtPI
+      !print*,real(hstar,kind=real128)
+      !print*,'useless?   ',.795_real128
+      !divD(j)= rjy_inv_hp*rjy_inv_hp*(1.125_real128*sqrtPI*hstar - 1.5_real128*a3_hp*rjy_inv_hp*rjy_inv_hp)
+      !divD_hp = 1.125_real128*sqrtPI*hstar - 1.5_real128*a3_hp!*rjy_inv_hp*rjy_inv_hp
+      !divD_hp = - 1.5_real128*a3_hp*rjy_inv_hp*rjy_inv_hp
+      !divD_hp=divD_hp*rjy_inv_hp
+      !divD_hp=divD_hp*rjy_inv_hp
+
+
+      divD_hp = - 1.5_real128*a_rjy_hp*a_rjy_hp*a_rjy_hp*rjy_inv_hp
+      ! if (j==2) then
+      !   print*,divD_hp
+      !
+      !
+      !   !write( *, * ) 'Press Enter to continue'
+      !   !read( *, * )
+      !   !call MPI_Barrier(MPI_COMM_WORLD,ierr)
+      ! endif
+
+      !divD_hp=divD_hp*1000
+      divD(j)=divD_hp
+      !divD(j)=divD(j)*rjy_inv_hp
+
+      !high precision
+      !rjy2_hp = rjy**2
+      !divD(j)= (1/rjy2_hp)*( 1.125*sqrtPI*hstar - 1.5*(sqrtPI*hstar)**3/rjy2_hp)
+
     end if
 
     !print *, 'divD(',j, ') is: ', divD(j)

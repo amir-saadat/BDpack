@@ -15,9 +15,14 @@ contains
 
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp),parameter :: sqrtPI=sqrt(PI)
+    integer :: digits
+    integer,parameter :: longlong=selected_int_kind(18)
+    integer(kind=longlong) :: int_rijmag3im,int_rijmag5im,int_rijmag7im
 
     integer :: osi,osj
     real(wp) :: rijmag3im, rijmag5im, rijmag7im
+    real(wp) :: rijmag3im_frc, rijmag5im_frc, rijmag7im_frc
+    real(wp) :: rijmag3im_frc_r, rijmag5im_frc_r, rijmag7im_frc_r
     real(wp), dimension(3,3) :: Sij,Pij_D,Sij_D,Hij_PD,Hji_PD
     real(wp), dimension(3,3) :: Omega_PF,Omegaij_PD,Omegaji_PD,Omega_c, Omega_W
 
@@ -27,6 +32,69 @@ contains
     rijmag3im = rij%mag2im*rij%magim
     rijmag5im = rij%mag2im*rijmag3im
     rijmag7im = rij%mag2im*rijmag5im
+
+
+    !rounding by using the method of rounding the "fraction" in base2
+    ! digits = 7
+    ! ! !print*,'before rij^3: ',rijmag3im
+    ! ! !print*,'before rij^5: ',rijmag5im
+    ! ! !print*,'before rij^7: ',rijmag7im
+    ! rijmag3im_frc = FRACTION(rijmag3im)
+    ! rijmag5im_frc = FRACTION(rijmag5im)
+    ! rijmag7im_frc = FRACTION(rijmag7im)
+    ! ! !print*,'before rij^3 frac: ',rijmag3im_frc
+    ! ! !print*,'before rij^5 frac: ',rijmag5im_frc
+    ! ! !print*,'before rij^7 frac: ',rijmag7im_frc
+    ! int_rijmag3im = int(rijmag3im_frc*10_longlong**digits,kind=longlong)
+    ! int_rijmag5im = int(rijmag5im_frc*10_longlong**digits,kind=longlong)
+    ! int_rijmag7im = int(rijmag7im_frc*10_longlong**digits,kind=longlong)
+    ! ! !print*,'int rij^3 frac: ',int_rijmag3im
+    ! ! !print*,'int rij^5 frac: ',int_rijmag5im
+    ! ! !print*,'int rij^7 frac: ',int_rijmag7im
+    ! rijmag3im_frc_r = int_rijmag3im/10._wp**digits
+    ! rijmag5im_frc_r = int_rijmag5im/10._wp**digits
+    ! rijmag7im_frc_r = int_rijmag7im/10._wp**digits
+    ! ! !print*,'rounded rij^3 frac: ',rijmag3im_frc_r
+    ! ! !print*,'rounded rij^5 frac: ',rijmag5im_frc_r
+    ! ! !print*,'rounded rij^7 frac: ',rijmag7im_frc_r
+    ! rijmag3im = SET_EXPONENT(rijmag3im_frc_r,EXPONENT(rijmag3im))
+    ! rijmag5im = SET_EXPONENT(rijmag5im_frc_r,EXPONENT(rijmag5im))
+    ! rijmag7im = SET_EXPONENT(rijmag7im_frc_r,EXPONENT(rijmag7im))
+    ! ! !print*,'after rij^3: ',rijmag3im
+    ! ! !print*,'after rij^5: ',rijmag5im
+    ! ! !print*,'after rij^7: ',rijmag7im
+    ! ! !stop
+
+
+
+
+
+
+    !rounding the results of rijmag3im,rijmag5im,rijmag7im
+    !-------------- debug
+    ! print*,'-------------------------'
+    ! print*,'before rij^3: ',rijmag3im
+    ! print*,'before rij^5: ',rijmag5im
+    ! print*,'before rij^7: ',rijmag7im
+    !-------------- debug
+    ! digits = 7 !number of digits to round to
+    ! int_rijmag3im=int(rijmag3im*10_longlong**digits,kind=longlong)
+    ! int_rijmag5im=int(rijmag5im*10_longlong**digits,kind=longlong)
+    ! int_rijmag7im=int(rijmag7im*10_longlong**digits,kind=longlong)
+    ! rijmag3im=int_rijmag3im/(10._wp**digits)
+    ! rijmag5im=int_rijmag5im/(10._wp**digits)
+    ! rijmag7im=int_rijmag7im/(10._wp**digits)
+    !-------------- debug
+    ! print*,'integer rij^3: ',int_rijmag3im
+    ! print*,'integer rij^5: ',int_rijmag5im
+    ! print*,'integer rij^7: ',int_rijmag7im
+    !
+    ! print*,'after rij^3: ',rijmag3im
+    ! print*,'after rij^5: ',rijmag5im
+    ! print*,'after rij^7: ',rijmag7im
+    ! stop
+    !-------------- debug
+    !done rounding
 
     if (HITens == 'Blake') then
       call Sij_calc(Sij,rij,rijmag3im,rijmag5im,rijmag7im)

@@ -883,11 +883,11 @@ module dlt_mod
               !                  call HICalc(rvmrcP,nseg,HITens,DiffTensP,EV_bb,Fev)
               !call print_matrix(DiffTensP,'d2')
 
-  ! if (ichain==1) then    
+  ! if (ichain==1) then
   !   if (itime>4250 .and. mod(itime,5)==0) then
   !     print*,'itime',itime
   !     call print_vector(rvmrcP,'rvmrc')
-  !     read(*,*)      
+  !     read(*,*)
   !   endif
   ! endif
 

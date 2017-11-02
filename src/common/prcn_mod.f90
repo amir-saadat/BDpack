@@ -29,6 +29,8 @@ module prcn_mod
 #elif USE_SP
   use :: f95_precision, only : wp => sp
 #endif
+  !for higher precision (real(real128))
+  use :: iso_fortran_env
 
   implicit none
   save

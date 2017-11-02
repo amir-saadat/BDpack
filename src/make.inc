@@ -48,6 +48,9 @@ GLBFLGS += -qopenmp # Enables openmp directives
 #GLBFLGS += -heap-arrays
 #GLBFLGS += -check bounds -traceback -g
 #GLBFLGs += -check-pointers=rw
+GLBFLGS += -fp-model precise
+GLBFLGS += -fp-model consistent
+#GLBFLGS += -fp-model strict
 else ifeq ($(FCOMP),pgf90)
 GLBFLGS += -Mpreprocess
 GLBFLGS += -Mmpi=mpich
