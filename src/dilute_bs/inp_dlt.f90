@@ -199,6 +199,7 @@ ef: do
                 msec=(1000*tm_inf(7)+tm_inf(8))*((id-83)*359)
                 call random_seed(size=n)
                 call random_seed(put=(/(i*msec,i=1,n)/))
+                icnt=0
 rndmlp:         do
                   call random_number(u)
                   do k=1, Na

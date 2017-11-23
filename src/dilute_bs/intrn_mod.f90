@@ -110,10 +110,11 @@ module intrn_mod
     !! \param j bead j index
     !! \param rjy y component of rj
     !! \param divD divergance of D
-    module subroutine calc_div(j,rjy,divD)
+    module subroutine calc_div(j,rjy,divD,id,itime)
       integer,intent(in) :: j
       real(wp),intent(in) :: rjy
       real(wp),intent(inout) :: divD(:)
+      integer,intent(in) :: id,itime
     end subroutine calc_div
     !------------------------------------------
 
@@ -185,7 +186,7 @@ contains
 
   end subroutine init_intrn
 
-  subroutine calc_intrn(this,rvmrc,rcm,nseg,DiffTens,divD,Fev,Fbarev,&
+  subroutine calc_intrn(this,id,itime,rvmrc,rcm,nseg,DiffTens,divD,Fev,Fbarev,&
                       calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw)
 
     use :: inp_dlt, only: EV_bb,EV_bw,hstar,HITens
@@ -204,6 +205,8 @@ contains
     real(wp) :: DiffTens(:,:),divD(:),Fev(:),Fbarev(:)
     logical :: clhi,cldiv,clevbb,clevbw,upevbb,upevbw
     logical,optional :: calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw
+
+    integer :: id,itime
 
 
     if (present(calchi)) then
@@ -249,16 +252,23 @@ contains
       rjmrc=rvmrc(osj+1:osj+3)
 
 
+      ! if ( (id==1 .and. itime==10000) .or. &
+      !      (id==1 .and. itime==20000) ) then
+      !   if (jbead<=3) then
+      !     print*,'rj-intrn',rjmrc+rcm
+      !   endif
+      ! endif
 
       !! Blake's part
       if (hstar /= 0._wp .and. HITens == 'Blake') then
         ibead_ulim=nseg+1
         rjy=rjmrc(2)+rcm(2)
-        if (cldiv) call calc_div(jbead,rjy,divD)
+        if (cldiv) call calc_div(jbead,rjy,divD,id,itime)        
       else
         ibead_ulim=jbead
       endif
       !!-------------
+
 
 
       do ibead=1, ibead_ulim
