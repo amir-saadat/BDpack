@@ -1274,9 +1274,9 @@ module dlt_mod
 
             !TYL: HI for tethered bead ---------------------------------------
             if (srf_tet) then
-              call gemv(DiffTensP(:,1:3),FphiP(1:3),DdotF,alpha=-1._wp,beta=1._wp)
-              !call gemv(DiffTensP(1:3,:),FphiP(1:3),DdotF,alpha=-1._wp,&
-              !  beta=1._wp,trans='T')
+              !call gemv(DiffTensP(:,1:3),FphiP(1:3),DdotF,alpha=-1._wp,beta=1._wp)
+              call gemv(DiffTensP(1:3,:),FphiP(1:3),DdotF,alpha=-1._wp,&
+                beta=1._wp,trans='T')
             end if
             !TYL: HI for tethered bead ---------------------------------------
 
