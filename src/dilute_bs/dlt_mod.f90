@@ -891,7 +891,7 @@ module dlt_mod
   !   endif
   ! endif
 
-              call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
+              call myintrn%calc(id,itime,rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
                 calchi=.true.,calcdiv=.true.,calcevbb=.true.,calcevbw=.true.)
 
             end if
@@ -1012,7 +1012,7 @@ module dlt_mod
           !            if (hstar == 0._wp .and. EV_bw /= 'Rflc_bc') then
           if (hstar == 0._wp) then
             !                call EVCalc(rvmrcP,nseg,EV_bb,Fev)
-            call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
+            call myintrn%calc(id,itime,rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
               calcevbb=.true.,calcevbw=.true.)
             !call evcalc2(rvmrcP,nseg,Fev)
           end if
@@ -1067,7 +1067,7 @@ module dlt_mod
           if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
             do is=1, nseg
               os=(is-1)*3
-              qstar(os+2)=qstar(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
+              ! qstar(os+2)=qstar(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
             enddo
           endif
           !!-------------
@@ -1097,7 +1097,7 @@ module dlt_mod
           !            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
           if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
             !              call EVUpdate(Fev,rvmrcP,Fbarev)
-            call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
+            call myintrn%calc(id,itime,rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
               updtevbb=.true.,updtevbw=.true.)
             !call print_vector(Fev,'fev3')
             !call evupdate2(Fev,rvmrcP,nseg,Fbarev)
@@ -1139,7 +1139,7 @@ module dlt_mod
           if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
             do is=1, nseg
               os=(is-1)*3
-              RHS(os+2)=RHS(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
+              ! RHS(os+2)=RHS(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
             enddo
           endif
           !!-------------
@@ -1184,6 +1184,8 @@ module dlt_mod
           ! Updating q based on Seg. Cubic Eq.           !
           ! Fbead=-A'.Fseg                               !
           !----------------------------------------------!
+
+
           call copy(qbar,qc)
           call copy(Fbarseg,Fseg)
           call copy(Fbarbead,Fbead)
@@ -1239,6 +1241,7 @@ module dlt_mod
               stop
             end if
           end do ! while loop
+
 !print*,'id---',id
 !call print_vector(rvmrcP,'R-updt---')
           !==================================================!
@@ -1274,9 +1277,15 @@ module dlt_mod
 
             !TYL: HI for tethered bead ---------------------------------------
             if (srf_tet) then
+
               !call gemv(DiffTensP(:,1:3),FphiP(1:3),DdotF,alpha=-1._wp,beta=1._wp)
               call gemv(DiffTensP(1:3,:),FphiP(1:3),DdotF,alpha=-1._wp,&
                 beta=1._wp,trans='T')
+
+
+
+
+
             end if
             !TYL: HI for tethered bead ---------------------------------------
 
@@ -1289,7 +1298,7 @@ module dlt_mod
 
             !! Blake's part
             if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
-              rcmP(2)=rcmP(2)+1._wp/(4*nbead)*sum(divD)*dt(iPe,idt)
+              ! rcmP(2)=rcmP(2)+1._wp/(4*nbead)*sum(divD)*dt(iPe,idt)
             endif
             !!-------------
 
