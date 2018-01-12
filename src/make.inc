@@ -9,7 +9,7 @@ PGIROOT	 = /home/asaadat/pgi
 #----------------------------------------------------------------------
 # mpif90, mpiifort or <Address of OpenMPI bin directory>/<MPI compiler>
 #----------------------------------------------------------------------
-COMP     = mpif90
+COMP     = mpiifort
 #----------------------------------------------------------------------
 # pgf90 or <Address of CUDA Fortran bin directory>/pgf90
 #----------------------------------------------------------------------
@@ -36,20 +36,20 @@ GLBFLGS  = -DUSE_DP # SP or DP for single or double precision
 #GLBFLGS += -g -traceback
 #GLBFLGS += -fp-stack-check -gen-interfaces -warn interfaces -check arg_temp_created
 ifeq ($(FCOMP),gfortran)
-GLBFLGS += -Ofast
+GLBFLGS += -O0
 GLBFLGS += -cpp # Enables preprocessing
 GLBFLGS += -openmp # Enables openmp directives
 GLBFLGS += -fcray-pointer
 #GLBFLGS += -fbounds-check
 else ifeq ($(FCOMP),ifort)
-GLBFLGS += -Ofast
+GLBFLGS += -O0
 GLBFLGS += -fpp
 GLBFLGS += -qopenmp # Enables openmp directives
 #GLBFLGS += -heap-arrays
 #GLBFLGS += -check bounds -traceback -g
 #GLBFLGs += -check-pointers=rw
-#GLBFLGS += -fp-model precise
-#GLBFLGS += -fp-model consistent
+GLBFLGS += -fp-model precise
+GLBFLGS += -fp-model consistent
 #GLBFLGS += -fp-model strict
 else ifeq ($(FCOMP),pgf90)
 GLBFLGS += -Mpreprocess

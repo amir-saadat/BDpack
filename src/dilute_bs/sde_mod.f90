@@ -1,6 +1,6 @@
 !sde module
 !Tiras Lin
-!Sept 7, 2017
+!Dec 17, 2017
 !!!!!!!!!!!!!!!!!!!!!!!!
 
 module sde_mod
@@ -26,8 +26,259 @@ module sde_mod
 
 contains
 
+
+  ! !trying to use the variables input to calculate matrices
+  ! subroutine init_sde(this,Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF,nbead_bb,nseg_bb)
+  !
+  !   !variables used from other places
+  !   use :: inp_dlt, only: iflow,nseg,nbead,nsegx3,nbeadx3,tplgy,Na,nseg_ar,Ia
+  !   use :: arry_mod, only: print_vector, print_matrix
+  !
+  !   !input and output arguments
+  !   class(sde_t),intent(inout) :: this
+  !   real(wp), intent(inout) :: Kappareg(:,:),Kappa(:,:),Amat(:,:),Bmat(:,:),KappaBF(:,:),AmatBF(:,:)
+  !   integer, intent(inout) :: nbead_bb,nseg_bb
+  !
+  !   !variables used inside init_sde
+  !   integer :: iseg,jseg,offseti,offsetj,ibead,jbead,i,j,k,iarm
+  !   integer :: ku,kl
+  !   integer :: idx,nu,mu
+  !   real(wp) :: fctr
+  !
+  !   !allocations
+  !   allocate(this%Kappa(nsegx3,nsegx3))
+  !   allocate(this%Amat(nsegx3,nbeadx3),this%Bmat(nbeadx3,nsegx3))
+  !   allocate(this%KappaBF(2,nsegx3))
+  !   select case (tplgy)
+  !   case ('Linear')
+  !     allocate(this%AmatBF(4,nbeadx3))
+  !   case ('Comb')
+  !   end select
+  !
+  !   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !   !initialization code begins here:
+  !   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !
+  !   ! Specifying kappa based on type of flow
+  !   select case (iflow)
+  !   case (1) ! Finding Equilibrium
+  !   !if (iflow == 1) then
+  !     this%xxkappa=0._wp
+  !     this%xykappa=0._wp
+  !     this%yykappa=0._wp
+  !     this%zzkappa=0._wp
+  !   case (2) ! Shear Flow
+  !   !else if (iflow == 2) then ! Shear Flow
+  !     this%xxkappa=0._wp
+  !     this%xykappa=1._wp
+  !     this%yykappa=0._wp
+  !     this%zzkappa=0._wp
+  !   case (3) ! Uniaxial Extension
+  !   !else if (iflow == 3) then ! Uniaxial Extension
+  !     this%xxkappa=1._wp
+  !     this%xykappa=0._wp
+  !     this%yykappa=-0.5_wp
+  !     this%zzkappa=-0.5_wp
+  !   case (4) !Biaxial Extension
+  !   !else if (iflow == 4) then ! biaxial Extension
+  !     this%xxkappa=1._wp
+  !     this%xykappa=0._wp
+  !     this%yykappa=1._wp
+  !     this%zzkappa=-2.0_wp
+  !   case (5) !Planar Extension
+  !   !else if (iflow == 5) then ! Planar Extension
+  !     this%xxkappa=1._wp
+  !     this%xykappa=0._wp
+  !     this%yykappa=-1._wp
+  !     this%zzkappa=0._wp
+  !   end select
+  !   !end if
+  !
+  !   Kappa=0._wp
+  !   forall (iseg=1:3*(nseg-1)+1:3)
+  !     Kappa(iseg,iseg)=this%xxkappa
+  !     Kappa(iseg,iseg+1)=this%xykappa
+  !     Kappa(iseg+1,iseg+1)=this%yykappa
+  !     Kappa(iseg+2,iseg+2)=this%zzkappa
+  !   end forall
+  !   Kappareg(1,1:3)=(/this%xxkappa,this%xykappa,0.0_wp/)
+  !   Kappareg(2,1:3)=(/0.0_wp ,this%yykappa,0.0_wp/)
+  !   Kappareg(3,1:3)=(/0.0_wp ,0.0_wp ,this%zzkappa/)
+  !
+  !   Amat=0.0_wp
+  !   select case (tplgy)
+  !   case ('Linear')
+  !     nseg_bb=nseg
+  !     nbead_bb=nbead
+  !     do iseg=1, nseg
+  !       offseti=3*(iseg-1)
+  !       do jbead=1, nbead
+  !         offsetj=3*(jbead-1)
+  !         if (iseg == jbead) then
+  !           forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
+  !         elseif (iseg == jbead-1) then
+  !           forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
+  !         end if
+  !       end do
+  !     end do
+  !   case ('Comb')
+  !     nseg_bb=nseg-Na*nseg_ar
+  !     nbead_bb=nseg_bb+1
+  !     iarm=1
+  !     do iseg=1, nseg
+  !       offseti=3*(iseg-1)
+  !       do jbead=1, nbead
+  !         offsetj=3*(jbead-1)
+  !         if (iseg <= nseg_bb) then
+  !           if (jbead == iseg) then
+  !             forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
+  !           elseif (jbead == iseg+1) then
+  !             forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
+  !           end if
+  !         else ! iseg > nseg_bb
+  !           if (iseg-nseg_bb-(iarm-1)*nseg_ar == 1) then
+  !             if (jbead == Ia(iarm+1)) then
+  !               forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
+  !             elseif (jbead == iseg+1) then
+  !               forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
+  !             elseif (jbead == nbead) then
+  !               iarm=iarm+1
+  !             end if
+  !           else
+  !             if (jbead == iseg) then
+  !               forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
+  !             elseif (jbead == iseg+1) then
+  !               forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
+  !             end if
+  !           end if
+  !         end if
+  !       end do
+  !     end do
+  !   end select
+  !
+  !   ! Constructing banded form of Kappa
+  !   KappaBF=0._wp
+  !   ku=1;kl=0
+  !   do j=1, nsegx3
+  !     k=ku+1-j
+  !     do i=max(1,j-ku),min(nsegx3,j+kl)
+  !       KappaBF(k+i,j)=Kappa(i,j)
+  !     end do
+  !   end do
+  !   if (tplgy == 'Linear') then
+  !     AmatBF=0._wp
+  !     ! Constructing banded form of Amat
+  !     ku=3;kl=0
+  !     do j=1, nbeadx3
+  !       k=ku+1-j
+  !       do i=max(1,j-ku),min(nsegx3,j+kl)
+  !         AmatBF(k+i,j)=Amat(i,j)
+  !       end do
+  !     end do
+  !   end if
+  !   !line 497 Constructing Bmat
+  !   Bmat=0.0_wp
+  !   select case (tplgy)
+  !   case ('Linear')
+  !     do ibead=1, nbead
+  !       offseti=3*(ibead-1)
+  !       do jseg=1, nseg
+  !         offsetj=3*(jseg-1)
+  !         if (ibead > jseg) then
+  !           forall (i=1:3)
+  !             Bmat(offseti+i,offsetj+i)=jseg/real(nbead,kind=wp)
+  !           end forall
+  !         else
+  !           forall (i=1:3)
+  !             Bmat(offseti+i,offsetj+i)=-(1-jseg/real(nbead,kind=wp))
+  !           end forall
+  !         end if
+  !       end do
+  !     end do
+  !   case ('Comb')
+  !    ! Constructing the elements of the first row of B
+  !    do k=1, nseg_bb
+  !      forall (i=1:3) Bmat(i,3*(k-1)+i)=-(nseg_bb-k+1)/real(nbead,kind=wp)
+  !    end do
+  !    do iarm=1, Na
+  !      fctr=(Na-iarm+1)*nseg_ar/real(nbead,kind=wp)
+  !      do k=Ia(iarm), Ia(iarm+1)-1
+  !        forall (i=1:3)
+  !          Bmat(i,3*(k-1)+i)=Bmat(i,3*(k-1)+i)-fctr
+  !        end forall
+  !      end do ! k
+  !      do k=1, nseg_ar
+  !        idx=nseg_bb+(iarm-1)*nseg_ar+k
+  !        forall (i=1:3)
+  !          Bmat(i,3*(idx-1)+i)=Bmat(i,3*(idx-1)+i)-&
+  !          (nseg_ar-k+1)/real(nbead,kind=wp)
+  !        end forall
+  !      end do ! k
+  !    end do ! iarm
+  !    ! Constructing the rest of the rows in backbone
+  !    do nu=2, nseg_bb+1
+  !      forall (i=1:3) Bmat(3*(nu-1)+i,:)=Bmat(i,:)
+  !      do k=1, nu-1
+  !        forall (i=1:3)
+  !          Bmat(3*(nu-1)+i,3*(k-1)+i)=Bmat(3*(nu-1)+i,3*(k-1)+i)+1
+  !        end forall
+  !      end do ! k
+  !    end do ! nu
+  !    ! Constructing the rows for the arms
+  !    do iarm=1, Na
+  !      do mu=1, nseg_ar
+  !        nu=nseg_bb+1+(iarm-1)*nseg_ar+mu
+  !        forall (i=1:3) Bmat(3*(nu-1)+i,:)=Bmat(i,:)
+  !        do k=1, Ia(iarm+1)-1
+  !          forall (i=1:3)
+  !            Bmat(3*(nu-1)+i,3*(k-1)+i)=Bmat(3*(nu-1)+i,3*(k-1)+i)+1
+  !          end forall
+  !        end do ! k
+  !        do k=1, mu
+  !          idx=nseg_bb+(iarm-1)*nseg_ar+k
+  !          forall (i=1:3)
+  !            Bmat(3*(nu-1)+i,3*(idx-1)+i)=Bmat(3*(nu-1)+i,3*(idx-1)+i)+1
+  !          end forall
+  !        end do ! k
+  !      end do ! mu
+  !    end do ! iarm
+  !  end select
+  !  !line 563
+  !  !call print_matrix(this%Kappa,'this%Kappa')
+  !
+  !
+  !  !Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF
+  !
+  !
+  !  this%Kappareg = Kappareg
+  !  this%Kappa = Kappa
+  !  this%Amat = Amat
+  !  this%Bmat = Bmat
+  !  this%KappaBF = KappaBF
+  !  this%AmatBF = AmatBF
+  !
+  !  ! call print_matrix(Kappareg,'Kappareg')
+  !  ! call print_matrix(Kappa,'Kappa')
+  !  ! call print_matrix(Amat,'Amat')
+  !  ! call print_matrix(Bmat,'Bmat')
+  !  ! call print_matrix(KappaBF,'KappaBF')
+  !  ! call print_matrix(AmatBF,'AmatBF')
+  !
+  !  !print *, 'this%Bmat', this%Bmat(1,1)
+  !  !print *, '---------------------'
+  !  !print *, 'Bmat',Bmat(1,1)
+  !
+  ! end subroutine init_sde
+
+
+
+
+
+
+
+
   !define parameters needed for the SDE
-  subroutine init_sde(this,Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF)
+  subroutine init_sde(this,Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF,nbead_bb,nseg_bb)
 
     !variables used from other places
     use :: inp_dlt, only: iflow,nseg,nbead,nsegx3,nbeadx3,tplgy,Na,nseg_ar,Ia
@@ -36,10 +287,10 @@ contains
     !input and output arguments
     class(sde_t),intent(inout) :: this
     real(wp), intent(inout) :: Kappareg(:,:),Kappa(:,:),Amat(:,:),Bmat(:,:),KappaBF(:,:),AmatBF(:,:)
-
+    integer, intent(inout) :: nbead_bb,nseg_bb
 
     !variables used inside init_sde
-    integer :: iseg,jseg,nseg_bb,nbead_bb,offseti,offsetj,ibead,jbead,i,j,k,iarm
+    integer :: iseg,jseg,offseti,offsetj,ibead,jbead,i,j,k,iarm
     integer :: ku,kl
     integer :: idx,nu,mu
     real(wp) :: fctr
@@ -245,14 +496,25 @@ contains
    !line 563
    !call print_matrix(this%Kappa,'this%Kappa')
 
-   
 
-   Kappareg(:,:) = this%Kappareg(:,:)
-   Kappa(:,:) = this%Kappa(:,:)
-   Amat(:,:) = this%Amat(:,:)
-   Bmat(:,:) = this%Bmat(:,:)
-   KappaBF(:,:) = this%KappaBF(:,:)
-   AmatBF(:,:) = this%AmatBF(:,:)
+   !Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF
+   Kappareg = this%Kappareg
+   Kappa = this%Kappa
+   Amat = this%Amat
+   Bmat = this%Bmat
+   KappaBF = this%KappaBF
+   AmatBF = this%AmatBF
+
+   ! call print_matrix(Kappareg,'Kappareg')
+   ! call print_matrix(Kappa,'Kappa')
+   ! call print_matrix(Amat,'Amat')
+   ! call print_matrix(Bmat,'Bmat')
+   ! call print_matrix(KappaBF,'KappaBF')
+   ! call print_matrix(AmatBF,'AmatBF')
+
+   !print *, 'this%Bmat', this%Bmat(1,1)
+   !print *, '---------------------'
+   !print *, 'Bmat',Bmat(1,1)
 
   end subroutine init_sde
 
@@ -391,7 +653,7 @@ contains
     !            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
     if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
       !              call EVUpdate(Fev,rvmrcP,Fbarev)
-      call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
+      call myintrn%calc(id,itime,rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
         updtevbb=.true.,updtevbw=.true.)
       !call print_vector(Fev,'fev3')
       !call evupdate2(Fev,rvmrcP,nseg,Fbarev)

@@ -263,7 +263,7 @@ contains
       if (hstar /= 0._wp .and. HITens == 'Blake') then
         ibead_ulim=nseg+1
         rjy=rjmrc(2)+rcm(2)
-        if (cldiv) call calc_div(jbead,rjy,divD,id,itime)        
+        if (cldiv) call calc_div(jbead,rjy,divD,id,itime)
       else
         ibead_ulim=jbead
       endif
