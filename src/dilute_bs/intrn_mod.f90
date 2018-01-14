@@ -52,6 +52,8 @@ module intrn_mod
     real(wp) :: rmagmin
     ! For Reflc-bc
     real(wp) :: a
+    real(wp) :: a_sph
+    integer :: iwall !the type of wall for the reflection BC: 1-plane, 2-sphere
     integer :: u_wc
     integer :: u_wc_all
     integer :: u_ia

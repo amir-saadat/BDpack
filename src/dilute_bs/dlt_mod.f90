@@ -95,6 +95,7 @@ module dlt_mod
     real(wp),dimension(2) :: lambdaBE
     real(wp),dimension(3) :: SumBdotw,SumDdotF,LdotBdotw,Ftet,Fbartet,rf_in
     real(wp),dimension(3,3) :: kappareg,totMobilTens,invtotMobilTens
+    real(wp),dimension(3) :: U_unif
     ! Allocatable arrays:
     integer,allocatable,dimension(:) :: mch,Lch
     real(wp),allocatable,dimension(:) :: qstar,qbar,Fbead,Fbarseg
@@ -321,6 +322,11 @@ module dlt_mod
       call read_input('rf-in',0,rf_in(1),def=0._wp)
       call read_input('rf-in',1,rf_in(2),def=0._wp)
       call read_input('rf-in',2,rf_in(3),def=0._wp)
+    endif
+    if (unif_flow) then
+      call read_input('U-Unif',0,U_unif(1),def=0._wp)
+      call read_input('U-Unif',1,U_unif(2),def=0._wp)
+      call read_input('U-Unif',2,U_unif(3),def=0._wp)
     endif
     ! For making the output
     allocate (q_counts(p),q_disps(p))
@@ -1310,6 +1316,10 @@ module dlt_mod
             SumDdotF=(/sum(DdotFPx),sum(DdotFPy),sum(DdotFPz)/)
             rcmP=rcmP+(Pe(iPe)*matmul(Kappareg,rcmP)+1._wp/(4*nbead)*SumDdotF)*&
             dt(iPe,idt)+coeff/nbead*SumBdotw
+
+            if (unif_flow) then
+              rcmP=rcmP+U_unif*dt(iPe,idt)
+            endif
 
             !! Blake's part
             if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
