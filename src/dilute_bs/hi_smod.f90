@@ -40,6 +40,8 @@ submodule (intrn_mod) hi_smod
       type(dis),intent(in) :: rij
       real(wp),intent(inout) :: DiffTens(:,:)
     end subroutine calc_hibw
+
+
   end interface
 
 contains
@@ -116,6 +118,15 @@ contains
     ! Blake's part
     if (HITens == 'Blake') then
       call calc_hibw(this%hibw,i,j,rij,DiffTens)
+    endif
+    !------------
+    ! Oseen solid sphere
+    if (HITens == 'Osph') then
+      if (i==j) then
+        call calc_hibw(this%hibw,i,j,rij,DiffTens)
+      else
+        call calc_hibw(this%hibw,i,j,rij,DiffTens)
+      endif
     endif
     !------------
 

@@ -28,6 +28,7 @@ module intrn_mod
     real(wp) :: rmagmin
   end type hibb_t
   type :: hibw_t
+    real(wp) :: a_sph
   end type hibw_t
   type :: hi_t
     type(hibb_t) :: hibb
@@ -83,6 +84,8 @@ module intrn_mod
     real(wp) :: mag,mag2
     real(wp) :: riy,rjy,yim
     real(wp) :: magim,mag2im
+    real(wp) :: rjx,rjz
+    real(wp) :: rix,riz
   end type
 
   !-----------------------------------------------------
@@ -352,6 +355,15 @@ contains
           rij%yim=rimrc(2)+rcm(2)+rij%rjy
           rij%mag2im=rij%x**2+rij%yim**2+rij%z**2
           rij%magim=sqrt(rij%mag2im)
+        endif
+
+        if (HITens == 'Osph') then
+          rij%rjx=rjmrc(1)+rcm(1)
+          rij%rjy=rjmrc(2)+rcm(2)
+          rij%rjz=rjmrc(3)+rcm(3)
+          rij%rix=rimrc(1)+rcm(1)
+          rij%riy=rimrc(2)+rcm(2)
+          rij%riz=rimrc(3)+rcm(3)
         endif
         !-------------
 
