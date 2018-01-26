@@ -107,7 +107,7 @@ module inp_dlt
   real(wp),protected :: q_l,qr_lto2
   integer,protected :: npchain
   real(wp),protected :: RWS_C,RWS_D,WLC_A,WLC_B,WLC_C
-  logical,protected :: unif_flow
+  logical,protected :: unif_flow, sph_flow
 
 contains
 
@@ -131,6 +131,7 @@ contains
     applFext=.false.
     srf_tet=.false.;arm_plc='Random'
     unif_flow=.false.
+    sph_flow=.false.
     iflow=1
     nWi=1;Wii=0._wp;Wif=0._wp;WiSpacing='Linear'
     hstar=0._wp;HITens='RPY';DecompMeth='Cholesky';ncols=1
@@ -265,6 +266,12 @@ rndmlp:         do
                 unif_flow=.true.
               elseif(tokens(j+1) == 'FALSE') then
                 unif_flow=.false.
+              end if
+            case ('Sph-Flow')
+              if(tokens(j+1) == 'TRUE') then
+                sph_flow=.true.
+              elseif(tokens(j+1) == 'FALSE') then
+                sph_flow=.false.
               end if
             case ('Flow-Type')
               call value(tokens(j+1),iflow,ios)

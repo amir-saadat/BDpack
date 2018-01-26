@@ -130,6 +130,8 @@ module dlt_mod
     ! objects
     type(intrn_t) :: myintrn
     type(sde_t) :: mysde
+    real(wp),dimension(nsegx3) :: U_seg
+    real(wp),dimension(nbeadx3) :: U_bead
 
 
     call prcs_inp(id,p)
@@ -1319,6 +1321,13 @@ module dlt_mod
 
             if (unif_flow) then
               rcmP=rcmP+U_unif*dt(iPe,idt)
+            endif
+
+            if (sph_flow) then
+              call mysde%U_sph(U_seg,U_bead,q(:,ichain),rcm(:,ichain))
+              rcmP(1) = rcmP(1) + (1._wp/nbead)*sum(U_bead(1:nbeadx3-2:3))*dt(iPe,idt)
+              rcmP(2) = rcmP(2) + (1._wp/nbead)*sum(U_bead(2:nbeadx3-1:3))*dt(iPe,idt)
+              rcmP(3) = rcmP(3) + (1._wp/nbead)*sum(U_bead(3:nbeadx3:3))*dt(iPe,idt)
             endif
 
             !! Blake's part
