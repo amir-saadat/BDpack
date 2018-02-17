@@ -50,21 +50,25 @@ module dlt_mod
     integer :: q_recvsubarray,q_resizedrecvsubarray
     integer :: R_recvsubarray,R_resizedrecvsubarray
     integer :: rc_recvsubarray,rc_resizedrecvsubarray
+    integer :: rcm_recvsubarray,rcm_resizedrecvsubarray
     integer :: ia_recvsubarray,ia_resizedrecvsubarray
     integer :: cnf_tp_recvsubarray,cnf_tp_resizedrecvsubarray
     integer,dimension(3) :: q_starts,q_sizes,q_subsizes
     integer,dimension(3) :: R_starts,R_sizes,R_subsizes
     integer,dimension(3) :: rc_starts,rc_sizes,rc_subsizes
+    integer,dimension(4) :: rcm_starts,rcm_sizes,rcm_subsizes
     integer,dimension(2) :: ia_starts,ia_sizes,ia_subsizes
     integer,dimension(2) :: cnf_tp_starts,cnf_tp_sizes,cnf_tp_subsizes
     integer,allocatable  :: q_counts(:),q_disps(:)
     integer,allocatable  :: R_counts(:),R_disps(:)
     integer,allocatable  :: rc_counts(:),rc_disps(:)
+    integer,allocatable  :: rcm_counts(:),rcm_disps(:)
     integer,allocatable  :: ia_counts(:),ia_disps(:)
     integer,allocatable  :: cnf_tp_counts(:),cnf_tp_disps(:)
     integer(kind=MPI_ADDRESS_KIND) :: q_start,q_extent
     integer(kind=MPI_ADDRESS_KIND) :: R_start,R_extent
     integer(kind=MPI_ADDRESS_KIND) :: rc_start,rc_extent
+    integer(kind=MPI_ADDRESS_KIND) :: rcm_start,rcm_extent
     integer(kind=MPI_ADDRESS_KIND) :: ia_start,ia_extent
     integer(kind=MPI_ADDRESS_KIND) :: cnf_tp_start,cnf_tp_extent
     real(wp),parameter :: PI=4*atan(1._wp)
@@ -78,7 +82,7 @@ module dlt_mod
     ! Integers:
     integer :: offset,offseti,offsetj,idx,is,os
     integer :: jcheck,kcheck,iseed,jp,iseg,jbead,i,j,k,nseg_bb,iarm,ku,kl
-    integer :: nu,mu,ibead,jseg,ichain,ip,iread,iPe,idt,iAdjSeq,itime
+    integer :: nu,mu,ibead,jseg,ichain,ip,iread,iPe,idt,iAdjSeq,itime,ichain_pp
     integer :: icol,jcol,kcol,lcol,jchain,istr,info,mrestart,Lrestart
     integer :: icount,iglob,jglob,nbead_bb,tgap_dmp
     ! Reals:
@@ -93,7 +97,7 @@ module dlt_mod
     ! Non-allocatable flow arrays
     integer,dimension(3) :: ipiv
     real(wp),dimension(2) :: lambdaBE
-    real(wp),dimension(3) :: SumBdotw,SumDdotF,LdotBdotw,Ftet,Fbartet,rf_in
+    real(wp),dimension(3) :: SumBdotw,SumDdotF,LdotBdotw!,Ftet,Fbartet!,rf_in
     real(wp),dimension(3,3) :: kappareg,totMobilTens,invtotMobilTens
     real(wp),dimension(3) :: U_unif
     ! Allocatable arrays:
@@ -104,15 +108,15 @@ module dlt_mod
     real(wp),allocatable,dimension(:) :: Ddotuminus,Ddotuplus
     real(wp),allocatable,dimension(:) :: Fbnd,Fbarbnd,Fbar,divD
     real(wp),allocatable,dimension(:),target :: RHS,RHSbase,qc,Fseg,DdotF
-    real(wp),dimension(:),pointer  :: RHSP,RHSbaseP,qcP,FsegP,FBrblP,rcmP,rcmPy
+    real(wp),dimension(:),pointer  :: RHSP,RHSbaseP,qcP,FsegP,FBrblP!,rcmP,rcmPy
     real(wp),dimension(:),pointer :: rchrP,FphiP,DdotFPx,DdotFPy,DdotFPz,qP
     real(wp),dimension(:),pointer :: rvmrcP,rvmrcPx,rvmrcPy,rvmrcPz,qPx,qPy,qPz
     real(double),dimension(:),pointer :: wbltempP2,BdotwP,BdotwPx,BdotwPy,BdotwPz
     real(wp),allocatable,dimension(:,:) :: Kappa,Amat,Bmat,wbl,aBlLan,WBlLan
     real(wp),allocatable,dimension(:,:) :: VBlLan,VcntBlLan,Eye,Dsh
-    real(wp),allocatable,dimension(:,:) :: KappaBF,AmatBF,WeightTenstmp,rf0
-    real(wp),allocatable,dimension(:,:),target :: q,rcm,rchr,Fphi,MobilTens,rvmrc
-    real(wp),allocatable,dimension(:,:),target :: WeightTens,qstart,rcmstart
+    real(wp),allocatable,dimension(:,:) :: KappaBF,AmatBF,WeightTenstmp!,rf0
+    real(wp),allocatable,dimension(:,:),target :: q,rchr,Fphi,MobilTens,rvmrc!,rcm
+    real(wp),allocatable,dimension(:,:),target :: WeightTens,qstart!,rcmstart
     real(wp),allocatable,dimension(:,:),target :: rchrstart
     real(wp),dimension(:,:),pointer :: AdotDP2,MobilTensP1,MobilTensP2
     real(wp),dimension(:,:),pointer :: DiffTensP,AdotDP1
@@ -120,19 +124,27 @@ module dlt_mod
     real(double),dimension(:,:),pointer :: CoeffTensP
     real(wp),allocatable,dimension(:,:,:) :: rdnt,rdn
     ! For gathering data by rank 0
-    real(wp),allocatable,dimension(:,:,:),target :: qxT,qyT,qzT,qTot,RTot,rcmT,FphiTot
+    real(wp),allocatable,dimension(:,:,:),target :: qxT,qyT,qzT,qTot,RTot,FphiTot!,rcmT
     real(wp),allocatable,dimension(:,:,:),target :: rchrT,FBrbl,DiffTens,AdotD
     real(double),allocatable,dimension(:,:,:),target :: CoeffTens,wbltemp
     integer,allocatable,dimension(:) :: cnf_tp
     integer,allocatable,dimension(:,:) :: iaTot,cnf_tpTot
     ! File units
-    integer :: u2,u3,u4,u21,u22,u23,u24,u25,u26,u27,u34,u39,u40,u41,u42
+    integer :: u2,u3,u4,u21,u22,u23,u24,u25,u26,u27,u34,u39,u40,u41,u42,u_rf_in
     ! objects
     type(intrn_t) :: myintrn
     type(sde_t) :: mysde
+
+    !need to organize later
     real(wp),dimension(nsegx3) :: U_seg
     real(wp),dimension(nbeadx3) :: U_bead
-
+    real(wp),allocatable,dimension(:,:) :: rf_in
+    real(wp),allocatable,dimension(:,:,:) :: rf0
+    real(wp),allocatable,dimension(:,:,:),target :: rcm,rcmstart
+    real(wp),dimension(:,:),pointer :: rcmP,rcmPy
+    real(wp),allocatable,dimension(:,:,:,:),target ::rcmT
+    integer :: idx_pp_seg,idx_pp_bead
+    real(wp),allocatable,dimension(:) :: Ftet,Fbartet
 
     call prcs_inp(id,p)
 
@@ -195,8 +207,8 @@ module dlt_mod
       call MPI_Type_create_resized(R_recvsubarray,R_start,R_extent,R_resized&
        &recvsubarray,ierr)
       call MPI_Type_commit(R_resizedrecvsubarray,ierr)
-      ! rcm and rchr
-      if ((CoM) .or. (CoHR)) then
+      ! rchr
+      if (CoHR) then
         rc_sizes(1)=3;rc_sizes(2)=npchain;rc_sizes(3)=p
         rc_subsizes(1)=3;rc_subsizes(2)=npchain;rc_subsizes(3)=1
         rc_starts(1)=0;rc_starts(2)=0;rc_starts(3)=0
@@ -209,6 +221,21 @@ module dlt_mod
         call MPI_Type_create_resized(rc_recvsubarray,rc_start,rc_extent,rc_re&
          &sizedrecvsubarray,ierr)
         call MPI_Type_commit(rc_resizedrecvsubarray,ierr)
+      end if
+      ! rcm
+      if (CoM) then
+        rcm_sizes(1)=3;rcm_sizes(2)=npchain;rcm_sizes(3)=nchain_pp;rcm_sizes(4)=p
+        rcm_subsizes(1)=3;rcm_subsizes(2)=npchain;rcm_subsizes(3)=nchain_pp;rcm_subsizes(4)=1
+        rcm_starts(1)=0;rcm_starts(2)=0;rcm_starts(3)=0;rcm_starts(4)=0
+        call MPI_Type_create_subarray(3,rcm_sizes,rcm_subsizes,rcm_starts,MPI_OR&
+          &DER_FORTRAN,MPI_REAL_WP,rcm_recvsubarra&
+          &y,ierr)
+        call MPI_Type_commit(rcm_recvsubarray,ierr)
+        rcm_extent=sizeof(realvar)
+        rcm_start=0
+        call MPI_Type_create_resized(rcm_recvsubarray,rcm_start,rcm_extent,rcm_re&
+         &sizedrecvsubarray,ierr)
+        call MPI_Type_commit(rcm_resizedrecvsubarray,ierr)
       end if
       ! Ia
       if ((tplgy == 'Comb').and.(arm_plc /= 'Fixed')) then
@@ -274,7 +301,7 @@ module dlt_mod
       allocate(qzT(npchain,nseg,p))
       allocate(RTot(nbeadx3,npchain,p))
       allocate(FphiTot(nbeadx3,npchain,p))
-      if (CoM) allocate(rcmT(3,npchain,p))
+      if (CoM) allocate(rcmT(3,npchain,nchain_pp,p))
       if (CoHR) allocate(rchrT(3,npchain,p))
     end if ! id.eq.0
 
@@ -315,15 +342,18 @@ module dlt_mod
     end if
     if ((hstar /= 0._WP) .and. (HITens == 'Blake')) allocate(divD(nbead))
     ! allocate(divD(nbead))
-    if (CoM) allocate(rcm(3,npchain),rcmstart(3,npchain))
+    if (CoM) allocate(rcm(3,npchain,nchain_pp),rcmstart(3,npchain,nchain_pp))
     if (CoHR) allocate(rchr(3,npchain),rchrstart(3,npchain),&
      MobilTens(nbeadx3,nbeadx3),WeightTens&
      &(3,nbeadx3),weightTenstmp(3,nbeadx3))
     if (srf_tet) then
-      allocate(rf0(3,npchain))
-      call read_input('rf-in',0,rf_in(1),def=0._wp)
-      call read_input('rf-in',1,rf_in(2),def=0._wp)
-      call read_input('rf-in',2,rf_in(3),def=0._wp)
+      allocate(rf0(3,npchain,nchain_pp))
+      allocate(rf_in(3,nchain_pp))
+      allocate(Ftet(3*nchain_pp))
+      allocate(Fbartet(3*nchain_pp))
+      ! call read_input('rf-in',0,rf_in(1),def=0._wp)
+      ! call read_input('rf-in',1,rf_in(2),def=0._wp)
+      ! call read_input('rf-in',2,rf_in(3),def=0._wp)
     endif
     if (unif_flow) then
       call read_input('U-Unif',0,U_unif(1),def=0._wp)
@@ -333,8 +363,11 @@ module dlt_mod
     ! For making the output
     allocate (q_counts(p),q_disps(p))
     allocate (R_counts(p),R_disps(p))
-    if (CoM .or. CoHR) then
+    if (CoHR) then
       allocate(rc_counts(p),rc_disps(p))
+    end if
+    if (CoM) then
+      allocate(rcm_counts(p),rcm_disps(p))
     end if
     if ((tplgy == 'Comb').and.(arm_plc /= 'Fixed')) then
       allocate(ia_counts(p),ia_disps(p))
@@ -347,9 +380,13 @@ module dlt_mod
       q_disps(jp)=(jp-1)*nsegx3*npchain
       R_counts(jp)=1
       R_disps(jp)=(jp-1)*nbeadx3*npchain
-      if (CoM .or. CoHR) then
+      if (CoHR) then
         rc_counts(jp)=1
         rc_disps(jp)=(jp-1)*3*npchain
+      end if
+      if (CoM) then
+        rcm_counts(jp)=1
+        rcm_disps(jp)=(jp-1)*3*npchain*nchain_pp
       end if
       if ((tplgy == 'Comb').and.(arm_plc /= 'Fixed')) then
         ia_counts(jp)=1
@@ -644,7 +681,10 @@ module dlt_mod
             read(u2,*)
           end do
           do iread=1, id*npchain
-            if (CoM) read(u3,*);if (CoHR) read(u4,*)
+            if (CoHR) read(u4,*)
+          end do
+          do iread=1, id*npchain*nchain_pp
+            if (CoM) read(u3,*)
           end do
         end if
         if (id == ip-1) then
@@ -653,7 +693,11 @@ module dlt_mod
               offset=3*(iseg-1)
               read(u2,*) qstart(offset+1:offset+3,ichain)
             end do
-            if (CoM) read(u3,*) rcmstart(1:3,ichain)
+            if (CoM) then
+              do ichain_pp=1,nchain_pp
+                read(u3,*) rcmstart(1:3,ichain,ichain_pp)
+              end do
+            end if
             if (CoHR) read(u4,*) rchrstart(1:3,ichain)
           end do
         end if
@@ -671,6 +715,9 @@ module dlt_mod
           if (CoHR) then
             open(newunit=u4,file='data/CoHR.st.dat',status='old',position='rewind')
           end if
+          if (srf_tet) then
+            open(newunit=u_rf_in,file='data/rfin.st.dat',status='old',position='rewind')
+          end if
         elseif (initmode == 'rst') then
           open(newunit=u2,file='data/q.rst.dat',status='old',position='rewind')
           if (CoM) then
@@ -684,7 +731,10 @@ module dlt_mod
           read(u2,*)
         end do
         do iread=1, id*npchain
-          if (CoM) read(u3,*);if (CoHR) read(u4,*)
+          if (CoHR) read(u4,*)
+        end do
+        do iread=1, id*npchain*nchain_pp
+          if (CoM) read(u3,*)
         end do
       end if
       if (id == ip-1) then
@@ -693,15 +743,26 @@ module dlt_mod
             offset=3*(iseg-1)
             read(u2,*) qstart(offset+1:offset+3,ichain)
           end do
-          if (CoM) read(u3,*) rcmstart(1:3,ichain)
+          if (CoM) then
+            do ichain_pp=1,nchain_pp
+              read(u3,*) rcmstart(1:3,ichain,ichain_pp)
+            end do
+          end if
           if (CoHR) read(u4,*) rchrstart(1:3,ichain)
         end do
       end if
       call MPI_Barrier(MPI_COMM_WORLD,ierr)
     end do
+    if (srf_tet) then
+      do ichain_pp=1, nchain_pp
+        read(u_rf_in,*) rf_in(1:3,ichain_pp)
+      end do
+    end if
   end if
-  close (u2);if (CoM) close (u3);if (CoHR) close(u4)
-
+  close (u2);if (CoM) close (u3);if (CoHR) close(u4);if (srf_tet) close(u_rf_in)
+  !call print_matrix(rf_in,'rf_in')
+  !call print_matrix(rcmstart(:,1,:),'rcmstart')
+  !call print_vector(qstart(:,1),'qstart')
   allocate(root_f(PrScale*nroots))
 
   !----------------------------------------------------------------
@@ -824,14 +885,20 @@ module dlt_mod
             rvmrcP => rvmrc(:,jchain)
             call gemv(Bmat,qP,rvmrcP)
             if (srf_tet) then
-              rf0(:,jchain)=rf_in(1:3)!rvmrc(1:3,jchain)+rcmstart(:,jchain)
+              do ichain_pp=1,nchain_pp
+                !rf0(:,jchain)=rf_in(1:3)
+                rf0(:,jchain,ichain_pp) = rf_in(1:3,ichain_pp)
+              end do
             end if
           end do
+          !call print_matrix(rf0(:,1,:),'rf0')
           if (CoM) rcm=rcmstart
           if (CoHR) rchr=rchrstart
           call pp_init_tm(id)
           istr=1 ! the index for dumpstr()
         end if
+
+        !call print_vector(rvmrc(:,1),'rvmrc')
 
         do ichain=1, npchain
           ! Important Note: each chain should construct its own block,
@@ -878,7 +945,8 @@ module dlt_mod
           rvmrcPy => rvmrcP(2:nbeadx3-1:3)
           rvmrcPz => rvmrcP(3:nbeadx3:3)
           if (CoM) then
-            rcmP => rcm(:,ichain)
+            rcmP => rcm(:,ichain,:)
+            !call print_matrix(rcmP(:,:),'rcmP')
           end if
 
 
@@ -909,9 +977,10 @@ module dlt_mod
   !     read(*,*)
   !   endif
   ! endif
-
+              !print *, 'before first calc--------------------------------'
               call myintrn%calc(id,itime,rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
                 calchi=.true.,calcdiv=.true.,calcevbb=.true.,calcevbw=.true.)
+              !print *, 'after first calc--------------------------------'
 
             end if
             if (DecompMeth == 'Cholesky') then
@@ -1007,8 +1076,11 @@ module dlt_mod
                 !call print_vector(real(wbltempP2,kind=wp),'W')
                 !call print_vector(FBrblP, 'Br force BEFORE')
                 if (srf_tet) then
-                  call gemv(Amat(:,1:3),real(wbltempP2(1:3),kind=wp),FBrblP,alpha=-coeff,&
-                    beta=1._wp)
+                  do ichain_pp=1,nchain_pp !(ichain_pp-1)*nbead_indx3+1
+                    call gemv(Amat(:,(ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),&
+                      real(wbltempP2((ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),&
+                      kind=wp),FBrblP,alpha=-coeff,beta=1._wp)
+                  end do
                   !call print_vector(FBrblP, 'Br force AFTER')
                 end if
                 !TYL: HI for tethered bead -------------------------------------
@@ -1275,21 +1347,21 @@ module dlt_mod
           ! Calculating center of mass and/or center of hydrodynamic resistance movement
           if (CoM) then
             FphiP => Fphi(:,ichain)
-            rcmP => rcm(:,ichain) ! might be redundant
-            BdotwPx => wbltemp(1:nbeadx3-2:3,jcol,ichain)
-            BdotwPy => wbltemp(2:nbeadx3-1:3,jcol,ichain)
-            BdotwPz => wbltemp(3:nbeadx3:3,jcol,ichain)
-            SumBdotw=[sum(real(BdotwPx,kind=wp)),&
-            sum(real(BdotwPy,kind=wp)),&
-            sum(real(BdotwPz,kind=wp))]
+            rcmP => rcm(:,ichain,:) ! might be redundant
+            ! BdotwPx => wbltemp(1:nbeadx3-2:3,jcol,ichain)
+            ! BdotwPy => wbltemp(2:nbeadx3-1:3,jcol,ichain)
+            ! BdotwPz => wbltemp(3:nbeadx3:3,jcol,ichain)
+            ! SumBdotw=[sum(real(BdotwPx,kind=wp)),&
+            ! sum(real(BdotwPy,kind=wp)),&
+            ! sum(real(BdotwPz,kind=wp))]
 
-            !TYL: HI for tethered bead ---------------------------------------
-            if (srf_tet) then
-              SumBdotw = SumBdotw - [real(BdotwPx(1),kind=wp),&
-              real(BdotwPy(1),kind=wp),&
-              real(BdotwPz(1),kind=wp)]
-            end if
-            !TYL: HI for tethered bead ---------------------------------------
+            ! !TYL: HI for tethered bead ---------------------------------------
+            ! if (srf_tet) then
+            !   SumBdotw = SumBdotw - [real(BdotwPx(1),kind=wp),&
+            !   real(BdotwPy(1),kind=wp),&
+            !   real(BdotwPz(1),kind=wp)]
+            ! end if
+            ! !TYL: HI for tethered bead ---------------------------------------
 
             if (hstar.ne.0._wp) then
               call symv(DiffTensP,FphiP,DdotF)
@@ -1297,43 +1369,84 @@ module dlt_mod
               DdotF=FphiP
             end if
 
-            !TYL: HI for tethered bead ---------------------------------------
-            if (srf_tet) then
+            ! !TYL: HI for tethered bead ---------------------------------------
+            ! if (srf_tet) then
+            !
+            !   !call gemv(DiffTensP(:,1:3),FphiP(1:3),DdotF,alpha=-1._wp,beta=1._wp)
+            !   call gemv(DiffTensP(1:3,:),FphiP(1:3),DdotF,alpha=-1._wp,&
+            !     beta=1._wp,trans='T')
+            !
+            !   !if ((ichain == 1) .and. (id == 1) .and. (mod(itime,1000) == 0)) then
+            !   !  print *, 'difference bewteen DiffTens and its transpose:'
+            !   !  print *, sum(abs(DiffTensP(:,:) - TRANSPOSE(DiffTensP(:,:))))
+            !   !end if
+            !
+            ! end if
+            ! !TYL: HI for tethered bead ---------------------------------------
 
-              !call gemv(DiffTensP(:,1:3),FphiP(1:3),DdotF,alpha=-1._wp,beta=1._wp)
-              call gemv(DiffTensP(1:3,:),FphiP(1:3),DdotF,alpha=-1._wp,&
-                beta=1._wp,trans='T')
+            do ichain_pp=1,nchain_pp
+              BdotwPx => wbltemp(nbead_indx3*(ichain_pp-1) + 1 : nbead_indx3*ichain_pp - 2 : 3,jcol,ichain)
+              BdotwPy => wbltemp(nbead_indx3*(ichain_pp-1) + 2 : nbead_indx3*ichain_pp - 1 : 3,jcol,ichain)
+              BdotwPz => wbltemp(nbead_indx3*(ichain_pp-1) + 3 : nbead_indx3*ichain_pp : 3,jcol,ichain)
+              SumBdotw=[sum(real(BdotwPx,kind=wp)),&
+              sum(real(BdotwPy,kind=wp)),&
+              sum(real(BdotwPz,kind=wp))]
+              !TYL: HI for tethered bead ---------------------------------------
+              if (srf_tet) then
+                SumBdotw = SumBdotw - [real(BdotwPx(1),kind=wp),&
+                real(BdotwPy(1),kind=wp),&
+                real(BdotwPz(1),kind=wp)]
+              end if
+              !TYL: HI for tethered bead ---------------------------------------
 
-              !if ((ichain == 1) .and. (id == 1) .and. (mod(itime,1000) == 0)) then
-              !  print *, 'difference bewteen DiffTens and its transpose:'
-              !  print *, sum(abs(DiffTensP(:,:) - TRANSPOSE(DiffTensP(:,:))))
-              !end if
+              !TYL: HI for tethered bead ---------------------------------------
+              if (srf_tet) then
 
-            end if
-            !TYL: HI for tethered bead ---------------------------------------
+                !call gemv(DiffTensP(:,1:3),FphiP(1:3),DdotF,alpha=-1._wp,beta=1._wp)
+                call gemv(DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,:),FphiP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),DdotF,alpha=-1._wp,&
+                  beta=1._wp,trans='T')
 
-            DdotFPx => DdotF(1:nbeadx3-2:3)
-            DdotFPy => DdotF(2:nbeadx3-1:3)
-            DdotFPz => DdotF(3:nbeadx3:3)
-            SumDdotF=(/sum(DdotFPx),sum(DdotFPy),sum(DdotFPz)/)
-            rcmP=rcmP+(Pe(iPe)*matmul(Kappareg,rcmP)+1._wp/(4*nbead)*SumDdotF)*&
-            dt(iPe,idt)+coeff/nbead*SumBdotw
+                !if ((ichain == 1) .and. (id == 1) .and. (mod(itime,1000) == 0)) then
+                !  print *, 'difference bewteen DiffTens and its transpose:'
+                !  print *, sum(abs(DiffTensP(:,:) - TRANSPOSE(DiffTensP(:,:))))
+                !end if
 
-            if (unif_flow) then
-              rcmP=rcmP+U_unif*dt(iPe,idt)
-            endif
+              end if
+              !TYL: HI for tethered bead ---------------------------------------
+
+              DdotFPx => DdotF(nbead_indx3*(ichain_pp-1) + 1 : nbead_indx3*ichain_pp - 2 : 3)
+              DdotFPy => DdotF(nbead_indx3*(ichain_pp-1) + 2 : nbead_indx3*ichain_pp - 1 : 3) !(2 : nbeadx3-1:3)
+              DdotFPz => DdotF(nbead_indx3*(ichain_pp-1) + 3 : nbead_indx3*ichain_pp : 3)
+              SumDdotF=(/sum(DdotFPx),sum(DdotFPy),sum(DdotFPz)/)
+
+              rcmP(:,ichain_pp)=rcmP(:,ichain_pp)+(Pe(iPe)*matmul(Kappareg,rcmP(:,ichain_pp))&
+                +1._wp/(4*nbead_ind)*SumDdotF)*dt(iPe,idt)+coeff/nbead_ind*SumBdotw
+
+              if (unif_flow) then
+                rcmP(:,ichain_pp)=rcmP(:,ichain_pp)+U_unif*dt(iPe,idt)
+              endif
+
+            end do
 
             if (sph_flow) then
-              call mysde%U_sph(U_seg,U_bead,q(:,ichain),rcm(:,ichain))
-              rcmP(1) = rcmP(1) + (1._wp/nbead)*sum(U_bead(1:nbeadx3-2:3))*dt(iPe,idt)
-              rcmP(2) = rcmP(2) + (1._wp/nbead)*sum(U_bead(2:nbeadx3-1:3))*dt(iPe,idt)
-              rcmP(3) = rcmP(3) + (1._wp/nbead)*sum(U_bead(3:nbeadx3:3))*dt(iPe,idt)
+              call mysde%U_sph(U_seg,U_bead,q(:,ichain),rcm(:,ichain,:))
+              do ichain_pp=1,nchain_pp
+                rcmP(1,ichain_pp) = rcmP(1,ichain_pp) + (1._wp/nbead)*&
+                  sum(U_bead(nbead_indx3*(ichain_pp-1) + 1 : nbead_indx3*ichain_pp - 2 : 3))*dt(iPe,idt)
+                rcmP(2,ichain_pp) = rcmP(2,ichain_pp) + (1._wp/nbead)*&
+                  sum(U_bead(nbead_indx3*(ichain_pp-1) + 2 : nbead_indx3*ichain_pp - 1 : 3))*dt(iPe,idt)
+                rcmP(3,ichain_pp) = rcmP(3,ichain_pp) + (1._wp/nbead)*&
+                  sum(U_bead(nbead_indx3*(ichain_pp-1) + 3 : nbead_indx3*ichain_pp : 3))*dt(iPe,idt)
+              end do
             endif
 
             !! Blake's part
             if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
-               rcmP(2)=rcmP(2)+1._wp/(4*nbead)*sum(divD)*dt(iPe,idt)
-            endif
+              do ichain_pp=1,nchain_pp
+               rcmP(2,ichain_pp)=rcmP(2,ichain_pp)+1._wp/(4*nbead_ind)*&
+                sum(divD(nbead_ind*(ichain_pp-1)+1:nbead_ind*(ichain_pp)))*dt(iPe,idt)
+              end do
+            end if
             !!-------------
 
           end if
@@ -1401,9 +1514,19 @@ module dlt_mod
           ! rflc part
           if (EV_bw == 'Rflc_bc') then
             !call wall_rflc(dt(iPe,idt),itime,time,id,ichain,qPy,rvmrcPy,rcmP(2),rf_in)
-            call wall_rflc(myintrn%evbw,dt(iPe,idt),itime,time,id,ichain,&
-              qPx,qPy,qPz,rvmrcPx,rvmrcPy,rvmrcPz,rcmP(1),rcmP(2),rcmP(3),&
-              rf_in)
+            do ichain_pp=1,nchain_pp
+              idx_pp_seg = (nseg_ind) * (ichain_pp -1) + 1
+              idx_pp_bead = (nbead_ind) * (ichain_pp -1) + 1
+              call wall_rflc(myintrn%evbw,dt(iPe,idt),itime,time,id,ichain,&
+                qPx(idx_pp_seg:idx_pp_seg+(nseg_ind-1)),&
+                qPy(idx_pp_seg:idx_pp_seg+(nseg_ind-1)),&
+                qPz(idx_pp_seg:idx_pp_seg+(nseg_ind-1)),&
+                rvmrcPx(idx_pp_bead:idx_pp_bead+(nbead_ind-1)),&
+                rvmrcPy(idx_pp_bead:idx_pp_bead+(nbead_ind-1)),&
+                rvmrcPz(idx_pp_bead:idx_pp_bead+(nbead_ind-1)),&
+                rcmP(1,ichain_pp),rcmP(2,ichain_pp),rcmP(3,ichain_pp),&
+                rf_in(:,ichain_pp))
+            end do
           end if
           !-----
 
@@ -1477,8 +1600,10 @@ module dlt_mod
           call MPI_Gatherv(q,nsegx3*npchain,MPI_REAL_WP,qTot,q_counts,q_disps,&
            q_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
           if (CoM) then
-            call MPI_Gatherv(rcm,3*npchain,MPI_REAL_WP,rcmT,rc_counts,rc_disps,&
-             rc_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
+            !print *, 'before1 CoM MPI_Gatherv'
+            call MPI_Gatherv(rcm,3*npchain*nchain_pp,MPI_REAL_WP,rcmT,rcm_counts,rcm_disps,&
+             rcm_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
+            !print *, 'after1 CoM MPI_Gatherv'
           end if
           if (CoHR) then
             call MPI_Gatherv(rchr,3*npchain,MPI_REAL_WP,rchrT,rc_counts,rc_disps,&
@@ -1494,7 +1619,11 @@ module dlt_mod
                   offset=3*(iseg-1)
                   write(u21,1) qTot(offset+1:offset+3,ichain,ip)
                 end do
-                if (CoM) write(u22,1) rcmT(1:3,ichain,ip)
+                if (CoM) then
+                  do ichain_pp = 1,nchain_pp
+                    write(u22,1) rcmT(1:3,ichain,ichain_pp,ip)
+                  end do
+                end if
                 if (CoHR) write(u23,1) rchrT(1:3,ichain,ip)
               end do
             end do
@@ -1527,8 +1656,10 @@ module dlt_mod
           call MPI_Gatherv(Fphi,nbeadx3*npchain,MPI_REAL_WP,FphiTot,R_counts,R_disps,&
            R_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
           if (CoM) then
-            call MPI_Gatherv(rcm,3*npchain,MPI_REAL_WP,rcmT,rc_counts,rc_disps,&
-             rc_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
+            !print *, 'before2 CoM MPI_Gatherv'
+            call MPI_Gatherv(rcm,3*npchain*nchain_pp,MPI_REAL_WP,rcmT,rcm_counts,rcm_disps,&
+              rcm_resizedrecvsubarray,0,MPI_COMM_WORLD,ierr)
+            !print *, 'after2 CoM MPI_Gatherv'
           end if
           if (CoHR) then
             call MPI_Gatherv(rchr,3*npchain,MPI_REAL_WP,rchrT,rc_counts,rc_disps,&
@@ -1578,7 +1709,11 @@ module dlt_mod
                   write(u25,1) RTot(offset+1:offset+3,ichain,ip)
                   write(u42,1) FphiTot(offset+1:offset+3,ichain,ip)
                 end do
-                if (CoM) write(u26,1) rcmT(1:3,ichain,ip)
+                if (CoM) then
+                  do ichain_pp = 1,nchain_pp
+                    write(u26,1) rcmT(1:3,ichain,ichain_pp,ip)
+                  end do
+                end if
                 if (CoHR) write(u27,1) rchrT(1:3,ichain,ip)
               end do
             end do
@@ -1625,7 +1760,8 @@ module dlt_mod
   if (CoM) deallocate(rcm,rcmstart)
   if (CoHR) deallocate(rchr,rchrstart,MobilTens,WeightTens,WeightTenstmp)
   deallocate(q_counts,q_disps)
-  if ((CoM) .or. (CoHR)) deallocate(rc_counts,rc_disps)
+  if (CoHR) deallocate(rc_counts,rc_disps)
+  if (CoM) deallocate(rcm_counts,rcm_disps)
   if ((tplgy == 'Comb').and.(arm_plc /= 'Fixed')) then
     deallocate(ia_counts,ia_disps)
   end if

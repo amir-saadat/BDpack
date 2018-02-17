@@ -33,7 +33,7 @@ contains
   subroutine init_sde(this,Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF,nbead_bb,nseg_bb)
 
     !variables used from other places
-    use :: inp_dlt, only: iflow,nseg,nbead,nsegx3,nbeadx3,tplgy,Na,nseg_ar,Ia,sph_flow
+    use :: inp_dlt, only: iflow,nseg,nbead,nsegx3,nbeadx3,tplgy,Na,nseg_ar,Ia,sph_flow,nbead_ind,nseg_ind,nchain_pp,nseg_indx3,nbead_indx3,multet
     use :: arry_mod, only: print_vector, print_matrix
     use :: cmn_io_mod, only: read_input
 
@@ -43,12 +43,15 @@ contains
     integer, intent(inout) :: nbead_bb,nseg_bb
 
     !variables used inside init_sde
-    integer :: iseg,jseg,offseti,offsetj,ibead,jbead,i,j,k,iarm
+    integer :: iseg,jseg,offseti,offsetj,ibead,jbead,i,j,k,iarm,ichain
     integer :: ku,kl
     integer :: idx,nu,mu
     real(wp) :: fctr
+    real(wp),allocatable,dimension(:,:) :: Amat_ind,Bmat_ind
 
     !allocations
+    allocate(Amat_ind(nseg_indx3,nbead_indx3))
+    allocate(Bmat_ind(nbead_indx3,nseg_indx3))
     allocate(this%Kappa(nsegx3,nsegx3))
     allocate(this%Amat(nsegx3,nbeadx3),this%Bmat(nbeadx3,nsegx3))
     allocate(this%KappaBF(2,nsegx3))
@@ -115,21 +118,27 @@ contains
     endif
 
     this%Amat=0.0_wp
+    Amat_ind = 0.0_wp
     select case (tplgy)
     case ('Linear')
       nseg_bb=nseg
       nbead_bb=nbead
-      do iseg=1, nseg
+      do iseg=1, nseg_ind
         offseti=3*(iseg-1)
-        do jbead=1, nbead
+        do jbead=1, nbead_ind
           offsetj=3*(jbead-1)
           if (iseg == jbead) then
-            forall (i=1:3) this%Amat(offseti+i,offsetj+i)=-1._wp
+            forall (i=1:3) Amat_ind(offseti+i,offsetj+i)=-1._wp
           elseif (iseg == jbead-1) then
-            forall (i=1:3) this%Amat(offseti+i,offsetj+i)= 1._wp
+            forall (i=1:3) Amat_ind(offseti+i,offsetj+i)= 1._wp
           end if
         end do
       end do
+
+      do ichain=1,nchain_pp
+        this%Amat(nseg_indx3*(ichain-1)+1:nseg_indx3*ichain,nbead_indx3*(ichain-1)+1:nbead_indx3*ichain) = Amat_ind
+      end do
+
     case ('Comb')
       nseg_bb=nseg-Na*nseg_ar
       nbead_bb=nseg_bb+1
@@ -165,6 +174,10 @@ contains
       end do
     end select
 
+    !print *, 'multiple tethered? ', multet
+    !call print_matrix(Amat_ind,'Amat_ind')
+    !call print_matrix(this%Amat,'this%Amat')
+
     ! Constructing banded form of Kappa
     this%KappaBF=0._wp
     ku=1;kl=0
@@ -185,25 +198,35 @@ contains
         end do
       end do
     end if
+
     !line 497 Constructing Bmat
     this%Bmat=0.0_wp
+    Bmat_ind = 0.0_wp
     select case (tplgy)
     case ('Linear')
-      do ibead=1, nbead
+      do ibead=1, nbead_ind
         offseti=3*(ibead-1)
-        do jseg=1, nseg
+        do jseg=1, nseg_ind
           offsetj=3*(jseg-1)
           if (ibead > jseg) then
             forall (i=1:3)
-              this%Bmat(offseti+i,offsetj+i)=jseg/real(nbead,kind=wp)
+              Bmat_ind(offseti+i,offsetj+i)=jseg/real(nbead_ind,kind=wp)
             end forall
           else
             forall (i=1:3)
-              this%Bmat(offseti+i,offsetj+i)=-(1-jseg/real(nbead,kind=wp))
+              Bmat_ind(offseti+i,offsetj+i)=-(1-jseg/real(nbead_ind,kind=wp))
             end forall
           end if
         end do
       end do
+
+      do ichain=1,nchain_pp
+        this%Bmat(nbead_indx3*(ichain-1)+1:nbead_indx3*ichain,nseg_indx3*(ichain-1)+1:nseg_indx3*ichain) = Bmat_ind
+      end do
+
+      !call print_matrix(Bmat_ind,'Bmat_ind')
+      !call print_matrix(this%Bmat,'this%Bmat')
+
     case ('Comb')
      ! Constructing the elements of the first row of B
      do k=1, nseg_bb
@@ -264,6 +287,8 @@ contains
    KappaBF = this%KappaBF
    AmatBF = this%AmatBF
 
+   deallocate(Amat_ind)
+   deallocate(Bmat_ind)
    ! call print_matrix(Kappareg,'Kappareg')
    ! call print_matrix(Kappa,'Kappa')
    ! call print_matrix(Amat,'Amat')
@@ -285,7 +310,8 @@ contains
 
     !variables used from other places
     use :: inp_dlt, only: nseg,nbead,tplgy,dt,Pe,nsegx3,nbeadx3,applFext,Fext0,srf_tet,&
-      hstar,HITens,EV_bb,EV_bw,ForceLaw,PrScale,nroots,TruncMethod,nseg_ar,tol,DecompMeth,Ia,Na,sph_flow
+      hstar,HITens,EV_bb,EV_bw,ForceLaw,PrScale,nroots,TruncMethod,nseg_ar,tol,DecompMeth,Ia,Na,sph_flow,&
+      nchain_pp,nbead_indx3
     use :: force_mod, only: tetforce,bndupdate,tetupdate,sprupdate
     use :: intrn_mod, only: intrn_t
     use :: arry_mod, only: print_vector, print_matrix
@@ -299,15 +325,15 @@ contains
     real(wp), intent(inout), target :: qc(:),Fseg(:)
     real(wp), intent(inout) :: Fphi(:,:),Fev(:),Fbnd(:)
     real(wp), intent(inout) :: rvmrcP(:)
-    real(wp), intent(inout) :: rcm(:,:)
+    real(wp), intent(inout) :: rcm(:,:,:)
     real(wp), intent(inout) :: DiffTensP(:,:)
     real(wp), intent(inout) :: Ftet(:)
-    real(wp), intent(inout) :: rf0(:,:)
+    real(wp), intent(inout) :: rf0(:,:,:)
     real(wp), intent(inout) :: AdotDP1(:,:)
     real(wp), intent(inout) :: divD(:)
     real(wp), intent(inout) :: FBr(:)
     real(wp), intent(inout), target :: RHS(:)
-    real(wp), intent(inout) :: rcmP(:)
+    real(wp), intent(inout) :: rcmP(:,:)
     real(wp), intent(inout) :: Fbarev(:)
     real(wp), intent(inout) :: Fbarbnd(:)
     integer, intent(inout) :: nbead_bb
@@ -331,6 +357,8 @@ contains
     real(wp),dimension(:,:),pointer :: AdotDP2
     real(wp),dimension(nsegx3) :: U_seg
     real(wp),dimension(nbeadx3) :: U_bead
+    integer :: ichain_pp
+    integer :: idx_pp_seg,idx_pp_bead
 
     !debug
     !call print_vector(qc,'qc')
@@ -350,7 +378,7 @@ contains
     call gbmv(this%KappaBF,qc,Kdotq,kl=0,alpha=Pe(iPe)*dt(iPe,idt))
 
     if (sph_flow) then
-      call U_sph_sde(this,U_seg,U_bead,qc,rcm(:,ichain))
+      call U_sph_sde(this,U_seg,U_bead,qc,rcm(:,ichain,:))
       Kdotq = Kdotq + U_seg*dt(iPe,idt)
     endif
 
@@ -367,9 +395,15 @@ contains
       Fphi(nbeadx3-2,ichain)=Fphi(nbeadx3-2,ichain)+Fext0
     end if
     if (srf_tet) then
-      call tetforce(rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),Ftet,&
-        rf0(:,ichain),itime)
-      Fphi(1:3,ichain)=Fphi(1:3,ichain)+Ftet(1:3)
+      do ichain_pp = 1,nchain_pp
+        idx_pp_bead = (nbead_indx3) * (ichain_pp -1) + 1
+        call tetforce(rvmrcP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),rcm(:,ichain,ichain_pp),&
+          DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),&
+          dt(iPe,idt),Ftet(3*(ichain_pp-1)+1:3*(ichain_pp)),&
+          rf0(:,ichain,ichain_pp),itime)
+        Fphi(idx_pp_bead:idx_pp_bead+2,ichain)=Fphi(idx_pp_bead:idx_pp_bead+2,ichain)+&
+          Ftet(3*(ichain_pp-1)+1:3*(ichain_pp))
+      end do
     end if
     call gemv(AdotDP1,Fphi(:,ichain),qstar,alpha=0.25*dt(iPe,idt),&
       beta=1._wp)
@@ -380,8 +414,11 @@ contains
     !call print_vector(Fphi(:,ichain),'Fphi(:,ichain)')
     !call print_vector(qstar,'qstar BEFORE')
     if (srf_tet) then
-      call gemv(AdotDP1(:,1:3),Fphi(1:3,ichain),qstar,&
-        alpha=-0.25*dt(iPe,idt),beta=1._wp)
+      do ichain_pp=1,nchain_pp
+        call gemv(AdotDP1(:,(ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),&
+          Fphi((ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3,ichain),qstar,&
+          alpha=-0.25*dt(iPe,idt),beta=1._wp)
+      end do
       !call print_vector(qstar,'qstar AFTER')
     end if
     !TYL: HI for tethered bead -------------------------------------------
@@ -437,10 +474,15 @@ contains
       Fbar(nbeadx3-2)=Fbar(nbeadx3-2)+Fext0
     end if
     if (srf_tet) then
-      call tetupdate(Ftet,rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),&
-       Fbartet,rf0(:,ichain),itime)
-      Fbar(1:3)=Fbar(1:3)+Fbartet(1:3)
-      !call print_vector(Fbartet(1:3),'Tether force')
+      do ichain_pp=1,nchain_pp
+        idx_pp_bead = (nbead_indx3) * (ichain_pp -1) + 1
+        call tetupdate(Ftet(3*(ichain_pp-1)+1:3*(ichain_pp)),rvmrcP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),&
+          rcm(:,ichain,ichain_pp),&
+          DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),&
+          dt(iPe,idt),Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp)),rf0(:,ichain,ichain_pp),itime)
+        Fbar(idx_pp_bead:idx_pp_bead+2)=Fbar(idx_pp_bead:idx_pp_bead+2)+Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp))
+        !call print_vector(Fbartet(1:3),'Tether force')
+      end do
     end if
     call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
 
@@ -451,8 +493,11 @@ contains
     !call print_vector(Fbar,'Fbar')
     !call print_vector(RHS,'RHS BEFORE')
     if (srf_tet) then
-      call gemv(AdotDP1(:,1:3),Fbar(1:3),RHS,alpha=-0.25*dt(iPe,idt),&
-        beta=1._wp)
+      do ichain_pp=1,nchain_pp
+        call gemv(AdotDP1(:,(ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),&
+          Fbar((ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),RHS,alpha=-0.25*dt(iPe,idt),&
+          beta=1._wp)
+      end do
       !call print_vector(RHS,'RHS AFTER')
     end if
     !TYL: HI for tethered bead -------------------------------------------
@@ -472,7 +517,7 @@ contains
     call gemv(this%Kappa,qstar,RHS,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1._wp)
 
     if (sph_flow) then
-      call U_sph_sde(this,U_seg,U_bead,qstar,rcm(:,ichain))
+      call U_sph_sde(this,U_seg,U_bead,qstar,rcm(:,ichain,:))
       RHS = RHS + U_seg*0.5*dt(iPe,idt)
     endif
 
@@ -491,8 +536,11 @@ contains
       !call print_vector(Fbarbead,'Fbarbead')
       !call print_vector(RHSP,'RHSP BEFORE')
       if (srf_tet) then
-        call gemv(AdotDP2(:,1:3),Fbarbead(1:3),RHSP,&
-        alpha=-0.25*dt(iPe,idt),beta=1._wp)
+        do ichain_pp=1,nchain_pp
+          call gemv(AdotDP2(:,(ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),&
+          Fbarbead((ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),RHSP,&
+          alpha=-0.25*dt(iPe,idt),beta=1._wp)
+        end do
         !call print_vector(RHSP,'RHSP AFTER')
       end if
       !TYL: HI for tethered bead -----------------------------------------
@@ -530,7 +578,7 @@ contains
         call gemv(this%Kappareg,qcP,RHSP,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1.0_wp)
 
         if (sph_flow) then
-          call U_sph_sde(this,U_seg,U_bead,qc,rcm(:,ichain))
+          call U_sph_sde(this,U_seg,U_bead,qc,rcm(:,ichain,:))
           RHSP = RHSP + U_seg(offset+1:offset+3)*0.5*dt(iPe,idt)
         endif
 
@@ -543,8 +591,11 @@ contains
         !call print_vector(Fbead,'Fbead')
         !call print_vector(RHSP,'RHSP BEFORE')
         if (srf_tet) then
-          call gemv(AdotDP2(:,1:3),Fbead(1:3),RHSP,&
-          alpha=-0.25*dt(iPe,idt),beta=1._wp)
+          do ichain_pp=1,nchain_pp
+            call gemv(AdotDP2(:,(ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),&
+            Fbead((ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),RHSP,&
+            alpha=-0.25*dt(iPe,idt),beta=1._wp)
+          end do
           !call print_vector(RHSP,'RHSP AFTER')
         end if
         !TYL: HI for tethered bead ---------------------------------------
@@ -581,25 +632,27 @@ contains
 
   subroutine U_sph_sde(this,U_seg,U_bead,q,rcm)
 
-    use :: inp_dlt, only: nseg,nbead,nsegx3,nbeadx3
+    use :: inp_dlt, only: nseg,nbead,nsegx3,nbeadx3,nbead_ind
 
     class(sde_t),intent(inout) :: this
     real(wp), intent(inout) :: U_seg(:) !nsegx3
     real(wp), intent(inout) :: U_bead(:) !nbeadx3
     real(wp), intent(in) :: q(:)
-    real(wp), intent(in) :: rcm(:)
+    real(wp), intent(in) :: rcm(:,:)
 
     real(wp),dimension(nbeadx3) :: rvmrc
     real(wp),dimension(3) :: r
     real(wp) :: th, ph, r_mag
     real(wp) :: u_r,u_th,u_ph
     integer :: i,j
+    integer :: ichain_pp
 
 
     call gemv(this%Bmat,q,rvmrc)
 
     do i=1,nbead
-      r(1:3) = rvmrc(3*(i-1)+1:3*(i-1)+3) + rcm(1:3)
+      ichain_pp = (i-1) / nbead_ind + 1
+      r(1:3) = rvmrc(3*(i-1)+1:3*(i-1)+3) + rcm(1:3,ichain_pp)
       r_mag = sqrt(r(1)**2 + r(2)**2 + r(3)**2)
       th = ACOS(r(1)/r_mag) !0<th<pi
       ph = ATAN2(r(3),r(2))                  !-pi<ph<pi
@@ -613,9 +666,11 @@ contains
     enddo
     U_bead = this%U_mag_sph *U_bead
 
-    do j=1,nseg
-      U_seg(3*(j-1)+1:3*(j-1)+3) = U_bead(3*j+1:3*j+3) - U_bead(3*(j-1)+1:3*(j-1)+3)
-    enddo
+    ! do j=1,nseg
+    !   U_seg(3*(j-1)+1:3*(j-1)+3) = U_bead(3*j+1:3*j+3) - U_bead(3*(j-1)+1:3*(j-1)+3)
+    ! enddo
+
+    call gemv(this%Amat,U_bead,U_seg)
 
   end subroutine U_sph_sde
 

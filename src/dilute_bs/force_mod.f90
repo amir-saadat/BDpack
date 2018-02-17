@@ -42,6 +42,7 @@ contains
     real(wp) :: qmag,F,qmagsq,qr,qrsq
     integer :: iseg,offset
 
+
     do iseg=1,nseg
 
       offset=3*(iseg-1)
@@ -109,26 +110,28 @@ contains
     use :: arry_mod, only: print_vector,print_matrix
     use :: root_mod, only: CubeRoot,root_fndr
     use :: inp_dlt, only: b,qr_l,RWS_v,WLC_v,qmax,qr_lto2,q_l,RWS_C,RWS_D,&
-                          WLC_A,WLC_B
+                          WLC_A,WLC_B,nbead,nbead_ind,nseg_ind
 
     character(len=10),intent(in) :: ForceLaw,TruncMethod,tplgy
     real(wp),intent(in) :: dt
     integer,intent(in) :: id,PrScale,nroots,iseg,nseg,nseg_bb,nseg_ar,Ia(:),Na,itime
     real(wp),dimension(3),intent(in) :: RHSP
-    real(wp),dimension(3*(nseg+1)),intent(inout)    :: Fbarbead
+    real(wp),dimension(3*(nbead)),intent(inout)    :: Fbarbead
     real(wp),dimension(3*(nseg)),intent(in),target  :: qstar
     real(wp),dimension(:),pointer                   :: qcheck
     real(wp),dimension(3*nseg),intent(inout),target :: qbar,Fbarseg
     real(wp),dimension(:), pointer                  :: qbarP,FbarsegP
     real(wp),dimension(PrScale*nroots) :: root_f
-    real(wp),dimension(3*nseg,3*(nseg+1)),intent(in) :: Amat
+    real(wp),dimension(3*nseg,3*(nbead)),intent(in) :: Amat
     real(wp) :: denom
     real(wp) :: RHSmag,qcheckmag,a1,a2,a3,qmag,F,coeffs(8),qr,slope,qden
     integer :: iRHS,offset,iarm,iseg_ar,offset_ar
+    integer :: offset_bead
 
     RHSmag=dot(RHSP,RHSP);RHSmag=sqrt(RHSmag)
     iRHS=int(RHSmag/(0.01_wp/PrScale)) ! Based on LookUp table definitions
     offset=3*(iseg-1)
+    offset_bead = 3*(nbead_ind)*((iseg-1)/nseg_ind) + 3*(MOD(iseg-1,nseg_ind))
     qbarP => qbar(offset+1:offset+3)
     FbarsegP => Fbarseg(offset+1:offset+3)
     !-------------------------------------------------------------------!
@@ -292,17 +295,35 @@ contains
           Fbarbead(1:3)=Fbarseg(1:3)
           Fbarbead(4:6)=-Fbarseg(1:3)
         else
-          if (iseg == 1) then
+          !previous: one linear chain
+          ! if (iseg == 1) then
+          !   Fbarbead(1:3)=Fbarseg(1:3)
+          !   Fbarbead(4:6)=Fbarseg(4:6)-Fbarseg(1:3)
+          ! elseif (iseg == nseg) then
+          !   Fbarbead(offset+1:offset+3)=Fbarseg(offset+1:offset+3)-&
+          !                               Fbarseg(offset-2:offset)
+          !   Fbarbead(offset+4:offset+6)=-Fbarseg(offset+1:offset+3)
+          ! else
+          !   Fbarbead(offset+1:offset+3)=Fbarseg(offset+1:offset+3)-&
+          !                               Fbarseg(offset-2:offset)
+          !   Fbarbead(offset+4:offset+6)=Fbarseg(offset+4:offset+6)-&
+          !                               Fbarseg(offset+1:offset+3)
+
+          if (iseg == 1) then!first segment
             Fbarbead(1:3)=Fbarseg(1:3)
             Fbarbead(4:6)=Fbarseg(4:6)-Fbarseg(1:3)
-          elseif (iseg == nseg) then
-            Fbarbead(offset+1:offset+3)=Fbarseg(offset+1:offset+3)-&
+          elseif (MOD(iseg,nseg_ind)==0) then!end segments
+            Fbarbead(offset_bead+1:offset_bead+3)=Fbarseg(offset+1:offset+3)-&
                                         Fbarseg(offset-2:offset)
-            Fbarbead(offset+4:offset+6)=-Fbarseg(offset+1:offset+3)
-          else
-            Fbarbead(offset+1:offset+3)=Fbarseg(offset+1:offset+3)-&
+            Fbarbead(offset_bead+4:offset_bead+6)=-Fbarseg(offset+1:offset+3)
+          elseif (MOD(iseg-1,nseg_ind)==0) then !tethered segments
+            Fbarbead(offset_bead+1:offset_bead+3)=Fbarseg(offset+1:offset+3)
+            Fbarbead(offset_bead+4:offset_bead+6)=Fbarseg(offset+4:offset+6)-&
+                                        Fbarseg(offset+1:offset+3)
+          else !middle segments
+            Fbarbead(offset_bead+1:offset_bead+3)=Fbarseg(offset+1:offset+3)-&
                                         Fbarseg(offset-2:offset)
-            Fbarbead(offset+4:offset+6)=Fbarseg(offset+4:offset+6)-&
+            Fbarbead(offset_bead+4:offset_bead+6)=Fbarseg(offset+4:offset+6)-&
                                         Fbarseg(offset+1:offset+3)
           end if
         end if

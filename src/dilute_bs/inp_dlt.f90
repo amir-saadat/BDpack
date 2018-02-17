@@ -108,6 +108,8 @@ module inp_dlt
   integer,protected :: npchain
   real(wp),protected :: RWS_C,RWS_D,WLC_A,WLC_B,WLC_C
   logical,protected :: unif_flow, sph_flow
+  integer,protected :: nseg_ind,nbead_ind,nchain_pp,nbead_indx3,nseg_indx3
+  logical,protected :: multet
 
 contains
 
@@ -157,6 +159,7 @@ contains
     RgCalc=.false.
     cosThCalc=.false.;cosmode='angle'
     DumpstrCalc=.false.
+    multet=.false.
 
     open (newunit=u1,action='read',file=inpFile,status='old')
     il=1
@@ -181,6 +184,8 @@ ef: do
               call value(tokens(j+1),nchain,ios)
             case ('nseg')
               call value(tokens(j+1),nseg,ios)
+            case ('nseg-indiv')
+              call value(tokens(j+1),nseg_ind,ios)
             case ('tplgy')
               tplgy=trim(adjustl(tokens(j+1)))
             case ('nseg_ar')
@@ -476,7 +481,28 @@ rndmlp:         do
     elseif (WiSpacing == 'Linear') then
       call linspace(Wii,Wif,Wi)
     end if
-    nbead=nseg+1
+
+    if (nseg == nseg_ind) then !only one tethered polymer, **fix, the default nseg_ind is not set!
+      multet = .false.
+      nchain_pp = 1
+      nbead=nseg+1
+      nbead_ind = nbead
+      nseg_ind = nseg
+      nbead_indx3 = nbead_ind*3
+      nseg_indx3 = nseg_ind*3
+    else !multiple tethered polymers
+      multet = .true.
+      nchain_pp=nseg/nseg_ind
+      nbead_ind=nseg_ind+1
+      nbead=nbead_ind*nchain_pp
+      nbead_indx3 = nbead_ind*3
+      nseg_indx3 = nseg_ind*3
+      print *, 'nchain_pp, ', nchain_pp
+      print *, 'nseg_ind, ', nseg_ind
+      print *, 'nbead_ind, ', nbead_ind
+      print *, 'nbead, ', nbead
+    endif
+
     nbeadx3=nbead*3;nsegx3=nseg*3
     ntotang=nchain*(nbead-2) ! used for calculation of <cosTh>
     if (dstarCalc == 'Kumar') dstar=dstar*zstar**(1.0_wp/5)

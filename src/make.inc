@@ -33,7 +33,7 @@ MV       = mv
 
 GLBFLGS  = -DUSE_DP # SP or DP for single or double precision
 # Extra debugging flags
-#GLBFLGS += -g -traceback
+GLBFLGS += -g -traceback
 #GLBFLGS += -fp-stack-check -gen-interfaces -warn interfaces -check arg_temp_created
 ifeq ($(FCOMP),gfortran)
 GLBFLGS += -O0

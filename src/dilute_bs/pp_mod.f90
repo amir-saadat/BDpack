@@ -23,11 +23,11 @@
 module pp_mod
 
   use :: prcn_mod
-  
+
   implicit none
-  
+
   save
-  
+
   real(wp),private :: tauxx,tauxy,tauyy,tauzz,tauxxyy,tauyyzz
   real(wp),private :: sdxx,sdxy,sdyy,sdzz,sdxxyy,sdyyzz
   real(wp),private :: qetoeAve,sdqetoeAve,sqqetoeAve,sdsqqetoeAve
@@ -117,13 +117,13 @@ contains
         write(u31,*) "# ---------------------------------------- #"
         write(u33,*) "# Wi, dt, Time, <Qee.Qee>, sd<Qee.Qee> #"
         write(u33,*) "# ------------------------------------ #"
-        write(u7,*) "# Wi, dt, time, <|Qee|>/Lc, sd<Qee>/Lc #" 
+        write(u7,*) "# Wi, dt, time, <|Qee|>/Lc, sd<Qee>/Lc #"
         write(u7,*) "# ------------------------------------ #"
-        write(u35,*) "# Wi, dt, Time, <X>/Lc, sd<X>/Lc #" 
+        write(u35,*) "# Wi, dt, Time, <X>/Lc, sd<X>/Lc #"
         write(u35,*) "# ------------------------------ #"
         write(u36,*) "# Wi, dt, Time, <X.X>/Lc^2, sd<X.X> #"
         write(u36,*) "# --------------------------------- #"
-        write(u44,*) "# Wi, dt, Time, <Y>/Lc, sd<Y>/Lc #" 
+        write(u44,*) "# Wi, dt, Time, <Y>/Lc, sd<Y>/Lc #"
         write(u44,*) "# ------------------------------ #"
         write(u45,*) "# Wi, dt, Time, <Y.Y>, sd<Y.Y> #"
         write(u45,*) "# ---------------------------- #"
@@ -145,7 +145,7 @@ contains
             end if
             write(uarm(iarm),*) "# Wi, dt, Time, <Qee.Qee>, sd<Qee.Qee> #"
             write(uarm(iarm),*) "# ------------------------------------ #"
-            write(uarm(Na+iarm),*) "# Wi, dt, time, <|Qee|>/|Qee|_max, sd<Qee>/|Qee|_max #" 
+            write(uarm(Na+iarm),*) "# Wi, dt, time, <|Qee|>/|Qee|_max, sd<Qee>/|Qee|_max #"
             write(uarm(Na+iarm),*) "# -------------------------------------------------- #"
           end do
           if (initmode == 'rst') then
@@ -155,7 +155,7 @@ contains
             open(newunit=u39,file='data/trXbbRel.dat',status='replace',position='append')
             open(newunit=u40,file='data/trXbbSq.dat',status='replace',position='append')
           end if
-          write(u39,*) "# Wi, dt, Time, <Xbb>/Lc, sd<Xbb>/Lc #" 
+          write(u39,*) "# Wi, dt, Time, <Xbb>/Lc, sd<Xbb>/Lc #"
           write(u39,*) "# ---------------------------------- #"
           write(u40,*) "# Wi, dt, Time, <Xbb.Xbb>, sd<Xbb.Xbb> #"
           write(u40,*) "# ------------------------------------ #"
@@ -165,7 +165,7 @@ contains
             open(newunit=u8,file='data/EtavsTime.dat',status='unknown',position='append')
           else
             open(newunit=u8,file='data/EtavsTime.dat',status='replace',position='append')
-          end if 
+          end if
           write(u8,*) "# Wi, dt, Time, Etap=<Taupxy>/Pe, sd<Taupxy>/Pe #"
           write(u8,*) "# --------------------------------------------- #"
         end if
@@ -200,7 +200,7 @@ contains
                   status='unknown',position='append')
             write(uarm(2*Na+iarm),*) "# Wi, dt, <<Qee^2>>t, sd<Qee.Qee> #"
             write(uarm(2*Na+iarm),*) "# ------------------------------------ #"
-            write(uarm(3*Na+iarm),*) "# Wi, dt, time, <|Qee|>/|Qee|_max, sd<Qee>/|Qee|_max #" 
+            write(uarm(3*Na+iarm),*) "# Wi, dt, time, <|Qee|>/|Qee|_max, sd<Qee>/|Qee|_max #"
             write(uarm(3*Na+iarm),*) "# -------------------------------------------------- #"
           end do
           open (newunit=u41,file='data/XbbRel.dat',status='unknown',position='append')
@@ -214,22 +214,22 @@ contains
           open(newunit=u10,file='data/EtavsWi.dat',status='replace',position='append')
           write(u10,*) "# Wi, dt, <Etap=-<Taupxy>/Pe>t, <sd<Taupxy>/Pe>t, sd<Etap>t #"
           write(u10,*) "# --------------------------------------------------------- #"
-          open(newunit=u11,file='data/Psi1vsWi.dat',status='replace',position='append') 
+          open(newunit=u11,file='data/Psi1vsWi.dat',status='replace',position='append')
           write(u11,*) "# Wi, dt, <Psi1=-<Taupxx-Taupyy>/Pe^2>t, <sd<Taipxx-Taupyy>/Pe^2>t, sd<Psi1>t #"
           write(u11,*) "# --------------------------------------------------------------------------- #"
-          open(newunit=u12,file='data/Psi2vsWi.dat',status='replace',position='append') 
+          open(newunit=u12,file='data/Psi2vsWi.dat',status='replace',position='append')
           write(u12,*) "# Wi, dt, <Psi2=-<Taupyy-Taupzz>/Pe^2>t, <sd<Taipyy-Taupzz>/Pe^2>t, sd<Psi2>t #"
           write(u12,*) "# --------------------------------------------------------------------------- #"
         end if
         if (iflow >= 3) then ! For Elongational Flow
-          open(newunit=u13,file='data/EtaElongvsWi.dat',status='unknown',position='append') 
+          open(newunit=u13,file='data/EtaElongvsWi.dat',status='unknown',position='append')
           write(u13,*) "# Wi, dt, <Eta_el=-<Taupxx-Taupyy>/Pe>t, <sd<Taipxx-Taupyy>/Pe>t, sd<Eta_el>t #"
           write(u13,*) "# --------------------------------------------------------------------------- #"
           if (initmode == 'rst') then
-            open(newunit=u14,file='data/EtaElongvsEps.dat',status='unknown',position='append') 
+            open(newunit=u14,file='data/EtaElongvsEps.dat',status='unknown',position='append')
           else
-            open(newunit=u14,file='data/EtaElongvsEps.dat',status='replace',position='append') 
-          end if 
+            open(newunit=u14,file='data/EtaElongvsEps.dat',status='replace',position='append')
+          end if
           write(u14,*) "# Eps(Hencky Strain), dt, Eta_elong=-<Taupxx-Taupyy>/Pe, sd<Taipxx-Taupyy>/Pe #"
           write(u14,*) "# --------------------------------------------------------------------------- #"
         end if
@@ -237,64 +237,64 @@ contains
       if (CoM) then
         open(newunit=u15,file='data/Dcm.dat',status='unknown',position='append')
         write(u15,*) "# nbead, dt, <Dcm>t, <sd(Dcm)>t, sd<Dcm>t #"
-        write(u15,*) "# --------------------------------------- #"            
+        write(u15,*) "# --------------------------------------- #"
       end if
       if (CoHR) then
         open(newunit=u16,file='data/Dchr.dat',status='unknown',position='append')
         write(u16,*) "# nbead, dt, <Dchr>t, <sd(Dchr)>t, sd<Dchr>t #"
-        write(u16,*) "# ------------------------------------------ #"            
+        write(u16,*) "# ------------------------------------------ #"
       end if
       if (RgCalc) then
         open(newunit=u17,file='data/RgSq.dat',status='unknown',position='append')
         write(u17,*) "# nbead, dt, <Rg2>t, <sd(Rg2)>t, sd<Rg2>t #"
-        write(u17,*) "# --------------------------------------- #"            
+        write(u17,*) "# --------------------------------------- #"
         open(newunit=u43,file='data/RgSqyy.dat',status='unknown',position='append')
         write(u43,*) "# nbead, dt, <RgSqyy>t, <sd(RgSqyy)>t, sd<RgSqyy>t #"
-        write(u43,*) "# ------------------------------------------------ #"            
+        write(u43,*) "# ------------------------------------------------ #"
         open(newunit=u48,file='data/Rgyy.dat',status='unknown',position='append')
         write(u48,*) "# Wi, nbead, dt, <Rgyy>t, <sd(Rgyy)>t, sd<Rgyy>t #"
-        write(u48,*) "# ---------------------------------------------- #"            
+        write(u48,*) "# ---------------------------------------------- #"
         open(newunit=u49,file='data/Rgzz.dat',status='unknown',position='append')
         write(u49,*) "# Wi, nbead, dt, <Rgzz>t, <sd(Rgzz)>t, sd<Rgzz>t #"
-        write(u49,*) "# ---------------------------------------------- #"            
+        write(u49,*) "# ---------------------------------------------- #"
         open (newunit=u18,file='data/Asphericity.dat',status='unknown',position='append')
         write(u18,*) "# nbead, dt, <Asphericity>t, <sd(Asphericity)>t, sd<Asphericity>t #"
-        write(u18,*) "# --------------------------------------------------------------- #"            
+        write(u18,*) "# --------------------------------------------------------------- #"
       end if
       if (cosThCalc) then
         if (initmode == 'rst') then
           open(newunit=u28,file='data/cosThvsTime.dat',status='unknown',position='append')
         else
           open(newunit=u28,file='data/cosThvsTime.dat',status='replace',position='append')
-        end if 
+        end if
         write(u28,*) "# Wi, dt, Time, <cosTh>, sd<cosTh> #"
         write(u28,*) "# -------------------------------- #"
         open(newunit=u29,file='data/cosTh.dat',status='unknown',position='append')
         write(u29,*) "# nbead, dt, <cosTh>t, <sd(cosTh)>t, sd<cosTh>t #"
-        write(u29,*) "# --------------------------------------------- #"            
+        write(u29,*) "# --------------------------------------------- #"
       end if
-   
+
       if (AveIterCalc) then
-        if (DecompMeth == 'Lanczos') then         
+        if (DecompMeth == 'Lanczos') then
           open(newunit=u19,file='data/tAvemAveTot.dat',status='replace',position='append')
           write(u19,*) "# nbead, dt, <m>t, <sd(m)>t, sd<m>t #"
-          write(u19,*) "# ------------------------------------------- #"            
+          write(u19,*) "# ------------------------------------------- #"
           if (initmode == 'rst') then
-            open(newunit=u20,file='data/AvemvsTime.dat',status='unknown',position='append') 
+            open(newunit=u20,file='data/AvemvsTime.dat',status='unknown',position='append')
           else
-            open(newunit=u20,file='data/AvemvsTime.dat',status='replace',position='append') 
-          end if 
+            open(newunit=u20,file='data/AvemvsTime.dat',status='replace',position='append')
+          end if
           write(u20,*) "# iflow, Wi, dt, Time, <m>, sd<m> #"
           write(u20,*) "# ------------------------------- #"
         elseif (DecompMeth == 'Chebyshev') then
           open(newunit=u19,file='data/tAveLAveTot.dat',status='replace',position='append')
           write(u19,*) "# nbead, dt, <m>t, <sd(m)>t, sd<m>t #"
-          write(u19,*) "# ------------------------------------------- #"            
+          write(u19,*) "# ------------------------------------------- #"
           if (initmode == 'rst') then
-            open(newunit=u20,file='data/AveLvsTime.dat',status='unknown',position='append') 
+            open(newunit=u20,file='data/AveLvsTime.dat',status='unknown',position='append')
           else
-            open(newunit=u20,file='data/AveLvsTime.dat',status='replace',position='append') 
-          end if 
+            open(newunit=u20,file='data/AveLvsTime.dat',status='replace',position='append')
+          end if
           write(u20,*) "# iflow, Wi, dt, Time, <L>, sd<L> #"
           write(u20,*) "# ------------------------------- #"
         end if ! DecompMeth
@@ -367,11 +367,11 @@ contains
           if (.not.allocated(sdqee_art)) allocate(sdqee_art(Na))
           if (.not.allocated(sqqee_art)) allocate(sqqee_art(Na))
           if (.not.allocated(sdsqqee_art)) allocate(sdsqqee_art(Na))
-  
+
           if (.not.allocated(tAvqee_art)) allocate(tAvqee_art(Na))
           if (.not.allocated(tAvsdqee_art)) allocate(tAvsdqee_art(Na))
           if (.not.allocated(sdtAvqee_art)) allocate(sdtAvqee_art(Na))
-  
+
           if (.not.allocated(tAvsqqee_art)) allocate(tAvsqqee_art(Na))
           if (.not.allocated(tAvsdsqqee_art)) allocate(tAvsdsqqee_art(Na))
           if (.not.allocated(sdtAvsqqee_art)) allocate(sdtAvsqqee_art(Na))
@@ -413,7 +413,7 @@ contains
 
   end subroutine pp_init_tm
 
- 
+
   subroutine data_prcs(id,itime,time,idt,iPe,q,rvmrc,Fphi,rcm,rcmstart,rchr,&
                        nseg_bb,mch,Lch,MPI_REAL_WP)
 
@@ -421,15 +421,16 @@ contains
     use :: inp_dlt, only: npchain,nchain,nbead,nseg,tss,trst,lambda,Wi,dt,&
                           ntime,qmax,nseg_ar,Pe,ntotang,iflow,StrCalc,tplg&
                           &y,Na,cosThCalc,CoM,CoHR,RgCalc,nbeadx3,AveIterC&
-                          &alc,DecompMeth,initmode,cosmode
+                          &alc,DecompMeth,initmode,cosmode,nchain_pp
+
 
     integer,intent(in) :: id,itime,nseg_bb,MPI_REAL_WP,idt,iPe
     real(wp),intent(in) :: time
-    real(wp),intent(in) :: Fphi(:,:),rcmstart(:,:)
+    real(wp),intent(in) :: Fphi(:,:),rcmstart(:,:,:)
     real(wp),intent(in),target :: q(:,:),rvmrc(:,:)
-    real(wp),intent(in),target :: rcm(:,:),rchr(:,:)
+    real(wp),intent(in),target :: rcm(:,:,:),rchr(:,:)
     integer,intent(in) :: mch(:),Lch(:)
-    
+
     real(wp) :: tauxxTot,tauxyTot,tauyyTot,tauzzTot,tauxxyyTot,tauyyzzTot
     real(wp) :: sdxxTot,sdxyTot,sdyyTot,sdzzTot,sdxxyyTot,sdyyzzTot
     real(wp) :: qetoeAveTot,sdqetoeAveTot,sqqetoeAveTot,sdsqqetoeAveTot
@@ -438,7 +439,7 @@ contains
     real(wp) :: YAveTot,sdYAveTot,YSqAveTot,sdYSqAveTot
     real(wp) :: XbbAveTot,sdXbbAveTot,XbbSqAveTot,sdXbbSqAveTot
     real(wp) :: cosThAve,sdcosThAve,qi(3),qj(3),qi_mag,qj_mag
-    real(wp) :: DcmAve,sdDcmAve,rcmdiff(3),rchrdiff(3),DchrAve,sdDchrAve
+    real(wp) :: DcmAve,sdDcmAve,rchrdiff(3),DchrAve,sdDchrAve!,rcmdiff(3)
     real(wp) :: cosThAveTot,sdcosThAveTot
     real(wp) :: DcmAveTot,sdDcmAveTot,DchrAveTot,sdDchrAveTot
     real(wp) :: RgSqAve,sdRgSqAve,RgSqyyAve,sdRgSqyyAve,RgyyAve,sdRgyyAve
@@ -450,10 +451,14 @@ contains
     real(wp) :: RgSqEVdiff(3),Aspher,cosTh,RgLSqTens(3,3)
     real(wp) :: mAve,sdmAve,mAveTot,sdmAveTot
     real(wp) :: LAve,sdLAve,LAveTot,sdLAveTot
-    real(wp),pointer :: qP(:),rcmP(:),rchrP(:),rvmrcP(:),RPi(:),RPj(:)
+    real(wp),pointer :: qP(:),rcmP(:,:),rchrP(:),rvmrcP(:),RPi(:),RPj(:)
     real(wp),allocatable :: RPLi(:),RPLj(:)
     integer :: offseti,offsetj,ichain,ibead,jchain,i,j,ierr,info,iarm
- 
+    real(wp),allocatable :: rcmdiff(:,:)
+    integer :: ichain_pp
+
+    allocate(rcmdiff(3,nchain_pp))
+
     ! Foramats used:
 1   format(6(f8.5,1x))
 2   format(f8.2,1x,e11.3,1x,f14.7,2x,f20.8,2x,f14.7)
@@ -480,7 +485,7 @@ contains
         call MPI_Reduce(qee_ar,qee_art,Na,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
         call MPI_Reduce(XbbAve,XbbAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
         call MPI_Reduce(XbbSqAve,XbbSqAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-      end if              
+      end if
       call MPI_Reduce(tauxx,tauxxTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_Reduce(tauxy,tauxyTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_Reduce(tauyy,tauyyTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
@@ -500,7 +505,7 @@ contains
         call MPI_Reduce(sdqee_ar,sdqee_art,Na,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
         call MPI_Reduce(sdXbbAve,sdXbbAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
         call MPI_Reduce(sdXbbSqAve,sdXbbSqAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-      end if              
+      end if
       call MPI_Reduce(sdxx,sdxxTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_Reduce(sdxy,sdxyTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_Reduce(sdyy,sdyyTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
@@ -523,7 +528,7 @@ contains
           qj_mag=sqrt(dot_product(qj,qj))
           if (cosmode == 'dot') then
             cosTh=dot_product(qi,qj)
-          else 
+          else
             cosTh=dot_product(qi,qj)/(qi_mag*qj_mag)
           end if
           cosThAve=cosThAve+cosTh
@@ -539,12 +544,14 @@ contains
       if (CoM) then
         DcmAve=0.0_wp;sdDcmAve=0.0_wp
         do jchain=1, npchain
-          rcmP => rcm(:,jchain)
-          rcmdiff=rcmP-rcmstart(:,jchain)                
+          rcmP => rcm(:,jchain,:)
+          rcmdiff=rcmP-rcmstart(:,jchain,:)
           ! DcmAve=DcmAve+dot(rcmP,rcmP)
-          ! sdDcmAve=sdDcmAve+(dot(rcmP,rcmP))**2                       
-          DcmAve=DcmAve+dot(rcmdiff,rcmdiff)
-          sdDcmAve=sdDcmAve+(dot(rcmdiff,rcmdiff))**2                       
+          ! sdDcmAve=sdDcmAve+(dot(rcmP,rcmP))**2
+          do ichain_pp=1,nchain_pp
+            DcmAve=DcmAve+dot(rcmdiff(:,ichain_pp),rcmdiff(:,ichain_pp))
+            sdDcmAve=sdDcmAve+(dot(rcmdiff(:,ichain_pp),rcmdiff(:,ichain_pp)))**2
+          end do
         end do
         call MPI_Reduce(DcmAve,DcmAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
         call MPI_Reduce(sdDcmAve,sdDcmAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
@@ -554,10 +561,10 @@ contains
         DchrAve=0._wp;sdDchrAve=0._wp
         do jchain=1, npchain
           rchrP => rchr(:,jchain)
-          rchrdiff=rchrP-rcmstart(:,jchain)
-          ! DchrAve=DchrAve+dot(rchrP,rchrP)                      
-          ! sdDchrAve=sdDchrAve+(dot(rchrP,rchrP))**2                       
-          DchrAve=DchrAve+dot(rchrdiff,rchrdiff)                      
+          rchrdiff=rchrP-SUM(rcmstart(:,jchain,:), DIM = 2)/nchain_pp
+          ! DchrAve=DchrAve+dot(rchrP,rchrP)
+          ! sdDchrAve=sdDchrAve+(dot(rchrP,rchrP))**2
+          DchrAve=DchrAve+dot(rchrdiff,rchrdiff)
           sdDchrAve=sdDchrAve+(dot(rchrdiff,rchrdiff))**2
         end do
         call MPI_Reduce(DchrAve,DchrAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
@@ -626,21 +633,21 @@ contains
       end if ! RgCalc
 
     end if ! time >= tss*lambda
-  
+
     if (AveIterCalc) then
       if (DecompMeth == 'Lanczos') then
         mAve=0._wp;sdmAve=0._wp
         do jchain=1, npchain
           mAve=mAve+real(mch(jchain),kind=wp)
-          sdmAve=sdmAve+(real(mch(jchain),kind=wp))**2                       
+          sdmAve=sdmAve+(real(mch(jchain),kind=wp))**2
         end do
         call MPI_Reduce(mAve,mAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
         call MPI_Reduce(sdmAve,sdmAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       elseif (DecompMeth == 'Chebyshev') then
         LAve=0._wp;sdLAve=0._wp
         do jchain=1, npchain
-          LAve=LAve+Lch(jchain)                     
-          sdLAve=sdLAve+Lch(jchain)**2                       
+          LAve=LAve+Lch(jchain)
+          sdLAve=sdLAve+Lch(jchain)**2
         end do
         call MPI_Reduce(LAve,LAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
         call MPI_Reduce(sdLAve,sdLAveTot,1,MPI_REAL_WP,MPI_SUM,0,MPI_COMM_WORLD,ierr)
@@ -734,7 +741,7 @@ contains
               write(u8,2) Wi(iPe),dt(iPe,idt),time,-tauxyTot/Pe(iPe),sdxyTot/Pe(iPe)
             end if
           else
-            if (initmode == 'rst') then 
+            if (initmode == 'rst') then
               write(u14,3) Pe(iPe)*(time+trst*lambda),dt(iPe,idt),-tauxxyyTot/Pe(iPe),sdxxyyTot/Pe(iPe)
             else
               write(u14,3) Pe(iPe)*time,dt(iPe,idt),-tauxxyyTot/Pe(iPe),sdxxyyTot/Pe(iPe)
@@ -766,7 +773,7 @@ contains
           tAvemAveTot=tAvemAveTot+mAveTot
           tAvesdmAveTot=tAvesdmAveTot+sdmAveTot
           sdtAvemAveTot=sdtAvemAveTot+mAveTot*mAveTot
-        elseif (DecompMeth == 'Chebyshev') then          
+        elseif (DecompMeth == 'Chebyshev') then
           kcount=kcount+1
           LAveTot=LAveTot/nchain
           sdLAveTot=sdLAveTot/nchain
@@ -783,7 +790,7 @@ contains
       end if ! AveIterCalc
       if (time >= tss*lambda) then
         jcount=jcount+1
-        if (StrCalc) then                      
+        if (StrCalc) then
           ! Terms for stress and relative extension
           tAvesqqsprAveTot=tAvesqqsprAveTot+sqqsprAveTot
           tAvesqqetoeAveTot=tAvesqqetoeAveTot+sqqetoeAveTot
@@ -836,17 +843,17 @@ contains
         end if
         if (CoM) then
           if (initmode == 'rst') then
-            DcmAveTot=DcmAveTot/(6*(time+trst*lambda)*nchain)
+            DcmAveTot=DcmAveTot/(6*(time+trst*lambda)*nchain*nchain_pp)
           else
-            DcmAveTot=DcmAveTot/(6*time*nchain)
+            DcmAveTot=DcmAveTot/(6*time*nchain*nchain_pp)
           end if
           tAveDcmAveTot=tAveDcmAveTot+DcmAveTot
-          if (initmode == 'rst') then                
-            sdDcmAveTot=sdDcmAveTot/(36*(time+trst*lambda)**2*nchain)
+          if (initmode == 'rst') then
+            sdDcmAveTot=sdDcmAveTot/(36*(time+trst*lambda)**2*nchain*nchain_pp)
           else
-            sdDcmAveTot=sdDcmAveTot/(36*time**2*nchain)
+            sdDcmAveTot=sdDcmAveTot/(36*time**2*nchain*nchain_pp)
           end if
-          sdDcmAveTot=sqrt(abs(sdDcmAveTot-DcmAveTot**2)/(nchain-1))
+          sdDcmAveTot=sqrt(abs(sdDcmAveTot-DcmAveTot**2)/(nchain*nchain_pp-1))
           tAvesdDcmAveTot=tAvesdDcmAveTot+sdDcmAveTot
           sdtAveDcmAveTot=sdtAveDcmAveTot+DcmAveTot*DcmAveTot
         end if
@@ -903,12 +910,12 @@ contains
           tAvesdcosTh=tAvesdcosTh+sdcosThAveTot
           sdtAvecosTh=sdtAvecosTh+cosThAveTot*cosThAveTot
         end if ! cosThCalc
-        
+
       end if
-      ! Finalize the time averages in the last iteration 
+      ! Finalize the time averages in the last iteration
       if (itime == ntime(iPe,idt)) then
         if (jcount /= 0) then
-          if (StrCalc) then          
+          if (StrCalc) then
             ! Terms for stress and relative extension
             tAvesqqsprAveTot=tAvesqqsprAveTot/jcount
             tAvesqqetoeAveTot=tAvesqqetoeAveTot/jcount
@@ -967,7 +974,7 @@ contains
               sdtAveXbbAveTot=sdtAveXbbAveTot/jcount
               sdtAveXbbSqAveTot=sdtAveXbbSqAveTot/jcount
               sdtAveXbbAveTot=sqrt(abs(sdtAveXbbAveTot-tAveXbbAveTot**2)/(jcount-1))
-              sdtAveXbbSqAveTot=sqrt(abs(sdtAveXbbSqAveTot-tAveXbbSqAveTot**2)/(jcount-1))              
+              sdtAveXbbSqAveTot=sqrt(abs(sdtAveXbbSqAveTot-tAveXbbSqAveTot**2)/(jcount-1))
             end if
             sdtAvetauxyTot=sqrt(abs(sdtAvetauxyTot-tAvetauxyTot**2)/(jcount-1))
             sdtAvetauxxyyTot=sqrt(abs(sdtAvetauxxyyTot-tAvetauxxyyTot**2)/(jcount-1))
@@ -1011,7 +1018,7 @@ contains
                           sdtAvetauyyzzTot/Pe(iPe)**2
               if (iflow >= 3) then ! For Elongational Flow
                 write(u13,5) Wi(iPe),dt(iPe,idt),-tAvetauxxyyTot/Pe(iPe),tAvesdxxyyTot/Pe(iPe),&
-                            sdtAvetauxxyyTot/Pe(iPe) 
+                            sdtAvetauxxyyTot/Pe(iPe)
               end if
             end if ! iflow /= 1
           end if ! StrCalc
@@ -1020,7 +1027,7 @@ contains
             tAvesdDcmAveTot=tAvesdDcmAveTot/jcount
             sdtAveDcmAveTot=sdtAveDcmAveTot/jcount
             sdtAveDcmAveTot=sqrt(abs(sdtAveDcmAveTot-tAveDcmAveTot**2)/(jcount-1))
-            write(u15,7) nbead,dt(iPe,idt),tAveDcmAveTot,tAvesdDcmAveTot,sdtAveDcmAveTot 
+            write(u15,7) nbead,dt(iPe,idt),tAveDcmAveTot,tAvesdDcmAveTot,sdtAveDcmAveTot
           end if
           if (CoHR) then
             tAveDchrAveTot=tAveDchrAveTot/jcount
@@ -1049,10 +1056,10 @@ contains
             sdtAveRgyyAveTot=sqrt(abs(sdtAveRgyyAveTot-tAveRgyyAveTot**2)/(jcount-1))
             sdtAveRgzzAveTot=sqrt(abs(sdtAveRgzzAveTot-tAveRgzzAveTot**2)/(jcount-1))
             sdtAveAspherAveTot=sqrt(abs(sdtAveAspherAveTot-tAveAspherAveTot**2)/(jcount-1))
-            write(u17,7) nbead,dt(iPe,idt),tAveRgSqAveTot,tAvesdRgSqAveTot,sdtAveRgSqAveTot 
-            write(u43,7) nbead,dt(iPe,idt),tAveRgSqyyAveTot,tAvesdRgSqyyAveTot,sdtAveRgSqyyAveTot 
-            write(u48,9) Wi(iPe),nbead,dt(iPe,idt),tAveRgyyAveTot,tAvesdRgyyAveTot,sdtAveRgyyAveTot 
-            write(u49,9) Wi(iPe),nbead,dt(iPe,idt),tAveRgzzAveTot,tAvesdRgzzAveTot,sdtAveRgzzAveTot 
+            write(u17,7) nbead,dt(iPe,idt),tAveRgSqAveTot,tAvesdRgSqAveTot,sdtAveRgSqAveTot
+            write(u43,7) nbead,dt(iPe,idt),tAveRgSqyyAveTot,tAvesdRgSqyyAveTot,sdtAveRgSqyyAveTot
+            write(u48,9) Wi(iPe),nbead,dt(iPe,idt),tAveRgyyAveTot,tAvesdRgyyAveTot,sdtAveRgyyAveTot
+            write(u49,9) Wi(iPe),nbead,dt(iPe,idt),tAveRgzzAveTot,tAvesdRgzzAveTot,sdtAveRgzzAveTot
             write(u18,7) nbead,dt(iPe,idt),tAveAspherAveTot,tAvesdAspherAveTot,sdtAveAspherAveTot
           end if ! RgCalc
           if (cosThCalc) then
@@ -1062,20 +1069,20 @@ contains
             sdtAvecosTh=sdtAvecosTh/jcount
             sdtAvecosTh=sqrt(abs(sdtAvecosTh-tAvecosTh*tAvecosTh)/(jcount-1))
             write(u29,7) nbead,dt(iPe,idt),tAvecosTh,tAvesdcosTh,sdtAvecosTh
-          end if ! cosThCalc             
+          end if ! cosThCalc
         else ! so, jcount=0
-          if (StrCalc) then          
+          if (StrCalc) then
             write(u9,3) Wi(iPe),dt(iPe,idt),qetoeAveTot/(qmax*nseg),sdqetoeAveTot/(qmax*nseg)
             if (iflow /= 1) then
-              write(u10,3) Wi(iPe),dt(iPe,idt),-tauxyTot/Pe(iPe),sdxyTot/Pe(iPe)           
+              write(u10,3) Wi(iPe),dt(iPe,idt),-tauxyTot/Pe(iPe),sdxyTot/Pe(iPe)
               write(u11,3) Wi(iPe),dt(iPe,idt),-tauxxyyTot/(Pe(iPe)**2),sdxxyyTot/(Pe(iPe)**2)
               write(u12,3) Wi(iPe),dt(iPe,idt),-tauyyzzTot/(Pe(iPe)**2),sdyyzzTot/(Pe(iPe)**2)
               if (iflow >= 3) then ! For Elongational Flow
-                write(u13,3) Wi(iPe),dt(iPe,idt),-tauxxyyTot/Pe(iPe),sdxxyyTot/Pe(iPe) 
+                write(u13,3) Wi(iPe),dt(iPe,idt),-tauxxyyTot/Pe(iPe),sdxxyyTot/Pe(iPe)
               end if
             end if ! iflow /= 1
           end if ! StrCalc
-          if (CoM) write(u15,8) nbead,dt(iPe,idt),DcmAveTot,sdDcmAveTot 
+          if (CoM) write(u15,8) nbead,dt(iPe,idt),DcmAveTot,sdDcmAveTot
           if (CoHR) write(u16,8) nbead,dt(iPe,idt),DchrAveTot,sdDchrAveTot
           if (RgCalc) then
             write(u17,8) nbead,dt(iPe,idt),RgSqAveTot,sdRgSqAveTot
@@ -1083,7 +1090,7 @@ contains
             write(u48,10) Wi(iPe),nbead,dt(iPe,idt),RgyyAveTot,sdRgyyAveTot
             write(u49,10) Wi(iPe),nbead,dt(iPe,idt),RgzzAveTot,sdRgzzAveTot
             write(u18,8) nbead,dt(iPe,idt),AspherAveTot,sdAspherAveTot
-          end if              
+          end if
         end if ! jcount /= 0
         if (AveIterCalc) then
           if (kcount /= 0) then
@@ -1100,7 +1107,7 @@ contains
               sdtAveLAveTot=sqrt(abs(sdtAveLAveTot-tAveLAveTot**2)/(kcount-1))
               write(u19,7) nbead,dt(iPe,idt),tAveLAveTot,tAvesdLAveTot,sdtAveLAveTot
             end if
-          end if ! kcount /= 0                      
+          end if ! kcount /= 0
         end if ! AveIterCalc
       end if ! itime == ntime
 
@@ -1122,10 +1129,10 @@ contains
   ! for getting the deviation.                                              !
   !-------------------------------------------------------------------------!
   subroutine conf_anlzr(q,rvmrc,Fphi,nseg_bb,id,time,idt,iPe)
-  
+
     use :: inp_dlt, only: nseg,npchain,nchain,ForceLaw,tplgy,nseg_ar,applFext,&
                           Wi,dt,trst,lambda,qmax,initmode,indvlext
-  
+
     integer,intent(in) :: nseg_bb,id,idt,iPe
     real(wp),intent(in) :: time
     real(wp),intent(in),target :: q(:,:),rvmrc(:,:),Fphi(:,:)
@@ -1135,7 +1142,7 @@ contains
     real(wp) :: sqqspr,sqqetoe,qetoe,txx,txy,tyy,tzz,txxyy,tyyzz
     real(wp),allocatable :: qee_artmp(:,:)
     integer :: ichain,iarm,os
-  
+
 1   format(f8.2,1x,e11.3,1x,f14.7,2x,f20.8)
 
     sqqetoeAve=0._wp;qetoeAve=0._wp
@@ -1159,10 +1166,10 @@ contains
       qP => q(:,ichain)
 !      call gemv(Bmat,qP,R) ! R=Bmat.q !
       qPx => q(1:3*nseg-2:3,ichain)
-      qPy => q(2:3*nseg-1:3,ichain) 
+      qPy => q(2:3*nseg-1:3,ichain)
       qPz => q(3:3*nseg:3,ichain)
       RPx => rvmrc(1:3*(nseg+1)-2:3,ichain)
-      RPy => rvmrc(2:3*(nseg+1)-1:3,ichain) 
+      RPy => rvmrc(2:3*(nseg+1)-1:3,ichain)
       RPz => rvmrc(3:3*(nseg+1):3,ichain)
       select case (tplgy)
         case ('Linear')
@@ -1229,18 +1236,18 @@ contains
       sdYAve=sdYAve+Y**2
       sdYSqAve=sdYSqAve+Y**4
       FphiPx => Fphi(1:3*(nseg+1)-2:3,ichain)
-      FphiPy => Fphi(2:3*(nseg+1)-1:3,ichain) 
+      FphiPy => Fphi(2:3*(nseg+1)-1:3,ichain)
       FphiPz => Fphi(3:3*(nseg+1):3,ichain)
-  
+
       txx=dot(RPx,FphiPx)+nseg
       txy=dot(RPx,FphiPy)
       tyy=dot(RPy,FphiPy)+nseg
       tzz=dot(RPz,FphiPz)+nseg
       txxyy=txx-tyy
       tyyzz=tyy-tzz
-  
+
       tauxx=tauxx+txx
-      tauxy=tauxy+txy 
+      tauxy=tauxy+txy
       tauyy=tauyy+tyy
       tauzz=tauzz+tzz
       tauxxyy=tauxxyy+txxyy
@@ -1252,7 +1259,7 @@ contains
       sdxxyy=sdxxyy+txxyy*txxyy
       sdyyzz=sdyyzz+tyyzz*tyyzz
     end do! chain loop
-    
+
     sqqsprAve=sqqsprAve/(nchain*nseg)
     sqqetoeAve=sqqetoeAve/nchain
     qetoeAve=qetoeAve/nchain
@@ -1279,7 +1286,7 @@ contains
     sdzz = sdzz/nchain
     sdxxyy = sdxxyy/nchain
     sdyyzz = sdyyzz/nchain
-  
+
     if (tplgy == 'Comb') then
       do iarm=1, size(qee_ar)
         sqqee_ar(iarm)=sqqee_ar(iarm)/nchain
@@ -1291,18 +1298,18 @@ contains
       XbbAve=XbbAve/nchain
       XbbSqAve=XbbSqAve/nchain
       sdXbbAve=sdXbbAve/nchain
-      sdXbbSqAve=sdXbbSqAve/nchain      
+      sdXbbSqAve=sdXbbSqAve/nchain
     end if
-   
+
   end subroutine conf_anlzr
 
   ! This routine is written by Vydia Venkataramani and modified by Amir Saadat.
   ! It is for sorting the ensemble to different configurational classes:
   ! Description of diffrent configuration types:
-  ! Type 1   :   Folds(2/3 or 2/5) 
-  ! Type 2   :   Half-Dumbells 
+  ! Type 1   :   Folds(2/3 or 2/5)
+  ! Type 2   :   Half-Dumbells
   ! Type 3   :   Kinks
-  ! Type 4   :   Dumbells 
+  ! Type 4   :   Dumbells
   ! Type 5   :   Coils
   ! Type 6   :   Extended
   subroutine conf_sort(q,rvmrc,nseg,nbead,cnf_tp)
@@ -1341,10 +1348,10 @@ contains
 
     do ichain=1, npchain
       qPx => q(1:3*nseg-2:3,ichain)
-      qPy => q(2:3*nseg-1:3,ichain) 
+      qPy => q(2:3*nseg-1:3,ichain)
       qPz => q(3:3*nseg:3,ichain)
       RPx => rvmrc(1:3*nbead-2:3,ichain)
-      RPy => rvmrc(2:3*nbead-1:3,ichain) 
+      RPy => rvmrc(2:3*nbead-1:3,ichain)
       RPz => rvmrc(3:3*nbead:3,ichain)
       ntype=0
       ! Calculating the position of each bead
@@ -1355,7 +1362,7 @@ contains
 !        x(ibead)=x(ibead-1)+qPx(ibead-1)
 !        y(ibead)=y(ibead-1)+qPy(ibead-1)
 !        z(ibead)=z(ibead-1)+qPz(ibead-1)
-!      end do          
+!      end do
 
       ib=0
       ib1=0
@@ -1462,12 +1469,12 @@ contains
       maxbright=int(rmax*residx)+1
 !print *,'rmax',rmax
 !print *,'maxbright',maxbright
-      if (r(1) > r(2)) then     
+      if (r(1) > r(2)) then
         low=int(r(2))+1
         last=int(r(1))+1
         info=0
       else
-        low=int(r(1))+1 
+        low=int(r(1))+1
         last=int(r(2))+1
         info=1
       end if
@@ -1516,11 +1523,11 @@ contains
       dia=1._wp*residx ! parameter set based on your assumption
 !      dia=qmax*residx ! parameter set based on your assumption
       radius=dia/2
-           
+
       do i=1, maxbright
         icount3(i)=0._wp
       end do
-      
+
       do ibead=1, nbead
         bead_left=r(ibead)-radius
         bead_right=r(ibead)+radius
@@ -1599,7 +1606,7 @@ contains
 
         if (((ib(1) == 1).and.(ib(maxbright) > 1)).or. &
             ((ib(maxbright) == 1).and.(ib(1) > 1))) then
-           
+
           if ((ib(1) == 1).and.(ib(maxbright) > 1)) then
              j=1
              i=maxbright
@@ -1608,8 +1615,8 @@ contains
             j=0
             i=1
           end if
-           
-          icount = 0   
+
+          icount = 0
           sumbright = 0
           do while (ib(i) > 1)
             icount=icount+1
@@ -1618,7 +1625,7 @@ contains
               i=i-1
             else
               i=i+1
-            end if  
+            end if
           end do
           avgsum=sumbright/(1._wp*icount)
           lcount=0
@@ -1640,9 +1647,9 @@ contains
             last=i
           else
             left=i
-            last=k 
+            last=k
           end if
-          
+
           markerc=0
           do ik=left, last
             if (ib(ik) > (int(avgsum))) then
@@ -1668,7 +1675,7 @@ contains
         end if
 
         ! **Assigning for kink or fully extended**
-              
+
         if ((ib(1) == 1).and.(ib(maxbright) == 1)) THEN
           marker1=0
           do i=2, (maxbright-1)
@@ -1686,7 +1693,7 @@ contains
         end if
 
         ! **Assigning for coil or dumbell**
-              
+
         if ((ib(1) > 1).and.(ib(maxbright) > 1)) THEN
           marker2=0
           markerl=2
@@ -1713,13 +1720,13 @@ contains
 !              iconfig(5)=iconfig(5)+1
               ntype=5
             end if
-          end if           
+          end if
         end if
-              
+
       end if
 
       cnf_tp(ichain)=ntype
-                
+
     end do ! ichain
 
 !    do i=1, 6
@@ -1743,7 +1750,7 @@ contains
         close(u44);close(u45);close(u46);close(u47)
         if (iflow /= 1) then
           close(u8);close(u10);close(u11);close(u12)
-          if (iflow >= 3) close(u13);close(u14) 
+          if (iflow >= 3) close(u13);close(u14)
         end if
         select case (tplgy)
           case ('Linear')

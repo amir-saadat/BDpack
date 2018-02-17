@@ -22,7 +22,7 @@ contains
 
   module procedure init_evbw
 
-    use :: inp_dlt, only: nseg,nbead,EV_bw,Aw,N_Ks,qmax,ntime,npchain,nchain
+    use :: inp_dlt, only: nseg,nbead,EV_bw,Aw,N_Ks,qmax,ntime,npchain,nchain,nbead_ind
     use :: cmn_io_mod, only: read_input
 
     ! Bead-wall excluded volume interaction
@@ -38,9 +38,9 @@ contains
 
       call read_input('Bead-rad',0,this%a)
       call read_input('Wall-type',0,this%iwall)
-      allocate(this%w_coll(2:nbead,npchain))
-      allocate(this%w_coll_all(2:nbead,npchain))
-      allocate(this%ia_time(2:nbead,500,npchain))
+      allocate(this%w_coll(2:nbead_ind,npchain))
+      allocate(this%w_coll_all(2:nbead_ind,npchain))
+      allocate(this%ia_time(2:nbead_ind,500,npchain))
 
       ! Initializing the variables
 
@@ -54,9 +54,9 @@ contains
       end select
 
       if (id == 0) then
-        allocate(this%w_coll_t(2:nbead,npchain))
-        allocate(this%w_coll_all_t(2:nbead,npchain))
-        allocate(this%ia_time_t(2:nbead,500,npchain))
+        allocate(this%w_coll_t(2:nbead_ind,npchain))
+        allocate(this%w_coll_all_t(2:nbead_ind,npchain))
+        allocate(this%ia_time_t(2:nbead_ind,500,npchain))
         open(newunit=this%u_wc,file='data/w_coll.dat',status='replace',position='append')
         write(this%u_wc,*) "# chain index, bead index, Total number of collisions #"
         write(this%u_wc,*) "# --------------------------------------------------- #"
@@ -99,7 +99,7 @@ contains
   module procedure wall_rflc
 
     use :: mpi
-    use :: inp_dlt, only: nbead,qmax,tplgy,npchain,lambda,tss
+    use :: inp_dlt, only: nbead,qmax,tplgy,npchain,lambda,tss,nbead_ind
     use :: arry_mod, only: print_vector
 
     integer :: ib,ierr,sz,sz_t
@@ -153,7 +153,7 @@ contains
     rcmy=Ry(1)
     rcmz=Rz(1)
 
-    do ib=2, nbead
+    do ib=2, nbead_ind
 
       select case (this%iwall)
       case (1)
@@ -199,7 +199,7 @@ contains
         select case (tplgy)
           case ('Linear')
             qy(ib-1)=Ry(ib)-Ry(ib-1)
-            if (ib < nbead) &
+            if (ib < nbead_ind) &
               qy(ib)=Ry(ib+1)-Ry(ib)
           case ('Comb')
         end select
@@ -219,7 +219,7 @@ contains
       if ( this%w_coll(ib,ich)+1 > sz ) then
         print '(" Geometric resizing of ia_time array... in rank: ",i5)',id
         sz=2*size(this%ia_time,dim=2)
-        allocate(ia_tmp(2:nbead,sz,npchain))
+        allocate(ia_tmp(2:nbead_ind,sz,npchain))
         ia_tmp=1
         ia_tmp(:,1:sz/2,:)=this%ia_time(:,:,:)
         call move_alloc(from=ia_tmp,to=this%ia_time)
@@ -230,7 +230,7 @@ contains
       if (id == 0) then
         if ( sz_t > size(this%ia_time_t,dim=2) ) then
           print '(" Geometric resizing of ia_time_t array: ",i5)',id
-          allocate(ia_tmp(2:nbead,sz_t,npchain))
+          allocate(ia_tmp(2:nbead_ind,sz_t,npchain))
           ! ia_tmp=1
           ! ia_tmp(1:sz_t/2)=this%ia_time_t
           call move_alloc(from=ia_tmp,to=this%ia_time_t)
@@ -241,9 +241,9 @@ contains
       rcmy=rcmy+Ry(ib)
       rcmz=rcmz+Rz(ib)
     end do
-    rcmx=rcmx/nbead
-    rcmy=rcmy/nbead
-    rcmz=rcmz/nbead
+    rcmx=rcmx/nbead_ind
+    rcmy=rcmy/nbead_ind
+    rcmz=rcmz/nbead_ind
     Rx=Rx-rcmx
     Ry=Ry-rcmy
     Rz=Rz-rcmz
@@ -272,14 +272,14 @@ contains
   module procedure print_wcll
 
     use :: mpi
-    use :: inp_dlt, only: nbead,npchain,ntime,tss,lambda
+    use :: inp_dlt, only: nbead,npchain,ntime,tss,lambda,nbead_ind
     use :: arry_mod, only: print_vector
 
     integer :: ich,ib,iwc,osch,ierr,ncount_wc,ncount_ia,iproc,tag
 
 
-    ncount_wc=(nbead-1)*npchain
-    ncount_ia=(nbead-1)*size(this%ia_time,dim=2)*npchain
+    ncount_wc=(nbead_ind-1)*npchain
+    ncount_ia=(nbead_ind-1)*size(this%ia_time,dim=2)*npchain
 
     if (id == 0) then
 
@@ -288,7 +288,7 @@ contains
       write(this%u_ia,'(" TIME SINCE tss: ",f9.2)') time-lambda*tss
 
       do ich=1, npchain
-        do ib=2,nbead
+        do ib=2,nbead_ind
           write(this%u_wc,fmt3xi) ich,ib,this%w_coll(ib,ich)
           write(this%u_wc_all,fmt3xi) ich,ib,this%w_coll_all(ib,ich)
           do iwc=1, this%w_coll(ib,ich)
@@ -297,7 +297,7 @@ contains
         enddo
       enddo
 
-      ncount_ia=(nbead-1)*size(this%ia_time_t,dim=2)*npchain
+      ncount_ia=(nbead_ind-1)*size(this%ia_time_t,dim=2)*npchain
 
       do iproc=1, nproc-1
 
@@ -315,7 +315,7 @@ contains
         osch=iproc*npchain
 
         do ich=1, npchain
-          do ib=2,nbead
+          do ib=2,nbead_ind
             write(this%u_wc,fmt3xi) osch+ich,ib,this%w_coll_t(ib,ich)
             write(this%u_wc_all,fmt3xi) osch+ich,ib,this%w_coll_all_t(ib,ich)
             do iwc=1, this%w_coll_t(ib,ich)

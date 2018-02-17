@@ -158,6 +158,7 @@ module intrn_mod
       rcmx,rcmy,rcmz,rf_in)
       class(evbw_t),intent(inout) :: this
       real(wp),intent(in),dimension(3) :: rf_in
+      !real(wp),intent(in) :: rf_in(:,:)
       real(wp),intent(in) :: dt,time
       integer,intent(in) :: it,id,ich
       real(wp),intent(inout) :: qx(:),qy(:),qz(:)
@@ -194,13 +195,13 @@ contains
   subroutine calc_intrn(this,id,itime,rvmrc,rcm,nseg,DiffTens,divD,Fev,Fbarev,&
                       calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw)
 
-    use :: inp_dlt, only: EV_bb,EV_bw,hstar,HITens
+    use :: inp_dlt, only: EV_bb,EV_bw,hstar,HITens,nbead,nbead_ind
     use :: arry_mod, only: print_vector
 
     class(intrn_t),intent(inout) :: this
     integer,intent(in) :: nseg
     real(wp),intent(in) :: rvmrc(:)
-    real(wp),intent(in) :: rcm(:)
+    real(wp),intent(in) :: rcm(:,:)
     type(dis) :: rij
     integer :: ibead,jbead,os,osi,osj,ibead_ulim
     real(wp) :: LJ_prefactor,LJ_prefactor_tr,epsOVsig
@@ -210,6 +211,7 @@ contains
     real(wp) :: DiffTens(:,:),divD(:),Fev(:),Fbarev(:)
     logical :: clhi,cldiv,clevbb,clevbw,upevbb,upevbw
     logical,optional :: calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw
+    integer :: ichain_pp,jchain_pp
 
     integer :: id,itime
 
@@ -247,15 +249,18 @@ contains
 
     if (clevbb.or.clevbw) Fev=0._wp
     if ((upevbb).or.(upevbw)) then
-      allocate(Fstarev(3*(nseg+1)))
+      allocate(Fstarev(3*(nbead)))
       Fstarev=0._wp
     end if
 
-    do jbead=1,nseg+1
-      os=3*(jbead-2)
+    do jbead=1,nbead!nseg+1
+      os=3*(jbead-2) !why is this here?
       osj=3*(jbead-1)
       rjmrc=rvmrc(osj+1:osj+3)
+      jchain_pp = (jbead-1) / nbead_ind + 1
 
+      !print *, 'jbead = ', jbead
+      !print *, 'jchain_pp = ', jchain_pp
 
       ! if ( (id==1 .and. itime==10000) .or. &
       !      (id==1 .and. itime==20000) ) then
@@ -266,11 +271,11 @@ contains
 
       !! Blake's part
       if (hstar /= 0._wp .and. HITens == 'Blake') then
-        ibead_ulim=nseg+1
-        rjy=rjmrc(2)+rcm(2)
+        ibead_ulim=nbead!nseg+1
+        rjy=rjmrc(2)+rcm(2,jchain_pp)
         if (cldiv) call calc_div(jbead,rjy,divD,id,itime)
       else
-        ibead_ulim=jbead
+        ibead_ulim=jbead !upper triangular
       endif
       !!-------------
 
@@ -279,7 +284,7 @@ contains
       do ibead=1, ibead_ulim
 
         osi=3*(ibead-1)
-
+        ichain_pp = (ibead-1) / nbead_ind + 1
 
         ! if (ibead == jbead) then
         !   if (clhi) then
@@ -333,9 +338,9 @@ contains
           ! rij%x=rjmrc(1)-rimrc(1)
           ! rij%y=rjmrc(2)-rimrc(2)
           ! rij%z=rjmrc(3)-rimrc(3)
-          rij%x=rimrc(1)-rjmrc(1)
-          rij%y=rimrc(2)-rjmrc(2)
-          rij%z=rimrc(3)-rjmrc(3)
+          rij%x=(rimrc(1)-rjmrc(1)) + (rcm(1,ichain_pp)-rcm(1,jchain_pp))
+          rij%y=(rimrc(2)-rjmrc(2)) + (rcm(2,ichain_pp)-rcm(2,jchain_pp))
+          rij%z=(rimrc(3)-rjmrc(3)) + (rcm(3,ichain_pp)-rcm(3,jchain_pp))
           rij%mag2=rij%x**2+rij%y**2+rij%z**2
           rij%mag=sqrt(rij%mag2)
 
@@ -350,20 +355,20 @@ contains
 
         ! Blake's part
         if (HITens == 'Blake') then
-          rij%rjy=rjmrc(2)+rcm(2)
-          rij%riy=rimrc(2)+rcm(2)
-          rij%yim=rimrc(2)+rcm(2)+rij%rjy
+          rij%rjy=rjmrc(2)+rcm(2,jchain_pp)
+          rij%riy=rimrc(2)+rcm(2,ichain_pp)
+          rij%yim=rimrc(2)+rcm(2,ichain_pp)+rij%rjy
           rij%mag2im=rij%x**2+rij%yim**2+rij%z**2
           rij%magim=sqrt(rij%mag2im)
         endif
 
         if (HITens == 'Osph') then
-          rij%rjx=rjmrc(1)+rcm(1)
-          rij%rjy=rjmrc(2)+rcm(2)
-          rij%rjz=rjmrc(3)+rcm(3)
-          rij%rix=rimrc(1)+rcm(1)
-          rij%riy=rimrc(2)+rcm(2)
-          rij%riz=rimrc(3)+rcm(3)
+          rij%rjx=rjmrc(1)+rcm(1,jchain_pp)
+          rij%rjy=rjmrc(2)+rcm(2,jchain_pp)
+          rij%rjz=rjmrc(3)+rcm(3,jchain_pp)
+          rij%rix=rimrc(1)+rcm(1,ichain_pp)
+          rij%riy=rimrc(2)+rcm(2,ichain_pp)
+          rij%riz=rimrc(3)+rcm(3,ichain_pp)
         endif
         !-------------
 
@@ -372,11 +377,11 @@ contains
       end do ! ibead
 
       if (clevbw) then
-        ry=rjmrc(2)+rcm(2)
+        ry=rjmrc(2)+rcm(2,jchain_pp)
         call calc_evbw(this%evbw,jbead,ry,Fev)
       end if
       if (upevbw) then
-        ry=rjmrc(2)+rcm(2)
+        ry=rjmrc(2)+rcm(2,jchain_pp)
         call calc_evbw(this%evbw,jbead,ry,Fstarev)
       end if
 
