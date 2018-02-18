@@ -290,6 +290,11 @@ contains
     select case (tplgy)
 
       case ('Linear')
+
+        !print *, 'iseg: ', iseg
+        !print *, 'segment idx offset: ', offset
+        !print *, 'bead idx offset: ', offset_bead
+        
         ! As the change in Fseg(i) only affects Fbead(i:i+1):
         if (nseg == 1) then
           Fbarbead(1:3)=Fbarseg(1:3)
@@ -310,17 +315,21 @@ contains
           !                               Fbarseg(offset+1:offset+3)
 
           if (iseg == 1) then!first segment
+            !print *, 'first segment'
             Fbarbead(1:3)=Fbarseg(1:3)
             Fbarbead(4:6)=Fbarseg(4:6)-Fbarseg(1:3)
           elseif (MOD(iseg,nseg_ind)==0) then!end segments
+            !print *, 'end segment'
             Fbarbead(offset_bead+1:offset_bead+3)=Fbarseg(offset+1:offset+3)-&
                                         Fbarseg(offset-2:offset)
             Fbarbead(offset_bead+4:offset_bead+6)=-Fbarseg(offset+1:offset+3)
           elseif (MOD(iseg-1,nseg_ind)==0) then !tethered segments
+            !print *, 'tethered segment'
             Fbarbead(offset_bead+1:offset_bead+3)=Fbarseg(offset+1:offset+3)
             Fbarbead(offset_bead+4:offset_bead+6)=Fbarseg(offset+4:offset+6)-&
                                         Fbarseg(offset+1:offset+3)
           else !middle segments
+            !print *, 'middle segment'
             Fbarbead(offset_bead+1:offset_bead+3)=Fbarseg(offset+1:offset+3)-&
                                         Fbarseg(offset-2:offset)
             Fbarbead(offset_bead+4:offset_bead+6)=Fbarseg(offset+4:offset+6)-&
@@ -672,6 +681,10 @@ contains
     delr(1:3)=(rvmrc(1:3)+rc(1:3)-rf0(1:3))/(0.25_wp*dt)
 
     D1=D(1:3,1:3)
+
+    !call print_vector(delr(1:3),'delr(1:3)')
+    !call print_matrix(D1(:,:),'D1')
+
     call sysv(D1,delr,'U',ipiv,info)
     if (info == 0) then
       Ftet=-delr

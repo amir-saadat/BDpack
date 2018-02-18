@@ -383,7 +383,9 @@ contains
     endif
 
     if (tplgy == 'Linear') then
-      call gbmv(this%AmatBF,Fseg,Fbead,kl=0,m=nsegx3,alpha=-1.0_wp,trans='T')
+      !AmatBF is not right
+      !call gbmv(this%AmatBF,Fseg,Fbead,kl=0,m=nsegx3,alpha=-1.0_wp,trans='T')
+      call gemv(this%Amat,Fseg,Fbead,alpha=-1._wp,trans='T')
     else
       call gemv(this%Amat,Fseg,Fbead,alpha=-1._wp,trans='T')
     end if
@@ -394,6 +396,7 @@ contains
       Fphi(1,ichain)=Fphi(1,ichain)-Fext0
       Fphi(nbeadx3-2,ichain)=Fphi(nbeadx3-2,ichain)+Fext0
     end if
+    !print *, '-----------------------------------------'
     if (srf_tet) then
       do ichain_pp = 1,nchain_pp
         idx_pp_bead = (nbead_indx3) * (ichain_pp -1) + 1
@@ -403,7 +406,13 @@ contains
           rf0(:,ichain,ichain_pp),itime)
         Fphi(idx_pp_bead:idx_pp_bead+2,ichain)=Fphi(idx_pp_bead:idx_pp_bead+2,ichain)+&
           Ftet(3*(ichain_pp-1)+1:3*(ichain_pp))
+          !call print_vector(Ftet(:),'Ftet in the loop')
+          !call print_vector(rvmrcP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),'rvmrc in the loop')
+          !call print_vector(rcm(:,ichain,ichain_pp),'rcm in the loop')
+          !call print_matrix(DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),'DiffTens in the loop')
+
       end do
+      !call print_vector(Fphi(:,ichain),'Fphi')
     end if
     call gemv(AdotDP1,Fphi(:,ichain),qstar,alpha=0.25*dt(iPe,idt),&
       beta=1._wp)
@@ -481,8 +490,9 @@ contains
           DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),&
           dt(iPe,idt),Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp)),rf0(:,ichain,ichain_pp),itime)
         Fbar(idx_pp_bead:idx_pp_bead+2)=Fbar(idx_pp_bead:idx_pp_bead+2)+Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp))
-        !call print_vector(Fbartet(1:3),'Tether force')
+        !call print_vector(Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp)),'Fbartet')
       end do
+      !call print_vector(Fbar(:),'Fbar')
     end if
     call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
 
@@ -633,6 +643,7 @@ contains
   subroutine U_sph_sde(this,U_seg,U_bead,q,rcm)
 
     use :: inp_dlt, only: nseg,nbead,nsegx3,nbeadx3,nbead_ind
+    use :: arry_mod, only: print_vector, print_matrix
 
     class(sde_t),intent(inout) :: this
     real(wp), intent(inout) :: U_seg(:) !nsegx3
@@ -671,6 +682,8 @@ contains
     ! enddo
 
     call gemv(this%Amat,U_bead,U_seg)
+    !call print_vector(U_bead(:),'U_bead')
+    !call print_vector(U_seg(:),'U_seg')
 
   end subroutine U_sph_sde
 

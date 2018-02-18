@@ -1068,7 +1068,9 @@ module dlt_mod
               wbltempP2 => wbltemp(:,lcol,ichain)
               FBrblP => FBrbl(:,lcol,ichain)
               if (tplgy == 'Linear') then
-                call gbmv(AmatBF,real(wbltempP2,kind=wp),FBrblP,kl=0,m=nsegx3,alpha=coeff)
+                !AmatBF is not right
+                !call gbmv(AmatBF,real(wbltempP2,kind=wp),FBrblP,kl=0,m=nsegx3,alpha=coeff)
+                call gemv(Amat,real(wbltempP2,kind=wp),FBrblP,alpha=coeff)
 
                 !TYL: HI for tethered bead -------------------------------------
                 !print *, 'Brownian force calculaton------------'
@@ -1431,11 +1433,11 @@ module dlt_mod
             if (sph_flow) then
               call mysde%U_sph(U_seg,U_bead,q(:,ichain),rcm(:,ichain,:))
               do ichain_pp=1,nchain_pp
-                rcmP(1,ichain_pp) = rcmP(1,ichain_pp) + (1._wp/nbead)*&
+                rcmP(1,ichain_pp) = rcmP(1,ichain_pp) + (1._wp/nbead_ind)*&
                   sum(U_bead(nbead_indx3*(ichain_pp-1) + 1 : nbead_indx3*ichain_pp - 2 : 3))*dt(iPe,idt)
-                rcmP(2,ichain_pp) = rcmP(2,ichain_pp) + (1._wp/nbead)*&
+                rcmP(2,ichain_pp) = rcmP(2,ichain_pp) + (1._wp/nbead_ind)*&
                   sum(U_bead(nbead_indx3*(ichain_pp-1) + 2 : nbead_indx3*ichain_pp - 1 : 3))*dt(iPe,idt)
-                rcmP(3,ichain_pp) = rcmP(3,ichain_pp) + (1._wp/nbead)*&
+                rcmP(3,ichain_pp) = rcmP(3,ichain_pp) + (1._wp/nbead_ind)*&
                   sum(U_bead(nbead_indx3*(ichain_pp-1) + 3 : nbead_indx3*ichain_pp : 3))*dt(iPe,idt)
               end do
             endif
