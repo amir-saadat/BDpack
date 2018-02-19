@@ -45,6 +45,7 @@ qstart = np.zeros((3,nseg_ind,nchain,nchain_pp))
 rcmstart = np.zeros((3,nchain,nchain_pp))
 rf_in = np.zeros((3,nchain_pp))
 rf_in_unit = np.zeros((3,nchain_pp))
+r_curr = np.zeros((3))
 
 #first generate random points on the sphere of radius a+a_sph
 for ichain_pp in xrange(0,nchain_pp):
@@ -54,24 +55,31 @@ for ichain_pp in xrange(0,nchain_pp):
         x = np.random.normal(0,1,3)
     rf_in_unit[:,ichain_pp] = (x/np.linalg.norm(x))
     rf_in[:,ichain_pp] = rf_in_unit[:,ichain_pp] * (a+a_sph)
-    np.savetxt(rfinst_file,rf_in[:,ichain_pp],delimiter=' ',newline=' ', fmt='%1.8f')
+    np.savetxt(rfinst_file,rf_in[:,ichain_pp],delimiter=' ',newline=' ', fmt='%1.10f')
     rfinst_file.write('\n')
+
+#print rf_in_unit
+#rint rf_in
+
 
 #generate spring vector and center of mass
 for ichain in xrange(0,nchain):
     for ichain_pp in xrange(0,nchain_pp):
-        #initialize center of mass to tether point
-        rcmstart[:,ichain,ichain_pp] = rf_in[:,ichain_pp]
+
+        r_curr = rf_in[:,ichain_pp].copy()
+        rcmstart[:,ichain,ichain_pp] = r_curr[:].copy()
 
         for iseg in xrange(0,nseg_ind):
-            qstart[:,iseg,ichain,ichain_pp] = rf_in_unit[:,ichain_pp]
-            rcmstart[:,ichain,ichain_pp] = rcmstart[:,ichain,ichain_pp] + qstart[:,iseg,ichain,ichain_pp]
+            qstart[:,iseg,ichain,ichain_pp] = rf_in_unit[:,ichain_pp].copy()
 
-            np.savetxt(qst_file,qstart[:,iseg,ichain,ichain_pp],delimiter=' ',newline=' ', fmt='%1.8f')
+            r_curr[:] = r_curr[:] + qstart[:,iseg,ichain,ichain_pp]
+            rcmstart[:,ichain,ichain_pp] = rcmstart[:,ichain,ichain_pp]+ r_curr[:]
+
+            np.savetxt(qst_file,qstart[:,iseg,ichain,ichain_pp],delimiter=' ',newline=' ', fmt='%1.10f')
             qst_file.write('\n')
 
         rcmstart[:,ichain,ichain_pp] = rcmstart[:,ichain,ichain_pp]/nbead_ind
-        np.savetxt(CoMst_file,rcmstart[:,ichain,ichain_pp],delimiter=' ',newline=' ', fmt='%1.8f')
+        np.savetxt(CoMst_file,rcmstart[:,ichain,ichain_pp],delimiter=' ',newline=' ', fmt='%1.10f')
         CoMst_file.write('\n')
 
 #closing the output files
