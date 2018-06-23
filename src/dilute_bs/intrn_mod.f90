@@ -155,9 +155,9 @@ module intrn_mod
       real(wp),intent(inout) :: Fev(:)
     end subroutine calc_evbw
     module subroutine wall_rflc(this,dt,it,time,id,ich,qx,qy,qz,Rx,Ry,Rz,&
-      rcmx,rcmy,rcmz,rf_in)
+      rcmx,rcmy,rcmz,rf0,r_sph)
       class(evbw_t),intent(inout) :: this
-      real(wp),intent(in),dimension(3) :: rf_in
+      real(wp),intent(in),dimension(3) :: rf0,r_sph!rf_in
       !real(wp),intent(in) :: rf_in(:,:)
       real(wp),intent(in) :: dt,time
       integer,intent(in) :: it,id,ich
@@ -192,16 +192,17 @@ contains
 
   end subroutine init_intrn
 
-  subroutine calc_intrn(this,id,itime,rvmrc,rcm,nseg,DiffTens,divD,Fev,Fbarev,&
+  subroutine calc_intrn(this,id,itime,rvmrc,rcm,r_sph,nseg,DiffTens,divD,Fev,Fbarev,&
                       calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw)
 
     use :: inp_dlt, only: EV_bb,EV_bw,hstar,HITens,nbead,nbead_ind
-    use :: arry_mod, only: print_vector
+    use :: arry_mod, only: print_vector,print_matrix
 
     class(intrn_t),intent(inout) :: this
     integer,intent(in) :: nseg
     real(wp),intent(in) :: rvmrc(:)
     real(wp),intent(in) :: rcm(:,:)
+    real(wp),intent(in) :: r_sph(:)
     type(dis) :: rij
     integer :: ibead,jbead,os,osi,osj,ibead_ulim
     real(wp) :: LJ_prefactor,LJ_prefactor_tr,epsOVsig
@@ -363,12 +364,12 @@ contains
         endif
 
         if (HITens == 'Osph') then
-          rij%rjx=rjmrc(1)+rcm(1,jchain_pp)
-          rij%rjy=rjmrc(2)+rcm(2,jchain_pp)
-          rij%rjz=rjmrc(3)+rcm(3,jchain_pp)
-          rij%rix=rimrc(1)+rcm(1,ichain_pp)
-          rij%riy=rimrc(2)+rcm(2,ichain_pp)
-          rij%riz=rimrc(3)+rcm(3,ichain_pp)
+          rij%rjx=rjmrc(1)+rcm(1,jchain_pp) - r_sph(1)
+          rij%rjy=rjmrc(2)+rcm(2,jchain_pp) - r_sph(2)
+          rij%rjz=rjmrc(3)+rcm(3,jchain_pp) - r_sph(3)
+          rij%rix=rimrc(1)+rcm(1,ichain_pp) - r_sph(1)
+          rij%riy=rimrc(2)+rcm(2,ichain_pp) - r_sph(2)
+          rij%riz=rimrc(3)+rcm(3,ichain_pp) - r_sph(3)
         endif
         !-------------
 
@@ -387,6 +388,7 @@ contains
 
     end do ! jbead
 
+    !call print_matrix(DiffTens(:,:),'DiffTens')
     if ((upevbb).or.(upevbw)) then
       Fbarev=0.5*(Fev+Fstarev)
       deallocate(Fstarev)

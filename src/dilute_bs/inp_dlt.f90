@@ -107,7 +107,7 @@ module inp_dlt
   real(wp),protected :: q_l,qr_lto2
   integer,protected :: npchain
   real(wp),protected :: RWS_C,RWS_D,WLC_A,WLC_B,WLC_C
-  logical,protected :: unif_flow, sph_flow
+  logical,protected :: unif_flow, sph_flow, sph_move
   integer,protected :: nseg_ind,nbead_ind,nchain_pp,nbead_indx3,nseg_indx3
   logical,protected :: multet
 
@@ -134,6 +134,7 @@ contains
     srf_tet=.false.;arm_plc='Random'
     unif_flow=.false.
     sph_flow=.false.
+    sph_move=.false.
     iflow=1
     nWi=1;Wii=0._wp;Wif=0._wp;WiSpacing='Linear'
     hstar=0._wp;HITens='RPY';DecompMeth='Cholesky';ncols=1
@@ -277,6 +278,12 @@ rndmlp:         do
                 sph_flow=.true.
               elseif(tokens(j+1) == 'FALSE') then
                 sph_flow=.false.
+              end if
+            case ('Sph-Move')
+              if(tokens(j+1) == 'TRUE') then
+                sph_move=.true.
+              elseif(tokens(j+1) == 'FALSE') then
+                sph_move=.false.
               end if
             case ('Flow-Type')
               call value(tokens(j+1),iflow,ios)
@@ -490,6 +497,12 @@ rndmlp:         do
       nseg_ind = nseg
       nbead_indx3 = nbead_ind*3
       nseg_indx3 = nseg_ind*3
+      print *, 'only one tethered polymer'
+      print *, 'nchain_pp, ', nchain_pp
+      print *, 'nbead_ind, ', nbead_ind
+      print *, 'nseg_ind, ', nseg_ind
+      print *, 'nbead, ', nbead
+      print *, 'nseg, ', nseg
     else !multiple tethered polymers
       multet = .true.
       nchain_pp=nseg/nseg_ind
@@ -497,10 +510,12 @@ rndmlp:         do
       nbead=nbead_ind*nchain_pp
       nbead_indx3 = nbead_ind*3
       nseg_indx3 = nseg_ind*3
+      print *, 'more than one tethered polymer'
       print *, 'nchain_pp, ', nchain_pp
-      print *, 'nseg_ind, ', nseg_ind
       print *, 'nbead_ind, ', nbead_ind
+      print *, 'nseg_ind, ', nseg_ind
       print *, 'nbead, ', nbead
+      print *, 'nseg, ', nseg
     endif
 
     nbeadx3=nbead*3;nsegx3=nseg*3

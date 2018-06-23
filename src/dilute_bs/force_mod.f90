@@ -294,7 +294,7 @@ contains
         !print *, 'iseg: ', iseg
         !print *, 'segment idx offset: ', offset
         !print *, 'bead idx offset: ', offset_bead
-        
+
         ! As the change in Fseg(i) only affects Fbead(i:i+1):
         if (nseg == 1) then
           Fbarbead(1:3)=Fbarseg(1:3)

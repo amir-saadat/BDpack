@@ -12,7 +12,7 @@ OBJS    += force_mod.o HIEVCalc.o pp_mod.o
 OBJS    += intrn_mod.o hi_smod.o hibb_smod.o
 OBJS	+= hibw_smod.o evbb_smod.o evbw_smod.o
 #OBJS	+= dlt_mod.o
-OBJS	+= sde_mod.o dlt_mod.o
+OBJS	+= sde_mod.o sph_sde_mod.o dlt_mod.o
 
 INCS	 = -I ../common/inc
 INCS    += -I ./inc

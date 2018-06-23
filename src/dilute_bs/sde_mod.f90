@@ -305,13 +305,13 @@ contains
 
   !update the configurations of the chains with the SDE
   subroutine advance_sde(this,myintrn,id,iPe,idt,ichain,itime,Kdotq,qc,Fseg,Fbead,Fev,Fbnd,qstar,Fphi,&
-    rvmrcP,rcm,DiffTensP,Ftet,rf0,AdotDP1,divD,FBr,RHS,rcmP,Fbarev,nbead_bb,Fbarbnd,Fbar,Fbartet,&
+    rvmrcP,rcm,DiffTensP,Ftet,rf0,AdotDP1,divD,FBr,RHS,rcmP,r_sphP,Fbarev,nbead_bb,Fbarbnd,Fbar,Fbartet,&
     RHScnt,Fbarseg,Fbarbead,root_f,qbar,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE)
 
     !variables used from other places
     use :: inp_dlt, only: nseg,nbead,tplgy,dt,Pe,nsegx3,nbeadx3,applFext,Fext0,srf_tet,&
       hstar,HITens,EV_bb,EV_bw,ForceLaw,PrScale,nroots,TruncMethod,nseg_ar,tol,DecompMeth,Ia,Na,sph_flow,&
-      nchain_pp,nbead_indx3
+      nchain_pp,nbead_indx3,nseg_ind
     use :: force_mod, only: tetforce,bndupdate,tetupdate,sprupdate
     use :: intrn_mod, only: intrn_t
     use :: arry_mod, only: print_vector, print_matrix
@@ -334,6 +334,7 @@ contains
     real(wp), intent(inout) :: FBr(:)
     real(wp), intent(inout), target :: RHS(:)
     real(wp), intent(inout) :: rcmP(:,:)
+    real(wp), intent(inout) :: r_sphP(:)
     real(wp), intent(inout) :: Fbarev(:)
     real(wp), intent(inout) :: Fbarbnd(:)
     integer, intent(inout) :: nbead_bb
@@ -379,7 +380,9 @@ contains
 
     if (sph_flow) then
       call U_sph_sde(this,U_seg,U_bead,qc,rcm(:,ichain,:))
+      !call print_vector(U_seg(:),'Predictor U_seg')
       Kdotq = Kdotq + U_seg*dt(iPe,idt)
+      !call print_vector(Kdotq(:),'Predictor Kdotq')
     endif
 
     if (tplgy == 'Linear') then
@@ -400,13 +403,17 @@ contains
     if (srf_tet) then
       do ichain_pp = 1,nchain_pp
         idx_pp_bead = (nbead_indx3) * (ichain_pp -1) + 1
+        !call print_vector(Ftet(:),'Ftet in the loop: before')
         call tetforce(rvmrcP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),rcm(:,ichain,ichain_pp),&
           DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),&
           dt(iPe,idt),Ftet(3*(ichain_pp-1)+1:3*(ichain_pp)),&
           rf0(:,ichain,ichain_pp),itime)
         Fphi(idx_pp_bead:idx_pp_bead+2,ichain)=Fphi(idx_pp_bead:idx_pp_bead+2,ichain)+&
           Ftet(3*(ichain_pp-1)+1:3*(ichain_pp))
-          !call print_vector(Ftet(:),'Ftet in the loop')
+        print *, 'ichain_pp = ', ichain_pp
+        call print_vector(rf0(:,ichain,ichain_pp),'rf0 (predictor)')
+        call print_vector(Ftet(3*(ichain_pp-1)+1:3*(ichain_pp)),'Ftet (predictor)')
+        !call print_matrix(DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),'DiffTens')
           !call print_vector(rvmrcP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),'rvmrc in the loop')
           !call print_vector(rcm(:,ichain,ichain_pp),'rcm in the loop')
           !call print_matrix(DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),'DiffTens in the loop')
@@ -466,7 +473,7 @@ contains
     !            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
     if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
       !              call EVUpdate(Fev,rvmrcP,Fbarev)
-      call myintrn%calc(id,itime,rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
+      call myintrn%calc(id,itime,rvmrcP,rcmP,r_sphP,nseg,DiffTensP,divD,Fev,Fbarev,&
         updtevbb=.true.,updtevbw=.true.)
       !call print_vector(Fev,'fev3')
       !call evupdate2(Fev,rvmrcP,nseg,Fbarev)
@@ -490,9 +497,11 @@ contains
           DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),&
           dt(iPe,idt),Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp)),rf0(:,ichain,ichain_pp),itime)
         Fbar(idx_pp_bead:idx_pp_bead+2)=Fbar(idx_pp_bead:idx_pp_bead+2)+Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp))
-        !call print_vector(Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp)),'Fbartet')
+        print *, 'ichain_pp = ', ichain_pp
+        call print_vector(Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp)),'Fbartet (1st corrector)')
+        call print_vector(Fbar(idx_pp_bead:idx_pp_bead+2),'Fbar (1st corrector)')
       end do
-      !call print_vector(Fbar(:),'Fbar')
+      Ftet(:) = Fbartet(:)
     end if
     call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
 
@@ -528,6 +537,7 @@ contains
 
     if (sph_flow) then
       call U_sph_sde(this,U_seg,U_bead,qstar,rcm(:,ichain,:))
+      !call print_vector(U_seg(:),'Corrector1 U_seg')
       RHS = RHS + U_seg*0.5*dt(iPe,idt)
     endif
 
@@ -538,6 +548,20 @@ contains
       offset=3*(iseg-1)
       RHSP => RHS(offset+1:offset+3)
       AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
+
+
+      ! !test
+      ! if (srf_tet) then
+      !   if (MOD(iseg-1,nseg_ind)/=0) then
+      !     call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
+      !   end if
+      ! else
+      !   call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
+      ! end if
+      ! !test
+
+
+      !!!!!!instead of the complicated indexing
       call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
 
       !TYL: HI for tethered bead -----------------------------------------
@@ -554,6 +578,7 @@ contains
         !call print_vector(RHSP,'RHSP AFTER')
       end if
       !TYL: HI for tethered bead -----------------------------------------
+      !!!!!!instead of the complicated indexing
 
       call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qstar,iseg,&
         nseg,ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,this%Amat,nseg_bb,&
@@ -589,12 +614,27 @@ contains
 
         if (sph_flow) then
           call U_sph_sde(this,U_seg,U_bead,qc,rcm(:,ichain,:))
+          !print *, 'iseg = ', iseg
+          !call print_vector(U_seg(:),'Corrector2 U_seg')
+          !call print_vector(RHSP(:),'Corrector2 RHSP')
           RHSP = RHSP + U_seg(offset+1:offset+3)*0.5*dt(iPe,idt)
         endif
 
         call axpy(FsegP,RHSP,a=0.5*dt(iPe,idt))
-        call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
 
+
+        !test
+        ! if (srf_tet) then
+        !   if (MOD(iseg-1,nseg_ind)/=0) then
+        !     call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
+        !   end if
+        ! else
+        !   call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
+        ! end if
+        !test
+
+        !!!!!!!!instead of the complicated indexing
+        call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
         !TYL: HI for tethered bead ---------------------------------------
         !print *, 'Second corrector calculaton perbead------------'
         !call print_matrix(AdotDP2,'AdotDP2')
@@ -609,6 +649,8 @@ contains
           !call print_vector(RHSP,'RHSP AFTER')
         end if
         !TYL: HI for tethered bead ---------------------------------------
+        !!!!!!!instead of the complicated indexing
+
 
         call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qbar,iseg,&
           nseg,ForceLaw,TruncMethod,qc,Fseg,Fbead,tplgy,this%Amat,nseg_bb,nseg_ar,&
@@ -665,15 +707,28 @@ contains
       ichain_pp = (i-1) / nbead_ind + 1
       r(1:3) = rvmrc(3*(i-1)+1:3*(i-1)+3) + rcm(1:3,ichain_pp)
       r_mag = sqrt(r(1)**2 + r(2)**2 + r(3)**2)
+
+      if (r_mag < this%a_sph) then
+        print *, '-----------------'
+        print *, 'bead is inside the sphere. Bead idx = ', i
+        print *, 'r_mag = ', r_mag
+      end if
+
       th = ACOS(r(1)/r_mag) !0<th<pi
       ph = ATAN2(r(3),r(2))                  !-pi<ph<pi
       u_r  =  cos(th) * (1 + this%a_sph**3/(2*r_mag**3) - 3*this%a_sph/2/r_mag)
       u_th = -sin(th) * (1 - this%a_sph**3/(4*r_mag**3) - 3*this%a_sph/4/r_mag)
       u_ph = 0._wp
 
+
+
       U_bead(3*(i-1)+1) = cos(th)*u_r - sin(th)*u_th
       U_bead(3*(i-1)+2) = sin(th)*cos(ph)*u_r + cos(th)*cos(ph)*u_th - sin(ph)*u_ph
       U_bead(3*(i-1)+3) = sin(th)*sin(ph)*u_r + cos(th)*sin(ph)*u_th + cos(ph)*u_ph
+
+
+
+
     enddo
     U_bead = this%U_mag_sph *U_bead
 
@@ -681,9 +736,13 @@ contains
     !   U_seg(3*(j-1)+1:3*(j-1)+3) = U_bead(3*j+1:3*j+3) - U_bead(3*(j-1)+1:3*(j-1)+3)
     ! enddo
 
+    !hey there...
     call gemv(this%Amat,U_bead,U_seg)
-    !call print_vector(U_bead(:),'U_bead')
-    !call print_vector(U_seg(:),'U_seg')
+
+
+    ! print *, '-------------------'
+    ! call print_vector(U_bead(:),'U_bead')
+    ! call print_vector(U_seg(:),'U_seg')
 
   end subroutine U_sph_sde
 

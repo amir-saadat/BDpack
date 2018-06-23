@@ -195,8 +195,8 @@ contains
       ! int_divD=int(divD(j)*10_longlong**digits,kind=longlong) ! integer of rjy: cast to longlong integer
       ! divD(j)=int_divD/(10._wp**digits)
 
-      divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
-      !divD(j) = 0
+      !divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
+      divD(j) = 0
     end if
 
   end procedure calc_div

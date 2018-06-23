@@ -50,7 +50,8 @@ contains
       Omegaij_PD = (3*sqrtPI*hstar/4)*Hij_PD
       Omegaji_PD = (3*sqrtPI*hstar/4)*Hji_PD
       Omega_c = (1._wp/2)*(Omegaij_PD+TRANSPOSE(Omegaji_PD))
-      Omega_W = Omega_PF - (2*((sqrtPI*hstar)**2)/3)*Omega_c
+      !Omega_W = Omega_PF - (2*((sqrtPI*hstar)**2)/3)*Omega_c
+      Omega_W = Omega_PF !- (2*((sqrtPI*hstar)**2)/3)*Omega_c
 
       DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) &
                                         + Omega_W
@@ -74,14 +75,15 @@ contains
 
 
 
-      !print *, 'i=',i,' j=',j
-      !print *, 'pt force (j): ', rij%rjx, rij%rjy, rij%rjz
-      !print *, 'velocity (i): ', rij%rix, rij%riy, rij%riz
-      !call print_matrix(DiffTens(osi+1:osi+3,osj+1:osj+3),'DiffTens')
+      ! print *, 'i=',i,' j=',j
+      ! print *, 'hstar = ', hstar
+      ! print *, 'a_sph = ', this%a_sph
+      ! print *, 'pt force (j): ', rij%rjx, rij%rjy, rij%rjz
+      ! print *, 'velocity (i): ', rij%rix, rij%riy, rij%riz
+      ! call print_matrix(DiffTens(osi+1:osi+3,osj+1:osj+3),'DiffTens = ')
 
       !call print_matrix(dpdx,'dpdx tensor')
       !call print_matrix(G_sph,'G_sph tensor')
-
 
     end select
 
@@ -93,11 +95,20 @@ contains
   !calculate the Green's function for point force outside of a sphere
   subroutine G_sph_Calc(G_sphTens,dpdxTens,a_sph,rij)
 
+    real(wp),parameter :: PI=3.1415926535897958648_wp
+    real(wp),parameter :: sqrtPI=sqrt(PI)
+
     real(wp), intent(inout) :: G_sphTens(:,:),dpdxTens(:,:)
     type(dis), intent(in) :: rij
     real(wp), intent(in) :: a_sph
 
     integer :: i,j
+
+    !scalar quantities
+    real(wp) :: pp !projection onto singular line
+    real(wp) :: angle_fix !half angle of region to apply singular fix
+    real(wp) :: small !angle between field point and singular line
+    real(wp) :: x_dot_xx_star !field point x dot with image point xx_star
 
     !variables where all three components are needed
     real(wp) :: x_x,x_y,x_z
@@ -113,6 +124,11 @@ contains
     real(wp) :: x_hat_i,x_hat_j
     real(wp) :: x_hat_star_i,x_hat_star_j
     real(wp) :: dij
+    real(wp) :: p_i,p_j !projection vector
+    real(wp) :: deltax_i,deltax_j !vector normal to singular s.t. x_i-p_i=deltax_i
+
+    !specify angle of the region to apply singular fix
+    angle_fix = 2*(PI/180) !in radians
 
     !calculate distances needed
     x_x = rij%rix
@@ -132,6 +148,13 @@ contains
 
     r = rij%mag
     x_mag = sqrt(rij%rix**2 + rij%riy**2 + rij%riz**2)
+
+    x_dot_xx_star = x_x*xx_star_x + x_y*xx_star_y + x_z*xx_star_z
+    small = PI - ACOS(x_dot_xx_star/(x_mag * rr_star))
+
+    if (small < angle_fix) then
+      pp = ABS(x_dot_xx_star/rr_star)
+    endif
 
     !using the language of Pozrikidis (Boundary Integral and Singularity Methods for Linearized Viscous Flow)
     !but there seems to be a typo in Pozrikidis, so the Green's function is implemented from
@@ -189,18 +212,41 @@ contains
           x_hat_star_j = x_hat_star_z
         end select
 
-        dpdxTens(i,j) = -3*xx_j*(x_hat_star_i/(a_sph*(r_star**3))) + &
+        !if (x_mag*rr_star + x_x*xx_star_x + x_y*xx_star_y + x_z*xx_star_z < 0.00000001_wp) then
+        if (small < angle_fix) then
+          !print *, 'Caution: the diffusion tensor is close to singular. Angle between ri and rj is close to pi.'
+          p_i = pp*(-xx_star_i/rr_star)
+          p_j = pp*(-xx_star_j/rr_star)
+          deltax_i = x_i - p_i
+          deltax_j = x_j - p_j
+        end if
+
+
+        if (small < angle_fix) then !if angle is within angle_fix of the singular line
+          dpdxTens(i,j) = -3*xx_j*(x_hat_star_i/(a_sph*(r_star**3))) + &
             a_sph*dij/(r_star**3) - &
             3*a_sph*x_hat_star_i*x_hat_star_j / (r_star**5) - &
             2*xx_star_i*xx_j/(a_sph*r_star**3) + &
-            6*xx_j*x_hat_star_i*(xx_star_x*x_hat_star_x + xx_star_y*x_hat_star_y + xx_star_z*x_hat_star_z)/(a_sph*r_star**5) + &
-            (3*a_sph/rr_star)*(xx_star_j*x_hat_star_i*(r_star**2) + x_hat_star_i*x_hat_star_j*(rr_star**2) + (r_star-rr_star)*(r_star**2)*rr_star*dij)/ &
-                ((r_star**3)*rr_star*(rr_star*r_star + x_x*xx_star_x + x_y*xx_star_y + x_z*xx_star_z - rr_star**2)) - &
-            (3*a_sph/rr_star)*((rr_star*x_hat_star_i + r_star*xx_star_i)*(xx_star_j*(r_star**2) - x_hat_star_j*(rr_star**2) + (x_hat_star_j-xx_star_j)*r_star*rr_star))/ &
-                ((r_star**2)*rr_star*((rr_star*r_star + x_x*xx_star_x + x_y*xx_star_y + x_z*xx_star_z - rr_star**2)**2)) - &
-            3*a_sph* (x_i*xx_star_j + dij*x_mag*rr_star)/ (x_mag*(rr_star**2)*(x_mag*rr_star + x_x*xx_star_x + x_y*xx_star_y + x_z*xx_star_z)) + &
-            3*a_sph* (rr_star*x_i + x_mag*xx_star_i)*(rr_star*x_j + x_mag*xx_star_j)/ &
-                (x_mag*(rr_star**2)*((x_mag*rr_star + x_x*xx_star_x + x_y*xx_star_y + x_z*xx_star_z)**2))
+            6*xx_j*x_hat_star_i*(xx_star_x*x_hat_star_x + xx_star_y*x_hat_star_y + xx_star_z*x_hat_star_z)/(a_sph*r_star**5) - &
+            (3*a_sph/rr_star)*(dij/(pp*rr_star) - (xx_star_i*xx_star_j)/(pp*(rr_star**3))) * &
+                (1.0_wp/2.0_wp) * (rr_star**2) / ((rr_star + pp)**2) - &
+            (3*a_sph/rr_star)*((xx_star_j*xx_star_i)/(rr_star**2))/((rr_star+pp)**2) - &
+            (3*a_sph*(3*pp + rr_star) / (2*(pp**2)*((pp+rr_star)**3))) * (deltax_j*xx_star_i) / rr_star + &
+            ((3*a_sph)/(rr_star*((pp+rr_star)**3))) * (deltax_i*xx_star_j) / rr_star
+        else !if it isn't
+          dpdxTens(i,j) = -3*xx_j*(x_hat_star_i/(a_sph*(r_star**3))) + &
+              a_sph*dij/(r_star**3) - &
+              3*a_sph*x_hat_star_i*x_hat_star_j / (r_star**5) - &
+              2*xx_star_i*xx_j/(a_sph*r_star**3) + &
+              6*xx_j*x_hat_star_i*(xx_star_x*x_hat_star_x + xx_star_y*x_hat_star_y + xx_star_z*x_hat_star_z)/(a_sph*r_star**5) + &
+              (3*a_sph/rr_star)*(xx_star_j*x_hat_star_i*(r_star**2) + x_hat_star_i*x_hat_star_j*(rr_star**2) + (r_star-rr_star)*(r_star**2)*rr_star*dij)/ &
+                  ((r_star**3)*rr_star*(rr_star*r_star + x_dot_xx_star - rr_star**2)) - &
+              (3*a_sph/rr_star)*((rr_star*x_hat_star_i + r_star*xx_star_i)*(xx_star_j*(r_star**2) - x_hat_star_j*(rr_star**2) + (x_hat_star_j-xx_star_j)*r_star*rr_star))/ &
+                  ((r_star**2)*rr_star*((rr_star*r_star + x_dot_xx_star - rr_star**2)**2)) - &
+              3*a_sph* (x_i*xx_star_j + dij*x_mag*rr_star)/ (x_mag*(rr_star**2)*(x_mag*rr_star + x_dot_xx_star)) + &
+              3*a_sph* (rr_star*x_i + x_mag*xx_star_i)*(rr_star*x_j + x_mag*xx_star_j)/ &
+                  (x_mag*(rr_star**2)*((x_mag*rr_star + x_dot_xx_star)**2))
+        end if
 
         !the point force Stokeslet is already accounted for in hibb
         !(dij/r + x_hat_i*x_hat_j/r**3)

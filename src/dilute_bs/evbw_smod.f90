@@ -138,9 +138,10 @@ contains
     ! endif
 
     ! Reflection of the first bead
-    Rx(1)=rf_in(1)
-    Ry(1)=rf_in(2)
-    Rz(1)=rf_in(3)
+    !Rx(1)=rf0(1)
+    !Ry(1)=rf0(2)
+    !Rz(1)=rf0(3)
+    
     select case (tplgy)
     case ('Linear')
       qx(1)=Rx(2)-Rx(1)
@@ -160,7 +161,8 @@ contains
         coll_detect = (Ry(ib) < this%a)
         !print *, 'plane wall'
       case (2)
-        r_mag = sqrt(Rx(ib)**2+Ry(ib)**2+Rz(ib)**2)
+        !r_mag = sqrt(Rx(ib)**2+Ry(ib)**2+Rz(ib)**2)
+        r_mag = sqrt((Rx(ib)-r_sph(1))**2+(Ry(ib)-r_sph(2))**2+(Rz(ib)-r_sph(3))**2)
         coll_detect = (r_mag < (this%a + this%a_sph))
         !print *, 'sphere wall'
       end select
@@ -189,9 +191,12 @@ contains
           Ry(ib)=2*this%a - Ry(ib)
         case (2)
           shift = this%a + this%a_sph - r_mag
-          Rx(ib)=Rx(ib) + 2*shift*Rx(ib)/r_mag
-          Ry(ib)=Ry(ib) + 2*shift*Ry(ib)/r_mag
-          Rz(ib)=Rz(ib) + 2*shift*Rz(ib)/r_mag
+          ! Rx(ib)=Rx(ib) + 2*shift*Rx(ib)/r_mag
+          ! Ry(ib)=Ry(ib) + 2*shift*Ry(ib)/r_mag
+          ! Rz(ib)=Rz(ib) + 2*shift*Rz(ib)/r_mag
+          Rx(ib)=Rx(ib) + 2*shift*(Rx(ib)-r_sph(1))/r_mag
+          Ry(ib)=Ry(ib) + 2*shift*(Ry(ib)-r_sph(2))/r_mag
+          Rz(ib)=Rz(ib) + 2*shift*(Rz(ib)-r_sph(3))/r_mag
         end select
 
 
