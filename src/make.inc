@@ -36,13 +36,13 @@ GLBFLGS  = -DUSE_DP # SP or DP for single or double precision
 GLBFLGS += -g -traceback
 #GLBFLGS += -fp-stack-check -gen-interfaces -warn interfaces -check arg_temp_created
 ifeq ($(FCOMP),gfortran)
-GLBFLGS += -O0
+GLBFLGS += -O3
 GLBFLGS += -cpp # Enables preprocessing
 GLBFLGS += -openmp # Enables openmp directives
 GLBFLGS += -fcray-pointer
 #GLBFLGS += -fbounds-check
 else ifeq ($(FCOMP),ifort)
-GLBFLGS += -O0
+GLBFLGS += -O3
 GLBFLGS += -fpp
 GLBFLGS += -qopenmp # Enables openmp directives
 #GLBFLGS += -heap-arrays

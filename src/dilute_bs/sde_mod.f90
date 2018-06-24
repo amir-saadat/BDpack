@@ -311,7 +311,7 @@ contains
     !variables used from other places
     use :: inp_dlt, only: nseg,nbead,tplgy,dt,Pe,nsegx3,nbeadx3,applFext,Fext0,srf_tet,&
       hstar,HITens,EV_bb,EV_bw,ForceLaw,PrScale,nroots,TruncMethod,nseg_ar,tol,DecompMeth,Ia,Na,sph_flow,&
-      nchain_pp,nbead_indx3,nseg_ind
+      nchain_pp,nbead_indx3,nseg_ind,nseg_indx3
     use :: force_mod, only: tetforce,bndupdate,tetupdate,sprupdate
     use :: intrn_mod, only: intrn_t
     use :: arry_mod, only: print_vector, print_matrix
@@ -361,9 +361,6 @@ contains
     integer :: ichain_pp
     integer :: idx_pp_seg,idx_pp_bead
 
-    !debug
-    !call print_vector(qc,'qc')
-
     !============ Predictor-Corrector =============!
     !--------Predictor Algorithm----------!
     ! Kdotq=dt*Pe*(Kappa.q)               !
@@ -399,7 +396,7 @@ contains
       Fphi(1,ichain)=Fphi(1,ichain)-Fext0
       Fphi(nbeadx3-2,ichain)=Fphi(nbeadx3-2,ichain)+Fext0
     end if
-    !print *, '-----------------------------------------'
+
     if (srf_tet) then
       do ichain_pp = 1,nchain_pp
         idx_pp_bead = (nbead_indx3) * (ichain_pp -1) + 1
@@ -434,10 +431,21 @@ contains
         call gemv(AdotDP1(:,(ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),&
           Fphi((ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3,ichain),qstar,&
           alpha=-0.25*dt(iPe,idt),beta=1._wp)
+
+        !TYL: adding back self-mobility of first bead-------------------------
+        call gemv(DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,&
+                            nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
+                  Fphi(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,ichain),&
+                  qstar(nseg_indx3*(ichain_pp-1) + 1:nseg_indx3*(ichain_pp-1) + 3),&
+                  alpha=-0.25*dt(iPe,idt),beta=1._wp)
+        !TYL: adding back self-mobility of first bead-------------------------
       end do
       !call print_vector(qstar,'qstar AFTER')
     end if
     !TYL: HI for tethered bead -------------------------------------------
+
+
+
 
     !! Blake's part
     if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
@@ -516,6 +524,14 @@ contains
         call gemv(AdotDP1(:,(ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),&
           Fbar((ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),RHS,alpha=-0.25*dt(iPe,idt),&
           beta=1._wp)
+
+        !TYL: adding back self-mobility of first bead-------------------------
+        call gemv(DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,&
+                            nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
+                  Fbar(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
+                  RHS(nseg_indx3*(ichain_pp-1) + 1:nseg_indx3*(ichain_pp-1) + 3),&
+                  alpha=-0.25*dt(iPe,idt),beta=1._wp)
+        !TYL: adding back self-mobility of first bead-------------------------
       end do
       !call print_vector(RHS,'RHS AFTER')
     end if
@@ -574,6 +590,17 @@ contains
           call gemv(AdotDP2(:,(ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),&
           Fbarbead((ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),RHSP,&
           alpha=-0.25*dt(iPe,idt),beta=1._wp)
+
+          !TYL: adding back self-mobility of first bead-------------------------
+          if (MOD(iseg-1,nseg_ind)==0) then
+            call gemv(DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,&
+                                nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
+                      Fbarbead(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
+                      RHSP,&
+                      alpha=-0.25*dt(iPe,idt),beta=1._wp)
+          end if
+          !TYL: adding back self-mobility of first bead-------------------------
+
         end do
         !call print_vector(RHSP,'RHSP AFTER')
       end if
@@ -635,6 +662,7 @@ contains
 
         !!!!!!!!instead of the complicated indexing
         call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
+
         !TYL: HI for tethered bead ---------------------------------------
         !print *, 'Second corrector calculaton perbead------------'
         !call print_matrix(AdotDP2,'AdotDP2')
@@ -645,6 +673,17 @@ contains
             call gemv(AdotDP2(:,(ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),&
             Fbead((ichain_pp-1)*nbead_indx3+1:(ichain_pp-1)*nbead_indx3+3),RHSP,&
             alpha=-0.25*dt(iPe,idt),beta=1._wp)
+
+            !TYL: adding back self-mobility of first bead-------------------------
+            if (MOD(iseg-1,nseg_ind)==0) then
+              call gemv(DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,&
+                                  nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
+                        Fbead(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
+                        RHSP,&
+                        alpha=-0.25*dt(iPe,idt),beta=1._wp)
+            end if
+            !TYL: adding back self-mobility of first bead-------------------------
+
           end do
           !call print_vector(RHSP,'RHSP AFTER')
         end if

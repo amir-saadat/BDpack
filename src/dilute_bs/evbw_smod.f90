@@ -138,10 +138,10 @@ contains
     ! endif
 
     ! Reflection of the first bead
-    !Rx(1)=rf0(1)
-    !Ry(1)=rf0(2)
-    !Rz(1)=rf0(3)
-    
+    Rx(1)=rf0(1)
+    Ry(1)=rf0(2)
+    Rz(1)=rf0(3)
+
     select case (tplgy)
     case ('Linear')
       qx(1)=Rx(2)-Rx(1)
