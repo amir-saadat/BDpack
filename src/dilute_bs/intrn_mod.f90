@@ -5,6 +5,7 @@ module intrn_mod
   implicit none
 
   public :: intrn_t,&
+            wall_rflc_sph,&
             wall_rflc,&
             print_wcll,&
             del_evbw
@@ -154,10 +155,15 @@ module intrn_mod
       real(wp),intent(in) :: ry
       real(wp),intent(inout) :: Fev(:)
     end subroutine calc_evbw
+    module subroutine wall_rflc_sph(this,r_sph,rf0)
+      class(evbw_t),intent(inout) :: this
+      real(wp),intent(inout),dimension(3) :: r_sph
+      real(wp),intent(inout) :: rf0(:,:)
+    end subroutine wall_rflc_sph
     module subroutine wall_rflc(this,dt,it,time,id,ich,qx,qy,qz,Rx,Ry,Rz,&
       rcmx,rcmy,rcmz,rf0,r_sph)
       class(evbw_t),intent(inout) :: this
-      real(wp),intent(in),dimension(3) :: rf0,r_sph!rf_in
+      real(wp),intent(inout),dimension(3) :: rf0,r_sph!rf_in
       !real(wp),intent(in) :: rf_in(:,:)
       real(wp),intent(in) :: dt,time
       integer,intent(in) :: it,id,ich

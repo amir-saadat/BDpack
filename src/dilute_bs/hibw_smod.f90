@@ -128,7 +128,7 @@ contains
     real(wp) :: deltax_i,deltax_j !vector normal to singular s.t. x_i-p_i=deltax_i
 
     !specify angle of the region to apply singular fix
-    angle_fix = 2*(PI/180) !in radians
+    angle_fix = 2*(PI/180) !in radians !2
 
     !calculate distances needed
     x_x = rij%rix
@@ -150,9 +150,24 @@ contains
     x_mag = sqrt(rij%rix**2 + rij%riy**2 + rij%riz**2)
 
     x_dot_xx_star = x_x*xx_star_x + x_y*xx_star_y + x_z*xx_star_z
-    small = PI - ACOS(x_dot_xx_star/(x_mag * rr_star))
 
+    if (x_dot_xx_star/(x_mag * rr_star) < -1._wp) then
+      small = 0._wp
+    elseif (x_dot_xx_star/(x_mag * rr_star) > 1._wp) then
+      small = PI
+    else
+      small = PI - ACOS(x_dot_xx_star/(x_mag * rr_star))
+    endif
+
+    ! print *, 'ACOS(1) =', ACOS(1._wp)
+    ! print *, 'ACOS(-1) =', ACOS(-1._wp)
+    ! print *, 'small = ', small
+    ! print *, 'ACOS(x_dot_xx_star/(x_mag * rr_star)) = ', ACOS(x_dot_xx_star/(x_mag * rr_star))
+    ! print *, 'x_dot_xx_star = ', x_dot_xx_star
+    ! print *, 'x_mag * rr_star = ', x_mag * rr_star
+    ! print *, 'x_dot_xx_star/(x_mag * rr_star)= ', x_dot_xx_star/(x_mag * rr_star)
     if (small < angle_fix) then
+      !print *, 'In the Taylor series!!'
       pp = ABS(x_dot_xx_star/rr_star)
     endif
 

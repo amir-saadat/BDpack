@@ -51,6 +51,7 @@ r_curr = np.zeros((3))
 for ichain_pp in xrange(0,nchain_pp):
     x = np.zeros((3))
     #to ensure that no divisions by a number that is v small will occur
+    #while ((np.linalg.norm(x) < .0001) or (x[2]>=0)):
     while np.linalg.norm(x) < .0001:
         x = np.random.normal(0,1,3)
     rf_in_unit[:,ichain_pp] = (x/np.linalg.norm(x))
@@ -70,7 +71,7 @@ for ichain in xrange(0,nchain):
         rcmstart[:,ichain,ichain_pp] = r_curr[:].copy()
 
         for iseg in xrange(0,nseg_ind):
-            qstart[:,iseg,ichain,ichain_pp] = rf_in_unit[:,ichain_pp].copy()
+            qstart[:,iseg,ichain,ichain_pp] = 2*rf_in_unit[:,ichain_pp].copy()
 
             r_curr[:] = r_curr[:] + qstart[:,iseg,ichain,ichain_pp]
             rcmstart[:,ichain,ichain_pp] = rcmstart[:,ichain,ichain_pp]+ r_curr[:]

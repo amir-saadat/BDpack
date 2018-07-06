@@ -49,7 +49,7 @@ contains
       this%ia_time=1
       select case (this%iwall)
       case (1) !plane located at y=0
-      case (2) !sphere
+      case (2,3,4) !sphere
         call read_input('Sph-rad',0,this%a_sph)
       end select
 
@@ -96,6 +96,43 @@ contains
 
   end procedure calc_evbw
 
+  module procedure wall_rflc_sph
+
+    use :: inp_dlt, only: nchain_pp
+
+    integer :: ichain_pp
+    real(wp) :: r_mag_s_xz,R_pore,shift
+    real(wp),dimension(3) :: dr_sph
+    logical :: coll_detect_sw
+
+    dr_sph(:) = 0._wp
+    R_pore = 4._wp
+    coll_detect_sw = .FALSE.
+
+    if ((this%iwall == 3).or.(this%iwall == 4)) then
+      r_mag_s_xz = sqrt(r_sph(1)**2 + r_sph(3)**2)
+      coll_detect_sw = ((r_mag_s_xz + this%a_sph) > R_pore)
+      !print *, 'r_mag_s_xz +this%a_sph = ', (this%a_sph)
+      if (coll_detect_sw) then
+        !print *, 'sphere wall collision!'
+        !call print_vector(r_mag_s_xz - sqrt(rf0(1)**2 + rf0(3)**2),'diff (before) = ')
+        shift = r_mag_s_xz - (R_pore - this%a_sph)
+        dr_sph(1) = - 2._wp * shift * r_sph(1)/r_mag_s_xz
+        dr_sph(3) = - 2._wp * shift * r_sph(3)/r_mag_s_xz
+
+        r_sph(1) = r_sph(1) + dr_sph(1)
+        r_sph(3) = r_sph(3) + dr_sph(3)
+
+        do ichain_pp=1,nchain_pp
+          rf0(1,ichain_pp) = rf0(1,ichain_pp) + dr_sph(1)
+          rf0(3,ichain_pp) = rf0(3,ichain_pp) + dr_sph(3)
+        end do
+        !call print_vector(sqrt(r_sph(1)**2 + r_sph(3)**2) - sqrt(rf0(1)**2 + rf0(3)**2),'diff (after) = ')
+      endif
+    endif
+
+  end procedure wall_rflc_sph
+
   module procedure wall_rflc
 
     use :: mpi
@@ -104,9 +141,15 @@ contains
 
     integer :: ib,ierr,sz,sz_t
     integer,allocatable :: ia_tmp(:,:,:)
-    logical :: coll_detect
-    real(wp) :: shift,r_mag
+    logical :: coll_detect_bs,coll_detect_bw,coll_detect_sw
+    real(wp) :: shift,r_mag_bs,r_mag_s_xz,r_mag_b_xz, R_pore
+    real(wp),dimension(3) :: dr_sph
 
+    !dr_sph(:) = 0._wp
+    R_pore = 4._wp
+    coll_detect_bs = .FALSE.
+    coll_detect_bw = .FALSE.
+    !coll_detect_sw = .FALSE.
     if ((it == 1)) then
       this%w_coll(:,ich)=0
       this%w_coll_all(:,ich)=0
@@ -137,6 +180,27 @@ contains
     !   end select
     ! endif
 
+    ! !reflecting the center sphere
+    ! if ((this%iwall == 3).or.(this%iwall == 4)) then
+    !   r_mag_s_xz = sqrt(r_sph(1)**2 + r_sph(3)**2)
+    !   coll_detect_sw = ((r_mag_s_xz + this%a_sph) > R_pore)
+    !   !print *, 'r_mag_s_xz +this%a_sph = ', (this%a_sph)
+    !   if (coll_detect_sw) then
+    !     !print *, 'sphere wall collision!'
+    !     !call print_vector(r_mag_s_xz - sqrt(rf0(1)**2 + rf0(3)**2),'diff (before) = ')
+    !     shift = r_mag_s_xz - (R_pore - this%a_sph)
+    !     dr_sph(1) = - 2._wp * shift * r_sph(1)/r_mag_s_xz
+    !     dr_sph(3) = - 2._wp * shift * r_sph(3)/r_mag_s_xz
+    !
+    !     r_sph(1) = r_sph(1) + dr_sph(1)
+    !     r_sph(3) = r_sph(3) + dr_sph(3)
+    !
+    !     rf0(1) = rf0(1) + dr_sph(1)
+    !     rf0(3) = rf0(3) + dr_sph(3)
+    !     !call print_vector(sqrt(r_sph(1)**2 + r_sph(3)**2) - sqrt(rf0(1)**2 + rf0(3)**2),'diff (after) = ')
+    !   endif
+    ! endif
+
     ! Reflection of the first bead
     Rx(1)=rf0(1)
     Ry(1)=rf0(2)
@@ -155,20 +219,46 @@ contains
     rcmz=Rz(1)
 
     do ib=2, nbead_ind
+      select case (this%iwall)
+      case (1)
+        coll_detect_bs = (Ry(ib) < this%a)
+        !print *, 'plane wall'
+      case (3,4)
+        r_mag_b_xz = sqrt(Rx(ib)**2 + Rz(ib)**2)
+        coll_detect_bw = ((r_mag_b_xz + this%a) > R_pore)
+      end select
+
+      if (coll_detect_bw) then
+        if ((this%iwall == 3).or.(this%iwall == 4)) then
+          shift = r_mag_b_xz - (R_pore - this%a)
+          Rx(ib)=Rx(ib) - 2._wp * shift * Rx(ib)/r_mag_b_xz
+          Rz(ib)=Rz(ib) - 2._wp * shift * Rz(ib)/r_mag_b_xz
+          select case (tplgy)
+            case ('Linear')
+              qx(ib-1)=Rx(ib)-Rx(ib-1)
+              qy(ib-1)=Ry(ib)-Ry(ib-1)
+              qz(ib-1)=Rz(ib)-Rz(ib-1)
+              if (ib < nbead_ind) then
+                qx(ib)=Rx(ib+1)-Rx(ib)
+                qy(ib)=Ry(ib+1)-Ry(ib)
+                qz(ib)=Rz(ib+1)-Rz(ib)
+              endif
+            case ('Comb')
+          end select
+
+        end if
+      end if
 
       select case (this%iwall)
       case (1)
-        coll_detect = (Ry(ib) < this%a)
+        coll_detect_bs = (Ry(ib) < this%a)
         !print *, 'plane wall'
-      case (2)
-        !r_mag = sqrt(Rx(ib)**2+Ry(ib)**2+Rz(ib)**2)
-        r_mag = sqrt((Rx(ib)-r_sph(1))**2+(Ry(ib)-r_sph(2))**2+(Rz(ib)-r_sph(3))**2)
-        coll_detect = (r_mag < (this%a + this%a_sph))
-        !print *, 'sphere wall'
+      case (2,3,4)
+        r_mag_bs = sqrt((Rx(ib)-r_sph(1))**2+(Ry(ib)-r_sph(2))**2+(Rz(ib)-r_sph(3))**2)
+        coll_detect_bs = (r_mag_bs < (this%a + this%a_sph))
       end select
 
-      if (coll_detect) then
-
+      if (coll_detect_bs) then
         if (time>lambda*tss) then
           !all collisions are recorded here
           this%w_coll_all(ib,ich)=this%w_coll_all(ib,ich)+1
@@ -176,46 +266,47 @@ contains
           !if ia time is less than some fraction of a relaxation time, record.
           !if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > int(lambda/dt/100._wp)) then !Macromol paper
           if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > int(lambda/dt/10._wp)) then
-
             this%w_coll(ib,ich)=this%w_coll(ib,ich)+1
-
           else
-
             this%ia_time(ib,this%w_coll(ib,ich)+1,ich) = 1
-
           endif
         endif
 
         select case (this%iwall)
         case (1)
           Ry(ib)=2*this%a - Ry(ib)
-        case (2)
-          shift = this%a + this%a_sph - r_mag
-          ! Rx(ib)=Rx(ib) + 2*shift*Rx(ib)/r_mag
-          ! Ry(ib)=Ry(ib) + 2*shift*Ry(ib)/r_mag
-          ! Rz(ib)=Rz(ib) + 2*shift*Rz(ib)/r_mag
-          Rx(ib)=Rx(ib) + 2*shift*(Rx(ib)-r_sph(1))/r_mag
-          Ry(ib)=Ry(ib) + 2*shift*(Ry(ib)-r_sph(2))/r_mag
-          Rz(ib)=Rz(ib) + 2*shift*(Rz(ib)-r_sph(3))/r_mag
+        case (2,3,4)
+          shift = this%a + this%a_sph - r_mag_bs
+          ! Rx(ib)=Rx(ib) + 2*shift*Rx(ib)/r_mag_bs
+          ! Ry(ib)=Ry(ib) + 2*shift*Ry(ib)/r_mag_bs
+          ! Rz(ib)=Rz(ib) + 2*shift*Rz(ib)/r_mag_bs
+          Rx(ib)=Rx(ib) + 2*shift*(Rx(ib)-r_sph(1))/r_mag_bs
+          Ry(ib)=Ry(ib) + 2*shift*(Ry(ib)-r_sph(2))/r_mag_bs
+          Rz(ib)=Rz(ib) + 2*shift*(Rz(ib)-r_sph(3))/r_mag_bs
         end select
-
-
 
         select case (tplgy)
           case ('Linear')
+            qx(ib-1)=Rx(ib)-Rx(ib-1)
             qy(ib-1)=Ry(ib)-Ry(ib-1)
-            if (ib < nbead_ind) &
+            qz(ib-1)=Rz(ib)-Rz(ib-1)
+            if (ib < nbead_ind) then
+              qx(ib)=Rx(ib+1)-Rx(ib)
               qy(ib)=Ry(ib+1)-Ry(ib)
+              qz(ib)=Rz(ib+1)-Rz(ib)
+            endif
           case ('Comb')
         end select
 
-      else
+      endif
 
+
+
+      if ((coll_detect_bs==.false.)) then
         if (time>lambda*tss) then
           this%ia_time(ib,this%w_coll(ib,ich)+1,ich) = &
           this%ia_time(ib,this%w_coll(ib,ich)+1,ich) + 1
-        endif
-
+        end if
       end if
 
 

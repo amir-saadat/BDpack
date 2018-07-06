@@ -407,16 +407,10 @@ contains
           rf0(:,ichain,ichain_pp),itime)
         Fphi(idx_pp_bead:idx_pp_bead+2,ichain)=Fphi(idx_pp_bead:idx_pp_bead+2,ichain)+&
           Ftet(3*(ichain_pp-1)+1:3*(ichain_pp))
-        print *, 'ichain_pp = ', ichain_pp
-        call print_vector(rf0(:,ichain,ichain_pp),'rf0 (predictor)')
-        call print_vector(Ftet(3*(ichain_pp-1)+1:3*(ichain_pp)),'Ftet (predictor)')
-        !call print_matrix(DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),'DiffTens')
-          !call print_vector(rvmrcP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),'rvmrc in the loop')
-          !call print_vector(rcm(:,ichain,ichain_pp),'rcm in the loop')
-          !call print_matrix(DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),'DiffTens in the loop')
-
+        !print *, 'ichain_pp = ', ichain_pp
+        !call print_vector(rf0(:,ichain,ichain_pp),'rf0 (predictor)')
+        !call print_vector(Ftet(3*(ichain_pp-1)+1:3*(ichain_pp)),'Ftet (predictor)')
       end do
-      !call print_vector(Fphi(:,ichain),'Fphi')
     end if
     call gemv(AdotDP1,Fphi(:,ichain),qstar,alpha=0.25*dt(iPe,idt),&
       beta=1._wp)
@@ -444,9 +438,6 @@ contains
     end if
     !TYL: HI for tethered bead -------------------------------------------
 
-
-
-
     !! Blake's part
     if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
       do is=1, nseg
@@ -456,6 +447,7 @@ contains
     endif
     !!-------------
 
+    !add brownian motion of the beads
     call axpy(FBr,qstar) ! line 1068
 
 
@@ -505,9 +497,9 @@ contains
           DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),&
           dt(iPe,idt),Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp)),rf0(:,ichain,ichain_pp),itime)
         Fbar(idx_pp_bead:idx_pp_bead+2)=Fbar(idx_pp_bead:idx_pp_bead+2)+Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp))
-        print *, 'ichain_pp = ', ichain_pp
-        call print_vector(Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp)),'Fbartet (1st corrector)')
-        call print_vector(Fbar(idx_pp_bead:idx_pp_bead+2),'Fbar (1st corrector)')
+        !print *, 'ichain_pp = ', ichain_pp
+        !call print_vector(Fbartet(3*(ichain_pp-1)+1:3*(ichain_pp)),'Fbartet (1st corrector)')
+        !call print_vector(Fbar(idx_pp_bead:idx_pp_bead+2),'Fbar (1st corrector)')
       end do
       Ftet(:) = Fbartet(:)
     end if
@@ -575,7 +567,6 @@ contains
       !   call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
       ! end if
       ! !test
-
 
       !!!!!!instead of the complicated indexing
       call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
