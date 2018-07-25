@@ -914,8 +914,9 @@ module dlt_mod
           !   call wall_rflc(rvmrcPy,rcmP(2))
           ! end if
 
+          !call print_vector(Fseg(:),'Fseg before: ')
           call sprforce(id,qc,nseg,ForceLaw,TruncMethod,Fseg)
-
+          !call print_vector(Fseg(:),'Fseg after: ')
 
           if (ForceLaw == 'WLC_GEN') call bndforce(nbead_bb,qc,Fbnd,itime)
           ! Calculation of Diffusion Tensor and Excluded Volume Force

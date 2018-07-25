@@ -597,10 +597,13 @@ contains
       end if
       !TYL: HI for tethered bead -----------------------------------------
       !!!!!!instead of the complicated indexing
-
+      !call print_vector(Fbarseg(:),'Fbarseg, before:')
+      !call print_vector(Fbarbead(:),'Fbarbead, before:')
       call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qstar,iseg,&
         nseg,ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,this%Amat,nseg_bb,&
         nseg_ar,Ia,Na,itime)
+      !call print_vector(Fbarseg(:),'Fbarseg, after:')
+      !call print_vector(Fbarbead(:),'Fbarbead, after:')
     end do
 
     !----------Second Corrector Algorithm----------!

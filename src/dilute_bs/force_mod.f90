@@ -299,6 +299,10 @@ contains
         if (nseg == 1) then
           Fbarbead(1:3)=Fbarseg(1:3)
           Fbarbead(4:6)=-Fbarseg(1:3)
+
+        elseif (nseg_ind == 1) then
+          Fbarbead(offset_bead+1:offset_bead+3)=Fbarseg(offset+1:offset+3)
+          Fbarbead(offset_bead+4:offset_bead+6)=-Fbarseg(offset+1:offset+3)
         else
           !previous: one linear chain
           ! if (iseg == 1) then
