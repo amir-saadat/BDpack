@@ -1,13 +1,23 @@
 include ../make.inc
 
+CUDIR	= ./cuda
 OBJSLIB	= ../lib/libcmn.a
-OBJS	= prcn_mod.o arry_mod.o strg_mod.o
-OBJS   += cmn_io_mod.o mpi_mod.o rand_mod.o
+OBJS	= prcn_mod.o cmn_tp_mod.o arry_mod.o
+OBJS   += strg_mod.o cmn_io_mod.o mpi_mod.o 
+OBJS   += rand_mod.o
+CUOBJS	= $(CUDIR)/dev_cumod.o
 INCS	= -I ./inc
 ifeq ($(FCOMP),gfortran)
-MOD     = -J ./inc
-else ifeq ($(FCOMP),ifort)
-MOD     = -module ./inc
+MOD      = -J ./inc
+else 
+ifeq ($(FCOMP),ifort)
+MOD      = -module ./inc
+else
+ifeq ($(FCOMP),pgf90)
+MOD      = -module ./inc
+CUMOD    = -module ./inc
+endif
+endif
 endif
 
 all : makeinc $(OBJSLIB)
@@ -17,8 +27,12 @@ makeinc:
                 mkdir ./inc;         \
 	fi
 
+ifeq ($(USE_GPU),TRUE)
+../lib/libcmn.a : $(CUOBJS) $(OBJS)
+else
 ../lib/libcmn.a : $(OBJS)
-	$(ECHO) making the library: $(OBJSLIB)
+endif
+	$(ECHO) making the library hello: $(OBJSLIB)
 	$(AR) $(ARFLAGS) rv $@ $?
 	$(RANLIB) $@
 
@@ -26,9 +40,11 @@ $(OBJS): %.o: %.$(FEXT)
 	$(ECHO) compiling $< using $(COMP)
 	$(COMP) $(GLBFLGS) $(GLBINCS) $(INCS) $(MOD) -c $< -o $@
 
+$(CUOBJS): %.o: %.$(CUEXT)
+	$(ECHO) compiling $< using $(CUCOMP)
+	$(CUCOMP) $(CUFLGS) $(CUINCS) $(CUMOD) -c $< -o $@
+
 clean :
 	$(ECHO) cleaning up in common
-	$(RM) -f $(OBJS) $(OBJSLIB)
-	if [ -n "$(ls -A ./inc)"]; then \
-		$(RM) -f ./inc/*.mod;   \
-	fi
+	$(RM) -f $(OBJS) $(CUOBJS) $(OBJSLIB)
+	$(RM) -f ./inc/*.mod;

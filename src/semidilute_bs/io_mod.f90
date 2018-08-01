@@ -147,7 +147,7 @@ contains
   !> Initializes io_mod module variables
   subroutine init_io(id,nchain,nsegx3,nbeadx3,ntotbeadx3,nprun)
 
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
     use :: strg_mod
     use :: flow_mod, only: FlowType
     
@@ -214,10 +214,11 @@ ef: do
   !> Constructor for configurational io type
   subroutine init_conf_io(this,id,p,nchain,nsegx3,nbeadx3,MPI_REAL_WP)
 
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
     use :: flow_mod, only: FlowType
     use :: strg_mod
     use :: mpi
+    !include 'mpif.h'
     
     class(conf_io),intent(inout) :: this
     integer,intent(in) :: id,p,nchain,nsegx3,nbeadx3,MPI_REAL_WP
@@ -230,6 +231,7 @@ ef: do
     integer :: u1,u2,u3,u4,u5,u6,i,j,ios,ntokens,stat,il
     character(len=1024) :: line 
     character(len=100) :: tokens(10)
+
 
     ! default values:
     this%qfctr=[0.7_wp,0._wp,0._wp]
@@ -387,6 +389,7 @@ ef: do
     use :: arry_mod, only: print_vector,print_matrix
     use :: conv_mod, only: QtoR
     use :: mpi
+    !include 'mpif.h'
 
     class(conf_io),intent(in) :: this
     integer,intent(in) :: id,p,nseg,nbead,nsegx3,nchain,nprun,runrst
@@ -401,6 +404,7 @@ ef: do
     real(wp),pointer,contiguous :: QstP(:,:) => null()
     integer :: intvar
     real(wp) :: realvar
+
 
     !   %-------------------------------------------------------%
     !   | The initial guess for Qs in case we are looking for   |
@@ -436,7 +440,7 @@ ef: do
 !          rcmst(4,1:3,2)=(/-3-0.034_wp,-3-3.173_wp,-3-1.454_wp/) ! For 3
 !
           call date_and_time(values=time_info)
-          msec=(1000*time_info(7)+time_info(8))*((id-83)*359) ! a somewhat random integer
+          msec=500!(1000*time_info(7)+time_info(8))*((id-83)*359) ! a somewhat random integer
           call random_seed(size=n) ! get the number of integers used for the seed
           ! This is because we want different order of random numbers in each call
           call random_seed(put=(/(i*msec,i=1,n)/)) ! give a proper seed
@@ -658,12 +662,14 @@ ef: do
 
     use :: flow_mod, only: FlowType
     use :: mpi
+    !include 'mpif.h'
 
     class(conf_io),intent(in) :: this
     integer,intent(in) :: p,irun,nchain,MPI_REAL_WP
     integer ::ierr
     integer(kind=MPI_OFFSET_KIND) :: offsetMPI
     real(wp) :: realvar
+
 
     ! rc
     if ((FlowType == 'Equil').and.CoMDiff) then
@@ -686,6 +692,7 @@ ef: do
     use :: force_smdlt, only: rFphi
     use :: flow_mod, only: FlowType
     use :: mpi
+    !include 'mpif.h'
 
     class(conf_io),intent(in) :: this
     integer,intent(in) :: p,irun,idmp,nchain,ntotsegx3,ndmp,MPI_REAL_WP
@@ -695,6 +702,7 @@ ef: do
     integer(kind=MPI_OFFSET_KIND) :: offsetMPI
     integer :: intvar
     real(wp) :: realvar
+
 
     ! q
     offsetMPI=ntotsegx3*p*sizeof(realvar)*((irun-1)*ndmp+idmp-1)
@@ -744,6 +752,7 @@ ef: do
     use :: force_smdlt, only: rFphi
     use :: trsfm_mod, only: delrx_L,L1,L2
     use :: mpi
+    !include 'mpif.h'
 
     class(conf_io),intent(in) :: this
     integer,intent(in) :: id,p,itime,ntime,irun,idmp,nsegx3,nchain
@@ -757,6 +766,7 @@ ef: do
     integer :: iseg,ibead,ichain,ierr,offsetch,offsetb,intvar
     real(wp) :: rtpassed,realvar
     integer(kind=MPI_OFFSET_KIND) :: offsetMPI
+
 
     ! For dumping the configuration of the system:
     if (DumpConf) then

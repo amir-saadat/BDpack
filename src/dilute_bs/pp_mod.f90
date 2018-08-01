@@ -86,12 +86,14 @@ contains
   subroutine pp_init(id)
 
     use :: mpi
+!    include 'mpif.h'
     use :: inp_dlt, only: StrCalc,initmode,tplgy,Na,CoM,CoHR,RgCalc,cosThCalc,&
                           AveIterCalc,DecompMeth,iflow,npchain,indvlext
 
     integer,intent(in) :: id
     integer :: iarm,ichain,ierr
     character(len=1024) :: fnme1,fnme2
+
 
 !    ue=39 ! The largest unit excluding arms of the comb polymer
     if (id == 0) then
@@ -417,7 +419,7 @@ contains
   subroutine data_prcs(id,itime,time,idt,iPe,q,rvmrc,Fphi,rcm,rcmstart,rchr,&
                        nseg_bb,mch,Lch,MPI_REAL_WP)
 
-    use :: mpi
+!    use :: mpi
     use :: inp_dlt, only: npchain,nchain,nbead,nseg,tss,trst,lambda,Wi,dt,&
                           ntime,qmax,nseg_ar,Pe,ntotang,iflow,StrCalc,tplg&
                           &y,Na,cosThCalc,CoM,CoHR,RgCalc,nbeadx3,AveIterC&
@@ -453,6 +455,8 @@ contains
     real(wp),pointer :: qP(:),rcmP(:),rchrP(:),rvmrcP(:),RPi(:),RPj(:)
     real(wp),allocatable :: RPLi(:),RPLj(:)
     integer :: offseti,offsetj,ichain,ibead,jchain,i,j,ierr,info,iarm
+
+    include 'mpif.h'
  
     ! Foramats used:
 1   format(6(f8.5,1x))

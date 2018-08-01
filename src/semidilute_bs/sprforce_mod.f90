@@ -63,6 +63,13 @@ module sprforce_mod
   
   !> The type of ev force
   character(len=10),save :: ForceLaw
+  integer,save :: ForceLaw_i
+  !> Different types of force law
+  integer,parameter :: Hookean=1     ,&
+                       FENE   =2     ,&
+                       ILCCP  =3     ,&
+                       WLC_MS =4     ,&
+                       WLC_UD =5
   !> The maximum dimensionless squared length of a spring
   real(wp),save :: b
   !> The maximum dimensionless length of a spring
@@ -81,7 +88,7 @@ contains
   subroutine init_sprforce(id,nseg)
 
     use :: strg_mod
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
 
     integer,intent(in) :: id,nseg
     integer :: il,j,ntokens,u1,stat,ios
@@ -123,6 +130,21 @@ ef: do
     close(u1)
 
     qmx=sqrt(b)
+
+    select case (ForceLaw)
+    case('Hookean')
+      ForceLaw_i=Hookean
+    case('FENE')
+      ForceLaw_i=FENE
+    case('ILCCP')
+      ForceLaw_i=ILCCP
+    case('WLC_MS')
+      ForceLaw_i=WLC_MS
+    case('WLC_UD')
+      ForceLaw_i=WLC_UD
+    case default
+      print('(" Force law not properly chosen.")')
+    end select
   
     select case (ForceLaw)
       case ('WLC_UD')

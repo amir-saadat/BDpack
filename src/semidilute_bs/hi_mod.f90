@@ -32,11 +32,11 @@
 !--------------------------------------------------------------------
 module hi_mod
 
-  use :: mpi
   use :: prcn_mod
   use :: arry_mod
   use,intrinsic :: iso_c_binding
   use :: mkl_dfti
+  use :: mpi
  
   implicit none
 
@@ -143,9 +143,9 @@ module hi_mod
   ! Note that the TARGET attribute is not allowed in derived type (In current compilers).
   ! So POINTER attribute for both pointer and pointee.
   !> values of D
-  real(wp),pointer :: Dreal_vals(:)
+  real(wp),pointer :: Dreal_vals(:) => null()
   !> columns of D
-  integer,pointer :: Dreal_cols(:)
+  integer,pointer :: Dreal_cols(:) => null()
   !> row index of D
   integer,allocatable:: Dreal_rowInd(:)
   !> @name Group4
@@ -193,7 +193,7 @@ contains
   subroutine init_hi(myrank,ntotbead,ntotbeadx3,bs)
 
     use :: strg_mod
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
     use :: flow_mod, only: FlowType
 
     integer,intent(in) :: myrank,ntotbead,ntotbeadx3
@@ -210,7 +210,7 @@ contains
     rc_D=20._wp;skin_D=0.2_wp
     InterpMethod='BSpline';p_PME=4
     K_mesh=65;kmeshset=.false.
-    maxNb_list_D=500000000
+    maxNb_list_D=min(5000000,ntotbead**2)
     DecompMeth='Cholesky'
     ncols=1
     mBlLan=3;mubBlLan=15;mset=.false.
@@ -304,9 +304,11 @@ ef: do
     if (HIcalc_mode == 'Ewald') then
       allocate(Diff_tens(ntotbeadx3,ntotbeadx3))
       allocate(Coeff_tens(ntotbeadx3,ntotbeadx3))
-    elseif (HIcalc_mode == 'PME') then
+    elseif (HIcalc_mode == 'PME') then     
       call setupPME(myrank,ntotbead)
+
       if (Dreal_sparse_mode) then
+        allocate(Diff_tens_real(ntotbeadx3,ntotbeadx3))
         allocate(Dreal_vals(maxNb_list_D*9),Dreal_cols(maxNb_list_D))
         allocate(Dreal_rowInd(ntotbead+1))
         allocate(DF_tot(ntotbeadx3), &
@@ -505,6 +507,9 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
       call ResizeArray(Dreal_vals,maxNb_list_D*9)
       call ResizeArray(Dreal_cols,maxNb_list_D)
     end if
+
+    ! call print_vector(point_D,'pointd_hi')
+    ! call print_vector(list_DP,'list_DP_hi')
 
   end subroutine cnstrlst_D
 
@@ -849,12 +854,13 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
 !   >>>>>> For forward FFT:
 !   -----------------------
     FFTStatus=DftiCreateDescriptor(FFTfwDescHand,DFTI_DOUBLE,DFTI_REAL,3,[K_mesh(1),K_mesh(2),K_mesh(3)])
+    
     if (FFTStatus /= 0) then
       print '(" In process ID: ",i0)',myrank
       print '(" Error!!: Problem in DftiCreateDescriptor in init_pme, forward.")'
       print '("  Error, status = ",i0)',FFTStatus
       stop
-    end if 
+    end if
     FFTStatus=DftiSetValue(FFTfwDescHand,DFTI_CONJUGATE_EVEN_STORAGE,DFTI_COMPLEX_COMPLEX)
     if (FFTStatus /= 0) then
       print '(" In process ID: ",i0)',myrank
@@ -865,7 +871,7 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
     FFTStatus=DftiSetValue(FFTfwDescHand,DFTI_INPUT_STRIDES,r_str)
     if (FFTStatus /= 0) then
       print '(" In process ID: ",i0)',myrank
-      print '("Error!!: Problem in DftiSetValue-output-stride in init_pme, forward.")'
+      print '("Error!!: Problem in DftiSetValue-input-stride in init_pme, forward.")'
       print '("  Error, status = ",i0)', FFTStatus
       stop
     end if 
@@ -1064,6 +1070,7 @@ kz:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
 !        print *,'(" Warning!!: For different K_mesh, a part in GlobalData.f90 should be changed.")'
 !        stop
 !      end if
+
       if (present(reset)) then
         if (reset) then
           allocate(mpvecxtmp(0:K_mesh(1)-1))
@@ -1080,7 +1087,7 @@ kz:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
           allocate(mpvecz(0:K_mesh(3)-1))
           allocate(m2_vec((K_mesh(1)/2+1)*K_mesh(2)*K_mesh(3)))
         end if
-      else          
+      else
         allocate(mpvecx(0:K_mesh(1)-1))
         allocate(mpvecy(0:K_mesh(2)-1))
         allocate(mpvecz(0:K_mesh(3)-1))
@@ -1119,9 +1126,11 @@ mx:       do mivecx=0, K_mesh(1)/2
         end do my
       end do mz
 
-      if (present(reset) .and. (reset)) then
-        print '(" Reciprocal space set up complete in Process ID: ",i0)',myrank
-        print '(" Number of reciprocal vectors: ",i8)',mtot
+      if (present(reset)) then
+        if (reset) then
+          print '(" Reciprocal space set up complete in Process ID: ",i0)',myrank
+          print '(" Number of reciprocal vectors: ",i8)',mtot
+        endif
       else
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
         if (myrank == 0) then

@@ -1,0 +1,168 @@
+!%------------------------------------------------------------------------%
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
+!|  University of Tennessee-Knoxville                                     |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|             Tiras Y. Lin       <tlin@stanford.edu>                     |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
+!|                                                                        |
+!|  This file is part of BDpack.                                          |
+!|                                                                        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
+!|  it under the terms of the GNU General Public License as published by  |
+!|  the Free Software Foundation, either version 3 of the License, or     |
+!|  (at your option) any later version.                                   |
+!|                                                                        |
+!|  BDpack is distributed in the hope that it will be useful,             |
+!|  but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+!|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+!|  GNU General Public License for more details.                          |
+!|                                                                        |
+!|  You should have received a copy of the GNU General Public License     |
+!|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
+!%------------------------------------------------------------------------%
+!--------------------------------------------------------------------
+!
+! MODULE: 
+!
+!> @author
+!> Amir Saadat, Stanford University, May 2018
+!
+! DESCRIPTION: 
+!> chain module contains pointers to the configurational arrays on GPU
+!--------------------------------------------------------------------
+module chain_cumod
+
+  use :: prcn_mod
+  !$ use :: omp_lib
+
+  implicit none
+
+
+  ! Private module procedures:
+  private :: init_chain
+
+  type :: chain_cu_t
+
+    integer :: chain_ID
+    !> The pointer to the chain section of Rb_tilde
+    real(wp),device,pointer :: chain_Rb(:)
+    !> The pointer to the chain section of Rb x-component
+    real(wp),device,pointer :: chain_Rbx(:)
+    !> The pointer to the chain section of Rb y-component
+    real(wp),device,pointer :: chain_Rby(:)
+    !> The pointer to the chain section of Rb z-component
+    real(wp),device,pointer :: chain_Rbz(:)
+    !> The pointer to the chain section of the b_img
+    integer,device,pointer :: chain_b_imgx(:)
+    integer,device,pointer :: chain_b_imgy(:)
+    integer,device,pointer :: chain_b_imgz(:)
+    !> The pointer to chain section of Qdagger_tilde
+    real(wp),device,pointer :: chain_Q(:)
+    !> The pointer to chain section of R_tilde
+    real(wp),device,pointer :: chain_R(:)
+    !> The pointer to chain section of rcm_tilde
+    real(wp),device,pointer :: chain_rcm(:)
+    !> The pointer to the chain section of the cm_img
+    integer,device,pointer :: chain_cm_imgx
+    integer,device,pointer :: chain_cm_imgy
+    integer,device,pointer :: chain_cm_imgz
+    !> The pointer to chain section of image flag
+    integer,device,pointer :: chain_cmif(:)
+    !> The chain x-component of transformed position of the beads
+    real(wp),device,pointer :: chain_Rbtrx(:)
+    !> The chain y-component of transformed position of the beads
+    real(wp),device,pointer :: chain_Rbtry(:)
+    !> The chain x-component of transformed position of the center of mass
+    real(wp),device,pointer :: chain_rcmtrx
+    !> The chain y-component of transformed position of the center of mass
+    real(wp),device,pointer :: chain_rcmtry
+    !> The image flag of the center of mass of the chain
+!    integer :: rcm_ImFlag(3)
+  
+    contains
+      procedure,pass(this) :: init => init_chain
+      ! procedure,pass(this) :: update => update_chain
+      final :: del_chain
+
+  end type chain_cu_t
+
+contains
+
+  subroutine init_chain(this,id,nsegx3,nbead,nbeadx3,Rb,Rbx,Rby,Rbz,Q,R,&
+                        rcm,b_img,cm_img)
+
+    class(chain_cu_t),intent(inout) :: this
+    integer,intent(in) :: id,nsegx3,nbead,nbeadx3
+    real(wp),device,intent(in),target :: Rb(:)
+    real(wp),device,intent(in),target :: Rbx(:),Rby(:),Rbz(:)
+    real(wp),device,intent(in),target :: Q(:)
+    real(wp),device,intent(in),target :: R(:)
+    real(wp),device,intent(in),target :: rcm(:,:)
+    integer,device,intent(in),target :: b_img(:,:)
+    integer,device,intent(in),target :: cm_img(:,:)
+
+    this%chain_ID=id
+    this%chain_Q => Q((id-1)*nsegx3+1:(id-1)*nsegx3+nsegx3)
+    this%chain_R => R((id-1)*nbeadx3+1:(id-1)*nbeadx3+nbeadx3)
+    this%chain_rcm => rcm(:,this%chain_ID)
+
+    this%chain_b_imgx => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,1)
+    this%chain_b_imgy => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,2)
+    this%chain_b_imgz => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,3)
+    this%chain_cm_imgx => cm_img(id,1)
+    this%chain_cm_imgy => cm_img(id,2)
+    this%chain_cm_imgz => cm_img(id,3)
+
+  end subroutine init_chain
+
+
+
+  !> Destructor of the chain type
+  subroutine del_chain(this)
+
+    type(chain_cu_t),intent(inout) :: this
+
+    nullify(this%chain_Rbx,this%chain_Rby,this%chain_Rbz)
+    nullify(this%chain_Rb)
+    nullify(this%chain_Q,this%chain_R,this%chain_rcm)
+
+  end subroutine del_chain
+
+  !> Kernel for updating the properties of the chain
+  !! \param invbs the inverse of box dimensions
+  attributes(global) subroutine update_chain_krnl(b_img,cm_img,rcm,Rbx,Rby,Rbz,nb,ntb,&
+    nch,bsx,bsy,bsz)
+
+    integer,device :: b_img(ntb,3)
+    integer,device :: cm_img(ntb,3)
+    real(wp),device :: Rbx(ntb)
+    real(wp),device :: Rby(ntb)
+    real(wp),device :: Rbz(ntb)
+    real(wp),device :: rcm(nch,3)
+
+    integer,value :: nb,ntb,nch
+    real(wp),value :: bsx,bsy,bsz
+
+    integer :: ich,ib,os
+
+    ib = blockDim%x*(blockIdx%x-1) + threadIdx%x
+    ich = (ib-1)/nb + 1
+
+    ! print*,'tid',threadIdx%x,ib!,boxchains(ich)%chain_ID
+
+    os=(ich-1)*nb
+    b_img(os+ib,1)=b_img(os+ib,1)-cm_img(ich,1)
+    b_img(os+ib,2)=b_img(os+ib,2)-cm_img(ich,2)
+    b_img(os+ib,3)=b_img(os+ib,3)-cm_img(ich,3)
+
+    rcm(ich,1)=rcm(ich,1)+(Rbx(os+ib)-b_img(os+ib,1)*bsx)/nb
+    rcm(ich,2)=rcm(ich,2)+(Rby(os+ib)-b_img(os+ib,2)*bsy)/nb
+    rcm(ich,3)=rcm(ich,3)+(Rbz(os+ib)-b_img(os+ib,3)*bsz)/nb
+
+  end subroutine update_chain_krnl
+
+end module chain_cumod

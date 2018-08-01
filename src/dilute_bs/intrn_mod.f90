@@ -1,13 +1,18 @@
 module intrn_mod
 
   use :: prcn_mod
+  use :: cmn_tp_mod, only: dis
+  use :: hi_smod, only: hi_t
+  use :: evbb_smod, only: evbb_t
+  use :: evbw_smod, only: evbw_t
 
   implicit none
 
-  public :: intrn_t,&
-            wall_rflc,&
-            print_wcll,&
-            del_evbw
+  ! public :: intrn_t,&
+  !           wall_rflc,&
+  !           print_wcll,&
+  !           del_evbw
+  public :: intrn_t
 
   private
 
@@ -16,52 +21,52 @@ module intrn_mod
   !>>>> Definition for different types
   !------------------------------------
 
-  ! hi
-  !------------------------------------------
-  type :: hibb_t
-    ! RPY
-    real(wp) :: A,B,C,D,E,F
-    ! Oseen-Burgers
-    real(wp) :: G
-    ! regularized OB
-    real(wp) :: O,P,R,S,T
-    real(wp) :: rmagmin
-  end type hibb_t
-  type :: hibw_t
-  end type hibw_t
-  type :: hi_t
-    type(hibb_t) :: hibb
-    type(hibw_t) :: hibw
-  end type hi_t
+  ! ! hi
+  ! !------------------------------------------
+  ! type :: hibb_t
+  !   ! RPY
+  !   real(wp) :: A,B,C,D,E,F
+  !   ! Oseen-Burgers
+  !   real(wp) :: G
+  !   ! regularized OB
+  !   real(wp) :: O,P,R,S,T
+  !   real(wp) :: rmagmin
+  ! end type hibb_t
+  ! type :: hibw_t
+  ! end type hibw_t
+  ! type :: hi_t
+  !   type(hibb_t) :: hibb
+  !   type(hibw_t) :: hibw
+  ! end type hi_t
   !------------------------------------------
 
   ! ev
   !------------------------------------------
-  type :: evbb_t
-    ! For Gaussian
-    real(wp) :: prefactor,denom
-    ! For LJ
-    real(wp) :: epsOVsig,sigOVrtr,sigOVrtrto6
-    real(wp) :: LJ_prefactor_tr
-    real(wp) :: rmagmin
-  end type evbb_t
-  type :: evbw_t
-    ! For Cubic
-    real(wp) :: delw
-    real(wp) :: prf
-    real(wp) :: rmagmin
-    ! For Reflc-bc
-    real(wp) :: a
-    integer :: u_wc
-    integer :: u_wc_all
-    integer :: u_ia
-    integer,allocatable :: w_coll(:,:)
-    integer,allocatable :: w_coll_all(:,:)
-    integer,allocatable :: ia_time(:,:,:)
-    integer,allocatable :: w_coll_t(:,:)
-    integer,allocatable :: w_coll_all_t(:,:)
-    integer,allocatable :: ia_time_t(:,:,:)
-  end type evbw_t
+  ! type :: evbb_t
+  !   ! For Gaussian
+  !   real(wp) :: prefactor,denom
+  !   ! For LJ
+  !   real(wp) :: epsOVsig,sigOVrtr,sigOVrtrto6
+  !   real(wp) :: LJ_prefactor_tr
+  !   real(wp) :: rmagmin
+  ! end type evbb_t
+  ! type :: evbw_t
+  !   ! For Cubic
+  !   real(wp) :: delw
+  !   real(wp) :: prf
+  !   real(wp) :: rmagmin
+  !   ! For Reflc-bc
+  !   real(wp) :: a
+  !   integer :: u_wc
+  !   integer :: u_wc_all
+  !   integer :: u_ia
+  !   integer,allocatable :: w_coll(:,:)
+  !   integer,allocatable :: w_coll_all(:,:)
+  !   integer,allocatable :: ia_time(:,:,:)
+  !   integer,allocatable :: w_coll_t(:,:)
+  !   integer,allocatable :: w_coll_all_t(:,:)
+  !   integer,allocatable :: ia_time_t(:,:,:)
+  ! end type evbw_t
   !------------------------------------------
 
   ! intrn
@@ -76,12 +81,12 @@ module intrn_mod
   end type intrn_t
   !------------------------------------------
 
-  type :: dis
-    real(wp) :: x,y,z
-    real(wp) :: mag,mag2
-    real(wp) :: riy,rjy,yim
-    real(wp) :: magim,mag2im
-  end type
+  ! type :: dis
+  !   real(wp) :: x,y,z
+  !   real(wp) :: mag,mag2
+  !   real(wp) :: riy,rjy,yim
+  !   real(wp) :: magim,mag2im
+  ! end type
 
   !-----------------------------------------------------
   !>>>> Interface to routines for different interactions
@@ -91,43 +96,43 @@ module intrn_mod
     ! hi
     !------------------------------------------
     !> initializes the hi type
-    module subroutine init_hi(this)
-      class(hi_t),intent(inout) :: this
-    end subroutine init_hi
+    ! module subroutine init_hi(this)
+    !   class(hi_t),intent(inout) :: this
+    ! end subroutine init_hi
     !> calculates HI
     !! \param this hi object
     !! \param i bead i index
     !! \param j bead j index
     !! \param rij data type for inter particle distance
     !! \param DiffTens diffusion tensor
-    module subroutine calc_hi(this,i,j,rij,DiffTens)
-      class(hi_t),intent(inout) :: this
-      integer,intent(in) :: i,j
-      type(dis),intent(in) :: rij
-      real(wp),intent(inout) :: DiffTens(:,:)
-    end subroutine calc_hi
+    ! module subroutine calc_hi(this,i,j,rij,DiffTens)
+    !   class(hi_t),intent(inout) :: this
+    !   integer,intent(in) :: i,j
+    !   type(dis),intent(in) :: rij
+    !   real(wp),intent(inout) :: DiffTens(:,:)
+    ! end subroutine calc_hi
     !> calculates divergance of D
     !! \param j bead j index
     !! \param rjy y component of rj
     !! \param divD divergance of D
-    module subroutine calc_div(j,rjy,divD)
-      integer,intent(in) :: j
-      real(wp),intent(in) :: rjy
-      real(wp),intent(inout) :: divD(:)
-    end subroutine calc_div
+    ! module subroutine calc_div(j,rjy,divD)
+    !   integer,intent(in) :: j
+    !   real(wp),intent(in) :: rjy
+    !   real(wp),intent(inout) :: divD(:)
+    ! end subroutine calc_div
     !------------------------------------------
 
     ! evbb
     !------------------------------------------
-    module subroutine init_evbb(this)
-      class(evbb_t),intent(inout) :: this
-    end subroutine init_evbb
-    module subroutine calc_evbb(this,i,j,rij,Fev)
-      class(evbb_t),intent(inout) :: this
-      integer,intent(in) :: i,j
-      type(dis),intent(in) :: rij
-      real(wp),intent(inout) :: Fev(:)
-    end subroutine calc_evbb
+    ! module subroutine init_evbb(this)
+    !   class(evbb_t),intent(inout) :: this
+    ! end subroutine init_evbb
+    ! module subroutine calc_evbb(this,i,j,rij,Fev)
+    !   class(evbb_t),intent(inout) :: this
+    !   integer,intent(in) :: i,j
+    !   type(dis),intent(in) :: rij
+    !   real(wp),intent(inout) :: Fev(:)
+    ! end subroutine calc_evbb
     !------------------------------------------
 
     !evbw
@@ -135,39 +140,39 @@ module intrn_mod
     ! module subroutine evbw_init(id)
     !   integer,intent(in) :: id
     ! end subroutine evbw_init
-    module subroutine init_evbw(this,id)
-      class(evbw_t),intent(inout) :: this
-      integer,intent(in) :: id
-    end subroutine init_evbw
+    ! module subroutine init_evbw(this,id)
+    !   class(evbw_t),intent(inout) :: this
+    !   integer,intent(in) :: id
+    ! end subroutine init_evbw
     !> calculates EV force between particles and the wall
     !! \param ry the vertical distance of particle & the wall
     !! \param Fev EV force
-    module subroutine calc_evbw(this,i,ry,Fev)
-      class(evbw_t),intent(inout) :: this
-      integer,intent(in) :: i
-      real(wp),intent(in) :: ry
-      real(wp),intent(inout) :: Fev(:)
-    end subroutine calc_evbw
-    module subroutine wall_rflc(this,dt,it,time,id,ich,qx,qy,qz,Rx,Ry,Rz,&
-      rcmx,rcmy,rcmz,rf_in)
-      class(evbw_t),intent(inout) :: this
-      real(wp),intent(in),dimension(3) :: rf_in
-      real(wp),intent(in) :: dt,time
-      integer,intent(in) :: it,id,ich
-      real(wp),intent(inout) :: qx(:),qy(:),qz(:)
-      real(wp),intent(inout) :: Rx(:),Ry(:),Rz(:)
-      real(wp),intent(inout) :: rcmx,rcmy,rcmz
-    end subroutine wall_rflc
-    module subroutine del_evbw(this,id)
-      class(evbw_t),intent(inout) :: this
-      integer,intent(in) :: id
-    end subroutine del_evbw
-    module subroutine print_wcll(this,id,nproc,MPI_REAL_WP,time)
-      class(evbw_t),intent(inout) :: this
-      integer,intent(in) :: id,nproc
-      integer,intent(in) :: MPI_REAL_WP
-      real(wp),intent(in) :: time
-    end subroutine print_wcll
+    ! module subroutine calc_evbw(this,i,ry,Fev)
+    !   class(evbw_t),intent(inout) :: this
+    !   integer,intent(in) :: i
+    !   real(wp),intent(in) :: ry
+    !   real(wp),intent(inout) :: Fev(:)
+    ! end subroutine calc_evbw
+    ! module subroutine wall_rflc(this,dt,it,time,id,ich,qx,qy,qz,Rx,Ry,Rz,&
+    !   rcmx,rcmy,rcmz,rf_in)
+    !   class(evbw_t),intent(inout) :: this
+    !   real(wp),intent(in),dimension(3) :: rf_in
+    !   real(wp),intent(in) :: dt,time
+    !   integer,intent(in) :: it,id,ich
+    !   real(wp),intent(inout) :: qx(:),qy(:),qz(:)
+    !   real(wp),intent(inout) :: Rx(:),Ry(:),Rz(:)
+    !   real(wp),intent(inout) :: rcmx,rcmy,rcmz
+    ! end subroutine wall_rflc
+    ! module subroutine del_evbw(this,id)
+    !   class(evbw_t),intent(inout) :: this
+    !   integer,intent(in) :: id
+    ! end subroutine del_evbw
+    ! module subroutine print_wcll(this,id,nproc,MPI_REAL_WP,time)
+    !   class(evbw_t),intent(inout) :: this
+    !   integer,intent(in) :: id,nproc
+    !   integer,intent(in) :: MPI_REAL_WP
+    !   real(wp),intent(in) :: time
+    ! end subroutine print_wcll
     !------------------------------------------
 
   end interface
@@ -175,6 +180,10 @@ module intrn_mod
 contains
 
   subroutine init_intrn(this,id)
+
+    use :: hi_smod, only: init_hi
+    use :: evbb_smod, only: init_evbb
+    use :: evbw_smod, only: init_evbw
 
     class(intrn_t),intent(inout) :: this
     integer,intent(in) :: id
@@ -189,6 +198,10 @@ contains
                       calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw)
 
     use :: inp_dlt, only: EV_bb,EV_bw,hstar,HITens
+    use :: hi_smod, only : calc_hi,calc_div
+    use :: evbb_smod, only: calc_evbb
+    use :: evbw_smod, only: calc_evbw
+    use :: arry_mod, only: print_vector
 
     class(intrn_t),intent(inout) :: this
     integer,intent(in) :: nseg
@@ -203,7 +216,6 @@ contains
     real(wp) :: DiffTens(:,:),divD(:),Fev(:),Fbarev(:)
     logical :: clhi,cldiv,clevbb,clevbw,upevbb,upevbw
     logical,optional :: calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw
-
 
 
     if (present(calchi)) then
@@ -248,8 +260,6 @@ contains
       osj=3*(jbead-1)
       rjmrc=rvmrc(osj+1:osj+3)
 
-
-
       !! Blake's part
       if (hstar /= 0._wp .and. HITens == 'Blake') then
         ibead_ulim=nseg+1
@@ -259,7 +269,6 @@ contains
         ibead_ulim=jbead
       endif
       !!-------------
-
 
       do ibead=1, ibead_ulim
 
@@ -331,7 +340,6 @@ contains
 
         end if ! ibead /= jbead
 
-
         ! Blake's part
         if (HITens == 'Blake') then
           rij%rjy=rjmrc(2)+rcm(2)
@@ -343,7 +351,6 @@ contains
         !-------------
 
         if (clhi) call calc_hi(this%hi,ibead,jbead,rij,DiffTens)
-
 
       end do ! ibead
 

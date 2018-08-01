@@ -1,0 +1,158 @@
+!%------------------------------------------------------------------------%
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
+!|  University of Tennessee-Knoxville                                     |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|             Tiras Y. Lin       <tlin@stanford.edu>                     |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
+!|                                                                        |
+!|  This file is part of BDpack.                                          |
+!|                                                                        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
+!|  it under the terms of the GNU General Public License as published by  |
+!|  the Free Software Foundation, either version 3 of the License, or     |
+!|  (at your option) any later version.                                   |
+!|                                                                        |
+!|  BDpack is distributed in the hope that it will be useful,             |
+!|  but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+!|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+!|  GNU General Public License for more details.                          |
+!|                                                                        |
+!|  You should have received a copy of the GNU General Public License     |
+!|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
+!%------------------------------------------------------------------------%
+!--------------------------------------------------------------------
+!
+! MODULE: 
+!
+!> @author
+!> Amir Saadat, Stanford University, May 2018
+!
+! DESCRIPTION: 
+!> contains tools for periodic transformation of the configuration
+!--------------------------------------------------------------------
+module trsfm_cumod
+
+  use :: prcn_mod
+
+  implicit none
+
+  ! Private module procedures:
+  private :: init_trsfm_t  ,&
+             applypbc_glob ,&
+             applypbc_rec
+
+  !> A public type for configurational transformation
+  type trsfm_cu_t
+
+    private
+
+  contains
+
+    procedure,pass(this) :: init => init_trsfm_t
+    procedure,pass(this) :: applypbc => applypbc_glob
+    ! final :: del_trsfm_t
+
+  end type trsfm_cu_t
+
+
+contains
+
+  !> Constructor for trsfm type
+  !! \param ntotbead total number of beads inside the box
+  !! \param nchain the number of chain inside the box
+  subroutine init_trsfm_t(this)
+
+    class(trsfm_cu_t),intent(inout) :: this
+        
+  end subroutine init_trsfm_t
+
+
+  !> Applying periodic boundary condition, global call
+  !! \param bs the dimension of the box
+  !! \param invbs the inverse of box dimensions
+  !! \param Rbx x-coordinate of the position vector
+  !! \param Rby y-coordinate of the position vector
+  !! \param Rbz z-coordinate of the position vector
+  !! \param str the modulo(strain,max(strain))
+  !! \param b_img the image of the beads inside the primary box
+  !! \param cm_img the image of the center of mass inside the primary box
+  subroutine applypbc_glob(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,nbead,itime)
+
+    use :: flow_mod, only: FlowType
+
+    class(trsfm_cu_t),intent(inout) :: this
+    integer,intent(in) :: nbead,itime
+    real(wp),intent(in) :: bs(3),invbs(3)
+    real(wp),device,intent(inout) :: Rbx(:)
+    real(wp),device,intent(inout) :: Rby(:)
+    real(wp),device,intent(inout) :: Rbz(:)
+    real(wp),device,intent(inout) :: rcm(:,:)
+    integer,device,intent(inout) :: b_img(:,:)
+    integer,device,intent(inout) :: cm_img(:,:)
+
+    ! if (FlowType /= 'Equil') call map(this,Rbx,Rby,rcm,itime)
+    call applypbc_rec(this,bs(1),bs(2),bs(3),invbs(1),invbs(2),invbs(3),Rbx,Rby,Rbz,&
+      rcm,b_img,cm_img,nbead,itime)
+    ! if (FlowType /= 'Equil') call remap(this,bs,invbs,Rbx,Rby,rcm,b_img,cm_img,itime)
+
+  end subroutine applypbc_glob
+
+  !> Applying periodic boundary condition on a rectangular box
+  !! \param bs the dimension of the box
+  !! \param invbs the inverse of box dimensions
+  !! \param Rbx x-coordinate of the position vector
+  !! \param Rby y-coordinate of the position vector
+  !! \param Rbz z-coordinate of the position vector
+  !! \param b_img the image of the beads inside the primary box
+  !! \param cm_img the image of the center of mass inside the primary box
+  ! subroutine applypbc_rec(this,bsx,bsy,bsz,invbsx,invbsy,invbsz,&
+  !   Rbx,Rby,Rbz,rcm,b_img,cm_img,ntb,nch,itime)
+  subroutine applypbc_rec(this,bsx,bsy,bsz,invbsx,invbsy,invbsz,Rbx,Rby,Rbz,&
+    rcm,b_img,cm_img,nbead,itime)
+
+    use :: flow_mod, only: FlowType
+    use :: arry_mod, only: print_vector,print_matrix
+
+    class(trsfm_cu_t),intent(inout) :: this
+    real(wp),intent(in) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
+    integer,intent(in) :: nbead,itime
+    real(wp),device,intent(inout) :: Rbx(:)
+    real(wp),device,intent(inout) :: Rby(:)
+    real(wp),device,intent(inout) :: Rbz(:)
+    real(wp),device,intent(inout) :: rcm(:,:)
+    integer,device,intent(inout) :: b_img(:,:)
+    integer,device,intent(inout) :: cm_img(:,:)
+    integer :: igb,ich,ntb,nch
+
+
+    ntb=size(Rbx,1)
+    nch=size(rcm,1)
+
+    !$cuf kernel do <<< *,* >>>
+    do igb=1, ntb
+      ! calculating the image of the beads
+      b_img(igb,1)=b_img(igb,1)-nint(Rbx(igb)*invbsx-0.5_wp)
+      b_img(igb,2)=b_img(igb,2)-nint(Rby(igb)*invbsy-0.5_wp)
+      b_img(igb,3)=b_img(igb,3)-nint(Rbz(igb)*invbsz-0.5_wp)
+      Rbx(igb)=Rbx(igb)-nint(Rbx(igb)*invbsx-0.5_wp)*bsx
+      Rby(igb)=Rby(igb)-nint(Rby(igb)*invbsy-0.5_wp)*bsy
+      Rbz(igb)=Rbz(igb)-nint(Rbz(igb)*invbsz-0.5_wp)*bsz
+    end do
+
+    !$cuf kernel do <<< *,* >>>
+    do ich=1, nch
+      cm_img(ich,1)=-nint(rcm(ich,1)*invbsx-0.5_wp)
+      cm_img(ich,2)=-nint(rcm(ich,2)*invbsy-0.5_wp)
+      cm_img(ich,3)=-nint(rcm(ich,3)*invbsz-0.5_wp)
+      rcm(ich,1)=rcm(ich,1)-nint(rcm(ich,1)*invbsx-0.5_wp)*bsx
+      rcm(ich,2)=rcm(ich,2)-nint(rcm(ich,2)*invbsy-0.5_wp)*bsy
+      rcm(ich,3)=rcm(ich,3)-nint(rcm(ich,3)*invbsz-0.5_wp)*bsz
+    end do
+
+  end subroutine applypbc_rec
+
+end module trsfm_cumod

@@ -1,17 +1,33 @@
-submodule (intrn_mod:hi_smod) hibw_smod
+! submodule (intrn_mod:hi_smod) hibw_smod
+module hibw_smod
+
+  use :: prcn_mod
 
   implicit none
 
+  type :: hibw_t
+  end type hibw_t
+
 contains
 
-  module procedure init_hibw
+  ! module procedure init_hibw
+  subroutine init_hibw(this)
+    class(hibw_t),intent(inout) :: this
     !add later
-  end procedure init_hibw
+  ! end procedure init_hibw
+  end subroutine init_hibw
 
-  module procedure calc_hibw
+  ! module procedure calc_hibw
+  subroutine calc_hibw(this,i,j,rij,DiffTens)
 
     use :: inp_dlt, only: HITens, hstar
     use :: arry_mod, only: print_vector, print_matrix
+    use :: cmn_tp_mod, only: dis
+
+    class(hibw_t),intent(inout) :: this
+    integer,intent(in) :: i,j
+    type(dis),intent(in) :: rij
+    real(wp),intent(inout) :: DiffTens(:,:)
 
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp),parameter :: sqrtPI=sqrt(PI)
@@ -45,12 +61,14 @@ contains
                                         + Omega_W
     end if
 
-  end procedure calc_hibw
+  ! end procedure calc_hibw
+  end subroutine calc_hibw
 
 
   subroutine Sij_Calc(SijTens,rij,rijmag3im,rijmag5im,rijmag7im)
 
     !use :: arry_mod, only: print_vector, print_matrix
+    use :: cmn_tp_mod, only: dis
 
     real(wp), intent(inout) :: SijTens(:,:)
     type(dis),intent(in) :: rij
@@ -72,7 +90,10 @@ contains
   end subroutine Sij_Calc
 
   subroutine Pij_D_Calc(Pij_DTens,rij,rijmag3im,rijmag5im,rijmag7im)
+
     !use :: arry_mod, only: print_vector, print_matrix
+    use :: cmn_tp_mod, only: dis
+
     real(wp), intent(inout) :: Pij_DTens(:,:)
     type(dis),intent(in) :: rij
     real(wp), intent(in) :: rijmag3im,rijmag5im,rijmag7im
@@ -92,8 +113,11 @@ contains
     !call print_matrix(Pij_DTens,'Pij_D tensor')
   end subroutine Pij_D_Calc
 
-  subroutine Sij_D_Calc(Sij_DTens,rij,rijmag3im,rijmag5im,rijmag7im)
+  subroutine Sij_D_Calc(Sij_DTens,rij,rijmag3im,rijmag5im,rijmag7im)    
+
     !use :: arry_mod, only: print_vector, print_matrix
+    use :: cmn_tp_mod, only: dis
+
     real(wp), intent(inout) :: Sij_DTens(:,:)
     type(dis),intent(in) :: rij
     real(wp), intent(in) :: rijmag3im,rijmag5im,rijmag7im
@@ -118,7 +142,10 @@ contains
 
 
   subroutine H_PD_Calc(HTens,rij,rijmag3im,rijmag5im,rijmag7im,x,yim,z,ry)
+
     !use :: arry_mod, only: print_vector, print_matrix
+    use :: cmn_tp_mod, only: dis
+
     real(wp), intent(inout) :: HTens(:,:)
     type(dis),intent(in) :: rij
     real(wp), intent(in) :: rijmag3im,rijmag5im,rijmag7im
@@ -159,4 +186,5 @@ contains
   end subroutine H_PD_Calc
 
 
-end submodule hibw_smod
+! end submodule hibw_smod
+end module hibw_smod

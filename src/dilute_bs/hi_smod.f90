@@ -1,6 +1,16 @@
-submodule (intrn_mod) hi_smod
+! submodule (intrn_mod) hi_smod
+module hi_smod
+
+  use :: prcn_mod
+  use :: hibb_smod, only: hibb_t
+  use :: hibw_smod, only: hibw_t
 
   implicit none
+
+  type :: hi_t
+    type(hibb_t) :: hibb
+    type(hibw_t) :: hibw
+  end type hi_t
 
   !--------------------------------------------
   !>>>> Interface to routines for hibb and hibw
@@ -8,46 +18,55 @@ submodule (intrn_mod) hi_smod
   interface
     !> initializes HI between beads
     !! \param this hibb object
-    module subroutine init_hibb(this)
-      class(hibb_t),intent(inout) :: this
-    end subroutine init_hibb
+    ! module subroutine init_hibb(this)
+    !   class(hibb_t),intent(inout) :: this
+    ! end subroutine init_hibb
     !> initializes HI between beads and the wall
     !! \param this hibw object
-    module subroutine init_hibw(this)
-      class(hibw_t),intent(inout) :: this
-    end subroutine init_hibw
+    ! module subroutine init_hibw(this)
+    !   class(hibw_t),intent(inout) :: this
+    ! end subroutine init_hibw
     !> calculates HI between the beads
     !! \param this hibb object
     !! \param i bead i index
     !! \param j bead j index
     !! \param rij data type for inter particle distance
     !! \param DiffTens diffusion tensor
-    module subroutine calc_hibb(this,i,j,rij,DiffTens)
-      class(hibb_t),intent(inout) :: this
-      integer,intent(in) :: i,j
-      type(dis),intent(in) :: rij
-      real(wp),intent(out) :: DiffTens(:,:)
-    end subroutine calc_hibb
+    ! module subroutine calc_hibb(this,i,j,rij,DiffTens)
+    !   class(hibb_t),intent(inout) :: this
+    !   integer,intent(in) :: i,j
+    !   type(dis),intent(in) :: rij
+    !   real(wp),intent(out) :: DiffTens(:,:)
+    ! end subroutine calc_hibb
     !> calculates HI between the beads and the wall
     !! \param this hibw object
     !! \param i bead i index
     !! \param j bead j index
     !! \param rij data type for inter particle distance
     !! \param DiffTens diffusion tensor
-    module subroutine calc_hibw(this,i,j,rij,DiffTens)
-      class(hibw_t),intent(inout) :: this
-      integer,intent(in) :: i,j
-      type(dis),intent(in) :: rij
-      real(wp),intent(inout) :: DiffTens(:,:)
-    end subroutine calc_hibw
+    ! module subroutine calc_hibw(this,i,j,rij,DiffTens)
+    !   class(hibw_t),intent(inout) :: this
+    !   integer,intent(in) :: i,j
+    !   type(dis),intent(in) :: rij
+    !   real(wp),intent(inout) :: DiffTens(:,:)
+    ! end subroutine calc_hibw
   end interface
 
 contains
 
-  module procedure init_hi
+  ! module procedure init_hi
+  subroutine init_hi(this)
+
+    use :: hibb_smod, only: init_hibb
+    use :: hibw_smod, only: init_hibw
+
+    class(hi_t),intent(inout) :: this
+
     call init_hibb(this%hibb)
     call init_hibw(this%hibw)
-  end procedure init_hi
+
+  ! end procedure init_hi
+  end subroutine init_hi
 
   ! module procedure hi_init
 
@@ -80,10 +99,19 @@ contains
 
   ! end procedure hi_init
 
-  module procedure calc_hi
+  ! module procedure calc_hi
+  subroutine calc_hi(this,i,j,rij,DiffTens)
 
+    use :: cmn_tp_mod, only: dis
+    use :: hibb_smod, only: calc_hibb
+    use :: hibw_smod, only: calc_hibw
 
     use :: inp_dlt, only: HITens
+
+    class(hi_t),intent(inout) :: this
+    integer,intent(in) :: i,j
+    type(dis),intent(in) :: rij
+    real(wp),intent(inout) :: DiffTens(:,:)
 
     integer :: osi,osj
 
@@ -120,11 +148,17 @@ contains
     !------------
 
 
-  end procedure calc_hi
+  ! end procedure calc_hi
+  end subroutine calc_hi
 
-  module procedure calc_div
+  ! module procedure calc_div
+  subroutine calc_div(j,rjy,divD)
 
     use :: inp_dlt, only: hstar
+
+    integer,intent(in) :: j
+    real(wp),intent(in) :: rjy
+    real(wp),intent(inout) :: divD(:)
 
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp),parameter :: sqrtPI=sqrt(PI)
@@ -142,6 +176,8 @@ contains
     !print *, 'divD(',j, ') is: ', divD(j)
     !print *, 'rjy is', rjy
 
-  end procedure calc_div
+  ! end procedure calc_div
+  end subroutine calc_div
 
-end submodule hi_smod
+! end submodule hi_smod
+end module hi_smod

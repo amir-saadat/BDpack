@@ -1,13 +1,29 @@
-submodule (intrn_mod:hi_smod) hibb_smod
+! submodule (intrn_mod:hi_smod) hibb_smod
+module hibb_smod
+  
+  use :: prcn_mod
 
   implicit none
 
+
+  type :: hibb_t
+    ! RPY
+    real(wp) :: A,B,C,D,E,F
+    ! Oseen-Burgers
+    real(wp) :: G
+    ! regularized OB
+    real(wp) :: O,P,R,S,T
+    real(wp) :: rmagmin
+  end type hibb_t
+
 contains
 
-  module procedure init_hibb
+  ! module procedure init_hibb
+  subroutine init_hibb(this)
 
     use :: inp_dlt, only: HITens,hstar
 
+    class(hibb_t),intent(inout) :: this
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp),parameter :: sqrtPI=sqrt(PI)
 
@@ -34,12 +50,19 @@ contains
     end select
     this%rmagmin=1.e-7_wp ! The Minimum value accepted as the |rij|
 
-  end procedure init_hibb
+  ! end procedure init_hibb
+  end subroutine init_hibb
 
-  module procedure calc_hibb
+  ! module procedure calc_hibb
+  subroutine calc_hibb(this,i,j,rij,DiffTens)
 
     use :: inp_dlt, only: HITens,hstar
+    use :: cmn_tp_mod, only: dis
 
+    class(hibb_t),intent(inout) :: this
+    integer,intent(in) :: i,j
+    type(dis),intent(in) :: rij
+    real(wp),intent(out) :: DiffTens(:,:)
     integer :: osi,osj
     real(wp) :: rijmag3,rijmag5
     real(wp) :: Alpha,Beta,Gamm,Zeta,Zeta12,Zeta13,Zeta23
@@ -118,7 +141,9 @@ contains
         DiffTens(osi+3,osj+3)=Upsilon+Omega*rij%z*rij%z
     end select
 
-  end procedure calc_hibb
+  ! end procedure calc_hibb
+  end subroutine calc_hibb
 
 
-end submodule hibb_smod
+! end submodule hibb_smod
+end module hibb_smod

@@ -1,0 +1,151 @@
+module gpu_cumod
+
+  use,intrinsic :: iso_c_binding
+  use :: cudafor
+  use :: intrn_cumod, only: intrn_cu_t
+  use :: dcmp_dlt_cumod, only: dcmp_cu_t
+
+  implicit none
+
+  type :: gpu_cu_t
+    type(intrn_cu_t) :: intrn
+    type(dcmp_cu_t) :: dcmp
+    integer, texture, pointer :: arr(:)
+  contains
+    procedure,pass(this) :: init => init_gpu
+  end type gpu_cu_t
+
+contains
+
+  subroutine init_gpu(this,idev)
+
+    use :: test_cumod
+
+    class(gpu_cu_t),intent(inout) :: this
+    integer, intent(in) :: idev
+    integer :: istat,i
+    integer, allocatable, device :: iarr(:)
+    integer, parameter :: n = 100
+    integer h(n)
+
+
+
+    ! Initialize GPU device
+
+    istat = cudaSetDevice(idev) 
+
+    allocate(iarr(n))
+
+    print*,istat
+
+    h = 0; iarr = h
+
+    call test1<<<1,n>>> (iarr)
+
+    h = iarr
+
+    print *,"Errors: ", count(h.ne.(/ (i,i=1,n) /))
+
+    deallocate(iarr)
+
+    call this%dcmp%decomp()
+
+  end subroutine init_gpu
+
+  ! attributes(global) &
+  !   subroutine test1( a )
+
+  !     integer, device :: a(*)
+  !     i = threadIdx%x
+  !     a(i) = i
+
+  !     return
+
+  !   end subroutine test1
+
+
+
+  subroutine mmul_test(idev)
+
+    use :: mmul_cumod
+
+    integer,intent(in) :: idev
+    real,dimension(:,:),allocatable :: A,B,C,CC
+    integer :: N, M, L,i,j,k,ierr
+    real :: CC_tmp
+    real :: diff,error,denom
+
+    ! Begin execution
+
+    N = 512
+    M = 1024
+    L = 512
+    print *,' arrays sized ', N, ' by ', M, ' by ', L
+    allocate(A(N,M),B(M,L),C(N,L),CC(N,L))
+
+    ! Initialized the A and B arrays;  zero out the C array to be computed
+    ! on the GPU, and the CC array to be computed on the host
+
+    do j = 1,M
+      do i = 1,N
+        A(i,j) = i*10 + j*1000
+      enddo
+    enddo
+    do j = 1,L
+      do i = 1,M
+        B(i,j) = i-j
+      enddo
+    enddo
+    do j = 1,L
+      do i = 1,N
+        CC(i,j) = 0.0
+        C(i,j) = 0.0
+      enddo
+    enddo
+ 
+
+    ! Call matrix multiply subroutine to execute on the GPU to compute C
+
+    print *,'calling mmul'
+    call mmul( A, B, C )
+    print *,' C(1,1) = ', C(1,1)
+    print *,' C(2,2) = ', C(2,2)
+
+    ! Perform matrix multiply on host to compute CC
+
+    do i = 1,N
+      do j = 1,L
+        do k = 1,M
+          CC_tmp=A(i,k)*B(k,j)
+          CC(i,j) = CC(i,j) + CC_tmp
+        enddo
+      enddo
+    enddo
+
+    ! Check for errors
+
+    ierr = 0
+    do j = 1,L
+      do i = 1,N
+        diff = abs(C(i,j) - CC(i,j))
+        denom = CC(i,j)
+        if ( denom == 0.0 ) denom = 1.0
+        error = diff / denom
+        if ( error > 2.0e-5 ) then
+          ierr = ierr + 1
+          if ( ierr <= 10 ) then
+            print *, 'C(',i,',',j,') = ',C(i,j), ' should be ', CC(i,j), ' error=', error
+          endif
+        endif
+      enddo
+    enddo
+
+    if( ierr == 0 )then
+      print *, ' No errors found'
+    else
+      print *, ierr, ' ERRORS FOUND!!!'
+    endif
+
+  end subroutine mmul_test
+
+end module gpu_cumod

@@ -1,6 +1,7 @@
 module mpi_mod
 
   use :: mpi
+  ! include 'mpif.h'
 
   implicit none
 

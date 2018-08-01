@@ -124,7 +124,7 @@ contains
     use :: arry_mod, only: print_vector
     use :: flow_mod, only: FlowType
     use :: strg_mod
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
 
     integer,intent(in) :: id
     integer :: il,j,ntokens,u1,stat,ios
@@ -325,7 +325,7 @@ ef: do
     end if
 
     this%num_int=ntotbead*nnc*this%mbpc*0.5
-!print *,'num_int',this%num_int
+! print *,'num_int',this%num_int
 
     if (allocated(this%iidx)) deallocate(this%iidx)
     if (allocated(this%jidx)) deallocate(this%jidx)
@@ -493,7 +493,8 @@ ef: do
     deallocate(beadj_tmp)
     deallocate(pair)
      
-!$omp parallel default(private) shared(this,Rbx,Rby,Rbz,eps_m,sinth,costh,tanb,rc)
+!$omp parallel default(private) shared(this,Rbx,Rby,Rbz,eps_m,sinth,costh,tanb,rc) &
+!$omp shared(idx,bs,invbs)
 !$omp do simd
     do intidx=1, idx
       this%Rijx(intidx)=Rbx(this%iidx(intidx))-Rbx(this%jidx(intidx))
@@ -516,13 +517,13 @@ ef: do
                          this%Rijy(intidx)*this%Rijy(intidx) + &
                          this%Rijz(intidx)*this%Rijz(intidx)
     end do
-!$omp end do simd
+!!$omp end do simd
     this%inside=.false.
 !$omp do simd
     do intidx=1, idx
       this%inside(intidx)=this%Rijsq(intidx) <= rc**2
     end do
-!$omp end do simd
+!!$omp end do simd
 !$omp end parallel
 !$ivdep
     nab=count(this%inside)

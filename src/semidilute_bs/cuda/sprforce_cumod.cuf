@@ -1,0 +1,195 @@
+!%------------------------------------------------------------------------%
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
+!|  University of Tennessee-Knoxville                                     |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|             Tiras Y. Lin       <tlin@stanford.edu>                     |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
+!|                                                                        |
+!|  This file is part of BDpack.                                          |
+!|                                                                        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
+!|  it under the terms of the GNU General Public License as published by  |
+!|  the Free Software Foundation, either version 3 of the License, or     |
+!|  (at your option) any later version.                                   |
+!|                                                                        |
+!|  BDpack is distributed in the hope that it will be useful,             |
+!|  but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+!|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+!|  GNU General Public License for more details.                          |
+!|                                                                        |
+!|  You should have received a copy of the GNU General Public License     |
+!|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
+!%------------------------------------------------------------------------%
+!--------------------------------------------------------------------
+!
+! MODULE: 
+!
+!> @author
+!> Amir Saadat, Stanford University, May 2018
+!
+! DESCRIPTION: 
+!> Calculating the net spring forces on the beads on GPU
+!--------------------------------------------------------------------
+module sprforce_cumod
+
+  use :: prcn_mod
+  use :: sprforce_mod
+  use :: force_cumod, only: force_cu_t
+
+  implicit none
+
+  ! Private module procedures:
+  private :: init_sprforce_t ,&
+             update_force
+
+  !> A public type for EV force calcualtion
+  type, extends(force_cu_t) :: sprforce_cu_t
+
+    private
+    !> The spring force
+    real(wp),device,allocatable :: Fs(:)
+
+  contains
+     
+    procedure,pass(this) :: init => init_sprforce_t
+    procedure,pass(this) :: update => update_force
+    final :: del_sprforce_d
+
+  end type sprforce_cu_t
+
+  ! Private module variables:
+  ! private :: 
+
+contains
+
+  !> Constructor for sprforce type
+  !! \param id The rank of the process
+  subroutine init_sprforce_t(this,ntsx3)
+
+    class(sprforce_cu_t),intent(inout) :: this
+    integer,intent(in) :: ntsx3
+
+    allocate(this%Fs(ntsx3))
+  
+  end subroutine init_sprforce_t
+
+  !> Updates the force by adding spring force contribution
+  !! \param Rbx x-coordinate of the position vector
+  !! \param Rby y-coordinate of the position vector
+  !! \param Rbz z-coordinate of the position vector
+  !! \param bs the dimension of the box
+  !! \param invbs the inverse of box dimensions
+  !! \param F totoal force on particles
+  subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntbx3)
+
+    
+    ! use :: flow_mod, only: FlowType
+    ! use :: trsfm_mod, only: eps_m,tanb,sinth,costh
+    use :: force_cumod, only: Fphi_d!,rFphi
+    use :: conv_cumod, only: h_Bbar,descr_Bbar,Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,nnz_Bbar
+    use :: cusparse
+    
+    class(sprforce_cu_t),intent(inout) :: this
+    real(wp),device,intent(in) :: Rbx(:)
+    real(wp),device,intent(in) :: Rby(:)
+    real(wp),device,intent(in) :: Rbz(:)
+    real(wp),intent(in) :: bs(3),invbs(3) 
+!    real(wp),intent(inout) :: F(:)
+    integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntbx3
+    integer :: istat
+
+    ! integer :: its,ich,osb,oss,is
+    ! real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
+    ! real(wp) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
+
+    ! bsx=bs(1);bsy=bs(2);bsz=bs(3)
+    ! invbsx=invbs(1);invbsy=invbs(2);invbsz=invbs(3)
+
+    call update_force_krnl(this%Fs,Rbx,Rby,Rbz,bs,invbs,ns,nb,nts)
+
+    istat = cusparseDcsrmv(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,ntbx3,ntsx3,nnz_Bbar,&
+      -1._wp,descr_Bbar,Bbar_Val_tr_d,Bbar_ColPtr_d,Bbar_RowInd_d,this%Fs,1._wp,Fphi_d)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in sprforce_cumod: ",i)',istat
+    
+
+  end subroutine update_force
+
+  !> Destructor for spring force type
+  subroutine del_sprforce_d(this)
+
+    type(sprforce_cu_t),intent(inout) :: this
+
+    deallocate(this%Fs)
+
+  end subroutine del_sprforce_d
+
+
+  subroutine update_force_krnl(Fs,Rbx,Rby,Rbz,bs,invbs,ns,nb,nts)
+
+    real(wp),device,intent(inout) :: Fs(:)
+    real(wp),device,intent(in) :: Rbx(:)
+    real(wp),device,intent(in) :: Rby(:)
+    real(wp),device,intent(in) :: Rbz(:)
+    real(wp),intent(in) :: bs(3),invbs(3) 
+    integer,intent(in) :: ns,nb,nts
+    integer :: its,ich,osb,oss,is
+    real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
+    real(wp) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
+
+    bsx=bs(1);bsy=bs(2);bsz=bs(3)
+    invbsx=invbs(1);invbsy=invbs(2);invbsz=invbs(3)
+
+    !$cuf kernel do <<< *,* >>>
+    do its=1, nts
+      ich=(its-1)/ns+1
+      oss=(ich-1)*ns
+      osb=(ich-1)*nb
+      is=its-oss
+      qx=Rbx(osb+is+1)-Rbx(osb+is)
+      qy=Rby(osb+is+1)-Rby(osb+is)
+      qz=Rbz(osb+is+1)-Rbz(osb+is)
+      qx=qx-nint(qx*invbsx)*bsx
+      qy=qy-nint(qy*invbsy)*bsy
+      qz=qz-nint(qz*invbsz)*bsz
+      ! select case (FlowType)
+      !   case ('PSF')
+      !     qx=qx+eps_m*qy
+      !   case ('PEF')
+      !     qytmp=qy
+      !     qx=qx+tanb*qytmp
+      !     qy=sinth*qx+costh*qytmp
+      !     qx=costh*qx-sinth*qytmp
+      ! end select
+      qsq=qx*qx+qy*qy+qz*qz
+
+      select case (ForceLaw_i)
+      case (FENE)
+        Ftmp = 1/(1-qsq/b)
+      case (WLC_MS)
+        q=sqrt(qsq)
+        Ftmp = 2*qmx/(3*q)*(0.25/((1-q/qmx)**2)-0.25+q/qmx)
+      case (WLC_UD)
+        Ftmp=2._wp/3*(1/(1-qsq/b)**2-7/(2*WLC_v*(1-qsq/b))+WLC_A+WLC_B*(1-qsq/b))
+      case (ILCCP)
+        Ftmp = (1-qsq/b/3)/(1-qsq/b)
+      case (Hookean)
+        Ftmp = 1._wp
+      end select
+      Fs((oss+is-1)*3+1)=Ftmp*qx
+      Fs((oss+is-1)*3+2)=Ftmp*qy
+      Fs((oss+is-1)*3+3)=Ftmp*qz
+      ! rFphi(1)=rFphi(1)-qx*Ftmp*qx
+      ! rFphi(2)=rFphi(2)-qx*Ftmp*qy
+      ! rFphi(3)=rFphi(3)-qy*Ftmp*qy
+      ! rFphi(4)=rFphi(4)-qz*Ftmp*qz
+    end do
+
+  end subroutine update_force_krnl
+
+
+
+end module sprforce_cumod

@@ -91,7 +91,7 @@ contains
   subroutine init_evforce(id)
 
     use :: strg_mod
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
 
     integer,intent(in) :: id
     integer :: il,j,ntokens,u1,stat,ios

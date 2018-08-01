@@ -1,0 +1,59 @@
+module dcmp_dlt_cumod
+
+  implicit none
+
+
+  type :: dcmp_cu_t
+
+  contains
+    procedure,pass(this) :: decomp => decomp_diff
+  end type dcmp_cu_t
+
+
+contains
+
+  subroutine decomp_diff(this)
+
+    use :: cusolverdn
+
+    class(dcmp_cu_t),intent(inout) :: this
+    integer, parameter :: n=3
+    real(8) :: a(n,n)
+    real(8), device :: a_d(n,n)
+    real(8), device, allocatable :: workspace_d(:)
+    integer, device :: devInfo_d
+    integer :: istat, Lwork
+    type(cusolverDnHandle) :: h
+
+    a(1,1) = 25.0;   a(1,2) = 15.0;   a(1,3) = -5.0
+    a(2,1) = a(1,2); a(2,2) = 18.0;   a(2,3) = 0.0
+    a(3,1) = a(1,3); a(3,2) = a(2,3); a(3,3) = 11.0
+    a_d = a
+
+    istat = cusolverDnCreate(h)
+    if (istat /= CUSOLVER_STATUS_SUCCESS) &
+         write(*,*) 'handle creation failed'
+    istat = cusolverDnDpotrf_bufferSize(h, &
+         CUBLAS_FILL_MODE_LOWER, n, a_d, n, Lwork)
+    if (istat /= CUSOLVER_STATUS_SUCCESS) &
+         write(*,*) 'cusolverDnZpotrf_buffersize failed'
+    allocate(workspace_d(Lwork)) 
+    istat = cusolverDnDpotrf(h, CUBLAS_FILL_MODE_LOWER, &
+         n, a_d, n, workspace_d, Lwork, devInfo_d)
+    if (istat /= CUSOLVER_STATUS_SUCCESS) &
+         write(*,*) 'cusolverDnZpotrf failed'
+    istat = devInfo_d
+    if (istat /= 0) write(*,*) 'Cholesky factorization failed'
+    istat = cusolverDnDestroy(h)
+    if (istat /= CUSOLVER_STATUS_SUCCESS) &
+         write(*,*) 'handle destruction failed'
+
+    a = a_d
+    write(*,"(3(f0.0,2x))") a(1,:)
+    write(*,"(3(f0.0,2x))") a(2,:)
+    write(*,"(3(f0.0,2x))") a(3,:)
+      
+  end subroutine decomp_diff
+
+    
+end module dcmp_dlt_cumod

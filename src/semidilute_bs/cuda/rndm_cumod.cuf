@@ -1,0 +1,175 @@
+!%------------------------------------------------------------------------%
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
+!|  University of Tennessee-Knoxville                                     |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|             Tiras Y. Lin       <tlin@stanford.edu>                     |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
+!|                                                                        |
+!|  This file is part of BDpack.                                          |
+!|                                                                        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
+!|  it under the terms of the GNU General Public License as published by  |
+!|  the Free Software Foundation, either version 3 of the License, or     |
+!|  (at your option) any later version.                                   |
+!|                                                                        |
+!|  BDpack is distributed in the hope that it will be useful,             |
+!|  but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+!|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+!|  GNU General Public License for more details.                          |
+!|                                                                        |
+!|  You should have received a copy of the GNU General Public License     |
+!|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
+!%------------------------------------------------------------------------%
+!--------------------------------------------------------------------
+!
+! MODULE: 
+!
+!> @author
+!> Amir Saadat, Stanford University, May 2018
+!
+! DESCRIPTION: 
+!> randum number generation on GPU
+!--------------------------------------------------------------------
+
+module rndm_cumod
+
+  use :: prcn_mod
+  use :: curand
+
+  implicit none
+
+  ! Private module procedures:
+  private :: init_rndm_t
+
+  !> A public type for Brownian noise generator
+  type rndm_cu_t
+    !> generator
+    type(curandGenerator) :: g
+
+  contains
+    procedure,pass(this) :: init => init_rndm_t
+    procedure,pass(this) :: gen => gen_rndm
+    final :: del_rndm_t
+  end type rndm_cu_t
+
+  ! Private module variables:
+  private :: c1,c2
+
+  real(wp),parameter :: c1=14.14858378_wp
+  real(wp),parameter :: c2=1.21569221_wp
+  real(wp),device,allocatable :: dw_bl_d(:,:)
+
+
+contains
+
+  !> Initializes the rndm cuda module
+  subroutine init_rndm_d(ntotbeadx3)
+
+    use :: hi_mod, only: ncols
+
+    integer, intent(in) :: ntotbeadx3
+
+    
+    allocate(dw_bl_d(ntotbeadx3,ncols))
+      
+  end subroutine init_rndm_d
+
+
+  !> Constructor of rndm_cu_t
+  subroutine init_rndm_t(this,myrank)
+
+    class(rndm_cu_t),intent(inout) :: this
+    integer,intent(in) :: myrank
+
+    integer(8) :: seed_i
+    integer :: istat
+
+    ! Create pseudo-random number generator
+    istat = curandCreateGenerator ( this%g,CURAND_RNG_PSEUDO_DEFAULT )
+    if (istat /= CURAND_STATUS_SUCCESS) print('(" curand generator creation failed")')
+    ! Set seed value of the pseudo-random number generator
+    seed_i = 1234!init_seed(myrank) ! different initial seed for every process
+    istat = curandSetPseudoRandomGeneratorSeed ( this%g,seed_i )
+    if (istat /= CURAND_STATUS_SUCCESS) print('(" curand seed generator failed")')
+
+  contains
+
+    !> Initializes seed based on time of the day
+    function init_seed(myrank) result(seed_i)
+
+      integer(8) :: seed_i
+      real(wp) :: seedtmp
+      integer,intent(in) :: myrank
+      integer :: s,i,msec,n,time_info(8)
+
+      call date_and_time(values=time_info)
+      msec=(1000*time_info(7)+time_info(8))*((myrank-83)*359) ! a random integer
+      call random_seed(size=n) ! get the number of integers used for the seed
+      ! This is because we want different order of random numbers in each call
+      call random_seed(put=(/(i*msec,i=1,n)/)) ! give a proper seed
+      call random_number(seedtmp)
+      seed_i=floor(2000000000*seedtmp)
+
+    end function init_seed
+
+  end subroutine init_rndm_t
+
+
+  !> Generates uniform random numbers and populates dw_bl_d
+  subroutine gen_rndm(this,nchain,ntotbeadx3,dt)
+
+    use :: hi_mod, only: ncols
+
+    class(rndm_cu_t),intent(inout) :: this
+    integer,intent(in) :: nchain,ntotbeadx3
+    real(wp),intent(in) :: dt
+
+    integer(kind=c_intptr_t) :: dim
+    integer :: icol,ibead,istat,irow
+    real(wp) :: w
+    real(wp),allocatable :: dw(:)
+
+    dim=ntotbeadx3*ncols
+    istat = curandGenerateUniformDouble ( this%g,dw_bl_d,dim )
+    if (istat /= CURAND_STATUS_SUCCESS) print('(" curand uniform generator failed")')
+    !$cuf kernel do (2) <<< *,* >>>
+    do icol=1, ncols
+      do ibead=1, ntotbeadx3
+        w=dw_bl_d(ibead,icol)-0.5
+        w=sqrt(dt)*w*(c1*w**2+c2)
+        dw_bl_d(ibead,icol)=w
+      end do
+    end do
+
+    allocate(dw(ntotbeadx3))
+    dw=dw_bl_d(:,1)
+    ! print*,dw(1:5)
+      
+  end subroutine gen_rndm
+
+  !> Deletes the rndm cuda module variables
+  subroutine del_rndm()
+
+    deallocate(dw_bl_d)
+      
+  end subroutine del_rndm
+
+  !> Destructor of rndm_cu_t
+  subroutine del_rndm_t(this)
+
+    type(rndm_cu_t) :: this
+
+    integer :: istat
+
+    ! Destroy the generator
+    istat = curandDestroyGenerator ( this%g )
+    if (istat /= CURAND_STATUS_SUCCESS) print('(" curand destroy failed")')
+
+      
+  end subroutine del_rndm_t
+    
+end module rndm_cumod

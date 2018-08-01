@@ -1,0 +1,101 @@
+module dev_cumod
+
+  use,intrinsic :: iso_c_binding
+  use :: cudafor
+
+  implicit none
+
+  type :: dev_cu_t
+    integer :: id
+    type(cudadeviceprop) :: prop
+  contains
+    procedure,pass(this) :: print_prop => print_dev_prop
+    final :: del_dev_t
+  end type dev_cu_t
+
+  !> Total number of gpus
+  integer :: numdevices
+  !> GPU object
+  type(dev_cu_t),allocatable :: mydevices(:)
+  !> GPU id s
+  integer, allocatable :: dev_ids(:)
+
+contains
+
+  subroutine init_dev()
+
+    integer :: istat,idev
+
+    istat = cudaGetDeviceCount(numdevices)
+
+    allocate(mydevices(0:numdevices-1))
+    allocate(dev_ids(0:numdevices-1))
+
+    do idev = 0, numdevices-1
+      
+      istat = cudaGetDeviceProperties(mydevices(idev)%prop,idev)
+
+      istat = cudaChooseDevice(mydevices(idev)%id,mydevices(idev)%prop)
+
+      call mydevices(idev)%print_prop()
+
+      dev_ids(idev)=mydevices(idev)%id
+
+    end do
+
+  end subroutine init_dev
+
+  subroutine print_dev_prop(this)
+
+    class(dev_cu_t),intent(inout) :: this
+
+    integer :: ilen
+
+    ilen = verify(this%prop%name, ' ', .true.)
+    write (*,900) "Device Number: " ,this%id
+    write (*,901) "Device Name: " ,this%prop%name(1:ilen)
+    write (*,903) "Total Global Memory: ",real(this%prop%totalGlobalMem)/1e9," Gbytes"
+    write (*,902) "sharedMemPerBlock: " ,this%prop%sharedMemPerBlock," bytes"
+    write (*,900) "regsPerBlock: " ,this%prop%regsPerBlock
+    write (*,900) "warpSize: " ,this%prop%warpSize
+    write (*,900) "maxThreadsPerBlock: " ,this%prop%maxThreadsPerBlock
+    write (*,904) "maxThreadsDim: " ,this%prop%maxThreadsDim
+    write (*,904) "maxGridSize: " ,this%prop%maxGridSize
+    write (*,903) "ClockRate: " ,real(this%prop%clockRate)/1e6," GHz"
+    write (*,902) "Total Const Memory: " ,this%prop%totalConstMem," bytes"
+    write (*,905) "Compute Capability Revision: ",this%prop%major,this%prop%minor
+    write (*,902) "TextureAlignment: " ,this%prop%textureAlignment," bytes"
+    write (*,906) "deviceOverlap: " ,this%prop%deviceOverlap
+    write (*,900) "multiProcessorCount: ",this%prop%multiProcessorCount
+    write (*,906) "integrated: " ,this%prop%integrated
+    write (*,906) "canMapHostMemory: " ,this%prop%canMapHostMemory
+    write (*,906) "ECCEnabled: " ,this%prop%ECCEnabled
+    write (*,906) "UnifiedAddressing: " ,this%prop%unifiedAddressing
+    write (*,900) "L2 Cache Size: " ,this%prop%l2CacheSize
+    write (*,900) "maxThreadsPerSMP: " ,this%prop%maxThreadsPerMultiProcessor
+    900 format (a,i0)
+    901 format (a,a)
+    902 format (a,i0,a)
+    903 format (a,f6.3,a)
+    904 format (a,2(i0,1x,'x',1x),i0)
+    905 format (a,i0,'.',i0)
+    906 format (a,l0)
+
+  end subroutine print_dev_prop
+
+  !> Destructor of the dev type
+  subroutine del_dev_t(this)
+
+    type(dev_cu_t) :: this
+
+  end subroutine del_dev_t
+
+  ! Deleting arrays in dev_cumod
+  subroutine del_dev()
+
+    deallocate(mydevices)
+    deallocate(dev_ids)
+      
+  end subroutine del_dev
+
+end module dev_cumod

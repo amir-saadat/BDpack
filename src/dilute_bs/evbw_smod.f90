@@ -1,7 +1,27 @@
-submodule (intrn_mod) evbw_smod
+! submodule (intrn_mod) evbw_smod
+module evbw_smod
+  
+  use :: prcn_mod
 
   implicit none
 
+  type :: evbw_t
+    ! For Cubic
+    real(wp) :: delw
+    real(wp) :: prf
+    real(wp) :: rmagmin
+    ! For Reflc-bc
+    real(wp) :: a
+    integer :: u_wc
+    integer :: u_wc_all
+    integer :: u_ia
+    integer,allocatable :: w_coll(:,:)
+    integer,allocatable :: w_coll_all(:,:)
+    integer,allocatable :: ia_time(:,:,:)
+    integer,allocatable :: w_coll_t(:,:)
+    integer,allocatable :: w_coll_all_t(:,:)
+    integer,allocatable :: ia_time_t(:,:,:)
+  end type evbw_t
   ! type :: evbw
   !   ! For Cubic
   !   real(wp) :: delw
@@ -20,10 +40,14 @@ submodule (intrn_mod) evbw_smod
 
 contains
 
-  module procedure init_evbw
+  ! module procedure init_evbw
+  subroutine init_evbw(this,id)
 
     use :: inp_dlt, only: nseg,nbead,EV_bw,Aw,N_Ks,qmax,ntime,npchain,nchain
     use :: cmn_io_mod, only: read_input
+
+    class(evbw_t),intent(inout) :: this
+    integer,intent(in) :: id
 
     ! Bead-wall excluded volume interaction
     select case (EV_bw)
@@ -71,11 +95,18 @@ contains
       !      status='replace',position='append')
     end  select
 
-  end procedure init_evbw
+  ! end procedure init_evbw
+  end subroutine init_evbw
 
-  module procedure calc_evbw
+  ! module procedure calc_evbw
+  subroutine calc_evbw(this,i,ry,Fev)
 
     use :: inp_dlt, only: EV_bw
+
+    class(evbw_t),intent(inout) :: this
+    integer,intent(in) :: i
+    real(wp),intent(in) :: ry
+    real(wp),intent(inout) :: Fev(:)
 
     integer :: osi
 
@@ -90,16 +121,29 @@ contains
     elseif (EV_bw == 'Gaussian') then
     end if ! EV_bw
 
-  end procedure calc_evbw
+  ! end procedure calc_evbw
+  end subroutine calc_evbw
 
-  module procedure wall_rflc
+  ! module procedure wall_rflc
+  subroutine wall_rflc(this,dt,it,time,id,ich,qx,qy,qz,Rx,Ry,Rz,&
+    rcmx,rcmy,rcmz,rf_in)
 
-    use :: mpi
     use :: inp_dlt, only: nbead,qmax,tplgy,npchain,lambda,tss
     use :: arry_mod, only: print_vector
+    use :: mpi
+    !include 'mpif.h'
+
+    class(evbw_t),intent(inout) :: this
+    real(wp),intent(in),dimension(3) :: rf_in
+    real(wp),intent(in) :: dt,time
+    integer,intent(in) :: it,id,ich
+    real(wp),intent(inout) :: qx(:),qy(:),qz(:)
+    real(wp),intent(inout) :: Rx(:),Ry(:),Rz(:)
+    real(wp),intent(inout) :: rcmx,rcmy,rcmz
 
     integer :: ib,ierr,sz,sz_t
     integer,allocatable :: ia_tmp(:,:,:)
+
 
 
     if ((it == 1)) then
@@ -223,11 +267,16 @@ contains
     Ry=Ry-rcmy
     Rz=Rz-rcmz
 
-  end procedure wall_rflc
+  ! end procedure wall_rflc
+  end subroutine wall_rflc
 
-  module procedure del_evbw
+  ! module procedure del_evbw
+  subroutine del_evbw(this,id)
 
     use :: inp_dlt, only: EV_bw
+
+    class(evbw_t),intent(inout) :: this
+    integer,intent(in) :: id
 
     select case (EV_bw)
       case ('Cubic')
@@ -242,13 +291,21 @@ contains
         endif
     end  select
 
-  end procedure del_evbw
+  ! end procedure del_evbw
+  end subroutine del_evbw
 
-  module procedure print_wcll
+  ! module procedure print_wcll
+  subroutine print_wcll(this,id,nproc,MPI_REAL_WP,time)
 
-    use :: mpi
     use :: inp_dlt, only: nbead,npchain,ntime,tss,lambda
     use :: arry_mod, only: print_vector
+    use :: mpi
+    !include 'mpif.h'
+
+    class(evbw_t),intent(inout) :: this
+    integer,intent(in) :: id,nproc
+    integer,intent(in) :: MPI_REAL_WP
+    real(wp),intent(in) :: time
 
     integer :: ich,ib,iwc,osch,ierr,ncount_wc,ncount_ia,iproc,tag
 
@@ -339,7 +396,9 @@ contains
       ! call print_vector(this%w_coll_t,'total collisions')
     ! endif
 
-  end procedure print_wcll
+  ! end procedure print_wcll
+  end subroutine print_wcll
 
 
-end submodule
+! end submodule evbw_smod
+end module evbw_smod

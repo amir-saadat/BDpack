@@ -1,0 +1,107 @@
+!%------------------------------------------------------------------------%
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
+!|  University of Tennessee-Knoxville                                     |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|             Tiras Y. Lin       <tlin@stanford.edu>                     |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
+!|                                                                        |
+!|  This file is part of BDpack.                                          |
+!|                                                                        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
+!|  it under the terms of the GNU General Public License as published by  |
+!|  the Free Software Foundation, either version 3 of the License, or     |
+!|  (at your option) any later version.                                   |
+!|                                                                        |
+!|  BDpack is distributed in the hope that it will be useful,             |
+!|  but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+!|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+!|  GNU General Public License for more details.                          |
+!|                                                                        |
+!|  You should have received a copy of the GNU General Public License     |
+!|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
+!%------------------------------------------------------------------------%
+!--------------------------------------------------------------------
+!
+! MODULE: 
+!
+!> @author
+!> Amir Saadat, Stanford University, May 2018
+!
+! DESCRIPTION: 
+!>  on GPU
+!--------------------------------------------------------------------
+module diffdcmp_cumod
+
+  use :: prcn_mod
+  use :: hi_mod, only: DecompMeth,ncols,dw_bltmp,errormin,mubBlLan,dw_bl,&
+    HIcalc_mode,aBlLan,WBlLan,VBlLan,Ybar,VcntBlLan,upfactr,mBlLan,mset,&
+    mst,hstar
+  use :: types, only: decomp
+  use :: rndm_cumod, only: dw_bl_d
+  use :: dcmp_cumod, only: Lanczos_d
+
+contains
+
+  subroutine calcBrownNoise_d(hi_d,decompRes,itime,ntotbeadx3,boxsize)
+
+    use :: hi_cumod, only: hi_cu_t
+    
+    type(hi_cu_t),intent(inout) :: hi_d
+    integer,intent(in) :: ntotbeadx3
+    integer :: itime,mrst
+    real(wp),intent(in) :: boxsize(3)
+    type(decomp) :: decompRes
+
+    if (HIcalc_mode == 'Ewald') then
+
+      print '(" Ewald is yet not supported on GPU, use PME")'
+
+    elseif (HIcalc_mode == 'PME') then
+
+      if (DecompMeth == 'Lanczos') then
+        if ((mod(itime,upfactr*ncols) == 1) .or. (upfactr == 1)) then
+          mrst=mBlLan
+          ! assuming double precision
+          if (ncols == 1) then
+            call Lanczos_d(hi_d,dw_bl_d(:,1),ntotbeadx3,errormin,mubBlLan,mrst,decompRes,&
+              boxsizeinp=boxsize,msetinp=mset)
+          else
+            ! #ifdef USE_DP
+            !   call BlockLanczos(dw_bl,aBlLan,WBlLan,Ybar,ntotbeadx3,ncols,errormin,mubBlLan,mrst,dw_bltmp,&
+            !     decompRes,boxsizeinp=boxsize,msetinp=mset)
+            ! #elif USE_SP
+            !   call BlockLanczos(real(dw_bl,kind=double),real(aBlLan,kind=double),real(WBlLan,kind=double),&
+            !     real(Ybar,kind=double),ntotbeadx3,ncols,real(errormin,kind=double),mubBlLan,mrst,&
+            !     dw_bltmp,decompRes,boxsizeinp=boxsize,msetinp=mset)
+            ! #endif
+          endif
+          mst=mrst
+        else
+          if (ncols == 1) then
+            call Lanczos_d(hi_d,dw_bl_d(:,1),ntotbeadx3,errormin,mubBlLan,mst,decompRes,&
+              boxsizeinp=boxsize,msetinp=mset)
+          else
+            ! #ifdef USE_DP
+            !   call BlockLanczos(dw_bl,aBlLan,WBlLan,Ybar,ntotbeadx3,ncols,errormin,mubBlLan,mst,dw_bltmp,&
+            !     decompRes,boxsizeinp=boxsize,msetinp=mset)
+            ! #elif USE_SP
+            !   call BlockLanczos(real(dw_bl,kind=double),real(aBlLan,kind=double),real(WBlLan,kind=double),&
+            !     real(Ybar,kind=double),ntotbeadx3,ncols,real(errormin,kind=double),mubBlLan,mst,&
+            !     dw_bltmp,decompRes,boxsizeinp=boxsize,msetinp=mset)
+            ! #endif
+          end if
+        end if
+      else
+        print '(" Incorrect Decomposition method: ",a)',DecompMeth
+        stop
+      end if ! DecompMeth
+
+    end if ! HIcalc_mode
+
+  end subroutine calcBrownNoise_d
+
+end module diffdcmp_cumod

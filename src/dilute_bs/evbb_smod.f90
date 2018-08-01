@@ -1,13 +1,28 @@
-submodule (intrn_mod) evbb_smod
+! submodule (intrn_mod) evbb_smod
+module evbb_smod
+
+  use :: prcn_mod
 
   implicit none
 
+  type :: evbb_t
+    ! For Gaussian
+    real(wp) :: prefactor,denom
+    ! For LJ
+    real(wp) :: epsOVsig,sigOVrtr,sigOVrtrto6
+    real(wp) :: LJ_prefactor_tr
+    real(wp) :: rmagmin
+  end type evbb_t
+
 contains
 
-  module procedure init_evbb
+  ! module procedure init_evbb
+  subroutine init_evbb(this)
 
     use :: inp_dlt, only: EV_bb,zstar,dstar
     use :: inp_dlt, only: LJ_eps,LJ_sig,LJ_rtr,LJ_rc,minNonBond
+
+    class(evbb_t),intent(inout) :: this
 
     ! Bead-bead excluded volume interaction
     if (EV_bb == 'Gauss') then
@@ -25,11 +40,19 @@ contains
     end if
     this%rmagmin=1.e-7_wp ! The Minimum value accepted as the |rij|
 
-  end procedure init_evbb
+  ! end procedure init_evbb
+  end subroutine init_evbb
 
-  module procedure calc_evbb
+  ! module procedure calc_evbb
+  subroutine calc_evbb(this,i,j,rij,Fev)
 
     use :: inp_dlt, only: EV_bb,LJ_sig,LJ_rtr,LJ_rc,minNonBond
+    use :: cmn_tp_mod, only: dis
+
+    class(evbb_t),intent(inout) :: this
+    integer,intent(in) :: i,j
+    type(dis),intent(in) :: rij
+    real(wp),intent(inout) :: Fev(:)
 
     integer :: osi,osj
     real(wp) :: LJ_prefactor,LJ_prefactor_tr
@@ -84,7 +107,9 @@ contains
       end if ! abs(ibead-jbead)
     end if ! EV_bb
 
-  end procedure calc_evbb
+  ! end procedure calc_evbb
+  end subroutine calc_evbb
 
 
-end submodule
+! end submodule
+end module evbb_smod

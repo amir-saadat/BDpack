@@ -37,7 +37,7 @@
 module cmn_io_mod
 
   use :: strg_mod
-  use :: iso_fortran_env
+  use,intrinsic :: iso_fortran_env
   use :: prcn_mod
 
   public :: read_input
@@ -259,7 +259,6 @@ ef: do
   subroutine read_input_wp(inp_ph,os,var,def)
 
     use :: strg_mod
-    use :: iso_fortran_env
     
     integer,intent(in) :: os
     character(len=*),intent(in) :: inp_ph

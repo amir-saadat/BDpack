@@ -70,7 +70,7 @@ contains
   subroutine init_flow(id)
 
     use :: strg_mod
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
     
     integer,intent(in) :: id
     integer :: i,j,ntokens,u1,il,stat
@@ -207,7 +207,7 @@ ef: do
   !> Destructor for trsfm type
   subroutine del_flow_t(this)
 
-    use :: inp_smdlt, only: 
+!    use :: inp_smdlt, only: 
 
     type(flow) :: this
 

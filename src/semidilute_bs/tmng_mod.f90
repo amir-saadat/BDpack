@@ -61,6 +61,14 @@ module tmng_mod
   real(wp) :: et_EIKR
   real(wp) :: et_DCR
   real(wp) :: et_DCK
+
+  !> cuFFT time
+  real(wp) :: et_cufft
+  real(wp) :: et_mklfft
+  real(wp) :: et_cusparse
+  real(wp) :: et_mklsparse
+  real(wp) :: et_cuinfl
+
   !> Number of times HI routine is called
   integer :: HIcount
   !> Number of times PME routine is called
@@ -93,7 +101,7 @@ contains
   subroutine init_tmng(id)
 
     use :: strg_mod
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
 
     integer,intent(in) :: id
     character(len=1024) :: line
@@ -197,6 +205,12 @@ ef: do
         write(u1,'(1x,a,1x,f12.6)') 'Recip Part; Influence:',et_INF/PMEcount
         write(u1,'(1x,a,1x,f12.6)') 'Recip Part; IFFT:',et_IFFT/PMEcount
         write(u1,'(1x,a,1x,f12.6)') 'Recip Part; Interpolation:',et_INT/PMEcount
+
+
+        write(u1,'(1x,a,1x,f18.6)') 'Recip Part on CPU; FFT:',et_mklfft/PMEcount
+        write(u1,'(1x,a,1x,f18.6)') 'Recip Part on GPU; FFT:',et_cuFFT/PMEcount
+
+
     end select
 
     close(u1)

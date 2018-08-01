@@ -30,7 +30,6 @@ contains
 
   subroutine smdlt_bs(p,id)
 
-    use :: mpi
     use :: box_mod
     use :: io_mod
     use :: arry_mod, only: logspace,linspace,print_vector,print_matrix
@@ -40,6 +39,8 @@ contains
     use :: flow_mod, only: FlowType
     use :: sprforce_mod, only: ForceLaw,qmx
     use :: hi_mod, only: ncols,dw_bl,hstar,strupdateKSPACE
+    use :: mpi
+    !include 'mpif.h'
 
     integer,intent(in) :: p,id
     integer :: offset,offsettot,iPe,idt,itime,ibead,ierr
@@ -78,11 +79,11 @@ contains
 
     ! Initialization of random number generator by all processes:
 !    if (id==0) then
-!    iseed=657483726
+   iseed=657483726
 !    elseif (id==1) then
 !    iseed=63726
 !    end if
-    iseed=seedgen(id)
+    ! iseed=seedgen(id)
     print '(" Process Rank: ",i0," Random Number Seed: ",i0)',id,iseed
     call ranils(iseed)
 
@@ -142,16 +143,29 @@ contains
         sqrtdt=sqrt(dt(idt))
         call data_time_init(id)
         do itime=itrst+1, ntime(idt)
-            ! constructing a block of random numbers
-            if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
-              do ichain=1, nchain
-                do icol=1, ncols
-                  do ibead=1, 3*nbead
-                    rdn(ibead,icol,ichain)=ranuls()-0.5
-                  end do
+          ! constructing a block of random numbers
+          if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
+            do ichain=1, nchain
+              do icol=1, ncols
+                do ibead=1, 3*nbead
+                  rdn(ibead,icol,ichain)=ranuls()-0.5
                 end do
               end do
-            end if
+            end do
+
+            ! do ichain=1, nchain
+            !   do icol=1, ncols
+            !     do ibead=1, nbead
+            !       wx=ranuls()-0.5;wx=sqrtdt*wx*(c1*wx**2+c2)
+            !       wy=ranuls()-0.5;wy=sqrtdt*wy*(c1*wy**2+c2)
+            !       wz=ranuls()-0.5;wz=sqrtdt*wz*(c1*wz**2+c2)
+            !       offsettot=(ichain-1)*nbeadx3+3*(ibead-1)
+            !       dw_bl(offsettot+1:offsettot+3,icol)=[wx,wy,wz]
+            !     end do
+            !   end do
+            ! end do
+
+          end if
           ! Time passed based on time step and strain based on flow strength:
           time=time+dt(idt)
           if (FlowType /= 'Equil') then
@@ -172,6 +186,7 @@ contains
 !print*,'itime',itime,id  
           ! Constructing the random vector,dW, for the whole Box:
           if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
+
             do kchain=1, nchain
               do kcol=1, ncols
                 do kbead=1, nbead
@@ -184,7 +199,10 @@ contains
                 end do
               end do
             end do
+
           end if
+
+! print*,'bbb',size(MainBox%Boxhi_d%P_vals)
 
           ! Box advancement:
           call MainBox%move(itime,ntime(idt),irun,Pe(iPe),dt(idt),jcol,id,eps,itrst)
@@ -266,7 +284,7 @@ contains
   subroutine init()
 
     use :: strg_mod
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
     
     integer :: j,ntokens,u1,il,stat,ios
     character(len=1024) :: line 
@@ -444,7 +462,7 @@ ef: do
     ranuls=an*iy
     return
    
-  end function ranuls  
+  end function ranuls
   
   ! Gaussian random number generator (from H. C. Ottinger):
   real(wp) function rangls()

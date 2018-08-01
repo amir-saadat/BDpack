@@ -1,0 +1,19 @@
+module intrn_cumod
+
+  implicit none
+
+  type :: intrn_cu_t
+
+	contains
+    procedure,pass(this) :: calc => calc_intrn
+  end type intrn_cu_t
+
+contains
+
+  subroutine calc_intrn(this)
+    
+      class(intrn_cu_t),intent(inout) :: this
+      
+  end subroutine calc_intrn
+    
+end module intrn_cumod

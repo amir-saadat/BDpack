@@ -112,7 +112,7 @@ contains
 
   subroutine read_dlt(id,inpFile)
 
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
     use :: strg_mod, only: parse,value
     use :: arry_mod, only: sort
 

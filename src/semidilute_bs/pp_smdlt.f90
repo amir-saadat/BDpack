@@ -144,11 +144,12 @@ contains
   !! \myrank the rank of the process
   subroutine init_pp(myrank,nrun)
 
-    use :: mpi
     use :: strg_mod
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
     use :: hi_mod, only: DecompMeth
     use :: flow_mod, only: FlowType
+    use :: mpi
+    !include 'mpif.h'
   
     integer,intent(in) :: myrank,nrun
     integer :: stat1,stat2,stat3,stat4,stat5,stat6,stat7,stat8,stat9,stat10
@@ -703,6 +704,7 @@ ef: do
     use :: sprforce_mod, only: qmx
     use :: io_mod, only: rcmst
     use :: mpi
+    !include 'mpif.h'
 
     integer,intent(in) :: myrank,irun,itime,ntime,tgap,nchain,nseg,nbead,nsegx3,nbeadx3
     integer,intent(in) :: MPI_REAL_WP,nrun,nprun
@@ -1370,6 +1372,7 @@ ef: do
 
     use :: arry_mod, only: print_vector,print_matrix
     use :: mpi
+    !include 'mpif.h'
 
     integer,intent(in) :: tgap,myrank,p,nchain,nbead,nprun,MPI_REAL_WP
     real(wp),intent(in) :: dt,Wi,tend,lambda

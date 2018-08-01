@@ -1,0 +1,724 @@
+module hi_cumod
+
+  use :: prcn_mod
+  use,intrinsic :: iso_c_binding
+  use :: cudafor
+  use :: cusparse
+  use :: cufft
+  use :: cublas
+  use :: cusolverdn
+
+  implicit none
+
+  ! Private module procedures:
+  private :: init_hi   
+
+  type :: hi_cu_t
+
+    ! integer,device,allocatable :: K_d(:)
+
+    !> cublas handle for self diffusion calculation
+    type(cublasHandle) :: h_sd
+    !> 
+    real(wp),pointer :: DF_self_h(:) => null()
+    !>
+    real(wp),device,pointer :: DF_self_d(:) => null()
+
+    !> cusparse handle for Dreal
+    type(cusparseHandle) :: h_Dreal
+    !> cusparse matrix descriptor for Dreal
+    type(cusparseMatDescr) :: descr_Dreal
+    !> 
+    real(wp),device,allocatable :: Difftensreal_d(:,:)
+    !> values of D
+    real(wp),device,pointer :: Drealvals_d(:) => null()
+    !> columns of D
+    integer,device,pointer :: Drealcols_d(:) => null()
+    !> row index of D
+    integer,device,allocatable:: DrealrowInd_d(:)
+
+    !> cusparse handle for P
+    type(cusparseHandle) :: h_P
+    !> cusparse matrix descriptor for P
+    type(cusparseMatDescr) :: descr_P
+    !> PME tensor P values on host
+    real(wp),allocatable :: P_Val_h(:)
+    !> PME tensor P row Index  on host
+    integer,allocatable :: P_RowPtr_h(:)
+    !> PME tensor P columns  on host
+    integer,allocatable :: P_ColInd_h(:)
+    !> PME tensor P values on device
+    real(wp),device,allocatable :: P_Val_d(:)
+    !> PME tensor P row Index  on device
+    integer,device,allocatable :: P_RowPtr_d(:)
+    !> PME tensor P columns  on device
+    integer,device,allocatable :: P_ColInd_d(:)
+
+    !> PME tensor P values on device
+    real(wp),device,allocatable :: P_Val_tr_d(:)
+    !> PME tensor P row Index  on device
+    integer,device,allocatable :: P_ColPtr_d(:)
+    !> PME tensor P columns  on device
+    integer,device,allocatable :: P_RowInd_d(:)
+    integer :: nnz
+
+
+
+    !> Force on device
+    real(wp),device,pointer :: F_d(:) => null()
+    !> Component x of the force
+    real(wp),device,pointer :: Fx_d(:) => null()
+     !> Component y of the force
+    real(wp),device,pointer :: Fy_d(:) => null()
+    !> Component z of the force
+    real(wp),device,pointer :: Fz_d(:) => null()
+
+    !> Force on the mesh
+    real(wp),pointer :: F_mesh_hi(:,:) => null()
+    !> x component of the force on the mesh
+    real(wp),pointer :: F_meshPx_hi(:)
+    !> y component of the force on the mesh
+    real(wp),pointer :: F_meshPy_hi(:)
+    !> z component of the force on the mesh
+    real(wp),pointer :: F_meshPz_hi(:)
+        !> Force on the mesh
+    complex(wp),pointer :: F_mesh_ho(:,:) => null()
+    !> x component of the force on the mesh
+    complex(wp),pointer :: F_meshPx_ho(:)
+    !> y component of the force on the mesh
+    complex(wp),pointer :: F_meshPy_ho(:)
+    !> z component of the force on the mesh
+    complex(wp),pointer :: F_meshPz_ho(:)
+
+    real(wp),device,pointer :: F_meshx_di(:) => null()
+    real(wp),device,pointer :: F_meshy_di(:) => null()
+    real(wp),device,pointer :: F_meshz_di(:) => null()
+    real(wp),device,pointer :: F_mesh_di(:,:) => null()
+    real(wp),device,pointer :: F_meshPx_di(:)
+    real(wp),device,pointer :: F_meshPy_di(:)
+    real(wp),device,pointer :: F_meshPz_di(:)
+
+    complex(wp),device,pointer :: F_meshx_do(:) => null()
+    complex(wp),device,pointer :: F_meshy_do(:) => null()
+    complex(wp),device,pointer :: F_meshz_do(:) => null()
+    complex(wp),device,pointer :: F_mesh_do(:,:) => null()
+    complex(wp),device,pointer :: F_meshPx_do(:)
+    complex(wp),device,pointer :: F_meshPy_do(:)
+    complex(wp),device,pointer :: F_meshPz_do(:)
+
+
+    integer :: nnzb
+    integer,allocatable :: RowPtr_h(:),ColInd_h(:)
+    real(wp),pointer :: Val_h(:) => null()
+    integer,device,allocatable :: RowPtr_d(:),ColInd_d(:)
+    real(wp),device,pointer :: Val_d(:) => null()
+    real(wp),pointer :: DF_real_h(:) => null()
+    real(wp),device,pointer :: DF_real_d(:) => null()
+
+
+    real(wp),pointer :: DF_recip(:) => null()
+    real(wp),pointer :: DFPx(:)
+    real(wp),pointer :: DFPy(:)
+    real(wp),pointer :: DFPz(:)
+
+    real(wp),pointer :: DF_recip_h(:) => null()
+    real(wp),pointer :: DFx_h(:)
+    real(wp),pointer :: DFy_h(:)
+    real(wp),pointer :: DFz_h(:)
+
+    real(wp),device,pointer :: DF_recip_d(:) => null()
+    real(wp),device,pointer :: DFx_d(:) => null()
+    real(wp),device,pointer :: DFy_d(:) => null()
+    real(wp),device,pointer :: DFz_d(:) => null()
+    real(wp),pointer :: DF_tmp(:) => null()
+    real(wp),device,allocatable :: DF_d(:)
+
+
+
+    ! FFT variables
+    !> cufft plan
+    integer :: plan_fw
+    integer :: plan_bw
+    integer :: plan_fw_m
+    integer :: plan_bw_m
+
+
+    real(wp),allocatable :: mpx_h(:),mpy_h(:),mpz_h(:),m2vec_h(:)
+    !> 
+    real(wp),device,pointer :: mpx_d(:) => null()
+    real(wp),device,pointer :: mpy_d(:) => null()
+    real(wp),device,pointer :: mpz_d(:) => null()
+    real(wp),device,pointer :: m2vec_d(:) => null()
+
+
+
+    ! Construction of the verlet list
+    real(wp),allocatable :: Rb0(:)
+    integer,allocatable :: point_D(:)
+    integer,pointer :: list_D(:) => null()
+    integer,pointer :: list_DP(:) => null()
+
+    integer,device,allocatable :: point_D_d(:)
+    integer,device,allocatable :: list_D_d(:)
+
+    ! cusolver handle
+    type(cusolverDnHandle) :: h_lam
+
+
+  contains
+    procedure,pass(this) :: init => init_hi
+    procedure,pass(this) :: updatelst => updatelst_D
+    procedure,pass(this) :: cnstrlst => cnstrlst_D
+    final :: del_hi_t
+  end type hi_cu_t
+
+  complex(wp),device,pointer :: Fmx(:)
+  complex(wp),device,pointer :: Fmy(:)
+  complex(wp),device,pointer :: Fmz(:)
+  real(wp),device,pointer :: mpx_p(:)
+  real(wp),device,pointer :: mpy_p(:)
+  real(wp),device,pointer :: mpz_p(:)
+  real(wp),device,pointer :: m2vec_p(:)
+  integer,device :: K_d(3)
+
+  ! constants on device
+  real(wp),constant :: M1_c1_d,M1_c2_d,M1_c3_d,M1_c4_d,M1_c5_d,M1_c6_d,M1_c7_d,M1_c8_d,M1_c9_d
+  real(wp),constant :: M1_c10_d,M1_c11_d,M1_c12_d,M1_c13_d,M2_c1_d,M2_c2_d,M2_c3_d,M2_c4_d
+  real(wp),constant :: Mstar_c1_d,Mstar_c2_d
+  real(wp),constant :: HI_alpha_d,HI_alpha2_d,HI_c0_d,sqrtPI_d,rc_D_d,HI_ax2_d
+  logical,constant :: Dreal_sparse_mode_d
+  integer,constant :: p_PME_d,p_PME_dto3
+
+contains
+
+  subroutine init_hi(this,myrank,ntotbead,boxdim)
+
+    use :: hi_mod, only: Dreal_sparse_mode,K_mesh,p_PMEto3,Kto3,Kcto3,maxNb_list_D,HI_alpha,&
+      HI_alphato2,HI_c0,M1_c1,M1_c2,M1_c3,M1_c4,M1_c5,M1_c6,M1_c7,M1_c8,M1_c9,M1_c10,M1_c11,&
+      M1_c12,M1_c13,M2_c1,M2_c2,M2_c3,M2_c4,Mstar_c1,Mstar_c2,sqrtPI,rc_D,HI_ax2,p_PME
+
+    use :: flow_mod, only: FlowType
+    use :: trsfm_mod, only: eps_m
+    use :: hi_mod, only: b_splx2,b_sply2,b_splz2,m2_alpha,PIx2
+    use :: mpi
+
+    class(hi_cu_t),intent(inout) :: this
+    integer,intent(in) :: myrank,ntotbead
+    real(wp),intent(in) :: boxdim(3)
+    integer :: status,version
+    type(cusparseSolveAnalysisInfo) :: saInfo
+    integer :: BATCH,RANK
+    integer,pointer :: NULL_INT => null()
+    integer :: n_k(0:2),r_str_c(0:3),c_str_c(0:3)
+    integer :: idist,iembed(0:2),istride
+    integer :: odist,oembed(0:2),ostride
+    integer(kind=int_ptr_kind()) :: workSize
+
+    integer :: mix,miy,miz,mpix,mpiy,mpiz,mtot,ibead
+    real(wp) :: mpvec(3)
+    integer :: K_dim,K_dim_CCE,block_dim,n_dim
+
+    integer :: plan_fw,plan_bw,ierr
+
+
+    ! allocate(this%K_d(3))
+    K_d = K_mesh
+
+
+    allocate(this%DF_self_h(ntotbead*3))
+    allocate(this%DF_self_d(ntotbead*3))
+
+
+! integer, parameter :: n=450
+!  complex :: a(n,n),b(n,n)
+!  complex, device :: a_d(n,n), b_d(n,n)
+!  integer :: plan, ierr
+!  real, dimension(3) :: res, exp
+!  a = 1; a_d = a
+!  ierr = cufftPlan2D(plan,n,n,CUFFT_C2C)
+!  ierr = ierr + cufftExecC2C(plan,a_d,b_d,CUFFT_FORWARD)
+!  ierr = ierr + cufftExecC2C(plan,b_d,b_d,CUFFT_INVERSE)
+!  b = b_d
+!  res(1) = maxval(abs(a-b/(n*n)))
+!  print *,'Max error C2C: ', res(1)
+
+
+    ! maxNb_list_D=5000000
+
+    if (Dreal_sparse_mode) then
+      ! allocate(this%Difftensreal_d(ntotbead*3,ntotbead*3))
+      ! allocate(this%Drealvals_d(maxNb_list_D*9))
+      ! allocate(this%Drealcols_d(maxNb_list_D))
+      ! allocate(this%DrealrowInd_d(ntotbead+1))
+    else
+    end if
+
+    status = cusparseCreate(this%h_Dreal)
+    status = cusparseCreateMatDescr(this%descr_Dreal)
+    status = cusparseSetMatType(this%descr_Dreal,CUSPARSE_MATRIX_TYPE_GENERAL)
+    status = cusparseSetMatIndexBase(this%descr_Dreal, CUSPARSE_INDEX_BASE_ONE)
+    ! status = cusparseCreateSolveAnalysisInfo(saInfo)
+
+    status = cusparseCreate(this%h_P)
+    status = cusparseCreateMatDescr(this%descr_P)
+    status = cusparseSetMatType(this%descr_P,CUSPARSE_MATRIX_TYPE_GENERAL)
+    status = cusparseSetMatIndexBase(this%descr_P, CUSPARSE_INDEX_BASE_ZERO)
+
+    ! Force and DF in real and reciprocal space
+
+    allocate(this%F_d(ntotbead*3))
+    allocate(this%Fx_d(ntotbead))
+    allocate(this%Fy_d(ntotbead))
+    allocate(this%Fz_d(ntotbead))
+
+    allocate(this%DF_recip(ntotbead*3))
+    this%DFPx => this%DF_recip(1:ntotbead*3-2:3)
+    this%DFPy => this%DF_recip(2:ntotbead*3-1:3)
+    this%DFPz => this%DF_recip(3:ntotbead*3:3)
+
+
+    K_dim = K_mesh(1)*K_mesh(2)*K_mesh(3)
+    K_dim_CCE = K_mesh(1)*K_mesh(2)*(K_mesh(3)/2+1)
+
+
+    allocate(this%F_mesh_hi(0:K_dim-1,3))
+
+    this%F_meshPx_hi(0:K_dim-1) => this%F_mesh_hi(:,1)
+    this%F_meshPy_hi(0:K_dim-1) => this%F_mesh_hi(:,2)
+    this%F_meshPz_hi(0:K_dim-1) => this%F_mesh_hi(:,3)
+
+    allocate(this%F_mesh_ho(0:K_dim_CCE-1,3))
+
+    this%F_meshPx_ho(0:K_dim_CCE-1) => this%F_mesh_ho(:,1)
+    this%F_meshPy_ho(0:K_dim_CCE-1) => this%F_mesh_ho(:,2)
+    this%F_meshPz_ho(0:K_dim_CCE-1) => this%F_mesh_ho(:,3)
+
+    ! print*,'size-size',size(this%P_cols)
+
+    ! allocate(this%F_meshx_di(0:K_dim-1))
+    ! allocate(this%F_meshy_di(0:K_dim-1))
+    ! allocate(this%F_meshz_di(0:K_dim-1))
+
+    allocate(this%F_mesh_di(0:K_dim-1,3))
+    this%F_meshPx_di => this%F_mesh_di(:,1)
+    this%F_meshPy_di => this%F_mesh_di(:,2)
+    this%F_meshPz_di => this%F_mesh_di(:,3)
+
+    ! allocate(this%F_meshx_do(0:K_dim_CCE-1))
+    ! allocate(this%F_meshy_do(0:K_dim_CCE-1))
+    ! allocate(this%F_meshz_do(0:K_dim_CCE-1))
+
+    allocate(this%F_mesh_do(0:K_dim_CCE-1,3))
+    this%F_meshPx_do => this%F_mesh_do(:,1)
+    this%F_meshPy_do => this%F_mesh_do(:,2)
+    this%F_meshPz_do => this%F_mesh_do(:,3)
+
+    Fmx(0:) => this%F_mesh_do(:,1)
+    Fmy(0:) => this%F_mesh_do(:,2)
+    Fmz(0:) => this%F_mesh_do(:,3)
+
+
+
+    ! print*,'p_PMEto3',p_PMEto3
+    allocate(this%P_Val_h(ntotbead*p_PMEto3))
+    allocate(this%P_RowPtr_h(ntotbead+1))
+    allocate(this%P_ColInd_h(ntotbead*p_PMEto3))
+    this%P_RowPtr_h(1)=0
+    do ibead=1, ntotbead
+      this%P_RowPtr_h(ibead+1)=this%P_RowPtr_h(ibead)+p_PMEto3
+    end do
+    allocate(this%P_Val_d(ntotbead*p_PMEto3))
+    allocate(this%P_RowPtr_d(ntotbead+1))
+    allocate(this%P_ColInd_d(ntotbead*p_PMEto3))
+    this%P_RowPtr_d=this%P_RowPtr_h
+
+    allocate(this%P_Val_tr_d(ntotbead*p_PMEto3))
+    allocate(this%P_ColPtr_d(K_dim+1))
+    allocate(this%P_RowInd_d(ntotbead*p_PMEto3))
+
+
+
+
+    n_k(0:2)=[K_mesh(1),K_mesh(2),K_mesh(3)]
+
+    idist = 0
+    iembed = [n_k(0),n_k(1),2*(n_k(2)/2+1)]
+    istride = 1 !2*(n_k(2)/2+1)*n_k(1)
+    odist = 0
+    oembed = [n_k(0),n_k(1),  (n_k(2)/2+1)]
+    ostride = 1 !(n_k(2)/2+1)*n_k(1)
+
+
+    !   For In-Place:
+    r_str_c=[0, 2*(K_mesh(3)/2+1)*K_mesh(2), 2*(K_mesh(3)/2+1), 1]
+    c_str_c=[0, (K_mesh(3)/2+1)*K_mesh(2), K_mesh(3)/2+1, 1]
+
+    ! status = cufftCreate(this%plan_fw)
+    ! status = cufftPlan3d(this%plan_fw,n_k(0),n_k(1),n_k(2),CUFFT_D2Z)
+
+    ! status = cufftCreate(this%plan_bw)
+    ! status = cufftPlan3d(this%plan_bw,n_k(0),n_k(1),n_k(2),CUFFT_Z2D)
+
+
+
+
+
+    RANK = 3
+    BATCH = 3
+
+    ! status = cufftCreate(this%plan_fw_m)
+    status = cufftPlanMany(this%plan_fw_m, RANK, n_k, NULL_INT, 1, K_dim, &
+      NULL_INT, 1, K_dim_CCE, CUFFT_D2Z , BATCH)
+    if (status /= CUFFT_SUCCESS ) then
+      print '(" Error!!: Problem in FORWARD cuFFT plan.")'
+      print '(" status = ",i0)', status
+      stop
+    endif
+    status = cufftPlanMany(this%plan_bw_m, RANK, n_k, NULL_INT, 1, K_dim, &
+      NULL_INT, 1, K_dim_CCE, CUFFT_Z2D , BATCH)
+    if (status /= CUFFT_SUCCESS ) then
+      print '(" Error!!: Problem in BACKWARD cuFFT plan.")'
+      print '(" status = ",i0)', status
+      stop
+    endif
+
+    ! status = cufftPlan3d(this%plan,K_mesh(1),K_mesh(2),K_mesh(3),CUFFT_C2C)
+    allocate(this%mpx_h(0:K_mesh(1)-1))
+    allocate(this%mpy_h(0:K_mesh(2)-1))
+    allocate(this%mpz_h(0:K_mesh(3)-1))
+    allocate(this%m2vec_h(K_mesh(1)*K_mesh(2)*(K_mesh(3)/2+1))) ! 1 more than needed (0 is not used)
+    allocate(this%mpx_d(0:K_mesh(1)-1))
+    allocate(this%mpy_d(0:K_mesh(2)-1))
+    allocate(this%mpz_d(0:K_mesh(3)-1))
+    allocate(this%m2vec_d(K_mesh(1)*K_mesh(2)*(K_mesh(3)/2+1))) ! 1 more than needed
+
+    mtot=0
+    mx: do mix=0, K_mesh(1)-1
+      if (mix <= K_mesh(1)/2) then
+        mpix=mix
+      else
+        mpix=mix-K_mesh(1)
+      end if
+      mpvec(1)=PIx2/boxdim(1)*mpix
+      this%mpx_h(mix)=mpvec(1)
+
+      my: do miy=0, K_mesh(2)-1
+        if (miy <= K_mesh(2)/2) then
+          mpiy=miy
+        else
+          mpiy=miy-K_mesh(2)
+        end if
+
+        mpvec(2)=PIx2/boxdim(2)*mpiy
+
+        select case(FlowType)
+        case('Equil')
+          this%mpy_h(miy)=mpvec(2)
+        case('PSF')
+          mpvec(2)=mpvec(2)-mpvec(1)*eps_m
+          this%mpy_h(miy)=mpvec(2)
+        endselect
+
+        mz: do miz=0, K_mesh(3)/2
+
+          mpiz=miz
+          mpvec(3)=PIx2/boxdim(3)*mpiz
+          this%mpz_h(miz)=mpvec(3)
+
+          if (.not.all(mpvec == 0)) then
+            mtot=mtot+1
+            this%m2vec_h(mtot)=b_splx2(mix)*b_sply2(miy)*b_splz2(miz)*m2_alpha(mpvec)
+          end if
+
+        end do mz
+      end do my
+    end do mx
+
+    ! print*,'mpx',this%mpx_h(0),this%mpx_h(1)
+
+    this%mpx_d=this%mpx_h
+    this%mpy_d=this%mpy_h
+    this%mpz_d=this%mpz_h
+    this%m2vec_d=this%m2vec_h
+
+    mpx_p(0:) => this%mpx_d
+    mpy_p(0:) => this%mpy_d
+    mpz_p(0:) => this%mpz_d
+    m2vec_p => this%m2vec_d
+
+    if (myrank == 0) then
+      print '(" DEV: Reciprocal space set complete.")'
+      print '(" DEV: Number of reciprocal vectors: ",i8)',mtot
+    end if
+
+    ! For Construction of verlet list
+
+    allocate(this%Rb0(ntotbead*3))
+    allocate(this%point_D(ntotbead+1),this%list_D(maxNb_list_D))
+    block_dim=3
+    n_dim=maxNb_list_D
+
+    allocate(this%point_D_d(ntotbead+1),this%list_D_d(maxNb_list_D))
+
+    ! n_dim=(n_dim + block_dim-1)/block_dim
+    ! nnzb=size(Dreal_vals)/(3*3)
+
+    allocate(this%Val_h(n_dim*3*3))
+    allocate(this%RowPtr_h(ntotbead+1))
+    allocate(this%ColInd_h(n_dim))
+
+    allocate(this%Val_d(n_dim*3*3))
+    allocate(this%RowPtr_d(ntotbead+1))
+    allocate(this%ColInd_d(n_dim))
+
+    allocate(this%DF_real_h(ntotbead*3))    
+    allocate(this%DF_real_d(ntotbead*3))
+
+
+    allocate(this%DF_recip_h(ntotbead*3))
+    this%DFx_h => this%DF_recip_h(1:ntotbead*3-2:3)
+    this%DFy_h => this%DF_recip_h(2:ntotbead*3-1:3)
+    this%DFz_h => this%DF_recip_h(3:ntotbead*3:3)
+
+
+    allocate(this%DFx_d(ntotbead))
+    allocate(this%DFy_d(ntotbead))
+    allocate(this%DFz_d(ntotbead))
+    allocate(this%DF_tmp(ntotbead))
+    allocate(this%DF_d(ntotbead*3))
+
+    ! cusolver handle creation
+    status = cusolverDnCreate(this%h_lam)
+    if (status /= CUSOLVER_STATUS_SUCCESS) print('(" cusolver handle creation failed")')
+
+    M1_c1_d=M1_c1
+    M1_c2_d=M1_c2
+    M1_c3_d=M1_c3
+    M1_c4_d=M1_c4
+    M1_c5_d=M1_c5
+    M1_c6_d=M1_c6
+    M1_c7_d=M1_c7
+    M1_c8_d=M1_c8
+    M1_c9_d=M1_c9
+    M1_c10_d=M1_c10
+    M1_c11_d=M1_c11
+    M1_c12_d=M1_c12
+    M1_c13_d=M1_c13
+
+    M2_c1_d=M2_c1
+    M2_c2_d=M2_c2
+    M2_c3_d=M2_c3
+    M2_c4_d=M2_c4
+
+    Mstar_c1_d=Mstar_c1
+    Mstar_c2_d=Mstar_c2
+
+    HI_alpha_d=HI_alpha
+    HI_alpha2_d=HI_alphato2
+    HI_c0_d=HI_c0
+
+    sqrtPI_d=sqrtPI
+    rc_D_d=rc_D
+    HI_ax2_d=HI_ax2
+
+    Dreal_sparse_mode_d=Dreal_sparse_mode
+
+    p_PME_d=p_PME
+    p_PME_dto3=p_PME**3
+      
+  end subroutine init_hi
+
+
+
+  subroutine del_hi_t(this)
+
+    type(hi_cu_t) :: this
+    integer :: istat
+
+    istat = cusolverDnDestroy(this%h_lam)
+    if (istat /= CUSOLVER_STATUS_SUCCESS) print('(" cusolver handle destroy failed in hi_cumod")')
+
+  end subroutine del_hi_t
+
+
+  subroutine updatelst_D(this,Rb,Rbtr,itime,itrst,nchain,nbead,nbeadx3,ntotbead,bs,bo)
+
+    use :: hi_mod, only: rlist_D,rc_D
+
+    class(hi_cu_t),intent(inout) :: this
+    real(wp),intent(in) :: Rb(:),Rbtr(:),bs(3),bo(3)
+    integer,intent(in) :: itime,itrst,nchain,nbead,nbeadx3,ntotbead
+    real(wp) :: dispmax
+    logical :: update
+
+    if (itime == itrst+1) then
+      update=.true.
+    else
+      ! Calculate maximum displacement since last update:
+      dispmax=maxval(abs(Rb-this%Rb0))
+      ! A conservative testing of the list skin crossing:
+      dispmax=2*sqrt(3*dispmax*dispmax)
+      update=dispmax > (rlist_D-rc_D)
+    end if
+    if (update) then
+      ! Save positions for next evaluations:
+      this%Rb0=Rb
+      call cnstrlst_D(this,Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo)
+    end if
+
+  end subroutine updatelst_D
+
+  subroutine cnstrlst_D(this,Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo)
+
+    use :: arry_mod, only: print_vector,ResizeArray
+    use :: flow_mod, only: FlowType
+    use :: trsfm_mod, only: delrx_L
+    use :: hi_mod, only: head_D,LkdLst_D,rlist_D,ncells_D,CellSize_D,maxNb_list_D
+
+    class(hi_cu_t),intent(inout) :: this
+    real(wp),intent(in) :: Rb(:),Rbtr(:),bs(3),bo(3)
+    integer,intent(in) :: itime,nchain,nbead,nbeadx3,ntotbead
+    integer,dimension(3) :: cell_ind,neigcell_ind_p ! should contain 0~(ncells-1) cell indices
+    integer,dimension(3),target :: neigcell_ind ! should contain 0~(ncells-1) cell indices
+    real(wp),dimension(3) :: rij,rbtmp,rbi,rbj
+    integer :: ichain,ibead,offsetch,offset,iglobbead,jglobbead
+    integer :: icell,offseti,offsetj,neigcell_ID,nlist
+    integer,pointer :: neigcell_indx,neigcell_indy,neigcell_indz
+    real(wp) :: rlist_Dto2,rijmagto2
+    integer,parameter :: EMPTY=-1
+
+    ! !-----------------------------
+    ! ! Construction of linked-list:
+    ! !-----------------------------
+    ! ! Reset the array head
+    ! head_D=EMPTY
+    ! ! Note!!: the loops are in reverse order to make them 
+    ! ! sorted and appropriate for sparse operations.
+    ! do ichain=nchain, 1, -1
+    !   offsetch=(ichain-1)*nbeadx3
+    !   do ibead=nbead, 1, -1
+    !     iglobbead=(ichain-1)*nbead+ibead
+    !     offset=offsetch+(ibead-1)*3
+    !     rbtmp=Rb(offset+1:offset+3)
+    !     select case (FlowType)
+    !       case ('Equil')
+    !         cell_ind(1:3)=(rbtmp(1:3)-bo(1:3))/CellSize_D(1:3)
+    !       case ('PSF')
+    !         cell_ind(1)=(Rbtr(iglobbead)-bo(1))/CellSize_D(1)
+    !         cell_ind(2:3)=(rbtmp(2:3)-bo(2:3))/CellSize_D(2:3)
+    !     end select
+    !     icell=cell_ind(1)*ncells_D(2)*ncells_D(3)+&
+    !           cell_ind(2)*ncells_D(3)+cell_ind(3)
+    !     ! Link to the previous occupant to EMPTY if you are the first
+    !     LkdLst_D(iglobbead)=head_D(icell)
+    !     ! The previous one goes to header
+    !     head_D(icell)=iglobbead
+    !   end do
+    ! end do
+
+    !------------------------------------------------------------
+    ! Construction of Verlet neighbor-list, by using linked-list:
+    !------------------------------------------------------------
+    neigcell_indx => neigcell_ind(1)
+    neigcell_indy => neigcell_ind(2)
+    neigcell_indz => neigcell_ind(3)
+    rlist_Dto2=rlist_D*rlist_D
+    nlist=0
+    ! For the last bead, jglobbead<iglobbead, so it is not required!
+    ! do iglobbead=1, ntotbead-1
+    do iglobbead=1, ntotbead
+      this%point_D(iglobbead)=nlist+1
+      offseti=(iglobbead-1)*3
+      rbi=Rb(offseti+1:offseti+3)
+      select case (FlowType)
+        case ('Equil')
+          cell_ind(1:3)=(rbi(1:3)-bo(1:3))/CellSize_D(1:3)
+        case ('PSF')
+          cell_ind(1)=(Rbtr(iglobbead)-bo(1))/CellSize_D(1)
+          cell_ind(2:3)=(rbi(2:3)-bo(2:3))/CellSize_D(2:3)
+      end select
+      ! Scan the neighbouring cells:
+      ncix: do neigcell_indx=cell_ind(1)-1, cell_ind(1)+1
+        nciy: do neigcell_indy=cell_ind(2)-1, cell_ind(2)+1
+          nciz: do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
+            ! Calculate the scalar neigbor cell index:
+            ! Corresponding periodic cell for neighbor cell:
+            neigcell_ind_p(:)=mod(neigcell_ind(:)+ncells_D(:),ncells_D(:)) 
+            neigcell_ID=neigcell_ind_p(1)*ncells_D(2)*ncells_D(3)+&
+                        neigcell_ind_p(2)*ncells_D(3)+neigcell_ind_p(3)
+            ! Get first bead in neighbour cell:
+            jglobbead=head_D(neigcell_ID)
+
+
+
+            do while (jglobbead /= EMPTY)
+              offsetj=(jglobbead-1)*3
+              ! Equal is important only if we have one cell.
+              ! if ( (iglobbead < jglobbead) .or. &
+              !     ((iglobbead == jglobbead).and.(any(ncells_D == 1))) ) then
+              if ( (iglobbead /= jglobbead) .or. &
+                  ((iglobbead == jglobbead).and.(any(ncells_D == 1))) ) then
+                ! Calculate the distance:
+                ! The third term in the RHS takes into account the correction 
+                ! needed for boundary cells.
+                ! We could use minimum image convension, as for using Verlet 
+                ! list, we need the rc_F to be smaller than box dimension.
+                rbj=Rb(offsetj+1:offsetj+3)
+                select case (FlowType)
+                  case ('Equil')
+                    rij(1:3)=rbi(1:3)-(rbj(1:3) + &
+                        floor(real(neigcell_ind(1:3))/real(ncells_D(1:3)))*bs(1:3))
+                  case ('PSF')
+                    rij(1)=rbi(1)-(rbj(1) + &
+                           floor(real(neigcell_ind(1))/ncells_D(1))*bs(1) + &
+                           floor(real(neigcell_ind(2))/ncells_D(2))*delrx_L)
+                    rij(2:3)=rbi(2:3)-(rbj(2:3) + &
+                             floor(real(neigcell_ind(2:3))/ncells_D(2:3))*bs(2:3))
+                end select
+
+                rijmagto2=dot_product(rij,rij)
+                if (rijmagto2 <= rlist_Dto2) then
+                  nlist=nlist+1
+                  if (nlist == maxNb_list_D) then
+                    print '(" Note!!: list_D is small and will be incremented by 10")'
+                    maxNb_list_D=maxNb_list_D+10
+                    print '(" Dim(list_D):",1x,i15)',maxNb_list_D
+                    call ResizeArray(this%list_D,maxNb_list_D)
+                  end if
+                  this%list_D(nlist)=jglobbead
+                end if
+              end if
+              jglobbead=LkdLst_D(jglobbead)
+            end do ! while loop
+          end do nciz
+        end do nciy
+      end do ncix
+    end do ! iglobbead
+    this%point_D(ntotbead+1)=nlist+1
+    this%list_DP => this%list_D(1:nlist)
+    ! Resizing the Dreal related arrays:
+
+    ! print*,'maxnb',maxNb_list_D,size(this%ColInd_d,1)
+    if (maxNb_list_D > size(this%ColInd_d,1)) then
+      print'(" The limit for ColInd_d has reached in hi_cumod")'
+      stop
+      ! call ResizeArray(Dreal_vals,maxNb_list_D*9)
+      ! call ResizeArray(Dreal_cols,maxNb_list_D)
+    end if
+
+    ! call print_vector(this%point_D,'point_D')
+    ! call print_vector(this%list_DP,'list_DP')
+
+    ! print*,this%list_DP(43235598)
+    ! print*,this%list_DP(43235599)
+    ! stop
+
+    this%point_D_d=this%point_D
+    this%list_D_d=this%list_D
+
+  end subroutine cnstrlst_D
+
+
+
+    
+end module hi_cumod

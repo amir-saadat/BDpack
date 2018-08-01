@@ -33,7 +33,7 @@ module prcn_mod
   implicit none
   save
 
-  include 'mkl_spblas.fi'
+  include 'mkl_spblas_crr.fi'
 
   integer,parameter :: single=selected_real_kind(p=6,r=37)
   integer,parameter :: double=selected_real_kind(p=15,r=307)
