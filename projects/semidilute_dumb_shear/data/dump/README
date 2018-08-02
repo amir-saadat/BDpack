@@ -1,0 +1,5 @@
+This directory contains dumped configuration of the chains, i.e. center of mass and internal
+configuration for all chains for all runs dumped with a certain frequency. These files are 
+big in size and have binary foramt (.bin). For animation purposes, the transient configuration
+of the first run (MPI rank 0) is dumped with .dat format and, in case, the simulations are in 
+flowing condition, the transient shape of the box is dumped as well. 

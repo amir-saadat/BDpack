@@ -39,7 +39,7 @@ program cnfsrt
   real(wp),allocatable,target :: Rx(:,:,:),Ry(:,:,:),Rz(:,:,:)
   real(wp),pointer :: RPx(:),RPy(:),RPz(:)
   real(wp),allocatable :: x(:),y(:),z(:),r(:)
-  integer,allocatable :: ib(:),ib1(:),cnf_tp(:,:),icount3(:)
+  integer,allocatable :: ib(:),ib1(:),cnf_tp(:,:),cnf_tp_f(:),icount3(:)
   real(wp) :: iconfig(6), pconfig(6)
   real(wp) :: rmax,xi,yi,zi,xj,yj,zj,dist,xmin,ymin,zmin
   real(wp) :: xmax,ymax,zmax,xr,yr,zr,xcap,ycap,zcap,rmin
@@ -106,7 +106,8 @@ program cnfsrt
   nbead=nseg+1
   nbead_bb=nseg_bb+1
   ! Allocations
-  allocate(x(nbead_bb),y(nbead_bb),z(nbead_bb),r(nbead_bb),cnf_tp(nchain,6))
+  allocate(x(nbead_bb),y(nbead_bb),z(nbead_bb),r(nbead_bb))
+  allocate(cnf_tp(nchain,6),cnf_tp_f(nchain))
   maxlength=int(qmax*nseg_bb*npixel)+1
   print '(" maximum length (should be >1) = ",i5)',maxlength
   allocate(ib(maxlength),ib1(maxlength),icount3(maxlength))
@@ -554,16 +555,20 @@ ef: do
               iconfig(4)=iconfig(4)+1
               ntype=4
             else ! coil
-              iconfig(5)=iconfig(5)+1
-              ntype=5
+              ! iconfig(5)=iconfig(5)+1
+              ! ntype=5
+              iconfig(3)=iconfig(3)+1
+              ntype=3
             end if
           end if           
         end if
 
       end if
 
-      if (idmp >= dmp_fr_f .and. idmp <= dmp_fr_l) then
+      if (idmp >= int(dmp_fr_f*ndmp) .and. idmp <= int(dmp_fr_l*ndmp) ) then
+      ! if (idmp == int(dmp_fr_f*ndmp)) then
         cnf_tp(ichain,ntype)=cnf_tp(ichain,ntype)+1
+        ! cnf_tp_f(ichain)=ntype
       endif
 
       select case (ntype)
@@ -603,8 +608,35 @@ ef: do
 
   enddo ! idmp
 
-  print*,'cnf',cnf_tp
-  write(u_tp_ave,'(i)'),maxloc(cnf_tp,2)
+  ! print*,'cnf',cnf_tp_f
+  ! do ichain=1, nchain
+  !   if (cnf_tp(ichain,1) /= 0) then
+  !     cnf_tp_f(ichain)=1
+  !   elseif (cnf_tp(ichain,3) /= 0) then
+  !     cnf_tp_f(ichain)=3
+  !   elseif (cnf_tp(ichain,4) /= 0) then
+  !     cnf_tp_f(ichain)=4
+  !   elseif (cnf_tp(ichain,2) /= 0) then
+  !     cnf_tp_f(ichain)=2
+  !   elseif (cnf_tp(ichain,5) /= 0) then
+  !     cnf_tp_f(ichain)=5
+  !   else
+  !     cnf_tp_f(ichain)=6
+  !   endif
+  ! enddo
+  do ichain=1, nchain
+    if (maxval(cnf_tp(ichain,1:4)) /= 0) then
+      write(u_tp_ave,'(i)'),maxloc(cnf_tp(ichain,1:4))
+    elseif (cnf_tp(ichain,5) /= 0) then
+      write(u_tp_ave,'(i)'), 5
+    elseif (cnf_tp(ichain,6) /= 0) then
+      write(u_tp_ave,'(i)'), 6
+    else
+      write(u_tp_ave,'(i)'), 0
+    endif
+  enddo
+  
+  ! write(u_tp_ave,'(i)'),cnf_tp_f(:)
 
   close(u_tp)
   close(u_tp_int)

@@ -38,7 +38,26 @@ module intrn_mod
   !   type(hibb_t) :: hibb
   !   type(hibw_t) :: hibw
   ! end type hi_t
-  !------------------------------------------
+
+  ! hi
+  ! !------------------------------------------
+  ! type :: hibb_t
+  !   ! RPY
+  !   real(wp) :: A,B,C,D,E,F
+  !   ! Oseen-Burgers
+  !   real(wp) :: G
+  !   ! regularized OB
+  !   real(wp) :: O,P,R,S,T
+  !   real(wp) :: rmagmin
+  ! end type hibb_t
+  ! type :: hibw_t
+  !   real(wp) :: a_sph
+  ! end type hibw_t
+  ! type :: hi_t
+  !   type(hibb_t) :: hibb
+  !   type(hibw_t) :: hibw
+  ! end type hi_t
+  ! !------------------------------------------
 
   ! ev
   !------------------------------------------
@@ -67,6 +86,35 @@ module intrn_mod
   !   integer,allocatable :: w_coll_all_t(:,:)
   !   integer,allocatable :: ia_time_t(:,:,:)
   ! end type evbw_t
+
+  ! type :: evbb_t
+  !   ! For Gaussian
+  !   real(wp) :: prefactor,denom
+  !   ! For LJ
+  !   real(wp) :: epsOVsig,sigOVrtr,sigOVrtrto6
+  !   real(wp) :: LJ_prefactor_tr
+  !   real(wp) :: rmagmin
+  ! end type evbb_t
+  ! type :: evbw_t
+  !   ! For Cubic
+  !   real(wp) :: delw
+  !   real(wp) :: prf
+  !   real(wp) :: rmagmin
+  !   ! For Reflc-bc
+  !   real(wp) :: a
+  !   real(wp) :: a_sph
+  !   integer :: iwall !the type of wall for the reflection BC: 1-plane, 2-sphere
+  !   integer :: u_wc
+  !   integer :: u_wc_all
+  !   integer :: u_ia
+  !   integer,allocatable :: w_coll(:,:)
+  !   integer,allocatable :: w_coll_all(:,:)
+  !   integer,allocatable :: ia_time(:,:,:)
+  !   integer,allocatable :: w_coll_t(:,:)
+  !   integer,allocatable :: w_coll_all_t(:,:)
+  !   integer,allocatable :: ia_time_t(:,:,:)
+  ! end type evbw_t
+
   !------------------------------------------
 
   ! intrn
@@ -81,12 +129,23 @@ module intrn_mod
   end type intrn_t
   !------------------------------------------
 
+
   ! type :: dis
   !   real(wp) :: x,y,z
   !   real(wp) :: mag,mag2
   !   real(wp) :: riy,rjy,yim
   !   real(wp) :: magim,mag2im
   ! end type
+
+  ! type :: dis
+  !   real(wp) :: x,y,z
+  !   real(wp) :: mag,mag2
+  !   real(wp) :: riy,rjy,yim
+  !   real(wp) :: magim,mag2im
+  !   real(wp) :: rjx,rjz
+  !   real(wp) :: rix,riz
+  ! end type
+
 
   !-----------------------------------------------------
   !>>>> Interface to routines for different interactions
@@ -115,11 +174,20 @@ module intrn_mod
     !! \param j bead j index
     !! \param rjy y component of rj
     !! \param divD divergance of D
+
     ! module subroutine calc_div(j,rjy,divD)
     !   integer,intent(in) :: j
     !   real(wp),intent(in) :: rjy
     !   real(wp),intent(inout) :: divD(:)
     ! end subroutine calc_div
+
+    ! module subroutine calc_div(j,rjy,divD,id,itime)
+    !   integer,intent(in) :: j
+    !   real(wp),intent(in) :: rjy
+    !   real(wp),intent(inout) :: divD(:)
+    !   integer,intent(in) :: id,itime
+    ! end subroutine calc_div
+
     !------------------------------------------
 
     ! evbb
@@ -194,13 +262,15 @@ contains
 
   end subroutine init_intrn
 
-  subroutine calc_intrn(this,rvmrc,rcm,nseg,DiffTens,divD,Fev,Fbarev,&
+  subroutine calc_intrn(this,id,itime,rvmrc,rcm,nseg,DiffTens,divD,Fev,Fbarev,&
                       calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw)
 
     use :: inp_dlt, only: EV_bb,EV_bw,hstar,HITens
+    
     use :: hi_smod, only : calc_hi,calc_div
     use :: evbb_smod, only: calc_evbb
     use :: evbw_smod, only: calc_evbw
+
     use :: arry_mod, only: print_vector
 
     class(intrn_t),intent(inout) :: this
@@ -217,6 +287,7 @@ contains
     logical :: clhi,cldiv,clevbb,clevbw,upevbb,upevbw
     logical,optional :: calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw
 
+    integer :: id,itime
 
     if (present(calchi)) then
       clhi=calchi
@@ -260,15 +331,25 @@ contains
       osj=3*(jbead-1)
       rjmrc=rvmrc(osj+1:osj+3)
 
+
+
+      ! if ( (id==1 .and. itime==10000) .or. &
+      !      (id==1 .and. itime==20000) ) then
+      !   if (jbead<=3) then
+      !     print*,'rj-intrn',rjmrc+rcm
+      !   endif
+      ! endif
+
       !! Blake's part
       if (hstar /= 0._wp .and. HITens == 'Blake') then
         ibead_ulim=nseg+1
         rjy=rjmrc(2)+rcm(2)
-        if (cldiv) call calc_div(jbead,rjy,divD)
+        if (cldiv) call calc_div(jbead,rjy,divD,id,itime)
       else
         ibead_ulim=jbead
       endif
       !!-------------
+
 
       do ibead=1, ibead_ulim
 
@@ -333,6 +414,7 @@ contains
           rij%mag2=rij%x**2+rij%y**2+rij%z**2
           rij%mag=sqrt(rij%mag2)
 
+
         if (ibead /= jbead) then
 
           if (clevbb) call calc_evbb(this%evbb,ibead,jbead,rij,Fev)
@@ -347,6 +429,15 @@ contains
           rij%yim=rimrc(2)+rcm(2)+rij%rjy
           rij%mag2im=rij%x**2+rij%yim**2+rij%z**2
           rij%magim=sqrt(rij%mag2im)
+        endif
+
+        if (HITens == 'Osph') then
+          rij%rjx=rjmrc(1)+rcm(1)
+          rij%rjy=rjmrc(2)+rcm(2)
+          rij%rjz=rjmrc(3)+rcm(3)
+          rij%rix=rimrc(1)+rcm(1)
+          rij%riy=rimrc(2)+rcm(2)
+          rij%riz=rimrc(3)+rcm(3)
         endif
         !-------------
 

@@ -44,12 +44,22 @@ module hi_smod
     !! \param j bead j index
     !! \param rij data type for inter particle distance
     !! \param DiffTens diffusion tensor
+
     ! module subroutine calc_hibw(this,i,j,rij,DiffTens)
     !   class(hibw_t),intent(inout) :: this
     !   integer,intent(in) :: i,j
     !   type(dis),intent(in) :: rij
     !   real(wp),intent(inout) :: DiffTens(:,:)
     ! end subroutine calc_hibw
+
+    ! module subroutine calc_hibw(this,i,j,rij,DiffTens)
+    !   class(hibw_t),intent(inout) :: this
+    !   integer,intent(in) :: i,j
+    !   type(dis),intent(in) :: rij
+    !   real(wp),intent(inout) :: DiffTens(:,:)
+    ! end subroutine calc_hibw
+
+
   end interface
 
 contains
@@ -146,31 +156,90 @@ contains
       call calc_hibw(this%hibw,i,j,rij,DiffTens)
     endif
     !------------
+    ! Oseen solid sphere
+    if (HITens == 'Osph') then
+      if (i==j) then
+        call calc_hibw(this%hibw,i,j,rij,DiffTens)
+      else
+        call calc_hibw(this%hibw,i,j,rij,DiffTens)
+      endif
+    endif
+    !------------
 
 
   ! end procedure calc_hi
   end subroutine calc_hi
 
   ! module procedure calc_div
-  subroutine calc_div(j,rjy,divD)
+  subroutine calc_div(j,rjy,divD,id,itime)
 
     use :: inp_dlt, only: hstar
 
     integer,intent(in) :: j
     real(wp),intent(in) :: rjy
     real(wp),intent(inout) :: divD(:)
+    integer,intent(in) :: id,itime
 
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp),parameter :: sqrtPI=sqrt(PI)
+    real(wp) :: rjy_r
+    !!!!!!variables that were used in rounding divD
+    !integer :: digits
+    !integer,parameter :: longlong=selected_int_kind(18)
+    !integer(kind=longlong) :: int_rjy,int_divD
 
-    !divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
+    !digits = 9
 
-
-    !debugging
     if (j == 1) then
-      divD(j)=0
+      divD(j)=0._wp
     else
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Note on numerical errors arising from calculation of divD:
+      !T.Y. Lin, A. Saadat
+      !Aug. - Dec. 2017
+      !
+      !While working on simulations on wall tethered polymers in shear,
+      !we observed that there were numerical errors arising due to
+      !calculation of divD. Specifically, while working on the default
+      !(32ppn) nodes of Certainty, we noticed that results were slightly
+      !different between nodes. We narrowed down the issue to the
+      !calculation of divD, in particular the calculation of rjy^-2
+      !and rjy^-4. To mitigate this issue, we tried combination of:
+      !(1) rounding rjy first
+      !(2) rounding divD at the end of the calculation
+      !but neither seemed to fully surpress the issue. We ultimately
+      !decided to calculate divD without rounding, because
+      !(1) the errors are small
+      !(2) it's unclear what inaccuracies are introduced by this
+      !    artificial rounding.
+      !The attempts are documented in the comments below. The necessary
+      !declared variables are also commented above.
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+      ! ! Rounding rjy (making 11+ digits after decimal point zeros)
+      ! ! if we want higher precision (not available in ifort 16 or less)
+      ! ! int_rjy=int((real(rjy,kind=real128))*10_longlong**digits,kind=longlong) ! integer of rjy: cast to longlong integer
+      ! ! rjy_hp=int_rjy/(10._real128**digits)
+      ! int_rjy=int(rjy*10_longlong**digits,kind=longlong) ! integer of rjy: cast to longlong integer
+      ! rjy_r=int_rjy/(10._wp**digits)
+      !
+      ! ! Calculating divD
+      ! ! if we want higher precision (not available in ifort 16 or less)
+      ! ! divD(j)=1.125*sqrtPI*hstar/rjy_hp**2 - 1.5*(sqrtPI*hstar)**3/rjy_hp**4
+      ! divD(j)=1.125*sqrtPI*hstar/rjy_r**2 - 1.5*(sqrtPI*hstar)**3/rjy_r**4
+      !
+      !
+      ! ! Rounding divD (making 11+ digits after decimal point zeros)
+      ! ! if we want higher precision (not available in ifort 16 or less)
+      ! ! int_divD=int((real(divD(j),kind=real128))*10_longlong**digits,kind=longlong) ! integer of rjy: cast to longlong integer
+      ! ! divD(j)=int_divD/(10._real128**digits)
+      ! int_divD=int(divD(j)*10_longlong**digits,kind=longlong) ! integer of rjy: cast to longlong integer
+      ! divD(j)=int_divD/(10._wp**digits)
+
       divD(j)=1.125*sqrtPI*hstar/rjy**2 - 1.5*(sqrtPI*hstar)**3/rjy**4
+      !divD(j) = 0
     end if
 
     !print *, 'divD(',j, ') is: ', divD(j)
@@ -178,6 +247,8 @@ contains
 
   ! end procedure calc_div
   end subroutine calc_div
+
+  ! end procedure calc_div
 
 ! end submodule hi_smod
 end module hi_smod

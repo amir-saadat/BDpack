@@ -1,6 +1,6 @@
 !sde module
 !Tiras Lin
-!Sept 7, 2017
+!Dec 17, 2017
 !!!!!!!!!!!!!!!!!!!!!!!!
 
 module sde_mod
@@ -15,6 +15,7 @@ module sde_mod
   !type containing the SDE
   type :: sde_t
     real(wp) :: xxkappa,xykappa,yykappa,zzkappa
+    real(wp) :: a_sph,U_mag_sph
     real(wp),dimension(3,3) :: Kappareg
     real(wp),allocatable,dimension(:,:) :: Kappa
     real(wp),allocatable,dimension(:,:) :: Amat, Bmat
@@ -22,21 +23,27 @@ module sde_mod
   contains
     procedure,pass(this) :: init => init_sde
     procedure,pass(this) :: advance => advance_sde
+    procedure,pass(this) :: U_sph => U_sph_sde
   end type sde_t
 
 contains
 
+
   !define parameters needed for the SDE
-  subroutine init_sde(this)
+  subroutine init_sde(this,Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF,nbead_bb,nseg_bb)
 
     !variables used from other places
-    use :: inp_dlt, only: iflow,nseg,nbead,nsegx3,nbeadx3,tplgy,Na,nseg_ar,Ia
+    use :: inp_dlt, only: iflow,nseg,nbead,nsegx3,nbeadx3,tplgy,Na,nseg_ar,Ia,sph_flow
+    use :: arry_mod, only: print_vector, print_matrix
+    use :: cmn_io_mod, only: read_input
 
     !input and output arguments
     class(sde_t),intent(inout) :: this
+    real(wp), intent(inout) :: Kappareg(:,:),Kappa(:,:),Amat(:,:),Bmat(:,:),KappaBF(:,:),AmatBF(:,:)
+    integer, intent(inout) :: nbead_bb,nseg_bb
 
     !variables used inside init_sde
-    integer :: iseg,jseg,nseg_bb,nbead_bb,offseti,offsetj,ibead,jbead,i,j,k,iarm
+    integer :: iseg,jseg,offseti,offsetj,ibead,jbead,i,j,k,iarm
     integer :: ku,kl
     integer :: idx,nu,mu
     real(wp) :: fctr
@@ -100,6 +107,12 @@ contains
     this%Kappareg(1,1:3)=(/this%xxkappa,this%xykappa,0.0_wp/)
     this%Kappareg(2,1:3)=(/0.0_wp ,this%yykappa,0.0_wp/)
     this%Kappareg(3,1:3)=(/0.0_wp ,0.0_wp ,this%zzkappa/)
+
+    !if there is flow past a sphere
+    if (sph_flow) then
+      call read_input('Sph-rad',0,this%a_sph)
+      call read_input('Umag-Sph',0,this%U_mag_sph)
+    endif
 
     this%Amat=0.0_wp
     select case (tplgy)
@@ -240,6 +253,27 @@ contains
      end do ! iarm
    end select
    !line 563
+   !call print_matrix(this%Kappa,'this%Kappa')
+
+
+   !Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF
+   Kappareg = this%Kappareg
+   Kappa = this%Kappa
+   Amat = this%Amat
+   Bmat = this%Bmat
+   KappaBF = this%KappaBF
+   AmatBF = this%AmatBF
+
+   ! call print_matrix(Kappareg,'Kappareg')
+   ! call print_matrix(Kappa,'Kappa')
+   ! call print_matrix(Amat,'Amat')
+   ! call print_matrix(Bmat,'Bmat')
+   ! call print_matrix(KappaBF,'KappaBF')
+   ! call print_matrix(AmatBF,'AmatBF')
+
+   !print *, 'this%Bmat', this%Bmat(1,1)
+   !print *, '---------------------'
+   !print *, 'Bmat',Bmat(1,1)
 
   end subroutine init_sde
 
@@ -251,9 +285,10 @@ contains
 
     !variables used from other places
     use :: inp_dlt, only: nseg,nbead,tplgy,dt,Pe,nsegx3,nbeadx3,applFext,Fext0,srf_tet,&
-      hstar,HITens,EV_bb,EV_bw,ForceLaw,PrScale,nroots,TruncMethod,nseg_ar,tol,DecompMeth,Ia,Na
+      hstar,HITens,EV_bb,EV_bw,ForceLaw,PrScale,nroots,TruncMethod,nseg_ar,tol,DecompMeth,Ia,Na,sph_flow
     use :: force_mod, only: tetforce,bndupdate,tetupdate,sprupdate
     use :: intrn_mod, only: intrn_t
+    use :: arry_mod, only: print_vector, print_matrix
 
     !input and output arguments
     class(sde_t),intent(inout) :: this
@@ -294,6 +329,11 @@ contains
     real(wp) :: eps
     real(wp),dimension(:),pointer  :: RHSP,RHSbaseP,qcP,FsegP
     real(wp),dimension(:,:),pointer :: AdotDP2
+    real(wp),dimension(nsegx3) :: U_seg
+    real(wp),dimension(nbeadx3) :: U_bead
+
+    !debug
+    !call print_vector(qc,'qc')
 
     !============ Predictor-Corrector =============!
     !--------Predictor Algorithm----------!
@@ -308,6 +348,12 @@ contains
     ! qstar:=qstar+FBr                    !
     !-------------------------------------!
     call gbmv(this%KappaBF,qc,Kdotq,kl=0,alpha=Pe(iPe)*dt(iPe,idt))
+
+    if (sph_flow) then
+      call U_sph_sde(this,U_seg,U_bead,qc,rcm(:,ichain))
+      Kdotq = Kdotq + U_seg*dt(iPe,idt)
+    endif
+
     if (tplgy == 'Linear') then
       call gbmv(this%AmatBF,Fseg,Fbead,kl=0,m=nsegx3,alpha=-1.0_wp,trans='T')
     else
@@ -374,7 +420,7 @@ contains
     !            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
     if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
       !              call EVUpdate(Fev,rvmrcP,Fbarev)
-      call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
+      call myintrn%calc(id,itime,rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
         updtevbb=.true.,updtevbw=.true.)
       !call print_vector(Fev,'fev3')
       !call evupdate2(Fev,rvmrcP,nseg,Fbarev)
@@ -424,6 +470,12 @@ contains
     call axpy(FBr,RHS)
     call copy(RHS,RHScnt)
     call gemv(this%Kappa,qstar,RHS,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1._wp)
+
+    if (sph_flow) then
+      call U_sph_sde(this,U_seg,U_bead,qstar,rcm(:,ichain))
+      RHS = RHS + U_seg*0.5*dt(iPe,idt)
+    endif
+
     call axpy(Fseg,RHS,a=0.5*dt(iPe,idt))
     call copy(Fseg,Fbarseg)
     call copy(Fbead,Fbarbead)
@@ -476,6 +528,12 @@ contains
         qcP => qc(offset+1:offset+3);FsegP => Fseg(offset+1:offset+3)
         AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
         call gemv(this%Kappareg,qcP,RHSP,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1.0_wp)
+
+        if (sph_flow) then
+          call U_sph_sde(this,U_seg,U_bead,qc,rcm(:,ichain))
+          RHSP = RHSP + U_seg(offset+1:offset+3)*0.5*dt(iPe,idt)
+        endif
+
         call axpy(FsegP,RHSP,a=0.5*dt(iPe,idt))
         call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
 
@@ -520,5 +578,45 @@ contains
     !line 1233, now put back into original arrays
 
   end subroutine advance_sde
+
+  subroutine U_sph_sde(this,U_seg,U_bead,q,rcm)
+
+    use :: inp_dlt, only: nseg,nbead,nsegx3,nbeadx3
+
+    class(sde_t),intent(inout) :: this
+    real(wp), intent(inout) :: U_seg(:) !nsegx3
+    real(wp), intent(inout) :: U_bead(:) !nbeadx3
+    real(wp), intent(in) :: q(:)
+    real(wp), intent(in) :: rcm(:)
+
+    real(wp),dimension(nbeadx3) :: rvmrc
+    real(wp),dimension(3) :: r
+    real(wp) :: th, ph, r_mag
+    real(wp) :: u_r,u_th,u_ph
+    integer :: i,j
+
+
+    call gemv(this%Bmat,q,rvmrc)
+
+    do i=1,nbead
+      r(1:3) = rvmrc(3*(i-1)+1:3*(i-1)+3) + rcm(1:3)
+      r_mag = sqrt(r(1)**2 + r(2)**2 + r(3)**2)
+      th = ACOS(r(1)/r_mag) !0<th<pi
+      ph = ATAN2(r(3),r(2))                  !-pi<ph<pi
+      u_r  =  cos(th) * (1 + this%a_sph**3/(2*r_mag**3) - 3*this%a_sph/2/r_mag)
+      u_th = -sin(th) * (1 - this%a_sph**3/(4*r_mag**3) - 3*this%a_sph/4/r_mag)
+      u_ph = 0._wp
+
+      U_bead(3*(i-1)+1) = cos(th)*u_r - sin(th)*u_th
+      U_bead(3*(i-1)+2) = sin(th)*cos(ph)*u_r + cos(th)*cos(ph)*u_th - sin(ph)*u_ph
+      U_bead(3*(i-1)+3) = sin(th)*sin(ph)*u_r + cos(th)*sin(ph)*u_th + cos(ph)*u_ph
+    enddo
+    U_bead = this%U_mag_sph *U_bead
+
+    do j=1,nseg
+      U_seg(3*(j-1)+1:3*(j-1)+3) = U_bead(3*j+1:3*j+3) - U_bead(3*(j-1)+1:3*(j-1)+3)
+    enddo
+
+  end subroutine U_sph_sde
 
 end module sde_mod

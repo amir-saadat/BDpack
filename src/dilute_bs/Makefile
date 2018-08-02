@@ -21,6 +21,7 @@ OBJS    += force_mod.o HIEVCalc.o pp_mod.o
 OBJS    += hibb_smod.o hibw_smod.o hi_smod.o
 OBJS	+= evbb_smod.o evbw_smod.o intrn_mod.o
 OBJS	+= sde_mod.o dlt_mod.o
+
 INCS	 = -I ../common/inc
 INCS    += -I ./inc
 INCS	+= -I ./cuda/inc

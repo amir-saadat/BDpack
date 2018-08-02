@@ -1,0 +1,4 @@
+This directory contains restart files, i.e. *.rst.bin or *.rst.dat which can be used for
+restarting the simulations. The binary files are the actually configurational information
+and the dat files are extra information, such as the number of relaxation time passed, the
+number of runs, etc.

@@ -8,6 +8,8 @@ module cmn_tp_mod
     real(wp) :: mag,mag2
     real(wp) :: riy,rjy,yim
     real(wp) :: magim,mag2im
+    real(wp) :: rjx,rjz
+    real(wp) :: rix,riz
   end type
 
 end module cmn_tp_mod

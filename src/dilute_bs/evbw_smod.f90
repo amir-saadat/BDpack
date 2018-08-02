@@ -12,6 +12,8 @@ module evbw_smod
     real(wp) :: rmagmin
     ! For Reflc-bc
     real(wp) :: a
+    real(wp) :: a_sph
+    integer :: iwall !the type of wall for the reflection BC: 1-plane, 2-sphere
     integer :: u_wc
     integer :: u_wc_all
     integer :: u_ia
@@ -61,7 +63,7 @@ contains
     case ('Rflc_bc')
 
       call read_input('Bead-rad',0,this%a)
-
+      call read_input('Wall-type',0,this%iwall)
       allocate(this%w_coll(2:nbead,npchain))
       allocate(this%w_coll_all(2:nbead,npchain))
       allocate(this%ia_time(2:nbead,500,npchain))
@@ -71,7 +73,11 @@ contains
       this%w_coll=0
       this%w_coll_all=0
       this%ia_time=1
-
+      select case (this%iwall)
+      case (1) !plane located at y=0
+      case (2) !sphere
+        call read_input('Sph-rad',0,this%a_sph)
+      end select
 
       if (id == 0) then
         allocate(this%w_coll_t(2:nbead,npchain))
@@ -143,7 +149,8 @@ contains
 
     integer :: ib,ierr,sz,sz_t
     integer,allocatable :: ia_tmp(:,:,:)
-
+    logical :: coll_detect
+    real(wp) :: shift,r_mag
 
 
     if ((it == 1)) then
@@ -194,15 +201,25 @@ contains
 
     do ib=2, nbead
 
-      if (Ry(ib) < this%a) then
+      select case (this%iwall)
+      case (1)
+        coll_detect = (Ry(ib) < this%a)
+        !print *, 'plane wall'
+      case (2)
+        r_mag = sqrt(Rx(ib)**2+Ry(ib)**2+Rz(ib)**2)
+        coll_detect = (r_mag < (this%a + this%a_sph))
+        !print *, 'sphere wall'
+      end select
+
+      if (coll_detect) then
 
         if (time>lambda*tss) then
           !all collisions are recorded here
           this%w_coll_all(ib,ich)=this%w_coll_all(ib,ich)+1
 
           !if ia time is less than some fraction of a relaxation time, record.
-          if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > int(lambda/dt/100._wp)) then
-          !if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > 0) then
+          !if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > int(lambda/dt/100._wp)) then !Macromol paper
+          if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > int(lambda/dt/10._wp)) then
 
             this%w_coll(ib,ich)=this%w_coll(ib,ich)+1
 
@@ -213,8 +230,18 @@ contains
           endif
         endif
 
+        select case (this%iwall)
+        case (1)
+          Ry(ib)=2*this%a - Ry(ib)
+        case (2)
+          shift = this%a + this%a_sph - r_mag
+          Rx(ib)=Rx(ib) + 2*shift*Rx(ib)/r_mag
+          Ry(ib)=Ry(ib) + 2*shift*Ry(ib)/r_mag
+          Rz(ib)=Rz(ib) + 2*shift*Rz(ib)/r_mag
+        end select
 
-        Ry(ib)=2*this%a - Ry(ib)
+
+
         select case (tplgy)
           case ('Linear')
             qy(ib-1)=Ry(ib)-Ry(ib-1)
