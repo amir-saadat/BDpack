@@ -3,14 +3,13 @@ BDpack is a package to numerically calculate the configurational evolution of po
 The aim of this project is to write the codes self descriptive, documented, yet very efficient to enable its applicability and development. To this end, the codes are written in modular fashion using Fortran.
 
 
-Semidilute linear polymers |  Dilute comb polymers
-:-------------------------:|:-------------------------:
-![](https://github.com/amir-saadat/BDpack/blob/master/projects/semidilute_linear/semidilute.png)  |  ![](https://github.com/amir-saadat/BDpack/blob/master/projects/dilute_comb/comb.png)
-
-
 [Documentation](https://github.com/amir-saadat/BDpack/wiki/Documentation)
 
 [Tutorials](https://github.com/amir-saadat/BDpack/wiki/Tutorials) 
+
+Semidilute linear polymers |  Dilute comb polymers
+:-------------------------:|:-------------------------:
+![](https://github.com/amir-saadat/BDpack/blob/gh-pages/img/semidilute.png)  |  ![](https://github.com/amir-saadat/BDpack/blob/gh-pages/img/comb.png)
 
 [Citation](https://github.com/amir-saadat/BDpack/wiki/Citation)
 
