@@ -9,7 +9,7 @@ The aim of this project is to write the codes self descriptive, documented, yet 
 
 Semidilute linear polymers |  Dilute comb polymers
 :-------------------------:|:-------------------------:
-![](https://github.com/amir-saadat/BDpack/blob/master/projects/semidilute_linear/semidilute.png?raw=true)  |  ![](https://github.com/amir-saadat/BDpack/blob/master/projects/dilute_comb/comb.png?raw=true)
+[![](https://github.com/amir-saadat/BDpack/blob/master/projects/semidilute_linear/semidilute.png?raw=true)](https://github.com/amir-saadat/BDpack/wiki/Tutorials-(SemidiluteLinear))  |  [![](https://github.com/amir-saadat/BDpack/blob/master/projects/dilute_comb/comb.png?raw=true)](https://github.com/amir-saadat/BDpack/wiki/Tutorials-(DiluteComb))
 
 [Citation](https://github.com/amir-saadat/BDpack/wiki/Citation)
 
