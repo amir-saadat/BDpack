@@ -15,7 +15,9 @@ OBJS_M  += verlet_mod.o force_smdlt.o sprforce_mod.o evforce_mod.o
 OBJS_M  += diffdcmp_mod.o io_mod.o chain_mod.o
 OBJS_L   = pp_smdlt.o box_mod.o smdlt_mod.o
 CUOBJS_F  = $(CUDIR)/rndm_cumod.o
+CUOBJS_F += $(CUDIR)/flow_cumod.o
 CUOBJS_F += $(CUDIR)/trsfm_cumod.o
+CUOBJS_F += $(CUDIR)/hiverlet_cumod.o
 CUOBJS_F += $(CUDIR)/hi_cumod.o
 CUOBJS_F += $(CUDIR)/diffcalc_cumod.o
 CUOBJS_F += $(CUDIR)/dcmp_cumod.o
@@ -51,7 +53,7 @@ makeinc:
 ifeq ($(USE_GPU),TRUE)
 ../libsmdlt_bs.a : $(OBJS_F) $(CUOBJS_F) $(OBJS_M) $(CUOBJS_M) $(OBJS_L) $(CMNOBJS) $(CMNCUOBJS)
 else
-../libsmdlt_bs.a : $(OBJS_F) $(OBJS_L) $(CMNOBJS)
+../libsmdlt_bs.a : $(OBJS_F) $(OBJS_M) $(OBJS_L) $(CMNOBJS)
 endif
 	$(ECHO) making the library: $(OBJLIBS)
 	$(AR) $(ARFLAGS) rv ../libsmdlt_bs.a $?

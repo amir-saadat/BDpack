@@ -7,11 +7,12 @@ module hi_cumod
   use :: cufft
   use :: cublas
   use :: cusolverdn
+  use :: hiverlet_cumod, only: hiverlet_cu_t
 
   implicit none
 
   ! Private module procedures:
-  private :: init_hi   
+  private :: init_hi
 
   type :: hi_cu_t
 
@@ -153,13 +154,29 @@ module hi_cumod
 
 
     ! Construction of the verlet list
+    integer :: mnnt
     real(wp),allocatable :: Rb0(:)
     integer,allocatable :: point_D(:)
     integer,pointer :: list_D(:) => null()
     integer,pointer :: list_DP(:) => null()
+    real(wp),allocatable :: Rb_h(:)
+    real(wp),allocatable :: Rbx_h(:)
+    real(wp),allocatable :: Rby_h(:)
+    real(wp),allocatable :: Rbz_h(:)
+    integer,allocatable :: head_h(:)
+    integer,allocatable :: lkdlst_h(:)
+    integer,allocatable :: cll_h(:,:)
 
+    integer,device,allocatable :: head_d(:)
+    integer,device,allocatable :: lkdlst_d(:)
+    real(wp),device,allocatable :: Rb0_d(:)
+    integer,device,allocatable :: cll_d(:,:)
     integer,device,allocatable :: point_D_d(:)
     integer,device,allocatable :: list_D_d(:)
+    integer,device,allocatable :: nlst_d(:,:)
+    integer,device,allocatable :: nn_d(:)
+
+    type(hiverlet_cu_t) :: vlt_d
 
     ! cusolver handle
     type(cusolverDnHandle) :: h_lam
@@ -168,6 +185,7 @@ module hi_cumod
   contains
     procedure,pass(this) :: init => init_hi
     procedure,pass(this) :: updatelst => updatelst_D
+    procedure,pass(this) :: updatelst_ => updatelst_dev
     procedure,pass(this) :: cnstrlst => cnstrlst_D
     final :: del_hi_t
   end type hi_cu_t
@@ -189,18 +207,21 @@ module hi_cumod
   logical,constant :: Dreal_sparse_mode_d
   integer,constant :: p_PME_d,p_PME_dto3
 
+
 contains
 
   subroutine init_hi(this,myrank,ntotbead,boxdim)
 
     use :: hi_mod, only: Dreal_sparse_mode,K_mesh,p_PMEto3,Kto3,Kcto3,maxNb_list_D,HI_alpha,&
       HI_alphato2,HI_c0,M1_c1,M1_c2,M1_c3,M1_c4,M1_c5,M1_c6,M1_c7,M1_c8,M1_c9,M1_c10,M1_c11,&
-      M1_c12,M1_c13,M2_c1,M2_c2,M2_c3,M2_c4,Mstar_c1,Mstar_c2,sqrtPI,rc_D,HI_ax2,p_PME
+      M1_c12,M1_c13,M2_c1,M2_c2,M2_c3,M2_c4,Mstar_c1,Mstar_c2,sqrtPI,rc_D,HI_ax2,p_PME, &
+      ntotcells_D,rlist_D
 
     use :: flow_mod, only: FlowType
     use :: trsfm_mod, only: eps_m
     use :: hi_mod, only: b_splx2,b_sply2,b_splz2,m2_alpha,PIx2
     use :: mpi
+    use :: hiverlet_cumod, only: get_mbpc
 
     class(hi_cu_t),intent(inout) :: this
     integer,intent(in) :: myrank,ntotbead
@@ -370,7 +391,7 @@ contains
     status = cufftPlanMany(this%plan_fw_m, RANK, n_k, NULL_INT, 1, K_dim, &
       NULL_INT, 1, K_dim_CCE, CUFFT_D2Z , BATCH)
     if (status /= CUFFT_SUCCESS ) then
-      print '(" Error!!: Problem in FORWARD cuFFT plan.")'
+      print '(" !!: Problem in FORWARD cuFFT plan.")'
       print '(" status = ",i0)', status
       stop
     endif
@@ -452,13 +473,32 @@ contains
     end if
 
     ! For Construction of verlet list
-
+    allocate(this%Rb_h(ntotbead*3))
+    allocate(this%Rbx_h(ntotbead))
+    allocate(this%Rby_h(ntotbead))
+    allocate(this%Rbz_h(ntotbead))
     allocate(this%Rb0(ntotbead*3))
+    allocate(this%head_h(ntotcells_D))
+    allocate(this%lkdlst_h(ntotbead))
+    allocate(this%cll_h(ntotcells_D,256))
     allocate(this%point_D(ntotbead+1),this%list_D(maxNb_list_D))
     block_dim=3
-    n_dim=maxNb_list_D
 
+    allocate(this%head_d(ntotcells_D))
+    allocate(this%lkdlst_d(ntotbead))
+    allocate(this%Rb0_d(ntotbead*3))
+    allocate(this%cll_d(ntotcells_D,256))
     allocate(this%point_D_d(ntotbead+1),this%list_D_d(maxNb_list_D))
+    allocate(this%nn_d(ntotbead))
+
+    ! instantiation of verlet type
+    call this%vlt_d%init(rlist_D,boxdim,ntotbead,this%nlst_d)
+    if (myrank == 0) call this%vlt_d%get_ncps()
+
+    this%mnnt=this%vlt_d%get_mbpc()*ntotbead
+    ! n_dim=maxNb_list_D
+    n_dim=this%mnnt
+
 
     ! n_dim=(n_dim + block_dim-1)/block_dim
     ! nnzb=size(Dreal_vals)/(3*3)
@@ -541,6 +581,127 @@ contains
   end subroutine del_hi_t
 
 
+
+
+
+
+  subroutine updatelst_dev(this,Rbx_d,Rby_d,Rbz_d,Rb_d,itime,itrst,nch,nb,nbx3,ntb,ntbx3,bs,bo)
+
+    use :: hi_mod, only: rlist_D,rc_D
+    use :: arry_mod, only: print_vector
+
+    class(hi_cu_t),intent(inout) :: this
+    real(wp),device,intent(in),target :: Rb_d(:)
+    real(wp),device,intent(in),target :: Rbx_d(:)
+    real(wp),device,intent(in),target :: Rby_d(:)
+    real(wp),device,intent(in),target :: Rbz_d(:)
+    ! real(wp),intent(in) :: Rbtr(:)
+    real(wp),intent(in) :: bs(3),bo(3)
+    integer,intent(in) :: itime,itrst,nch,nb,nbx3,ntb,ntbx3
+    real(wp) :: dispmax,bsx,bsy,bsz
+    integer :: max_idx,nct,nthrd,r
+    logical :: update
+
+    real(wp),device,allocatable :: diff(:)
+
+    if (itime == itrst+1) then
+      update=.true.
+    else
+      ! Calculate maximum displacement since last update:
+      allocate(diff(ntbx3))
+
+      call cublasDcopy(ntbx3,Rb_d,1,diff,1)
+      call cublasDaxpy(ntbx3,-1._wp,this%Rb0_d,1,diff,1)
+      max_idx = cublasIdamax(ntbx3,diff,1)
+      dispmax = diff(max_idx)
+      
+      deallocate(diff)
+
+      ! dispmax=maxval(abs(Rb-this%Rb0))
+      ! A conservative testing of the list skin crossing:
+      dispmax=2*sqrt(3*dispmax*dispmax)
+      
+      update=dispmax > (rlist_D-rc_D)
+    
+    end if
+    if (update) then
+      ! Save positions for next evaluations:
+      call cublasDcopy(ntbx3,Rb_d,1,this%Rb0_d,1)
+      ! this%Rb0=Rb
+      
+      ! creating the cell linked-list
+      call this%vlt_d%cnstr_nab(Rbx_d,Rby_d,Rbz_d,itime,ntb,ntbx3,rc_D,bs,this%nn_d,this%nlst_d)
+
+      ! call cnstrlst_part1(this,ntb,bo)
+
+      ! creating the verlet list
+
+      ! call cnstrlst_part2(this,Rb,itime,nch,nb,nbx3,ntb,bs,bo)
+    end if
+
+  end subroutine updatelst_dev
+
+
+  !> creating the cell linked-list 
+  !! this can be optimized later for GPU
+  subroutine cnstrlst_part1(this,ntb,bo)
+
+    use :: hi_mod, only: ncells_D,ntotcells_D,CellSize_D
+    use :: arry_mod, only: print_vector,print_matrix
+
+    class(hi_cu_t),intent(inout) :: this
+    integer,intent(in) :: ntb
+    real(wp),intent(in) :: bo(3)
+    real(wp) :: rbtmp(3)
+    integer :: igb,icll,cll_ind(3),offset
+    integer,parameter :: EMPTY=-1
+    integer,allocatable :: nbpc(:)
+
+
+    ! Reset the array head
+    this%head_h=EMPTY
+    allocate(nbpc(ntotcells_D))
+    nbpc=0
+    this%cll_h=0
+    ! Note!!: the loops are in reverse order to make them 
+    ! sorted and appropriate for sparse operations.
+    do igb=ntb, 1, -1
+      ! offsetch=(ichain-1)*nbeadx3
+      ! do ibead=nbead, 1, -1
+        ! iglobbead=(ichain-1)*nbead+ibead
+        offset=(igb-1)*3
+        rbtmp=this%Rb_h(offset+1:offset+3)
+        ! select case (FlowType)
+        !   case ('Equil')
+            cll_ind(1:3)=(rbtmp(1:3)-bo(1:3))/CellSize_D(1:3)
+        !   case ('PSF')
+        !     cell_ind(1)=(Rbtr(iglobbead)-bo(1))/CellSize_D(1)
+        !     cell_ind(2:3)=(rbtmp(2:3)-bo(2:3))/CellSize_D(2:3)
+        ! end select
+        icll=cll_ind(1)*ncells_D(2)*ncells_D(3)+&
+             cll_ind(2)*ncells_D(3)+cll_ind(3)
+        ! Link to the previous occupant to EMPTY if you are the first
+        this%lkdlst_h(igb)=this%head_h(icll+1)
+        ! The previous one goes to header
+        this%head_h(icll+1)=igb
+
+        nbpc(icll)=nbpc(icll)+1
+        this%cll_h(icll,nbpc(icll))=igb
+      ! end do
+    end do
+
+    deallocate(nbpc)
+
+
+    call print_vector(this%head_h,'head_h')
+    call print_vector(this%lkdlst_h,'lkdlst_h')
+    call print_matrix(this%cll_h(:,1:5),'cell_hd')
+    stop
+
+
+  end subroutine cnstrlst_part1
+
+
   subroutine updatelst_D(this,Rb,Rbtr,itime,itrst,nchain,nbead,nbeadx3,ntotbead,bs,bo)
 
     use :: hi_mod, only: rlist_D,rc_D
@@ -566,11 +727,12 @@ contains
       call cnstrlst_D(this,Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo)
     end if
 
+
   end subroutine updatelst_D
 
   subroutine cnstrlst_D(this,Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo)
 
-    use :: arry_mod, only: print_vector,ResizeArray
+    use :: arry_mod, only: print_vector,print_matrix,ResizeArray
     use :: flow_mod, only: FlowType
     use :: trsfm_mod, only: delrx_L
     use :: hi_mod, only: head_D,LkdLst_D,rlist_D,ncells_D,CellSize_D,maxNb_list_D
@@ -616,6 +778,9 @@ contains
     !   end do
     ! end do
 
+    ! call print_vector(head_D,'head_D')
+    ! call print_vector(LkdLst_D,'LkdLst_D')
+
     !------------------------------------------------------------
     ! Construction of Verlet neighbor-list, by using linked-list:
     !------------------------------------------------------------
@@ -624,19 +789,22 @@ contains
     neigcell_indz => neigcell_ind(3)
     rlist_Dto2=rlist_D*rlist_D
     nlist=0
+    
     ! For the last bead, jglobbead<iglobbead, so it is not required!
     ! do iglobbead=1, ntotbead-1
     do iglobbead=1, ntotbead
       this%point_D(iglobbead)=nlist+1
       offseti=(iglobbead-1)*3
       rbi=Rb(offseti+1:offseti+3)
-      select case (FlowType)
-        case ('Equil')
+
+      ! select case (FlowType)
+      !   case ('Equil')
           cell_ind(1:3)=(rbi(1:3)-bo(1:3))/CellSize_D(1:3)
-        case ('PSF')
-          cell_ind(1)=(Rbtr(iglobbead)-bo(1))/CellSize_D(1)
-          cell_ind(2:3)=(rbi(2:3)-bo(2:3))/CellSize_D(2:3)
-      end select
+      !   case ('PSF')
+      !     cell_ind(1)=(Rbtr(iglobbead)-bo(1))/CellSize_D(1)
+      !     cell_ind(2:3)=(rbi(2:3)-bo(2:3))/CellSize_D(2:3)
+      ! end select
+      
       ! Scan the neighbouring cells:
       ncix: do neigcell_indx=cell_ind(1)-1, cell_ind(1)+1
         nciy: do neigcell_indy=cell_ind(2)-1, cell_ind(2)+1
@@ -664,20 +832,23 @@ contains
                 ! We could use minimum image convension, as for using Verlet 
                 ! list, we need the rc_F to be smaller than box dimension.
                 rbj=Rb(offsetj+1:offsetj+3)
-                select case (FlowType)
-                  case ('Equil')
+                ! select case (FlowType)
+                !   case ('Equil')
                     rij(1:3)=rbi(1:3)-(rbj(1:3) + &
                         floor(real(neigcell_ind(1:3))/real(ncells_D(1:3)))*bs(1:3))
-                  case ('PSF')
-                    rij(1)=rbi(1)-(rbj(1) + &
-                           floor(real(neigcell_ind(1))/ncells_D(1))*bs(1) + &
-                           floor(real(neigcell_ind(2))/ncells_D(2))*delrx_L)
-                    rij(2:3)=rbi(2:3)-(rbj(2:3) + &
-                             floor(real(neigcell_ind(2:3))/ncells_D(2:3))*bs(2:3))
-                end select
+                !   case ('PSF')
+                !     rij(1)=rbi(1)-(rbj(1) + &
+                !            floor(real(neigcell_ind(1))/ncells_D(1))*bs(1) + &
+                !            floor(real(neigcell_ind(2))/ncells_D(2))*delrx_L)
+                !     rij(2:3)=rbi(2:3)-(rbj(2:3) + &
+                !            floor(real(neigcell_ind(2:3))/ncells_D(2:3))*bs(2:3))
+                ! end select
 
                 rijmagto2=dot_product(rij,rij)
                 if (rijmagto2 <= rlist_Dto2) then
+
+                  ! print*,'bead original',iglobbead,jglobbead
+
                   nlist=nlist+1
                   if (nlist == maxNb_list_D) then
                     print '(" Note!!: list_D is small and will be incremented by 10")'
@@ -699,7 +870,8 @@ contains
     ! Resizing the Dreal related arrays:
 
     ! print*,'maxnb',maxNb_list_D,size(this%ColInd_d,1)
-    if (maxNb_list_D > size(this%ColInd_d,1)) then
+    ! if (maxNb_list_D > size(this%ColInd_d,1)) then
+    if (this%mnnt > size(this%ColInd_d,1)) then
       print'(" The limit for ColInd_d has reached in hi_cumod")'
       stop
       ! call ResizeArray(Dreal_vals,maxNb_list_D*9)
@@ -716,7 +888,16 @@ contains
     this%point_D_d=this%point_D
     this%list_D_d=this%list_D
 
+    ! call print_vector(this%point_D,'pnt')
+    ! call print_vector(this%list_D(1:30),'list_D')
+
   end subroutine cnstrlst_D
+
+
+
+
+
+
 
 
 

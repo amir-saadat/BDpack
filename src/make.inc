@@ -11,7 +11,7 @@ COMP     = mpif90 #$(INTELMPI)/mpiifort
 #----------------------------------------------------------------------
 # pgf90 or <Address of CUDA Fortran bin directory>/pgf90
 #----------------------------------------------------------------------
-USE_GPU  = TRUE
+USE_GPU  = FALSE
 CUCOMP   = mpif90 #pgf90
 #----------------------------------------------------------------------
 # gfortran, ifort or <Address of Fortran compiler>
@@ -82,7 +82,7 @@ GLBFLGS += -check all -check bounds -traceback -g
 GLBFLGs += -check-pointers=rw
 else
 ifeq ($(FCOMP),pgf90)
-GLBFLGS	 += –Ktrap=fp –Minform=inform
+GLBFLGS	 += –Ktrap=fp –Minform=inform -g
 GLBFLGS  += -lgomp -Mpreprocess -Mbackslash -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand
 #GLBFLGS  += -Minfo -Mbounds -Mchkptr -Mchkstk
 #GLBFLGS  += -Mbounds -Minfo=all -traceback -Mchkfpstk -Mchkstk -Mdalign
@@ -92,7 +92,7 @@ endif
 
 CUFLGS   = -DUSE_GPU
 CUFLGS  += -Mpreprocess -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand -Minfo
-CUFLGS  += -Mbounds -Minfo=all -traceback -Mchkfpstk -Mchkstk -Mdalign
+CUFLGS  += -Mbounds -Minfo=all -traceback -Mchkfpstk -Mchkstk -Mdalign -g
 #CUFLGS  += -Mdclchk -Mdepchk -Miomutex -Mrecursive -Msave -Ktrap=fp -O0 -g -byteswapio
 #CUFLGS   = -DADD_
 

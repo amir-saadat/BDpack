@@ -383,6 +383,8 @@ ef: do
 
       cll=clz*this%ncps(1)*this%ncps(2)+cly*this%ncps(1)+clx+1
 
+      ! print*,'2',clx,cly,clz,cll
+
       this%head(cll)=this%head(cll)+1
       this%binc(cll,this%head(cll))=i
 

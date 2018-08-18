@@ -69,7 +69,7 @@ module evforce_mod
   end type evforce
   
   ! Private module variables:
-!  private :: 
+  ! private :: 
   ! Protected module variables:
   protected :: EVForceLaw,rc_F,zstar,dstar
   

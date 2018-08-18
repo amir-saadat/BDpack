@@ -1092,7 +1092,7 @@ ig:       do igrid=1, p_PME
               ! this%Val_h(offsetD+1:offsetD+9)=reshape(M1(r,r2,rrhat),shape=[9])
               call M1_1d_routine(r,r2,rrhat,M1_1d)
               this%Val_h(offsetD+1:offsetD+9)=M1_1d
-              print*,'hello',iglobbead,jglobbead,M1_1d(2)
+              ! print*,'hello',iglobbead,jglobbead,M1_1d(2)
               ! The correction due to overlap:
               if (r < (HI_ax2)) then ! Ovelaps in Primary box (or maybe in general!)
 
@@ -1101,7 +1101,7 @@ ig:       do igrid=1, p_PME
 
                 call Mstar_1d_routine(r,r2,rrhat,Mstar_1d)
                 this%Val_h(offsetD+1:offsetD+9)=this%Val_h(offsetD+1:offsetD+9) + Mstar_1d
-                print*,'hello2',iglobbead,jglobbead,Mstar_1d(2)
+                ! print*,'hello2',iglobbead,jglobbead,Mstar_1d(2)
               end if
               this%ColInd_h(neig_count)=jglobbead 
               offsetD=offsetD+9
@@ -1569,7 +1569,7 @@ kg_c:     do kgrid=1, p_PME
            ! print *,'dmat:'
            ! print *,Cx_mat(m_ind)
            ! print *,Cy_mat(m_ind)
-           print *,Cz_mat(m_ind)
+           ! print *,Cz_mat(m_ind)
           end if ! m2.eq.0
         end do mx
       end do mzy
@@ -1664,14 +1664,6 @@ kg_c:     do kgrid=1, p_PME
 ! %=========================== These Routines are for the case of PME ======================%
 
 
-
-
-
-
-
-
-
-
 #ifdef USE_GPU
 
   subroutine PME_dev(this,F,ntotbead,boxsize,DF_tot)
@@ -1688,18 +1680,17 @@ kg_c:     do kgrid=1, p_PME
     integer(long) :: count0,count1
 
     this%F_d=F
+
     this%DF_tmp=F(1:ntotbead*3-2:3)
     this%Fx_d=this%DF_tmp
 
-    print*,'f',F
-    print*,'cpu fx',this%DF_tmp
+    ! print*,'f',F
+    ! print*,'cpu fx',this%DF_tmp
 
     this%DF_tmp=F(2:ntotbead*3-1:3)
     this%Fy_d=this%DF_tmp
     this%DF_tmp=F(3:ntotbead*3:3)
     this%Fz_d=this%DF_tmp
-
-
 
 
     if (doTiming) then

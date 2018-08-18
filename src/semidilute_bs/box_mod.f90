@@ -203,7 +203,9 @@ contains
     use :: mpi
     #ifdef USE_GPU
       use :: rndm_cumod, only: init_rndm_d
+      use :: flow_cumod, only: init_flow_d
       use :: conv_cumod, only: init_conv_d
+      use :: hiverlet_cumod, only: init_hiverlet_d
       use :: force_cumod, only: init_force_d
     #endif
     !include 'mpif.h'
@@ -335,7 +337,9 @@ contains
 
     #ifdef USE_GPU
       call init_rndm_d(ntotbeadx3)
+      call init_flow_d()
       call init_conv_d(nseg,ntotsegx3,ntotbeadx3)
+      call init_hiverlet_d()
       call init_force_d(ntotbeadx3)
     #endif
 
@@ -493,6 +497,7 @@ contains
     use :: evforce_mod, only: EVForceLaw
     #ifdef USE_GPU
       use :: cublas
+      use :: trsfm_cumod, only: init_trsfm_tm_d,update_trsfm_d,update_arng_d
       use :: rndm_cumod, only: dw_bl_d
       use :: force_cumod, only: Fphi_d
       use :: chain_cumod, only: update_chain_krnl
@@ -510,12 +515,12 @@ contains
     real(wp),parameter :: coeff=1/sqrt(2.0_wp)
     #ifdef USE_GPU
       type(dim3) :: dimGrid, dimBlock
-      integer :: istat
+      integer :: istat,ierr
       real(wp) :: et
       real(wp),allocatable :: rbtest(:)
     #endif
 
-    allocate(rbtest(ntotbeadx3))
+    ! allocate(rbtest(ntotbeadx3))
 
     !----------------------
     !>>> Initial time step:
@@ -563,6 +568,14 @@ contains
         this%Rbx_d=this%Rbx
         this%Rby_d=this%Rby
         this%Rbz_d=this%Rbz
+
+        if (itrst /= 0) then
+          call update_arng_d()
+          call update_trsfm_d()
+        else
+          call init_trsfm_tm_d()
+        end if
+
       #endif
 
       this%decompRes%Success=.true.
@@ -617,28 +630,31 @@ contains
 
     #endif
 
-    rbtest=this%Rb_d
-    print*,'rb1--0',rbtest
-    print*,'rb2--0',this%Rb_tilde
+    ! rbtest=this%Rb_d
+    ! print*,'rb1--0',rbtest
+    ! print*,'rb2--0',this%Rb_tilde
 
     !---------------------------------------------------------
     !>>> Constructing Verlet neighbor list for EV calculation:
     !---------------------------------------------------------
     if (doTiming) call tick(count0)
     if (EVForceLaw /= 'NoEV') then
-      select case (FlowType)
-        case ('Equil')
-          call this%Boxevf%update_vlt(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,&
-                         this%size,this%invsize,itime,itrst,ntotbead,ntotbeadx3)
-        case ('PSF')
-          call this%Boxevf%update_vlt(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,&
-                                 this%Rb_tilde,this%size,this%invsize,itime,&
-                                 itrst,ntotbead,ntotbeadx3)
-        case ('PEF')
-          call this%Boxevf%update_vlt(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
-                  this%Rb_tilde,[bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],&
-                  itime,itrst,ntotbead,ntotbeadx3)
-      end select
+      #ifdef USE_GPU
+      #else
+        select case (FlowType)
+          case ('Equil')
+            call this%Boxevf%update_vlt(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,&
+                           this%size,this%invsize,itime,itrst,ntotbead,ntotbeadx3)
+          case ('PSF')
+            call this%Boxevf%update_vlt(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,&
+                                   this%Rb_tilde,this%size,this%invsize,itime,&
+                                   itrst,ntotbead,ntotbeadx3)
+          case ('PEF')
+            call this%Boxevf%update_vlt(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
+                    this%Rb_tilde,[bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],&
+                    itime,itrst,ntotbead,ntotbeadx3)
+        end select
+      #endif
     end if
     if (doTiming) et_vlt=et_vlt+tock(count0)
 ! print*,'box2'
@@ -650,12 +666,14 @@ contains
     if (HIcalc_mode == 'PME') then
       #ifdef USE_GPU
         call update_lst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,itrst,nchain,nbead,&
-                        nbeadx3,ntotbead,this%size,this%origin)
+          nbeadx3,ntotbead,this%size,this%origin)
         call this%Boxhi_d%updatelst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,&
           itrst,nchain,nbead,nbeadx3,ntotbead,this%size,this%origin)
+        call this%Boxhi_d%updatelst_(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,itime,&
+          itrst,nchain,nbead,nbeadx3,ntotbead,ntotbeadx3,this%size,this%origin)
       #else
         call update_lst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,itrst,nchain,nbead,&
-                        nbeadx3,ntotbead,this%size,this%origin)
+          nbeadx3,ntotbead,this%size,this%origin)
       #endif
     end if
 ! print*,'box3'
@@ -711,6 +729,7 @@ contains
 
     #endif
 
+
     ! rbtest=dw_bl_d(:,1)
     ! print*,'dw cuda',rbtest
     ! rbtest=Fphi_d
@@ -732,11 +751,11 @@ contains
         case ('Ewald')
           call symv(Diff_tens,Fphi,this%Rb_tilde,alpha=0.25_wp*dt,beta=1._wp)
         case ('PME')
-          #ifdef USE_GPU
-            call PME_dev(this%Boxhi_d,Fphi,ntotbead,this%size,DF_tot)
-          #else
+          ! #ifdef USE_GPU
+          !   call PME_dev(this%Boxhi_d,Fphi,ntotbead,this%size,DF_tot)
+          ! #else
             call PME_cpu(Fphi,ntotbead,this%size,DF_tot)
-          #endif
+          ! #endif
           this%Rb_tilde=this%Rb_tilde+0.25_wp*dt*DF_tot
       end select
 
@@ -774,7 +793,11 @@ contains
 
       call update_chain_krnl <<<(ntotbead+255)/256,256>>>(this%b_img_d,this%cm_img_d,this%rcm_d,&
         this%Rbx_d,this%Rby_d,this%Rbz_d,nbead,ntotbead,nchain,this%size(1),this%size(2),this%size(3))
-      
+      ierr = cudaGetLastError()
+      if (ierr /= cudaSuccess) then
+        print '(" update chain error: ",a)', cudaGetErrorString(ierr)
+        stop
+      endif
       ! et=tock(count0)
 
       ! print*,'time1',et
@@ -792,6 +815,14 @@ contains
       call this%Boxtrsfm%unwrap(this%size,this%Rbx,this%Rby,this%b_img,itime)
     end if
     call update_trsfm(this%size)
+
+
+    #ifdef USE_GPU
+
+      call update_arng_d()
+      call update_trsfm_d()
+
+    #endif
 
   end subroutine move_box
 
@@ -1037,8 +1068,6 @@ contains
     Fphi=0._wp
     rFphi=0._wp
 
-    Fphi_d=0._wp
-
     select case (FlowType)
       case ('Equil')
         call this%Boxsprf%update(this%Rbx,this%Rby,this%Rbz,this%size,&
@@ -1070,6 +1099,9 @@ contains
     end select
 
     #ifdef USE_GPU
+
+      Fphi_d=0._wp
+
       call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,&
         this%invsize,itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3)
     #endif

@@ -171,7 +171,7 @@ contains
 
     use :: hi_cumod, only: Dreal_sparse_mode_d,rc_D_d
 
-    integer,device,intent(in) :: pnt(ntb)
+    integer,device,intent(in) :: pnt(ntb+1)
     integer,device,intent(in) :: lst(nlst)
     real(wp),device,intent(in) :: Rb(ntb)
     integer,value :: ntb,nlst
@@ -231,7 +231,7 @@ contains
 
     use :: hi_cumod, only: Dreal_sparse_mode_d,rc_D_d,HI_ax2_d
 
-    integer,device,intent(in) :: pnt(ntb)
+    integer,device,intent(in) :: pnt(ntb+1)
     integer,device,intent(in) :: lst(nlst)
     real(wp),device,intent(in) :: Rb(ntb)
     real(wp),device,intent(inout) :: Val_d(nlst*9)
@@ -332,6 +332,122 @@ contains
     endif
 
   end subroutine calcDiff_real_d_part2
+
+
+
+  !> calculating the real part of the diffusion tensor
+  attributes(global) subroutine calcDiff_real_d(nn,nlst,Rb,ntb,mnn,mnnt,bsx,bsy,bsz,&
+    Val_d,ColInd_d,RowPtr_d)
+
+    use :: hi_cumod, only: Dreal_sparse_mode_d,rc_D_d,HI_ax2_d
+
+    integer,device,intent(in) :: nn(ntb)
+    integer,device,intent(in) :: nlst(mnn,ntb)
+    real(wp),device,intent(in) :: Rb(ntb)
+    real(wp),device,intent(inout) :: Val_d(mnnt*9)
+    integer,device,intent(inout) :: RowPtr_d(ntb+1)
+    integer,device,intent(inout) :: ColInd_d(mnnt)
+    integer,value :: ntb,mnn,mnnt
+    real(wp),value :: bsx,bsy,bsz
+    real(wp) :: r,r2,ri(3),rj(3),rij(3),rijhat(3),rrhat(6),m2(9)
+    integer :: igb,ig,jgb,jg,offset_nc,offset_D,jbeg,jend,jneig,igbc
+
+
+    igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
+
+    if (igb > ntb ) return
+
+
+    if (Dreal_sparse_mode_d) then
+
+      ! offset_nc=0
+      ! do igbc=1, igb-1
+      !   offset_nc=offset_nc+neig_count(igbc)
+      ! enddo
+      ! offset_D=offset_nc*9
+
+      offset_nc=0
+      do igbc=1, igb-1
+        offset_nc=offset_nc+nn(igbc)
+      enddo
+      offset_D=offset_nc*9
+
+      ! print*,'td',igb,offset_nc
+
+      ! this%RowPtr_d(1)=1
+      if (igb == 1) RowPtr_d(1)=1
+      ! do iglobbead=1, ntb-1
+      ! do iglobbead=1, ntb
+
+      ig=(igb-1)*3
+      ! jbeg=1
+      jend=nn(igb)
+
+      ! print*,'thread',threadIdx%x,jend
+
+      ! Check if igb has neighbor:
+      if (jend > 0) then
+        ri(1:3)=Rb(ig+1:ig+3)
+
+        ! loop in each thread
+        do jneig=1, jend
+
+          jgb=nlst(jneig,igb)
+          jg=(jgb-1)*3
+          rj(1:3)=Rb(jg+1:jg+3)
+          rij=ri-rj
+          ! minimum image convension: (We know that rc_D < L/2)
+          rij(1)=rij(1)-nint(rij(1)*1/bsx)*bsx
+          rij(2)=rij(2)-nint(rij(2)*1/bsy)*bsy
+          rij(3)=rij(3)-nint(rij(3)*1/bsz)*bsz
+
+          r2=dot_product(rij,rij);r=sqrt(r2)
+
+          if (r <= rc_D_d) then
+            ! offset_nc=offset_nc+1
+            rijhat=rij/r 
+            rrhat(1)=rijhat(1)*rijhat(1)
+            rrhat(2)=rijhat(1)*rijhat(2)
+            rrhat(3)=rijhat(1)*rijhat(3)
+            rrhat(4)=rijhat(2)*rijhat(2)
+            rrhat(5)=rijhat(2)*rijhat(3)
+            rrhat(6)=rijhat(3)*rijhat(3)
+            Val_d(offset_D+1:offset_D+9)=M1_1d(r,r2,rrhat)
+            m2=M1_1d(r,r2,rrhat)
+            ! print*,'entered1',igb,jgb,m2(2)
+            ! The correction due to overlap:
+            if (r < (HI_ax2_d)) then ! Ovelaps in Primary box (or maybe in general!)
+              
+              Val_d(offset_D+1:offset_D+9)=Val_d(offset_D+1:offset_D+9) + Mstar_1d(r,r2,rrhat)
+              m2=Mstar_1d(r,r2,rrhat)
+              ! print*,'entered2',igb,jgb,m2(2)
+            end if
+            ColInd_d(offset_nc+1)=jgb
+
+            offset_nc=offset_nc+1
+            offset_D=offset_D+9
+
+          end if
+        end do ! jneig
+      end if ! jbeg.le.jend
+
+      RowPtr_d(igb+1)=offset_nc+1
+      if (igb == ntb) RowPtr_d(ntb+1)=offset_nc+1
+
+    else
+
+      if (igb == 1) print*," Dreal dense operation on device not currently supported"
+
+    endif
+
+  end subroutine calcDiff_real_d
+
+
+
+
+
+
+
 
   ! This function calculated the B-spline function with order p at x.
   attributes(device) function M_spl(x,p)
@@ -483,7 +599,8 @@ contains
     real(wp),intent(in) :: boxsize(3),boxorigin(3)
     integer,device,allocatable :: neig_count(:)
     real(wp) :: bsx,bsy,bsz,box,boy,boz
-    integer :: nlst,K_dim,istat
+    integer :: nlst,K_dim,istat,ierr,r
+    ! integer :: K_dim,istat
     integer,allocatable :: testi(:)
     real(wp),allocatable :: testr(:)
 
@@ -499,21 +616,39 @@ contains
     if (HIcalc_mode == 'PME') then
 
       ! real part
-      allocate(neig_count(ntb))
-      neig_count=0
-      ! First count the neighbors
-      call calcDiff_real_d_part1 <<<(ntb+255)/256,256>>> (this%point_D_d,this%list_D_d,Rb,ntb,nlst,&
-        bsx,bsy,bsz,neig_count)
-      this%nnzb=sum(neig_count)
-      ! print*,'nnzb',this%nnzb
-      ! Second populate the arrays
-      call calcDiff_real_d_part2 <<<(ntb+255)/256,256>>> (this%point_D_d,this%list_D_d,Rb,ntb,nlst,&
-        bsx,bsy,bsz,neig_count,this%Val_d,this%ColInd_d,this%RowPtr_d)
-      deallocate(neig_count)
+
+      ! allocate(neig_count(ntb))
+      ! neig_count=0
+      ! ! First count the neighbors
+      ! call calcDiff_real_d_part1 <<<(ntb+255)/256,256>>> (this%point_D_d,this%list_D_d,Rb,ntb,nlst,&
+      !   bsx,bsy,bsz,neig_count)
+      ! this%nnzb=sum(neig_count)
+      ! ! Second populate the arrays
+      ! call calcDiff_real_d_part2 <<<(ntb+255)/256,256>>> (this%point_D_d,this%list_D_d,Rb,ntb,nlst,&
+      !   bsx,bsy,bsz,neig_count,this%Val_d,this%ColInd_d,this%RowPtr_d)
+      ! deallocate(neig_count)
+
+      call calcDiff_real_d <<<(ntb+255)/256,256>>> (this%nn_d,this%nlst_d,Rb,ntb,this%mnnt/ntb,&
+        this%mnnt,bsx,bsy,bsz,this%Val_d,this%ColInd_d,this%RowPtr_d)
+      ! r = cudathreadsynchronize()
+
+      ierr = cudaGetLastError()
+      if (ierr /= cudaSuccess) then
+        print '(" calcdiff error in real space: ",a)', cudaGetErrorString(ierr)
+        stop
+      endif
+
 
       ! reciprocal part
       call calcDiff_recip_d <<<(ntb+255)/256,256>>> (Rb,ntb,bsx,bsy,bsz,box,boy,boz,K_mesh(1),&
         K_mesh(2),K_mesh(3),this%P_Val_d,this%P_ColInd_d,this%P_RowPtr_d)
+      ! r = cudathreadsynchronize()
+
+      ierr = cudaGetLastError()
+      if (ierr /= cudaSuccess) then
+        print '(" calcdiff error in recip space: ",a)', cudaGetErrorString(ierr)
+        stop
+      endif
 
       K_dim=K_mesh(1)*K_mesh(2)*K_mesh(3)
       this%nnz=ntb*p_PMEto3
@@ -560,9 +695,9 @@ contains
 
     allocate(ftest(ntbx3))
 
-    ftest=F_d
+    ! ftest=F_d
 
-    print*,'cuda f',ftest
+    ! print*,'cuda f',ftest
 
     Fx_d => this%Fx_d
     Fy_d => this%Fy_d
@@ -574,7 +709,7 @@ contains
       Fz_d(ib)=F_d(3*ib)
     enddo
 
-    ftest(1:ntb)=this%Fx_d
+    ! ftest(1:ntb)=this%Fx_d
     ! print*,'cuda fx',ftest(1:ntb)
 
     if (doTiming) then
@@ -617,9 +752,8 @@ contains
     call cublasDaxpy(ntbx3,1._wp,this%DF_self_d,1,F_d,1)
     call cublasDaxpy(ntbx3,1._wp,this%DF_real_d,1,F_d,1)
 
-    ftest=F_d
-    ! print*,'cuda df',ftest
-
+    ! ftest=F_d
+    ! call print_vector(ftest,'cuda df')
     ! this%DF_tmp=this%DFx_d
     ! this%DFx_h=this%DF_tmp
     ! this%DF_tmp=this%DFy_d

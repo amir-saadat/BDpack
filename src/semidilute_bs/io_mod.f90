@@ -430,24 +430,26 @@ ef: do
           end do ! irun
 
           ! For debugging:
-!          rcmst(1,1:3,1)=(/-4.517_wp,2.308_wp,-3.395_wp/)
-!          rcmst(2,1:3,1)=(/5-0.034_wp,5-3.173_wp,5-1.454_wp/) ! For 3
-!          rcmst(3,1:3,1)=(/1-0.034_wp,1-3.173_wp,1-1.454_wp/) ! For 3
-!          rcmst(4,1:3,1)=(/-3-0.034_wp,-3-3.173_wp,-3-1.454_wp/) ! For 3
+         rcmst(1,1:3,1)=(/-4.517_wp,2.308_wp,-3.395_wp/)
+         rcmst(2,1:3,1)=(/5-0.034_wp,5-3.173_wp,5-1.454_wp/) ! For 3
+         rcmst(3,1:3,1)=(/1-0.034_wp,1-3.173_wp,1-1.454_wp/) ! For 3
+         rcmst(4,1:3,1)=(/-3-0.034_wp,-3-3.173_wp,-3-1.454_wp/) ! For 3
 !          rcmst(1,1:3,2)=(/-4.517_wp,2.308_wp,-3.395_wp/)
 !          rcmst(2,1:3,2)=(/5-0.034_wp,5-3.173_wp,5-1.454_wp/) ! For 3
 !          rcmst(3,1:3,2)=(/1-0.034_wp,1-3.173_wp,1-1.454_wp/) ! For 3
 !          rcmst(4,1:3,2)=(/-3-0.034_wp,-3-3.173_wp,-3-1.454_wp/) ! For 3
 !
-          call date_and_time(values=time_info)
-          msec=500!(1000*time_info(7)+time_info(8))*((id-83)*359) ! a somewhat random integer
-          call random_seed(size=n) ! get the number of integers used for the seed
-          ! This is because we want different order of random numbers in each call
-          call random_seed(put=(/(i*msec,i=1,n)/)) ! give a proper seed
-          call random_number(rcmst) ! generate a sequence of nchain pseudo-random numbers
-          rcmst(:,1,:)=(rcmst(:,1,:)-0.5)*boxsize(1)
-          rcmst(:,2,:)=(rcmst(:,2,:)-0.5)*boxsize(2)
-          rcmst(:,3,:)=(rcmst(:,3,:)-0.5)*boxsize(3)
+          ! call date_and_time(values=time_info)
+          ! msec=500!(1000*time_info(7)+time_info(8))*((id-83)*359) ! a somewhat random integer
+          ! call random_seed(size=n) ! get the number of integers used for the seed
+          ! ! This is because we want different order of random numbers in each call
+          ! call random_seed(put=(/(i*msec,i=1,n)/)) ! give a proper seed
+          ! call random_number(rcmst) ! generate a sequence of nchain pseudo-random numbers
+          ! rcmst(:,1,:)=(rcmst(:,1,:)-0.5)*boxsize(1)
+          ! rcmst(:,2,:)=(rcmst(:,2,:)-0.5)*boxsize(2)
+          ! rcmst(:,3,:)=(rcmst(:,3,:)-0.5)*boxsize(3)
+
+          
           do irun=1, nprun
             offsetMPI=nchain*3*p*sizeof(realvar)*(irun-1)
             call MPI_File_set_view(this%fcinithandle,offsetMPI,MPI_REAL_WP,this%rc_recvsubarray,"native",&
