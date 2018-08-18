@@ -1,5 +1,7 @@
 
-<img src="https://github.com/amir-saadat/BDpack/blob/master/img.png" width="100" alt="Logo">
+<!---
+<img src="https://github.com/amir-saadat/BDpack/blob/master/img.png?raw=true" width="100" alt="Logo"> 
+---->
 
 BDpack is a package to numerically calculate the configurational evolution of polymeric solution using Brownian dynamics simulation of bead-spring micro-mechanical model. The algorithm used in BDpack incorporates high-fidelity and computationally efficient calculation of hydrodynamic interactions (HI) and excluded volume (EV) forces. BDpack is written in parallel by employing message passing interface (MPI) for distributed-memory-architectures.
 
