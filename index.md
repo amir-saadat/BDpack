@@ -8,7 +8,7 @@ The aim of this project is to write the codes self descriptive, documented, yet 
 [Tutorials](https://github.com/amir-saadat/BDpack/wiki/Tutorials) 
 
 
-<img src="https://assets-cdn.github.com/images/icons/emoji/octocat.png" alt="Octocat">
+<img src="https://github.com/amir-saadat/BDpack/blob/master/projects/semidilute_linear/semidilute.png">
 
 Semidilute linear polymers |  Dilute comb polymers
 :-------------------------:|:-------------------------:
