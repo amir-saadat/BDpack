@@ -2,7 +2,7 @@ title: BDpack
 description: A Brownian dynamics package for simulation of polymeric solutions
 google_analytics: 
 show_downloads: true
-theme: jekyll-theme-cayman
+theme: jekyll-theme-slate
 
 gems:
   - jekyll-mentions
