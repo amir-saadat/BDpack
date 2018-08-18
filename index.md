@@ -5,10 +5,7 @@ The aim of this project is to write the codes self descriptive, documented, yet 
 
 [Documentation](https://github.com/amir-saadat/BDpack/wiki/Documentation)
 
-[Tutorials](https://github.com/amir-saadat/BDpack/wiki/Tutorials) 
-
-
-<img src="https://www.dropbox.com/s/dk85xm572adt2xh/semidilute.png?dl=0" alt="Branching">
+[Tutorials](https://github.com/amir-saadat/BDpack/wiki/Tutorials)
 
 Semidilute linear polymers |  Dilute comb polymers
 :-------------------------:|:-------------------------:
