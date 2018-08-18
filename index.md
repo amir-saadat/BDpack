@@ -8,7 +8,7 @@ The aim of this project is to write the codes self descriptive, documented, yet 
 [Tutorials](https://github.com/amir-saadat/BDpack/wiki/Tutorials) 
 
 
-<img src="https://github.com/amir-saadat/BDpack/blob/master/projects/semidilute_linear/semidilute.png">
+<img src="https://github.com/amir-saadat/BDpack/blob/master/projects/semidilute_linear/semidilute.png" alt="Branching">
 
 Semidilute linear polymers |  Dilute comb polymers
 :-------------------------:|:-------------------------:
