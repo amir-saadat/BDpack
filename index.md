@@ -12,8 +12,8 @@ The aim of this project is to write the codes self descriptive, documented, yet 
 
 [Tutorials](https://github.com/amir-saadat/BDpack/wiki/Tutorials)
 
-Semidilute linear polymers |  Dilute comb polymers
-:-------------------------:|:-------------------------:
+Semidilute linear polymers |  Dilute comb polymers  |  Dilute PEG grafted particles
+:-------------------------:|:-------------------------:|:-------------------------:
 [![](https://github.com/amir-saadat/BDpack/blob/master/projects/semidilute_linear/semidilute.png?raw=true)](https://github.com/amir-saadat/BDpack/wiki/Tutorials-(SemidiluteLinear))  |  [![](https://github.com/amir-saadat/BDpack/blob/master/projects/dilute_comb/comb.png?raw=true)](https://github.com/amir-saadat/BDpack/wiki/Tutorials-(DiluteComb))  |  [![](https://github.com/amir-saadat/BDpack/blob/master/projects/dilute_PEG/schematic_rotation.pdf?raw=true)](https://github.com/amir-saadat/BDpack/wiki/Tutorials-(DilutePEG)) 
 
 [Citation](https://github.com/amir-saadat/BDpack/wiki/Citation)
