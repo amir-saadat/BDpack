@@ -615,14 +615,14 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
 
 ! print*,'pme1'
       call calcDiff_real_dev(this,Rb,ntotbead,boxsize,boxorigin) ! Calculation of real part of D.
-! print*,'pme2'
-      if (doTiming) then
-        et_DCR=et_DCR+tock(count0)
-        call tick(count0)
-      end if
-! print*,'pme3'
-      call calcDiff_recip_dev(this,Rb,ntotbead,boxsize,boxorigin) ! Calculation of reciprocal part of D.
-! print*,'pme4'
+! ! print*,'pme2'
+!       if (doTiming) then
+!         et_DCR=et_DCR+tock(count0)
+!         call tick(count0)
+!       end if
+! ! print*,'pme3'
+!       call calcDiff_recip_dev(this,Rb,ntotbead,boxsize,boxorigin) ! Calculation of reciprocal part of D.
+! ! print*,'pme4'
       if (doTiming) et_DCK=et_DCK+tock(count0)
 
     end if ! HIcalc_mode
@@ -1048,9 +1048,11 @@ ig:       do igrid=1, p_PME
 ! endif
 ! print*,'calcreal0',size(this%val_h),size(this%RowPtr_h),size(this%ColInd_h)
 
+
       offsetD=0
       neig_count=0
       this%RowPtr_h(1)=1
+
       ! do iglobbead=1, ntotbead-1
       do iglobbead=1, ntotbead
 
@@ -1092,6 +1094,7 @@ ig:       do igrid=1, p_PME
               ! this%Val_h(offsetD+1:offsetD+9)=reshape(M1(r,r2,rrhat),shape=[9])
               call M1_1d_routine(r,r2,rrhat,M1_1d)
               this%Val_h(offsetD+1:offsetD+9)=M1_1d
+
               ! print*,'hello',iglobbead,jglobbead,M1_1d(2)
               ! The correction due to overlap:
               if (r < (HI_ax2)) then ! Ovelaps in Primary box (or maybe in general!)
@@ -1109,7 +1112,6 @@ ig:       do igrid=1, p_PME
           end do ! jneig
         end if ! jbeg.le.jend      
         this%RowPtr_h(iglobbead+1)=neig_count+1
-        ! print*,'ibead',iglobbead
       end do ! iglobbead
       this%RowPtr_h(ntotbead+1)=neig_count+1
 
@@ -1129,60 +1131,60 @@ ig:       do igrid=1, p_PME
 
     else ! Dreal_sparse_mode is .false.
 
-      ! loop over boxbeads:
-!$omp parallel default(private) shared(ntotbead,Rb,Diff_tens_real,boxsize,HI_ax2,rc_Dto2) &
-!$omp shared(FlowType,delrx_L,rc_D)
-!$omp do schedule(auto)
-      do jglobbead=1, ntotbead
-        jglob=(jglobbead-1)*3
-        do iglobbead=1, jglobbead
-          iglob=(iglobbead-1)*3            
-          ! Calculation of the pair particle distance:
-          rin0(1:3)=Rb(iglob+1:iglob+3)
-          rjn0(1:3)=Rb(jglob+1:jglob+3)
-          rijn0=rin0-rjn0
-          ! Calculating Dij,PBC:
-          Diff_tens_realP => Diff_tens_real(iglob+1:iglob+3,jglob+1:jglob+3)
-          Diff_tens_realP=0._wp                
-          ! The summation over real space (loop over primary and all periodic image boxes):
-          nmax=ceiling(rc_D/boxsize)
-          n1 => nvec(1)
-          n2 => nvec(2)
-          n3 => nvec(3)
-n1lp:     do n1=-nmax(1),nmax(1)
-n2lp:       do n2=-nmax(2),nmax(2)
-n3lp:         do n3=-nmax(3),nmax(3)
-                if ((iglobbead == jglobbead).and.(all(nvec == 0))) cycle n3lp
-                select case (FlowType)
-                  case ('Equil')
-                    rij=rijn0+nvec*boxsize
-                  case ('PSF')
-                    rij(1)=rijn0(1)+nvec(1)*boxsize(1)+nvec(2)*delrx_L
-                    rij(2:3)=rijn0(2:3)+nvec(2:3)*boxsize(2:3)
-                end select
-                r2=dot_product(rij,rij)
-                if (r2-rc_Dto2 <= 1.e-6) then
-                  invr2=1/r2
-                  rrhat(1)=rij(1)*rij(1)*invr2
-                  rrhat(2)=rij(1)*rij(2)*invr2
-                  rrhat(3)=rij(1)*rij(3)*invr2
-                  rrhat(4)=rij(2)*rij(2)*invr2
-                  rrhat(5)=rij(2)*rij(3)*invr2
-                  rrhat(6)=rij(3)*rij(3)*invr2
-                  r=sqrt(r2)
-                  ! Adding the M1 contribution:
-                  Diff_tens_realP=Diff_tens_realP+M1(r,r2,rrhat)
-                  ! Overlaps in Primary box:           
-                  if (r < (HI_ax2)) Diff_tens_realP=Diff_tens_realP+Mstar(r,r2,rrhat)
-                end if
-              end do n3lp
-            end do n2lp
-          end do n1lp
-        end do !iglobbead
-      end do ! jglobbead
+!       ! loop over boxbeads:
+! !$omp parallel default(private) shared(ntotbead,Rb,Diff_tens_real,boxsize,HI_ax2,rc_Dto2) &
+! !$omp shared(FlowType,delrx_L,rc_D)
+! !$omp do schedule(auto)
+!       do jglobbead=1, ntotbead
+!         jglob=(jglobbead-1)*3
+!         do iglobbead=1, jglobbead
+!           iglob=(iglobbead-1)*3            
+!           ! Calculation of the pair particle distance:
+!           rin0(1:3)=Rb(iglob+1:iglob+3)
+!           rjn0(1:3)=Rb(jglob+1:jglob+3)
+!           rijn0=rin0-rjn0
+!           ! Calculating Dij,PBC:
+!           Diff_tens_realP => Diff_tens_real(iglob+1:iglob+3,jglob+1:jglob+3)
+!           Diff_tens_realP=0._wp                
+!           ! The summation over real space (loop over primary and all periodic image boxes):
+!           nmax=ceiling(rc_D/boxsize)
+!           n1 => nvec(1)
+!           n2 => nvec(2)
+!           n3 => nvec(3)
+! n1lp:     do n1=-nmax(1),nmax(1)
+! n2lp:       do n2=-nmax(2),nmax(2)
+! n3lp:         do n3=-nmax(3),nmax(3)
+!                 if ((iglobbead == jglobbead).and.(all(nvec == 0))) cycle n3lp
+!                 select case (FlowType)
+!                   case ('Equil')
+!                     rij=rijn0+nvec*boxsize
+!                   case ('PSF')
+!                     rij(1)=rijn0(1)+nvec(1)*boxsize(1)+nvec(2)*delrx_L
+!                     rij(2:3)=rijn0(2:3)+nvec(2:3)*boxsize(2:3)
+!                 end select
+!                 r2=dot_product(rij,rij)
+!                 if (r2-rc_Dto2 <= 1.e-6) then
+!                   invr2=1/r2
+!                   rrhat(1)=rij(1)*rij(1)*invr2
+!                   rrhat(2)=rij(1)*rij(2)*invr2
+!                   rrhat(3)=rij(1)*rij(3)*invr2
+!                   rrhat(4)=rij(2)*rij(2)*invr2
+!                   rrhat(5)=rij(2)*rij(3)*invr2
+!                   rrhat(6)=rij(3)*rij(3)*invr2
+!                   r=sqrt(r2)
+!                   ! Adding the M1 contribution:
+!                   Diff_tens_realP=Diff_tens_realP+M1(r,r2,rrhat)
+!                   ! Overlaps in Primary box:           
+!                   if (r < (HI_ax2)) Diff_tens_realP=Diff_tens_realP+Mstar(r,r2,rrhat)
+!                 end if
+!               end do n3lp
+!             end do n2lp
+!           end do n1lp
+!         end do !iglobbead
+!       end do ! jglobbead
 
-!$omp end do
-!$omp end parallel
+! !$omp end do
+! !$omp end parallel
 
     end if ! Dreal_sparse_mode          
 
@@ -1430,7 +1432,9 @@ kg_c:     do kgrid=1, p_PME
     DF_tot=DF_self+DF_real+DF_recip
     
 
-    ! call print_vector(DF_tot,'df')
+    ! call print_vector(DF_recip,'df_recip')
+    ! call print_vector(DF_self,'df_self')
+    ! call print_vector(DF_real,'df_real')
     ! stop
 
   contains

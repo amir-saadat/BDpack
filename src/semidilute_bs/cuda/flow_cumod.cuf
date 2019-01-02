@@ -1,0 +1,110 @@
+!%------------------------------------------------------------------------%
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
+!|  University of Tennessee-Knoxville                                     |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|             Tiras Y. Lin       <tlin@stanford.edu>                     |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
+!|                                                                        |
+!|  This file is part of BDpack.                                          |
+!|                                                                        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
+!|  it under the terms of the GNU General Public License as published by  |
+!|  the Free Software Foundation, either version 3 of the License, or     |
+!|  (at your option) any later version.                                   |
+!|                                                                        |
+!|  BDpack is distributed in the hope that it will be useful,             |
+!|  but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+!|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+!|  GNU General Public License for more details.                          |
+!|                                                                        |
+!|  You should have received a copy of the GNU General Public License     |
+!|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
+!%------------------------------------------------------------------------%
+!--------------------------------------------------------------------
+!
+! MODULE: 
+!
+!> @author
+!> Amir Saadat, Stanford University, August 2018
+!
+! DESCRIPTION: 
+!> contains tools for applying the flow field
+!--------------------------------------------------------------------
+
+module flow_cumod
+
+  use :: prcn_mod
+
+  implicit none
+
+  private :: init_flow_t ,&
+             del_flow_t
+
+  !> A public type for applying flow
+  type flow_cu_t
+
+    private
+    ! !> The arrays for storing sparse Kappa
+    ! !> @{
+    ! real(wp),allocatable :: K_vals(:)
+    ! integer,allocatable :: K_cols(:),K_rowIdx(:)
+    ! !> @}
+
+  contains
+
+    procedure,pass(this) :: init => init_flow_t
+    ! procedure,pass(this) :: apply => apply_flow
+    final :: del_flow_t
+
+  end type flow_cu_t
+
+  protected :: FlowType_d
+
+  !> The type of flow applied to the entities inside the box
+  integer,constant :: FlowType_d
+
+  integer,constant :: Equil=1,PSF=2,PEF=3
+
+contains
+
+  !> Initializes flow_mod module variables
+  subroutine init_flow_d()
+
+    use,intrinsic :: iso_fortran_env
+    use :: flow_mod, only: FlowType
+
+    select case (FlowType)
+    case('Equil')
+      FlowType_d=Equil
+    case('PSF')
+      FlowType_d=PSF
+    case('PEF')
+      FlowType_d=PEF
+    end select
+
+  end subroutine init_flow_d
+
+  !> Constructor for flow type
+  !! \param
+  subroutine init_flow_t(this)
+
+    ! use :: arry_mod, only: print_vector
+
+    class(flow_cu_t),intent(inout) :: this
+
+  end subroutine init_flow_t
+
+    !> Destructor for trsfm type
+  subroutine del_flow_t(this)
+
+!    use :: inp_smdlt, only: 
+
+    type(flow_cu_t) :: this
+
+  end subroutine del_flow_t
+
+end module flow_cumod

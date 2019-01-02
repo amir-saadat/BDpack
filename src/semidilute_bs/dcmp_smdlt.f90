@@ -90,12 +90,15 @@ mlp:do
             call symv(D,VP,w)
           else ! means PME:
             nbead=nbeadx3/3
+! print*,'k,k0,m',k,k0,m
+! call print_vector(VP,'wbef')
 #ifdef USE_DP
             call PME_cpu(VP,nbead,boxsizeinp,w)
 #elif USE_SP
             call PME_cpu(real(VP,kind=wp),nbead,boxsizeinp,wtemp2)
             w=real(wtemp2,kind=double)
 #endif
+! call print_vector(w,'waf')
           end if
           if (k == m) wtemp=w
         else
@@ -144,7 +147,12 @@ mlp:do
       if (present(msetinp)) then
         if (msetinp) exit mlp
       end if
+
+! print*,'m',m,minit
+! call print_vector(Y,'y')
+
       if (m >= minit) then
+
         error=nrm2(Y-Ybar)/nrm2(Ybar)
 !        write(*,'(a,f14.7)') 'error',error
         if (error <= errormin) then
@@ -164,6 +172,8 @@ mlp:do
         end if
       end if
       Ybar=Y
+
+
       k0=m
       m=m+1
       cycle mlp

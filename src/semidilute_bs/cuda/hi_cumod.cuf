@@ -624,13 +624,14 @@ contains
       update=dispmax > (rlist_D-rc_D)
     
     end if
+    ! print*,'update_cu',update
     if (update) then
       ! Save positions for next evaluations:
       call cublasDcopy(ntbx3,Rb_d,1,this%Rb0_d,1)
       ! this%Rb0=Rb
       
       ! creating the cell linked-list
-      call this%vlt_d%cnstr_nab(Rbx_d,Rby_d,Rbz_d,itime,ntb,ntbx3,rc_D,bs,this%nn_d,this%nlst_d)
+      call this%vlt_d%cnstr_nab(Rbx_d,Rby_d,Rbz_d,itime,ntb,ntbx3,rlist_D,bs,this%nn_d,this%nlst_d)
 
       ! call cnstrlst_part1(this,ntb,bo)
 
@@ -817,8 +818,6 @@ contains
             ! Get first bead in neighbour cell:
             jglobbead=head_D(neigcell_ID)
 
-
-
             do while (jglobbead /= EMPTY)
               offsetj=(jglobbead-1)*3
               ! Equal is important only if we have one cell.
@@ -888,8 +887,9 @@ contains
     this%point_D_d=this%point_D
     this%list_D_d=this%list_D
 
+
     ! call print_vector(this%point_D,'pnt')
-    ! call print_vector(this%list_D(1:30),'list_D')
+    ! call print_vector(this%list_DP,'list_D')
 
   end subroutine cnstrlst_D
 

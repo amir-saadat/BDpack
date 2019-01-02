@@ -64,8 +64,12 @@ module chain_cumod
     real(wp),device,pointer :: chain_Q(:)
     !> The pointer to chain section of R_tilde
     real(wp),device,pointer :: chain_R(:)
-    !> The pointer to chain section of rcm_tilde
-    real(wp),device,pointer :: chain_rcm(:)
+    !> x-comp The pointer to chain section of rcm_tilde
+    real(wp),device,pointer :: chain_rcmx
+    !> y-comp The pointer to chain section of rcm_tilde
+    real(wp),device,pointer :: chain_rcmy
+    !> z-comp The pointer to chain section of rcm_tilde
+    real(wp),device,pointer :: chain_rcmz
     !> The pointer to the chain section of the cm_img
     integer,device,pointer :: chain_cm_imgx
     integer,device,pointer :: chain_cm_imgy
@@ -84,11 +88,22 @@ module chain_cumod
 !    integer :: rcm_ImFlag(3)
   
     contains
+
       procedure,pass(this) :: init => init_chain
-      ! procedure,pass(this) :: update => update_chain
+      procedure,pass(this) :: update => update_chain
       final :: del_chain
 
   end type chain_cu_t
+
+  integer,device,pointer :: cm_imgx_ptr
+  integer,device,pointer :: cm_imgy_ptr
+  integer,device,pointer :: cm_imgz_ptr
+  integer,device,pointer :: b_imgx_ptr(:)
+  integer,device,pointer :: b_imgy_ptr(:)
+  integer,device,pointer :: b_imgz_ptr(:)
+  real(wp),device,pointer :: Rbx_ptr(:)
+  real(wp),device,pointer :: Rby_ptr(:)
+  real(wp),device,pointer :: Rbz_ptr(:)
 
 contains
 
@@ -108,7 +123,12 @@ contains
     this%chain_ID=id
     this%chain_Q => Q((id-1)*nsegx3+1:(id-1)*nsegx3+nsegx3)
     this%chain_R => R((id-1)*nbeadx3+1:(id-1)*nbeadx3+nbeadx3)
-    this%chain_rcm => rcm(:,this%chain_ID)
+    this%chain_Rbx => Rbx((id-1)*nbead+1:(id-1)*nbead+nbead)
+    this%chain_Rby => Rby((id-1)*nbead+1:(id-1)*nbead+nbead)
+    this%chain_Rbz => Rbz((id-1)*nbead+1:(id-1)*nbead+nbead)
+    this%chain_rcmx => rcm(id,1)
+    this%chain_rcmy => rcm(id,2)
+    this%chain_rcmz => rcm(id,3)
 
     this%chain_b_imgx => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,1)
     this%chain_b_imgy => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,2)
@@ -119,8 +139,6 @@ contains
 
   end subroutine init_chain
 
-
-
   !> Destructor of the chain type
   subroutine del_chain(this)
 
@@ -128,41 +146,96 @@ contains
 
     nullify(this%chain_Rbx,this%chain_Rby,this%chain_Rbz)
     nullify(this%chain_Rb)
-    nullify(this%chain_Q,this%chain_R,this%chain_rcm)
+    nullify(this%chain_Q,this%chain_R,this%chain_rcmx,this%chain_rcmy,this%chain_rcmz)
 
   end subroutine del_chain
 
+  ! !> Kernel for updating the properties of the chain
+  ! !! \param invbs the inverse of box dimensions
+  ! attributes(global) subroutine update_chain_krnl(b_img,cm_img,rcm,Rbx,Rby,Rbz,nb,ntb,&
+  !   nch,bsx,bsy,bsz)
+
+  !   integer,device :: b_img(ntb,3)
+  !   integer,device :: cm_img(ntb,3)
+  !   real(wp),device :: Rbx(ntb)
+  !   real(wp),device :: Rby(ntb)
+  !   real(wp),device :: Rbz(ntb)
+  !   real(wp),device :: rcm(nch,3)
+
+  !   integer,value :: nb,ntb,nch
+  !   real(wp),value :: bsx,bsy,bsz
+
+  !   integer :: ich,ib,os
+
+  !   ib = blockDim%x*(blockIdx%x-1) + threadIdx%x
+  !   ich = (ib-1)/nb + 1
+
+  !   ! print*,'tid',threadIdx%x,ib!,boxchains(ich)%chain_ID
+
+  !   os=(ich-1)*nb
+  !   b_img(os+ib,1)=b_img(os+ib,1)-cm_img(ich,1)
+  !   b_img(os+ib,2)=b_img(os+ib,2)-cm_img(ich,2)
+  !   b_img(os+ib,3)=b_img(os+ib,3)-cm_img(ich,3)
+
+  !   print*,'tid',threadIdx%x,(Rbx(os+ib)-b_img(os+ib,1)*bsx)/nb,b_img(os+ib,1)
+
+  !   rcm(ich,1)=rcm(ich,1)+(Rbx(os+ib)-b_img(os+ib,1)*bsx)/nb
+  !   rcm(ich,2)=rcm(ich,2)+(Rby(os+ib)-b_img(os+ib,2)*bsy)/nb
+  !   rcm(ich,3)=rcm(ich,3)+(Rbz(os+ib)-b_img(os+ib,3)*bsz)/nb
+
+  ! end subroutine update_chain_krnl
+
   !> Kernel for updating the properties of the chain
   !! \param invbs the inverse of box dimensions
-  attributes(global) subroutine update_chain_krnl(b_img,cm_img,rcm,Rbx,Rby,Rbz,nb,ntb,&
-    nch,bsx,bsy,bsz)
+  subroutine update_chain(this,bs)
 
-    integer,device :: b_img(ntb,3)
-    integer,device :: cm_img(ntb,3)
-    real(wp),device :: Rbx(ntb)
-    real(wp),device :: Rby(ntb)
-    real(wp),device :: Rbz(ntb)
-    real(wp),device :: rcm(nch,3)
+    use :: arry_mod, only: print_vector
 
-    integer,value :: nb,ntb,nch
-    real(wp),value :: bsx,bsy,bsz
-
-    integer :: ich,ib,os
-
-    ib = blockDim%x*(blockIdx%x-1) + threadIdx%x
-    ich = (ib-1)/nb + 1
+    class(chain_cu_t),intent(inout) :: this
+    real(wp),intent(in) :: bs(3)
+    real(wp) :: bsx,bsy,bsz,sumx,sumy,sumz
+    integer :: nb,ib
 
     ! print*,'tid',threadIdx%x,ib!,boxchains(ich)%chain_ID
 
-    os=(ich-1)*nb
-    b_img(os+ib,1)=b_img(os+ib,1)-cm_img(ich,1)
-    b_img(os+ib,2)=b_img(os+ib,2)-cm_img(ich,2)
-    b_img(os+ib,3)=b_img(os+ib,3)-cm_img(ich,3)
+    nb=size(this%chain_Rbx,1)
 
-    rcm(ich,1)=rcm(ich,1)+(Rbx(os+ib)-b_img(os+ib,1)*bsx)/nb
-    rcm(ich,2)=rcm(ich,2)+(Rby(os+ib)-b_img(os+ib,2)*bsy)/nb
-    rcm(ich,3)=rcm(ich,3)+(Rbz(os+ib)-b_img(os+ib,3)*bsz)/nb
+    bsx=bs(1)
+    bsy=bs(2)
+    bsz=bs(3)
 
-  end subroutine update_chain_krnl
+    sumx=0._wp
+    sumy=0._wp
+    sumz=0._wp
+
+    ! direct usage of this%... doesn't work for cuf loops
+    cm_imgx_ptr => this%chain_cm_imgx
+    cm_imgy_ptr => this%chain_cm_imgy
+    cm_imgz_ptr => this%chain_cm_imgz
+    b_imgx_ptr => this%chain_b_imgx
+    b_imgy_ptr => this%chain_b_imgy
+    b_imgz_ptr => this%chain_b_imgz
+    Rbx_ptr => this%chain_Rbx
+    Rby_ptr => this%chain_Rby
+    Rbz_ptr => this%chain_Rbz
+
+    !$cuf kernel do <<< *,* >>>
+    do ib=1, nb
+
+      b_imgx_ptr(ib)=b_imgx_ptr(ib)-cm_imgx_ptr
+      b_imgy_ptr(ib)=b_imgy_ptr(ib)-cm_imgy_ptr
+      b_imgz_ptr(ib)=b_imgz_ptr(ib)-cm_imgz_ptr
+
+      sumx=sumx+(Rbx_ptr(ib)-b_imgx_ptr(ib)*bsx)/nb
+      sumy=sumy+(Rby_ptr(ib)-b_imgy_ptr(ib)*bsy)/nb
+      sumz=sumz+(Rbz_ptr(ib)-b_imgz_ptr(ib)*bsz)/nb
+
+    enddo
+
+    this%chain_rcmx=sumx
+    this%chain_rcmy=sumy
+    this%chain_rcmz=sumz
+
+  end subroutine update_chain
 
 end module chain_cumod

@@ -166,15 +166,193 @@ contains
 
   end function Mstar_1d
 
-  !> calculating the real part of the diffusion tensor
-  attributes(global) subroutine calcDiff_real_d_part1(pnt,lst,Rb,ntb,nlst,bsx,bsy,bsz,neig_count)
+  ! !> calculating the real part of the diffusion tensor
+  ! attributes(global) subroutine calcDiff_real_d_part1(pnt,lst,Rb,ntb,nlst,bsx,bsy,bsz,neig_count)
+
+  !   use :: hi_cumod, only: Dreal_sparse_mode_d,rc_D_d
+
+  !   integer,device,intent(in) :: pnt(ntb+1)
+  !   integer,device,intent(in) :: lst(nlst)
+  !   real(wp),device,intent(in) :: Rb(ntb)
+  !   integer,value :: ntb,nlst
+  !   real(wp),value :: bsx,bsy,bsz
+  !   integer,device,intent(out) :: neig_count(ntb)
+  !   real(wp) :: r2,ri(3),rj(3),rij(3)
+  !   integer :: igb,ig,jgb,jg,jbeg,jend,jneig
+
+  !   igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
+
+  !   if (igb > ntb ) return
+
+
+  !   if (Dreal_sparse_mode_d) then
+  !     ! offsetD=0
+  !     ! neig_count(igb)=0
+  !     ! this%RowPtr_d(1)=1
+
+  !     ig=(igb-1)*3
+  !     jbeg=pnt(igb)
+  !     jend=pnt(igb+1)-1
+
+  !     ! Check if igb has neighbor:
+  !     if (jbeg <= jend) then
+  !       ri(1:3)=Rb(ig+1:ig+3)
+
+  !       ! calculating the neighbors
+  !       do jneig=jbeg, jend
+  !         jgb=lst(jneig)
+  !         jg=(jgb-1)*3
+  !         rj(1:3)=Rb(jg+1:jg+3)
+  !         rij=ri-rj
+  !         ! minimum image convension: (We know that rc_D < L/2)
+  !         rij(1)=rij(1)-nint(rij(1)*1/bsx)*bsx
+  !         rij(2)=rij(2)-nint(rij(2)*1/bsy)*bsy
+  !         rij(3)=rij(3)-nint(rij(3)*1/bsz)*bsz
+  !         r2=dot_product(rij,rij)
+
+  !         if (r2 <= rc_D_d**2) then
+  !           neig_count(igb)=neig_count(igb)+1
+  !         endif
+  !       enddo
+
+  !     endif
+
+  !   else
+
+  !     if (igb == 1) print*," Dreal dense operation on device not currently supported"
+
+  !   endif
+
+  ! end subroutine calcDiff_real_d_part1
+
+  ! !> calculating the real part of the diffusion tensor
+  ! attributes(global) subroutine calcDiff_real_d_part2(pnt,lst,Rb,ntb,nlst,bsx,bsy,bsz,neig_count,&
+  !   Val_d,ColInd_d,RowPtr_d,nn,nlst_d,mnn)
+
+  !   use :: hi_cumod, only: Dreal_sparse_mode_d,rc_D_d,HI_ax2_d
+
+  !   integer,device,intent(in) :: pnt(ntb+1)
+  !   integer,device,intent(in) :: lst(nlst)
+  !   real(wp),device,intent(in) :: Rb(ntb)
+  !   real(wp),device,intent(inout) :: Val_d(nlst*9)
+  !   integer,device,intent(inout) :: RowPtr_d(ntb+1)
+  !   integer,device,intent(inout) :: ColInd_d(nlst)
+  !   integer,value :: ntb,nlst,mnn
+  !   real(wp),value :: bsx,bsy,bsz
+  !   integer,device,intent(in) :: neig_count(ntb)
+  !   real(wp) :: r,r2,ri(3),rj(3),rij(3),rijhat(3),rrhat(6),m2(9)
+  !   integer :: igb,ig,jgb,jg,offset_nc,offset_D,jbeg,jend,jneig,igbc
+
+  !   integer,device,intent(in) :: nn(ntb)
+  !   integer,device,intent(in) :: nlst_d(mnn,ntb)
+
+
+  !   igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
+
+  !   if (igb > ntb ) return
+
+
+  !   if (Dreal_sparse_mode_d) then
+
+  !     ! offsetD=0
+  !     ! neig_count=0
+
+  !     ! we need to know exactly how many neighbors each bead has had so far from part1
+  !     offset_nc=0
+  !     do igbc=1, igb-1
+  !       offset_nc=offset_nc+neig_count(igbc)
+  !       ! offset_nc=offset_nc+nn(igbc)
+  !     enddo
+  !     offset_D=offset_nc*9
+
+  !     ! print*,'td',igb,offset_nc
+
+  !     ! this%RowPtr_d(1)=1
+  !     if (igb == 1) RowPtr_d(1)=1
+  !     ! do iglobbead=1, ntb-1
+  !     ! do iglobbead=1, ntb
+
+  !     ig=(igb-1)*3
+  !     jbeg=pnt(igb)
+  !     jend=pnt(igb+1)-1
+
+  !     ! Check if igb has neighbor:
+  !     if (jbeg <= jend) then
+  !       ri(1:3)=Rb(ig+1:ig+3)
+
+  !       ! loop in each thread
+  !       do jneig=jbeg, jend
+
+  !         ! jgb=lst(jneig)
+          
+  !         jgb=nlst_d(jneig-jbeg+1,igb)
+
+  !         jg=(jgb-1)*3
+  !         rj(1:3)=Rb(jg+1:jg+3)
+  !         rij=ri-rj
+  !         ! minimum image convension: (We know that rc_D < L/2)
+  !         rij(1)=rij(1)-nint(rij(1)*1/bsx)*bsx
+  !         rij(2)=rij(2)-nint(rij(2)*1/bsy)*bsy
+  !         rij(3)=rij(3)-nint(rij(3)*1/bsz)*bsz
+
+  !         r2=dot_product(rij,rij);r=sqrt(r2)
+
+  !         if (r <= rc_D_d) then
+  !           ! offset_nc=offset_nc+1
+  !           rijhat=rij/r 
+  !           rrhat(1)=rijhat(1)*rijhat(1)
+  !           rrhat(2)=rijhat(1)*rijhat(2)
+  !           rrhat(3)=rijhat(1)*rijhat(3)
+  !           rrhat(4)=rijhat(2)*rijhat(2)
+  !           rrhat(5)=rijhat(2)*rijhat(3)
+  !           rrhat(6)=rijhat(3)*rijhat(3)
+  !           Val_d(offset_D+1:offset_D+9)=M1_1d(r,r2,rrhat)
+  !           m2=M1_1d(r,r2,rrhat)
+  !           ! print*,'entered1',igb,jgb,m2(2)
+  !           ! The correction due to overlap:
+  !           if (r < (HI_ax2_d)) then ! Ovelaps in Primary box (or maybe in general!)
+              
+  !             Val_d(offset_D+1:offset_D+9)=Val_d(offset_D+1:offset_D+9) + Mstar_1d(r,r2,rrhat)
+  !             m2=Mstar_1d(r,r2,rrhat)
+  !             ! print*,'entered2',igb,jgb,m2(2)
+  !           end if
+  !           ColInd_d(offset_nc+1)=jgb
+
+  !           offset_nc=offset_nc+1
+  !           offset_D=offset_D+9
+
+  !         end if
+  !       end do ! jneig
+  !     end if ! jbeg.le.jend
+
+  !     RowPtr_d(igb+1)=offset_nc+1
+  !       ! print*,'ibead',iglobbead
+  !     ! end do ! iglobbead
+  !     if (igb == ntb) RowPtr_d(ntb+1)=offset_nc+1
+
+  !     ! this%RowPtr_d=this%RowPtr_h
+  !     ! this%ColInd_d=this%ColInd_h
+  !     ! this%Val_d=this%Val_h
+
+  !   else
+
+  !     if (igb == 1) print*," Dreal dense operation on device not currently supported"
+
+  !   endif
+
+  ! end subroutine calcDiff_real_d_part2
+
+
+
+ !> calculating the real part of the diffusion tensor
+  attributes(global) subroutine calcDiff_real_d_part1(nn,nlst,Rb,ntb,mnn,bsx,bsy,bsz,neig_count)
 
     use :: hi_cumod, only: Dreal_sparse_mode_d,rc_D_d
 
-    integer,device,intent(in) :: pnt(ntb+1)
-    integer,device,intent(in) :: lst(nlst)
+    integer,device,intent(in) :: nn(ntb)
+    integer,device,intent(in) :: nlst(mnn,ntb)
     real(wp),device,intent(in) :: Rb(ntb)
-    integer,value :: ntb,nlst
+    integer,value :: ntb,mnn
     real(wp),value :: bsx,bsy,bsz
     integer,device,intent(out) :: neig_count(ntb)
     real(wp) :: r2,ri(3),rj(3),rij(3)
@@ -184,23 +362,17 @@ contains
 
     if (igb > ntb ) return
 
-
     if (Dreal_sparse_mode_d) then
-      ! offsetD=0
-      ! neig_count(igb)=0
-      ! this%RowPtr_d(1)=1
 
       ig=(igb-1)*3
-      jbeg=pnt(igb)
-      jend=pnt(igb+1)-1
+      jend=nn(igb)
 
       ! Check if igb has neighbor:
-      if (jbeg <= jend) then
+      if (jend > 0) then
         ri(1:3)=Rb(ig+1:ig+3)
-
         ! calculating the neighbors
-        do jneig=jbeg, jend
-          jgb=lst(jneig)
+        do jneig=1, jend
+          jgb=nlst(jneig,igb)
           jg=(jgb-1)*3
           rj(1:3)=Rb(jg+1:jg+3)
           rij=ri-rj
@@ -226,124 +398,15 @@ contains
   end subroutine calcDiff_real_d_part1
 
   !> calculating the real part of the diffusion tensor
-  attributes(global) subroutine calcDiff_real_d_part2(pnt,lst,Rb,ntb,nlst,bsx,bsy,bsz,neig_count,&
-    Val_d,ColInd_d,RowPtr_d)
-
-    use :: hi_cumod, only: Dreal_sparse_mode_d,rc_D_d,HI_ax2_d
-
-    integer,device,intent(in) :: pnt(ntb+1)
-    integer,device,intent(in) :: lst(nlst)
-    real(wp),device,intent(in) :: Rb(ntb)
-    real(wp),device,intent(inout) :: Val_d(nlst*9)
-    integer,device,intent(inout) :: RowPtr_d(ntb+1)
-    integer,device,intent(inout) :: ColInd_d(nlst)
-    integer,value :: ntb,nlst
-    real(wp),value :: bsx,bsy,bsz
-    integer,device,intent(in) :: neig_count(ntb)
-    real(wp) :: r,r2,ri(3),rj(3),rij(3),rijhat(3),rrhat(6),m2(9)
-    integer :: igb,ig,jgb,jg,offset_nc,offset_D,jbeg,jend,jneig,igbc
-
-
-    igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
-
-    if (igb > ntb ) return
-
-
-    if (Dreal_sparse_mode_d) then
-
-      ! offsetD=0
-      ! neig_count=0
-      offset_nc=0
-      do igbc=1, igb-1
-        offset_nc=offset_nc+neig_count(igbc)
-      enddo
-      offset_D=offset_nc*9
-
-      ! print*,'td',igb,offset_nc
-
-      ! this%RowPtr_d(1)=1
-      if (igb == 1) RowPtr_d(1)=1
-      ! do iglobbead=1, ntb-1
-      ! do iglobbead=1, ntb
-
-      ig=(igb-1)*3
-      jbeg=pnt(igb)
-      jend=pnt(igb+1)-1
-
-      ! Check if igb has neighbor:
-      if (jbeg <= jend) then
-        ri(1:3)=Rb(ig+1:ig+3)
-
-        ! loop in each thread
-        do jneig=jbeg, jend
-
-          jgb=lst(jneig)
-          jg=(jgb-1)*3
-          rj(1:3)=Rb(jg+1:jg+3)
-          rij=ri-rj
-          ! minimum image convension: (We know that rc_D < L/2)
-          rij(1)=rij(1)-nint(rij(1)*1/bsx)*bsx
-          rij(2)=rij(2)-nint(rij(2)*1/bsy)*bsy
-          rij(3)=rij(3)-nint(rij(3)*1/bsz)*bsz
-
-          r2=dot_product(rij,rij);r=sqrt(r2)
-
-          if (r <= rc_D_d) then
-            ! offset_nc=offset_nc+1
-            rijhat=rij/r 
-            rrhat(1)=rijhat(1)*rijhat(1)
-            rrhat(2)=rijhat(1)*rijhat(2)
-            rrhat(3)=rijhat(1)*rijhat(3)
-            rrhat(4)=rijhat(2)*rijhat(2)
-            rrhat(5)=rijhat(2)*rijhat(3)
-            rrhat(6)=rijhat(3)*rijhat(3)
-            Val_d(offset_D+1:offset_D+9)=M1_1d(r,r2,rrhat)
-            m2=M1_1d(r,r2,rrhat)
-            ! print*,'entered1',igb,jgb,m2(2)
-            ! The correction due to overlap:
-            if (r < (HI_ax2_d)) then ! Ovelaps in Primary box (or maybe in general!)
-              
-              Val_d(offset_D+1:offset_D+9)=Val_d(offset_D+1:offset_D+9) + Mstar_1d(r,r2,rrhat)
-              m2=Mstar_1d(r,r2,rrhat)
-              ! print*,'entered2',igb,jgb,m2(2)
-            end if
-            ColInd_d(offset_nc+1)=jgb
-
-            offset_nc=offset_nc+1
-            offset_D=offset_D+9
-
-          end if
-        end do ! jneig
-      end if ! jbeg.le.jend
-
-      RowPtr_d(igb+1)=offset_nc+1
-        ! print*,'ibead',iglobbead
-      ! end do ! iglobbead
-      if (igb == ntb) RowPtr_d(ntb+1)=offset_nc+1
-
-      ! this%RowPtr_d=this%RowPtr_h
-      ! this%ColInd_d=this%ColInd_h
-      ! this%Val_d=this%Val_h
-
-    else
-
-      if (igb == 1) print*," Dreal dense operation on device not currently supported"
-
-    endif
-
-  end subroutine calcDiff_real_d_part2
-
-
-
-  !> calculating the real part of the diffusion tensor
-  attributes(global) subroutine calcDiff_real_d(nn,nlst,Rb,ntb,mnn,mnnt,bsx,bsy,bsz,&
-    Val_d,ColInd_d,RowPtr_d)
+  attributes(global) subroutine calcDiff_real_d_part2(nn,nlst,Rb,ntb,mnn,mnnt,bsx,bsy,bsz,&
+    Val_d,ColInd_d,RowPtr_d,neig_count)
 
     use :: hi_cumod, only: Dreal_sparse_mode_d,rc_D_d,HI_ax2_d
 
     integer,device,intent(in) :: nn(ntb)
     integer,device,intent(in) :: nlst(mnn,ntb)
     real(wp),device,intent(in) :: Rb(ntb)
+    integer,device,intent(in) :: neig_count(ntb)
     real(wp),device,intent(inout) :: Val_d(mnnt*9)
     integer,device,intent(inout) :: RowPtr_d(ntb+1)
     integer,device,intent(inout) :: ColInd_d(mnnt)
@@ -360,17 +423,17 @@ contains
 
     if (Dreal_sparse_mode_d) then
 
-      ! offset_nc=0
-      ! do igbc=1, igb-1
-      !   offset_nc=offset_nc+neig_count(igbc)
-      ! enddo
-      ! offset_D=offset_nc*9
-
       offset_nc=0
       do igbc=1, igb-1
-        offset_nc=offset_nc+nn(igbc)
+        offset_nc=offset_nc+neig_count(igbc)
       enddo
       offset_D=offset_nc*9
+
+      ! offset_nc=0
+      ! do igbc=1, igb-1
+      !   offset_nc=offset_nc+nn(igbc)
+      ! enddo
+      ! offset_D=offset_nc*9
 
       ! print*,'td',igb,offset_nc
 
@@ -440,14 +503,7 @@ contains
 
     endif
 
-  end subroutine calcDiff_real_d
-
-
-
-
-
-
-
+  end subroutine calcDiff_real_d_part2
 
   ! This function calculated the B-spline function with order p at x.
   attributes(device) function M_spl(x,p)
@@ -593,6 +649,8 @@ contains
     use :: hi_cumod, only: hi_cu_t
     use :: cusparse
 
+    use :: arry_mod, only: print_vector
+
     type(hi_cu_t),intent(inout) :: this
     integer,intent(in) :: ntb
     real(wp),device,intent(in) :: Rb(:)
@@ -601,8 +659,10 @@ contains
     real(wp) :: bsx,bsy,bsz,box,boy,boz
     integer :: nlst,K_dim,istat,ierr,r
     ! integer :: K_dim,istat
-    integer,allocatable :: testi(:)
+    integer,allocatable :: testi(:),nc_tmp1(:),nc_tmp2(:)
     real(wp),allocatable :: testr(:)
+
+    integer :: nc_test
 
     bsx=boxsize(1)
     bsy=boxsize(2)
@@ -617,6 +677,7 @@ contains
 
       ! real part
 
+      ! retained for debugging
       ! allocate(neig_count(ntb))
       ! neig_count=0
       ! ! First count the neighbors
@@ -625,12 +686,29 @@ contains
       ! this%nnzb=sum(neig_count)
       ! ! Second populate the arrays
       ! call calcDiff_real_d_part2 <<<(ntb+255)/256,256>>> (this%point_D_d,this%list_D_d,Rb,ntb,nlst,&
-      !   bsx,bsy,bsz,neig_count,this%Val_d,this%ColInd_d,this%RowPtr_d)
+      !   bsx,bsy,bsz,neig_count,this%Val_d,this%ColInd_d,this%RowPtr_d,this%nn_d,this%nlst_d,this%mnnt/ntb)
       ! deallocate(neig_count)
 
-      call calcDiff_real_d <<<(ntb+255)/256,256>>> (this%nn_d,this%nlst_d,Rb,ntb,this%mnnt/ntb,&
-        this%mnnt,bsx,bsy,bsz,this%Val_d,this%ColInd_d,this%RowPtr_d)
-      ! r = cudathreadsynchronize()
+      ! First count the neighbors
+      allocate(neig_count(ntb))
+      neig_count=0
+      call calcDiff_real_d_part1 <<<(ntb+255)/256,256>>> (this%nn_d,this%nlst_d,Rb,ntb,this%mnnt/ntb,&
+        bsx,bsy,bsz,neig_count)
+      this%nnzb=sum(neig_count)
+      ! Second populate the arrays
+      call calcDiff_real_d_part2 <<<(ntb+255)/256,256>>> (this%nn_d,this%nlst_d,Rb,ntb,this%mnnt/ntb,&
+        this%mnnt,bsx,bsy,bsz,this%Val_d,this%ColInd_d,this%RowPtr_d,neig_count)
+      r = cudathreadsynchronize()
+      deallocate(neig_count)
+
+      ! nc_test=this%RowPtr_h(ntb+1)-1
+      ! print*,'neig_count',nc_test
+      ! this%Val_h=this%Val_d
+      ! this%ColInd_h=this%ColInd_d
+      ! this%RowPtr_h=this%RowPtr_d
+      ! call print_vector(this%Val_h(1:nc_test*9),'val_d')
+      ! call print_vector(this%ColInd_h(1:nc_test),'ColInd_d')
+      ! call print_vector(this%RowPtr_h,'RowPtr_d')
 
       ierr = cudaGetLastError()
       if (ierr /= cudaSuccess) then
@@ -693,7 +771,7 @@ contains
 
     real(wp),allocatable :: ftest(:)
 
-    allocate(ftest(ntbx3))
+    ! allocate(ftest(ntbx3))
 
     ! ftest=F_d
 
@@ -749,8 +827,18 @@ contains
       F_d(3*ib-1)=Fy_d(ib)
       F_d(3*ib  )=Fz_d(ib)
     enddo
+
+    ! ftest=F_d
+    ! call print_vector(ftest,'df_recip')
+
     call cublasDaxpy(ntbx3,1._wp,this%DF_self_d,1,F_d,1)
+
+    ! ftest=this%DF_self_d
+    ! call print_vector(ftest,'df_self')
+
     call cublasDaxpy(ntbx3,1._wp,this%DF_real_d,1,F_d,1)
+    ! ftest=this%DF_real_d
+    ! call print_vector(ftest,'df_real')
 
     ! ftest=F_d
     ! call print_vector(ftest,'cuda df')

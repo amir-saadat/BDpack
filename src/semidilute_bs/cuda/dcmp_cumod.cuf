@@ -108,6 +108,8 @@ contains
     use :: hi_cumod, only: hi_cu_t
     use :: diffcalc_cumod, only: PME_d
 
+    use :: arry_mod, only: print_vector
+
     type(hi_cu_t),intent(inout) :: hi_d
     integer :: nbeadx3,nbead
     integer,intent(inout) :: minit,mub
@@ -227,12 +229,14 @@ mlp:do
             ! call symv(D,VP,w)
           ! else ! means PME:
             nbead=nbeadx3/3
-
+! print*,'k,k0,m',k,k0,m
+! testr=VP_d
+! call print_vector(testr,'wbef')
             call cublasDcopy(nbeadx3,VP_d,1,w_d,1)
             call PME_d(hi_d,w_d,nbead,nbeadx3,boxsizeinp)
-
 ! testr=w_d
-! print*,'testr',k,testr
+! call print_vector(testr,'waf')
+
             ! w_d=w
             ! call PME_cpu(VP,nbead,boxsizeinp,w)
           ! end if
@@ -411,7 +415,8 @@ mlp:do
       ! end if
       ! Ybar=Y
 
-
+! print*,'m',m,minit
+! testr=Y_d;call print_vector(testr,'y')
 
 
       if (m >= minit) then

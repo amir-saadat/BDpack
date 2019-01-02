@@ -11,7 +11,7 @@ COMP     = mpif90 #$(INTELMPI)/mpiifort
 #----------------------------------------------------------------------
 # pgf90 or <Address of CUDA Fortran bin directory>/pgf90
 #----------------------------------------------------------------------
-USE_GPU  = FALSE
+USE_GPU  = TRUE
 CUCOMP   = mpif90 #pgf90
 #----------------------------------------------------------------------
 # gfortran, ifort or <Address of Fortran compiler>

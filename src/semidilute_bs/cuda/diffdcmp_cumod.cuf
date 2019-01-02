@@ -43,6 +43,7 @@ module diffdcmp_cumod
   use :: types, only: decomp
   use :: rndm_cumod, only: dw_bl_d
   use :: dcmp_cumod, only: Lanczos_d
+  use :: arry_mod, only: print_vector
 
 contains
 
@@ -56,6 +57,9 @@ contains
     real(wp),intent(in) :: boxsize(3)
     type(decomp) :: decompRes
 
+    ! real(wp) :: dwtest(132)
+
+
     if (HIcalc_mode == 'Ewald') then
 
       print '(" Ewald is yet not supported on GPU, use PME")'
@@ -67,8 +71,11 @@ contains
           mrst=mBlLan
           ! assuming double precision
           if (ncols == 1) then
+            ! dwtest=dw_bl_d(:,1)
+            ! call print_vector(dwtest,'mydw1')
             call Lanczos_d(hi_d,dw_bl_d(:,1),ntotbeadx3,errormin,mubBlLan,mrst,decompRes,&
               boxsizeinp=boxsize,msetinp=mset)
+            ! dwtest=dw_bl_d(:,1);call print_vector(dwtest,'mydw2')
           else
             ! #ifdef USE_DP
             !   call BlockLanczos(dw_bl,aBlLan,WBlLan,Ybar,ntotbeadx3,ncols,errormin,mubBlLan,mrst,dw_bltmp,&
@@ -82,8 +89,10 @@ contains
           mst=mrst
         else
           if (ncols == 1) then
+            ! dwtest=dw_bl_d(:,1);call print_vector(dwtest,'mydw1')
             call Lanczos_d(hi_d,dw_bl_d(:,1),ntotbeadx3,errormin,mubBlLan,mst,decompRes,&
               boxsizeinp=boxsize,msetinp=mset)
+            ! dwtest=dw_bl_d(:,1);call print_vector(dwtest,'mydw2')
           else
             ! #ifdef USE_DP
             !   call BlockLanczos(dw_bl,aBlLan,WBlLan,Ybar,ntotbeadx3,ncols,errormin,mubBlLan,mst,dw_bltmp,&

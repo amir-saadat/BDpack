@@ -428,7 +428,7 @@ contains
     #ifdef USE_GPU
       ! Allocation of configurational variables:
       allocate(this%R_d(ntotbeadx3))
-      allocate(this%rcm_d(3,nchain))
+      allocate(this%rcm_d(nchain,3))
       allocate(this%Q_d(ntotsegx3))
       ! Array for bead positions:
       allocate(this%Rb_d(ntotbeadx3))
@@ -500,7 +500,7 @@ contains
       use :: trsfm_cumod, only: init_trsfm_tm_d,update_trsfm_d,update_arng_d
       use :: rndm_cumod, only: dw_bl_d
       use :: force_cumod, only: Fphi_d
-      use :: chain_cumod, only: update_chain_krnl
+      use :: chain_cumod
       use :: diffcalc_cumod, only: PME_d
     #endif
     
@@ -517,10 +517,13 @@ contains
       type(dim3) :: dimGrid, dimBlock
       integer :: istat,ierr
       real(wp) :: et
-      real(wp),allocatable :: rbtest(:)
     #endif
 
-    ! allocate(rbtest(ntotbeadx3))
+real(wp),allocatable :: rbtest(:)
+
+
+
+    allocate(rbtest(ntotbeadx3))
 
     !----------------------
     !>>> Initial time step:
@@ -569,6 +572,8 @@ contains
         this%Rby_d=this%Rby
         this%Rbz_d=this%Rbz
 
+        this%b_img_d=0
+
         if (itrst /= 0) then
           call update_arng_d()
           call update_trsfm_d()
@@ -605,7 +610,8 @@ contains
     !-----------------------------
     !>>> Random number generation:
     !-----------------------------
-
+! print*,'itime',itime
+! call print_vector(dw_bl(:,1),'dworigin')
     #ifdef USE_GPU
       call this%Boxrndm_d%gen(nchain,ntotbeadx3,dt)
       dw_bl_d=dw_bl
@@ -618,15 +624,27 @@ contains
     ! Note that PBC is applied in the beginning of the time step to stay
     ! consistent with calculation of forces.
 
-    call this%Boxtrsfm%applypbc(this%size,this%invsize,this%Rbx,this%Rby,this%Rbz,&
-                                this%rcm_tilde,this%b_img,this%cm_img,nbead,itime)
-    call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
 
     #ifdef USE_GPU
 
       call this%Boxtrsfm_d%applypbc(this%size,this%invsize,this%Rbx_d,this%Rby_d,&
         this%Rbz_d,this%rcm_d,this%b_img_d,this%cm_img_d,nbead,itime)
       call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
+
+      this%Qdagger_tilde=this%Q_d
+      this%rcm_tilde=this%rcm_d
+      this%R_tilde=this%R_d
+      this%Rb_tilde=this%Rb_d
+      this%Rbx=this%Rbx_d
+      this%Rby=this%Rby_d
+      this%Rbz=this%Rbz_d
+
+
+    #else
+
+      call this%Boxtrsfm%applypbc(this%size,this%invsize,this%Rbx,this%Rby,this%Rbz,&
+        this%rcm_tilde,this%b_img,this%cm_img,nbead,itime)
+      call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
 
     #endif
 
@@ -640,6 +658,13 @@ contains
     if (doTiming) call tick(count0)
     if (EVForceLaw /= 'NoEV') then
       #ifdef USE_GPU
+        select case (FlowType)
+          case ('Equil')
+            ! call this%Boxevf_d%update_vlt(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,&
+            !                this%size,this%invsize,itime,itrst,ntotbead,ntotbeadx3)
+          case ('PSF')
+          case ('PEF')
+        end select
       #else
         select case (FlowType)
           case ('Equil')
@@ -657,7 +682,6 @@ contains
       #endif
     end if
     if (doTiming) et_vlt=et_vlt+tock(count0)
-! print*,'box2'
 
     !----------------------------------------------------------
     !>>> Constructing Verlet neighbour-list for HI calculation:
@@ -665,18 +689,22 @@ contains
 
     if (HIcalc_mode == 'PME') then
       #ifdef USE_GPU
-        call update_lst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,itrst,nchain,nbead,&
-          nbeadx3,ntotbead,this%size,this%origin)
-        call this%Boxhi_d%updatelst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,&
-          itrst,nchain,nbead,nbeadx3,ntotbead,this%size,this%origin)
+
+    call update_lst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,itrst,nchain,nbead,&
+      nbeadx3,ntotbead,this%size,this%origin)
+    call this%Boxhi_d%updatelst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,&
+        itrst,nchain,nbead,nbeadx3,ntotbead,this%size,this%origin)
+
+
         call this%Boxhi_d%updatelst_(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,itime,&
           itrst,nchain,nbead,nbeadx3,ntotbead,ntotbeadx3,this%size,this%origin)
+
+
       #else
         call update_lst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,itrst,nchain,nbead,&
           nbeadx3,ntotbead,this%size,this%origin)
       #endif
     end if
-! print*,'box3'
 
     !---------------------------------------------------
     !>>> Calculating conservative forces; spring and EV:
@@ -712,24 +740,6 @@ contains
     !>>> Integration in Euler scheme:
     !--------------------------------
 
-
-    #ifdef USE_GPU
-
-      if (hstar == 0._wp) then
-        call cublasDaxpy(ntotbeadx3,0.25_wp*dt,Fphi_d,1,this%Rb_d,1)
-        call cublasDaxpy(ntotbeadx3,coeff,dw_bl_d(:,col),1,this%Rb_d,1)
-      else
-        call PME_d(this%Boxhi_d,Fphi_d,ntotbead,ntotbeadx3,this%size)
-        call cublasDaxpy(ntotbeadx3,0.25_wp*dt,Fphi_d,1,this%Rb_d,1)
-        ! dw_bl_d(:,col)=dw_bltmp(:,col)
-        ! call cublasDaxpy(ntotbeadx3,coeff,dw_bl_d(:,col),1,this%Rb_d,1)
-      endif
-
-      call this%Boxconv_d%RbtoRbc(this%Rb_d,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotbead)
-
-    #endif
-
-
     ! rbtest=dw_bl_d(:,1)
     ! print*,'dw cuda',rbtest
     ! rbtest=Fphi_d
@@ -737,70 +747,123 @@ contains
     ! rbtest=this%Rb_d
     ! print*,'rb1',rbtest
 
-
-
-
-
     if (doTiming) call tick(count0)
 
-    if (FlowType /= 'Equil') call this%Boxflow%apply(Pe,dt,this%Rb_tilde,ntotbeadx3)
-    if (hstar == 0._wp) then
-      this%Rb_tilde=this%Rb_tilde+0.25_wp*dt*Fphi+coeff*dw_bl(:,col)
-    else
-      select case (HIcalc_mode)
-        case ('Ewald')
-          call symv(Diff_tens,Fphi,this%Rb_tilde,alpha=0.25_wp*dt,beta=1._wp)
-        case ('PME')
-          ! #ifdef USE_GPU
-          !   call PME_dev(this%Boxhi_d,Fphi,ntotbead,this%size,DF_tot)
-          ! #else
-            call PME_cpu(Fphi,ntotbead,this%size,DF_tot)
-          ! #endif
-          this%Rb_tilde=this%Rb_tilde+0.25_wp*dt*DF_tot
-      end select
+    #ifdef USE_GPU
 
-      ! #ifdef USE_GPU
-      !   this%Rb_tilde=this%Rb_tilde+coeff*dw_bltmp(:,col)
-      ! #else
-      !   #ifdef USE_DP
-      !     this%Rb_tilde=this%Rb_tilde+coeff*dw_bltmp(:,col)
-      !   #elif USE_SP
-      !     this%Rb_tilde=this%Rb_tilde+coeff*real(dw_bltmp(:,col),kind=wp)
-      !   #endif
-      ! #endif
 
-    end if
+      if (hstar == 0._wp) then
+        call cublasDaxpy(ntotbeadx3,0.25_wp*dt,Fphi_d,1,this%Rb_d,1)
+        call cublasDaxpy(ntotbeadx3,coeff,dw_bl_d(:,col),1,this%Rb_d,1)
+      else
+        call PME_d(this%Boxhi_d,Fphi_d,ntotbead,ntotbeadx3,this%size)
+
+        call cublasDaxpy(ntotbeadx3,0.25_wp*dt,Fphi_d,1,this%Rb_d,1)
+        ! dw_bl_d(:,col)=dw_bltmp(:,col)
+        call cublasDaxpy(ntotbeadx3,coeff,dw_bl_d(:,col),1,this%Rb_d,1)
+      endif
+
+      call this%Boxconv_d%RbtoRbc(this%Rb_d,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotbead)
+
+      this%Qdagger_tilde=this%Q_d
+      this%rcm_tilde=this%rcm_d
+      this%R_tilde=this%R_d
+      this%Rb_tilde=this%Rb_d
+      this%Rbx=this%Rbx_d
+      this%Rby=this%Rby_d
+      this%Rbz=this%Rbz_d
+
+    #else
+
+      if (FlowType /= 'Equil') call this%Boxflow%apply(Pe,dt,this%Rb_tilde,ntotbeadx3)
+
+      if (hstar == 0._wp) then
+        this%Rb_tilde=this%Rb_tilde+0.25_wp*dt*Fphi+coeff*dw_bl(:,col)
+      else
+        select case (HIcalc_mode)
+          case ('Ewald')
+            call symv(Diff_tens,Fphi,this%Rb_tilde,alpha=0.25_wp*dt,beta=1._wp)
+          case ('PME')
+            ! #ifdef USE_GPU
+            !   call PME_dev(this%Boxhi_d,Fphi,ntotbead,this%size,DF_tot)
+            ! #else
+              call PME_cpu(Fphi,ntotbead,this%size,DF_tot)
+            ! #endif
+            this%Rb_tilde=this%Rb_tilde+0.25_wp*dt*DF_tot
+        end select
+
+        ! #ifdef USE_GPU
+        !   this%Rb_tilde=this%Rb_tilde+coeff*dw_bltmp(:,col)
+        ! #else
+        #ifdef USE_DP
+          this%Rb_tilde=this%Rb_tilde+coeff*dw_bltmp(:,col)
+        #elif USE_SP
+          this%Rb_tilde=this%Rb_tilde+coeff*real(dw_bltmp(:,col),kind=wp)
+        #endif
+        ! #endif
+
+      end if
+
+      call RbtoRbc(this%Rb_tilde,this%Rbx,this%Rby,this%Rbz,ntotbead)
+
+
+    #endif
+
+        ! this%b_img=this%b_img_d
+        ! this%cm_img=this%cm_img_d
+        ! print*,'b_img',this%b_img
+        ! print*,'cm_img',this%cm_img
+        ! call print_vector(this%Rb_tilde,'rb')
+        ! call print_matrix(this%rcm_tilde,'rcm')
+
+        if (itime == 1000 .or. itime==2000) then
+
+        ! #ifdef USE_GPU
+        ! dw_bltmp=dw_bl_d
+        ! #endif
+        ! call print_vector(dw_bltmp(:,col),'dw_bl')
+        call print_vector(this%Rb_tilde,'rb')
+        ! call print_matrix(this%rcm_tilde,'rcm')
+
+        endif
 
     if (doTiming) et_PR=et_PR+tock(count0)
 
-    call RbtoRbc(this%Rb_tilde,this%Rbx,this%Rby,this%Rbz,ntotbead)
     ! print*,'dw_bl',dw_bltmp(:,col)
     ! print*,'df',DF_tot
     ! print*,'rb2',this%Rb_tilde
     ! stop
 
-    !$omp parallel default(private) shared(nchain,nbead,this)
-    !$omp do schedule(auto)
-      do ichain=1, nchain
-        call this%BoxChains(ichain)%update(nbead,this%size,this%invsize)
-      end do
-    !$omp end do
-    !$omp end parallel
+    call tick(count0)
 
     #ifdef USE_GPU
 
-      ! call tick(count0)
+    !   call update_chain_krnl <<<(ntotbead+255)/256,256>>>(this%b_img_d,this%cm_img_d,this%rcm_d,&
+    !     this%Rbx_d,this%Rby_d,this%Rbz_d,nbead,ntotbead,nchain,this%size(1),this%size(2),this%size(3))
+    !   ierr = cudaGetLastError()
+    !   if (ierr /= cudaSuccess) then
+    !     print '(" update chain error: ",a)', cudaGetErrorString(ierr)
+    !     stop
+    !   endif
 
-      call update_chain_krnl <<<(ntotbead+255)/256,256>>>(this%b_img_d,this%cm_img_d,this%rcm_d,&
-        this%Rbx_d,this%Rby_d,this%Rbz_d,nbead,ntotbead,nchain,this%size(1),this%size(2),this%size(3))
-      ierr = cudaGetLastError()
-      if (ierr /= cudaSuccess) then
-        print '(" update chain error: ",a)', cudaGetErrorString(ierr)
-        stop
-      endif
-      ! et=tock(count0)
+      do ichain=1, nchain
+        call this%BoxChains_d(ichain)%update(this%size)
+      end do
 
-      ! print*,'time1',et
+      this%rcm_tilde=this%rcm_d
+      ! call print_matrix(this%rcm_tilde,'rcm')
+
+    #else
+
+      !$omp parallel default(private) shared(nchain,nbead,this)
+      !$omp do schedule(auto)
+        do ichain=1, nchain
+          call this%BoxChains(ichain)%update(nbead,this%size,this%invsize)
+        end do
+      !$omp end do
+      !$omp end parallel
+
+      ! call print_matrix(this%rcm_tilde,'rcm')
 
     #endif
 
@@ -810,17 +873,18 @@ contains
     !>>> Updating the dimension of the deformed box :
     !------------------------------------------------
 
-    call update_arng(eps)
-    if (reArng) then
-      call this%Boxtrsfm%unwrap(this%size,this%Rbx,this%Rby,this%b_img,itime)
-    end if
-    call update_trsfm(this%size)
-
-
     #ifdef USE_GPU
 
       call update_arng_d()
       call update_trsfm_d()
+
+    #else
+
+      call update_arng(eps)
+      if (reArng) then
+        call this%Boxtrsfm%unwrap(this%size,this%Rbx,this%Rby,this%b_img,itime)
+      end if
+      call update_trsfm(this%size)
 
     #endif
 
@@ -985,6 +1049,12 @@ contains
     use :: mpi
     !include 'mpif.h'
 
+
+    #ifdef USE_GPU
+    use :: rndm_cumod, only: dw_bl_d
+    #endif
+    use :: hi_mod, only: dw_bltmp
+
     class(box),intent(inout) :: this
     integer,intent(in) :: itime
     real(wp),intent(in) :: dt
@@ -998,6 +1068,10 @@ contains
     end if
     HIlp: do
       HIcount=HIcount+1
+      
+
+
+
       if (doTiming) call tick(count0)
 
 
@@ -1005,30 +1079,40 @@ contains
       !   call calcDiffTens_d(this%Boxhi_d,this%Rb_d,ntotbead,this%size,this%origin)
       ! #endif
 
-
-      if (hstar /= 0._wp) then
-        #ifdef USE_GPU
-          call calcDiffTens_dev(this%Boxhi_d,this%Rb_tilde,ntotbead,this%size,this%origin,itime)
-        #else
-          call calcDiffTens_cpu(this%Rb_tilde,ntotbead,this%size,this%origin,itime)
-        #endif
-      endif
-      if (doTiming) then
-        et_DT=et_DT+tock(count0)
-        call tick(count0)
-      end if
       #ifdef USE_GPU
-        ! call calcBrownNoise_dev(this%Boxhi_d,this%decompRes,itime,ntotbeadx3,this%size)
+
+        if (hstar /= 0._wp) then
+          ! call calcDiffTens_dev(this%Boxhi_d,this%Rb_tilde,ntotbead,this%size,this%origin,itime)
+          call calcDiffTens_d(this%Boxhi_d,this%Rb_d,ntotbead,this%size,this%origin)
+        endif
+        if (doTiming) then
+          et_DT=et_DT+tock(count0)
+          call tick(count0)
+        end if
+        dw_bltmp=dw_bl_d
+        ! remember that the following routine is where PME_d is called for the first time
+        call calcBrownNoise_d(this%Boxhi_d,this%decompRes,itime,ntotbeadx3,this%size)
       #else
-        call calcBrownNoise_cpu(this%decompRes,itime,ntotbeadx3,this%size)
-      #endif
+
+        if (hstar /= 0._wp) then
+          ! #ifdef USE_GPU
+          !   call calcDiffTens_dev(this%Boxhi_d,this%Rb_tilde,ntotbead,this%size,this%origin,itime)
+          ! #else
+            call calcDiffTens_cpu(this%Rb_tilde,ntotbead,this%size,this%origin,itime)
+          ! #endif
+        endif
+        if (doTiming) then
+          et_DT=et_DT+tock(count0)
+          call tick(count0)
+        end if
+        ! #ifdef USE_GPU
+          ! call calcBrownNoise_dev(this%Boxhi_d,this%decompRes,itime,ntotbeadx3,this%size)
+        ! #else
+
+          call calcBrownNoise_cpu(this%decompRes,itime,ntotbeadx3,this%size)
+        ! #endif
 
 
-
-
-      #ifdef USE_GPU
-        call calcDiffTens_d(this%Boxhi_d,this%Rb_d,ntotbead,this%size,this%origin)
-        ! call calcBrownNoise_d(this%Boxhi_d,this%decompRes,itime,ntotbeadx3,this%size)
       #endif
 
         ! print*,'nnzb_h',this%Boxhi_d%nnzb

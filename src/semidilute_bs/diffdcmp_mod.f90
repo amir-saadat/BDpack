@@ -141,8 +141,10 @@ contains
           mrst=mBlLan
           if (ncols == 1) then
             #ifdef USE_DP
+            ! call print_vector(dw_bl(:,1),'mydw1')
               call Lanczos(dw_bl,WBlLan,Ybar,ntotbeadx3,errormin,mubBlLan,mrst,dw_bltmp,decompRes,&
                 boxsizeinp=boxsize,msetinp=mset)
+            ! call print_vector(dw_bltmp(:,1),'mydw2')
             #elif USE_SP
               call Lanczos(real(dw_bl,kind=double),real(WBlLan,kind=double),real(Ybar,kind=double),ntotbeadx3,&
                 real(errormin,kind=double),mubBlLan,mrst,dw_bltmp,decompRes,boxsizeinp=boxsize,msetinp=mset)
@@ -161,8 +163,10 @@ contains
         else
           if (ncols == 1) then
             #ifdef USE_DP
+            ! call print_vector(dw_bl(:,1),'mydw1')
               call Lanczos(dw_bl,WBlLan,Ybar,ntotbeadx3,errormin,mubBlLan,mst,dw_bltmp,decompRes,&
                 boxsizeinp=boxsize,msetinp=mset)
+              ! call print_vector(dw_bltmp(:,1),'mydw2')
             #elif USE_SP
               call Lanczos(real(dw_bl,kind=double),real(WBlLan,kind=double),real(Ybar,kind=double),ntotbeadx3,&
                 real(errormin,kind=double),mubBlLan,mst,dw_bltmp,decompRes,boxsizeinp=boxsize,msetinp=mset)

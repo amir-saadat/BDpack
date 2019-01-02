@@ -66,6 +66,13 @@ module conv_mod
   integer,allocatable,save :: Bbar_cols(:),Bbar_rowInd(:)
   !> @}
 
+  ! ! B for comb polymer
+  ! real(wp),allocatable :: B_vals(:)
+  ! integer,allocatable :: B_cols(:),B_rowInd(:)
+  ! ! Bbar for comb polymer
+  ! real(wp),allocatable :: B_vals_cmb(:)
+  ! integer,allocatable :: B_cols_cmb(:),B_rowInd_cmb(:)
+
 contains
 
   !> Initialization of conversion module
@@ -94,6 +101,7 @@ contains
         Bbar_rowInd(offsetch1+isegx3+1)=Bbar_rowInd(offsetch1+isegx3)+2
       end do
     end do
+
     ! For making B_tilde sparse (CSR):
     maxnz_B=nchain*nbeadx3*nseg
     allocate(B_vals(maxnz_B),B_cols(maxnz_B),B_rowInd(ntotbeadx3+1))
@@ -122,6 +130,79 @@ contains
         end do ! icoor
       end do ! ibead
     end do ! ichain
+
+
+    ! ! Constructing Bbar_tilde_cmb and B_tilde_cmb based on Bbar and B:
+    ! ! For making Bbar_tilde sparse (CSR):
+    ! maxnz_Bbar=nchain*nsegx3*2
+    ! allocate(Bbar_vals(maxnz_Bbar),Bbar_cols(maxnz_Bbar),Bbar_rowInd(ntotsegx3+1))
+    ! Bbar_rowInd(1)=1
+    ! do ichain=1, nchain
+    !   offsetch1=(ichain-1)*nsegx3
+    !   offsetch2=(ichain-1)*nbeadx3
+    !   offsetchx2=offsetch1*2
+    !   do isegx3=1, nsegx3
+    !     offsetseg=(isegx3-1)*2
+    !     Bbar_cols(offsetchx2+offsetseg+1)=offsetch2+isegx3
+    !     Bbar_vals(offsetchx2+offsetseg+1)=-1._wp
+    !     Bbar_cols(offsetchx2+offsetseg+2)=offsetch2+isegx3+3
+    !     Bbar_vals(offsetchx2+offsetseg+2)=1._wp
+    !     Bbar_rowInd(offsetch1+isegx3+1)=Bbar_rowInd(offsetch1+isegx3)+2
+    !   end do
+    ! end do
+
+    ! this%Amat=0.0_wp
+    ! select case (tplgy)
+    ! case ('Linear')
+    !   nseg_bb=nseg
+    !   nbead_bb=nbead
+    !   do iseg=1, nseg
+    !     offseti=3*(iseg-1)
+    !     do jbead=1, nbead
+    !       offsetj=3*(jbead-1)
+    !       if (iseg == jbead) then
+    !         forall (i=1:3) this%Amat(offseti+i,offsetj+i)=-1._wp
+    !       elseif (iseg == jbead-1) then
+    !         forall (i=1:3) this%Amat(offseti+i,offsetj+i)= 1._wp
+    !       end if
+    !     end do
+    !   end do
+    ! case ('Comb')
+    !   nseg_bb=nseg-Na*nseg_ar
+    !   nbead_bb=nseg_bb+1
+    !   iarm=1
+    !   do iseg=1, nseg
+    !     offseti=3*(iseg-1)
+    !     do jbead=1, nbead
+    !       offsetj=3*(jbead-1)
+    !       if (iseg <= nseg_bb) then
+    !         if (jbead == iseg) then
+    !           forall (i=1:3) this%Amat(offseti+i,offsetj+i)=-1._wp
+    !         elseif (jbead == iseg+1) then
+    !           forall (i=1:3) this%Amat(offseti+i,offsetj+i)= 1._wp
+    !         end if
+    !       else ! iseg > nseg_bb
+    !         if (iseg-nseg_bb-(iarm-1)*nseg_ar == 1) then
+    !           if (jbead == Ia(iarm+1)) then
+    !             forall (i=1:3) this%Amat(offseti+i,offsetj+i)=-1._wp
+    !           elseif (jbead == iseg+1) then
+    !             forall (i=1:3) this%Amat(offseti+i,offsetj+i)= 1._wp
+    !           elseif (jbead == nbead) then
+    !             iarm=iarm+1
+    !           end if
+    !         else
+    !           if (jbead == iseg) then
+    !             forall (i=1:3) this%Amat(offseti+i,offsetj+i)=-1._wp
+    !           elseif (jbead == iseg+1) then
+    !             forall (i=1:3) this%Amat(offseti+i,offsetj+i)= 1._wp
+    !           end if
+    !         end if
+    !       end if
+    !     end do
+    !   end do
+    ! end select
+
+
 
   end subroutine init_conv
 

@@ -187,6 +187,9 @@ module hi_mod
   integer :: ncells_D(3)
   !> Total number of cells, ncells_D(1)*ncells_D(2)*ncells_D(3)
   integer :: ntotcells_D
+
+
+real(wp),allocatable :: valcpu_test(:)
  
 contains
  
@@ -325,13 +328,14 @@ ef: do
       ! Array for saving bead positions, used in PME algorithm:
       allocate(Rb0(ntotbeadx3))
       ! Cell information used for list construction:
-      ncells_D(:)=max(bs(:)/rc_D,1._wp)
+      ! ncells_D(:)=max(bs(:)/rc_D,1._wp)
+      ncells_D(:)=max(bs(:)/rlist_D,1._wp)
       CellSize_D(1:3)=bs(1:3)/ncells_D(1:3)
       ntotcells_D=ncells_D(1)*ncells_D(2)*ncells_D(3)
       ! Arrays containing cell information:
       allocate(head_D(0:ntotcells_D-1),LkdLst_D(ntotbead))
       allocate(point_D(ntotbead),list_D(maxNb_list_D))
-      
+allocate(valcpu_test(maxNb_list_D))
       if (myrank == 0) then
         print * 
         print '(" No. cells for diffusion tensor in real space:")'
@@ -376,6 +380,7 @@ ef: do
       dispmax=2*sqrt(3*dispmax*dispmax)
       update=dispmax > (rlist_D-rc_D)
     end if
+    ! print*,'update',update
     if (update) then
       ! Save positions for next evaluations:
       Rb0=Rb
@@ -429,6 +434,7 @@ ef: do
         head_D(icell)=iglobbead
       end do
     end do
+
     !------------------------------------------------------------
     ! Construction of Verlet neighbor-list, by using linked-list:
     !------------------------------------------------------------
@@ -460,7 +466,11 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
                         neigcell_ind_p(2)*ncells_D(3)+neigcell_ind_p(3)
             ! Get first bead in neighbour cell:
             jglobbead=head_D(neigcell_ID)
+
+
+
             do 10 while (jglobbead /= EMPTY)
+
               offsetj=(jglobbead-1)*3
               ! Equal is important only if we have one cell.
               if ( (iglobbead < jglobbead) .or. &
@@ -483,6 +493,7 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
                              floor(real(neigcell_ind(2:3))/ncells_D(2:3))*bs(2:3))
                 end select
                 rijmagto2=dot_product(rij,rij)
+                ! print*,'i,j,r',iglobbead,jglobbead,rijmagto2
                 if (rijmagto2 <= rlist_Dto2) then
                   nlist=nlist+1
                   if (nlist == maxNb_list_D) then
@@ -492,6 +503,7 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
                     call ResizeArray(list_D,maxNb_list_D)
                   end if
                   list_D(nlist)=jglobbead
+  valcpu_test(nlist)=rijmagto2
                 end if
               end if
               jglobbead=LkdLst_D(jglobbead)
@@ -510,6 +522,7 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
 
     ! call print_vector(point_D,'pointd_hi')
     ! call print_vector(list_DP,'list_DP_hi')
+    ! call print_vector(valcpu_test(1:size(list_DP)),'valcpu_hi')
 
   end subroutine cnstrlst_D
 
