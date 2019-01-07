@@ -87,7 +87,7 @@ module box_mod
     !> The z-component of position vector of all beads
     real(wp),allocatable :: Rbz(:)
     !> The connectivity vector of all polymer segments
-    real(wp),allocatable :: Qdagger_tilde(:)
+    real(wp),allocatable :: Q_tilde(:)
     !> The center of mass of all chains
     real(wp),pointer :: rcm_tilde(:,:)
     !> The image for the center of mass of all chains
@@ -104,7 +104,7 @@ module box_mod
     integer,allocatable :: cm_img(:,:)
     !> The pointer to the chain section  of configurational arrays
     type(chain),allocatable :: BoxChains(:)
-    #ifdef USE_GPU
+#ifdef USE_GPU
       !> The position vector of all beads
       real(wp),device,allocatable :: Rb_d(:)
       !> The x-component of position vector of all beads
@@ -119,6 +119,12 @@ module box_mod
       real(wp),device,allocatable :: Q_d(:)
       !> The center of mass of all chains
       real(wp),device,pointer :: rcm_d(:,:)
+      !> The image for the center of mass of all chains
+      integer,device,pointer :: cmif_d(:,:)
+      !> The array for storing the beads transformed position
+      real(wp),device,allocatable :: Rbtr_d(:,:)
+      !> The array for storing the center of mass transformed position
+      real(wp),device,allocatable :: rcmtr_d(:,:)
       !> The image of the beads inside the primary box
       integer,device,pointer :: b_img_d(:,:)
       !> The image of the center of mass inside the primary box
@@ -135,7 +141,7 @@ module box_mod
       type(hi_cu_t) :: Boxhi_d
       !> An object for calculating net spring force on device
       type(sprforce_cu_t) :: Boxsprf_d
-    #endif
+#endif
     
     contains
 
@@ -158,10 +164,13 @@ module box_mod
 
   
   ! Protected module variables:
-  protected :: nchain,nseg,nbead,nsegx3,nbeadx3,ntotsegx3,ntotbeadx3,lambda
+  protected :: nchain,nseg,nbead,nsegx3,nbeadx3,ntotsegx3,ntotbeadx3,lambda,&
+    add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar,Na,Ia
 
-  !> The number of chains in the box
+  !> The number of linear chains in the box
   integer,save :: nchain
+  !> The total number of chains in the box
+  integer,save :: ntotchain
   !> The number of segments in a chain
   integer,save :: nseg
   !> The number of beads in a chain
@@ -184,6 +193,23 @@ module box_mod
   real(wp),save :: lambda
   !> The initial dimension of the box
   real(wp),save :: Lbox(3)
+  !----
+  !>> for comb chain
+  !----
+  !> if we should add comb chains
+  logical,save :: add_cmb
+  !> The number of comb chains in the box
+  integer,save :: nchain_cmb
+  !> The number of segments in a comb chain
+  integer,save :: nseg_cmb
+    !> The number of segments in the backbone of a comb chain
+  integer,save :: nseg_cmbbb
+  !> The number of segments in the arm of a comb chain
+  integer,save :: nseg_cmbar
+  !> The number of comb arms in the box
+  integer,save :: Na
+  !> The index of the beads that the arms are grafted on
+  integer,allocatable,save :: Ia(:)
 
 contains
 
@@ -192,6 +218,8 @@ contains
 
     use :: strg_mod
     use,intrinsic :: iso_fortran_env
+    use :: cmn_io_mod, only: read_input
+    use :: arry_mod, only: sort
     use :: conv_mod, only: init_conv
     use :: flow_mod, only: init_flow
     use :: trsfm_mod, only: init_trsfm
@@ -201,13 +229,13 @@ contains
     use :: sprforce_mod, only: init_sprforce
     use :: evforce_mod, only: init_evforce
     use :: mpi
-    #ifdef USE_GPU
+#ifdef USE_GPU
       use :: rndm_cumod, only: init_rndm_d
       use :: flow_cumod, only: init_flow_d
       use :: conv_cumod, only: init_conv_d
       use :: hiverlet_cumod, only: init_hiverlet_d
       use :: force_cumod, only: init_force_d
-    #endif
+#endif
     !include 'mpif.h'
     
     integer,intent(in) :: myrank,nprun
@@ -217,6 +245,9 @@ contains
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp) :: b,hstar
     character(len=10) :: LambdaMethod
+    integer :: k,i,n,msec,tm_inf(8),icnt,iarm
+    real(wp),allocatable :: u(:)
+    character(len=10) :: arm_plc
 
     ! default setting:
     LambdaMethod='Rouse'
@@ -263,14 +294,71 @@ contains
       end if
     end do ef
     close(u1)
+    ! For comb chains
+    call read_input('add-comb',0,add_cmb,def=.false.)
+    call read_input('nchain-comb',0,nchain_cmb,def=0)
+    call read_input('nseg-comb',0,nseg_cmb,def=0)
+    call read_input('nseg-arm',0,nseg_cmbar,def=0)
+    call read_input('arms',0,Na,def=0)
+    call read_input('arms',1,arm_plc,def='Rndm')
+    if (add_cmb) then
+      allocate(Ia(Na+1))
+      Ia(1)=1
+      select case (arm_plc)
+      case('Fix')
+        do iarm=1, Na
+          call read_input('arms',iarm+1,Ia(iarm+1))
+        enddo
+      case('Rndm')
+        allocate(u(Na))
+        call date_and_time(values=tm_inf)
+        msec=(1000*tm_inf(7)+tm_inf(8))*((myrank-83)*359)
+        call random_seed(size=n)
+        call random_seed(put=(/(i*msec,i=1,n)/))
+        icnt=0
+        rndlp: do
+          call random_number(u)
+          do k=1, Na
+            Ia(k+1)=2+floor((nseg-Na*nseg_cmbar-1)*u(k))
+          end do
+          do i=1, Na
+            do k=1, i-1
+              if (Ia(i+1) == Ia(k+1)) then
+                icnt=icnt+1
+                if (icnt >= 100) then
+                  print '(" Random placement of arms did not converge.")'
+                  stop
+                end if
+                cycle rndlp
+              end if
+            end do
+          end do
+          exit rndlp
+        end do rndlp
+        deallocate(u)
+      endselect
+      call sort(Ia)
+    else
+      allocate(Ia(0)) ! since we are passing it
+    endif
 
     nbead=nseg+1
     nsegx3=nseg*3
     nbeadx3=nbead*3
+    ntotchain=nchain
     ntotseg=nseg*nchain
     ntotbead=nbead*nchain
+
+    if (add_cmb) then
+      ntotchain=ntotchain+nchain_cmb
+      ntotseg=ntotseg+nchain_cmb*nseg_cmb
+      ntotbead=ntotbead+nchain_cmb*(nseg_cmb+1)
+      nseg_cmbbb=nseg_cmb-Na*nseg_cmbar
+    endif
+
     ntotsegx3=ntotseg*3
     ntotbeadx3=ntotbead*3
+
     ! Longest dimensionless relaxation time setting
     if (LambdaMethod /= 'Self') lambda=0._wp
     select case (LambdaMethod)
@@ -325,23 +413,24 @@ contains
     !----------------------------------------------
     call init_flow(myrank)
     call init_trsfm()
-    call init_conv(nchain,nseg,nbead,nsegx3,nbeadx3,ntotsegx3,ntotbeadx3)
+    call init_conv(nchain,nseg,nbead,nsegx3,nbeadx3,ntotsegx3,ntotbeadx3,&
+      add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar,Na,Ia)
     ! if (hstar /= 0._wp) then
       call init_hi(myrank,ntotbead,ntotbeadx3,Lbox)
     ! end if
-    call init_io(myrank,nchain,nsegx3,nbeadx3,ntotbeadx3,nprun)
+    call init_io(myrank,nchain,nsegx3,nbeadx3,ntotchain,ntotsegx3,ntotbeadx3,nprun)
     call init_verlet(myrank)
     call init_force(ntotbeadx3)
-    call init_sprforce(myrank,nseg)
+    call init_sprforce(myrank)
     call init_evforce(myrank)
 
-    #ifdef USE_GPU
+#ifdef USE_GPU
       call init_rndm_d(ntotbeadx3)
       call init_flow_d()
-      call init_conv_d(nseg,ntotsegx3,ntotbeadx3)
+      call init_conv_d(ntotsegx3,ntotbeadx3)
       call init_hiverlet_d()
       call init_force_d(ntotbeadx3)
-    #endif
+#endif
 
   end subroutine init_box
 
@@ -353,6 +442,8 @@ contains
     use :: evforce_mod, only: rc_F
     use :: sprforce_mod, only: qmx
     use :: mpi
+    use :: io_mod, only: Qst,rcmst
+    use :: conv_mod, only: RbtoRbc,QtoR
     !include 'mpif.h'
 
     class(box),intent(inout) :: this
@@ -367,12 +458,13 @@ contains
     this%origin=0._wp
 
     ! Instantiation of Boxflow:
-    call this%Boxflow%init(nchain,nbead)
+    call this%Boxflow%init(nchain,nbead) !!!! should be fixed for comb
 
+    ! zero-size allocation is for avoiding passing a null-array to a subroutine
     select case (FlowType)
       case ('Equil')
         if (CoMDiff) then
-          allocate(this%cmif(nchain,3))
+          allocate(this%cmif(ntotchain,3))
         else
           allocate(this%cmif(0,0))
         endif
@@ -380,20 +472,20 @@ contains
         allocate(this%rcmtr(0,0))
       case ('PSF')
         allocate(this%Rbtr(ntotbead,1))
-        allocate(this%rcmtr(nchain,1))
+        allocate(this%rcmtr(ntotchain,1))
         allocate(this%cmif(0,0))
       case ('PEF')
         allocate(this%Rbtr(ntotbead,2))
-        allocate(this%rcmtr(nchain,2))
+        allocate(this%rcmtr(ntotchain,2))
         allocate(this%cmif(0,0))
     end select
     ! Instantiation of Boxtrsfm:
-    call this%Boxtrsfm%init(nchain,ntotbead,this%Rbtr,this%rcmtr)
+    call this%Boxtrsfm%init(this%Rbtr,this%rcmtr)
 
     ! Allocation of general "tilde" variables:
     allocate(this%R_tilde(ntotbeadx3))
-    allocate(this%rcm_tilde(nchain,3))
-    allocate(this%Qdagger_tilde(ntotsegx3))
+    allocate(this%rcm_tilde(ntotchain,3))
+    allocate(this%Q_tilde(ntotsegx3))
 
     ! Array for bead positions:
     allocate(this%Rb_tilde(ntotbeadx3))
@@ -402,22 +494,29 @@ contains
              this%Rbz(ntotbead))
 
     allocate(this%b_img(ntotbead,3))
-    allocate(this%cm_img(nchain,3))
+    allocate(this%cm_img(ntotchain,3))
 
     ! Allocation of box chains:
-    allocate(this%BoxChains(nchain))
+    allocate(this%BoxChains(ntotchain))
 
     do ichain=1, nchain
-      call this%BoxChains(ichain)%init(ichain,nsegx3,nbead,nbeadx3,this%Rb_tilde,this%Rbx,&
-                         this%Rby,this%Rbz,this%Qdagger_tilde,this%R_tilde,this%rcm_tilde,&
-                         this%cmif,this%Rbtr,this%rcmtr,this%b_img,this%cm_img)
+      call this%BoxChains(ichain)%init(ichain,nchain,nsegx3,nbead,nbeadx3,this%Rb_tilde,this%Rbx,&
+        this%Rby,this%Rbz,this%Q_tilde,this%R_tilde,this%rcm_tilde,this%cmif,this%Rbtr,&
+        this%rcmtr,this%b_img,this%cm_img)
     end do
-
+    if (add_cmb) then
+      do ichain=1, nchain_cmb
+        call this%BoxChains(nchain+ichain)%init(ichain,nchain,nsegx3,nbead,nbeadx3,this%Rb_tilde,&
+          this%Rbx,this%Rby,this%Rbz,this%Q_tilde,this%R_tilde,this%rcm_tilde,this%cmif,this%Rbtr,&
+          this%rcmtr,this%b_img,this%cm_img,nseg_cmb=nseg_cmb)
+      enddo
+    endif
     ! Instantiation of BoxIO:
-    call this%BoxIO%init(myrank,nproc,nchain,nsegx3,nbeadx3,MPI_REAL_WP)
+    ! call this%BoxIO%init(myrank,nproc,nchain,nsegx3,nbeadx3,MPI_REAL_WP)
+    call this%BoxIO%init(myrank,nproc,ntotchain,ntotsegx3,ntotbeadx3,MPI_REAL_WP)
 
-    call this%BoxIO%read(myrank,nproc,this%size,nchain,nseg,nbead,nsegx3,&
-              ntotbead,ntotsegx3,ntotbeadx3,nprun,runrst,qmx,MPI_REAL_WP)
+    call this%BoxIO%read(myrank,nproc,this%size,nchain,nseg,nbead,nsegx3,ntotchain,ntotbead,ntotsegx3,&
+      ntotbeadx3,nprun,runrst,qmx,MPI_REAL_WP,add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar)
 
     ! Instantiation of Boxevf:
     call this%Boxevf%init(myrank,this%size,ntotbead,ntotbeadx3)
@@ -425,24 +524,45 @@ contains
     ! Instantiation of Boxsprf:
     call this%Boxsprf%init(myrank,ntotsegx3)
 
-    #ifdef USE_GPU
+#ifdef USE_GPU
       ! Allocation of configurational variables:
       allocate(this%R_d(ntotbeadx3))
-      allocate(this%rcm_d(nchain,3))
+      allocate(this%rcm_d(ntotchain,3))
       allocate(this%Q_d(ntotsegx3))
       ! Array for bead positions:
       allocate(this%Rb_d(ntotbeadx3))
       allocate(this%Rbx_d(ntotbead),this%Rby_d(ntotbead),this%Rbz_d(ntotbead))
       ! beads and com image:
       allocate(this%b_img_d(ntotbead,3))
-      allocate(this%cm_img_d(nchain,3))
+      allocate(this%cm_img_d(ntotchain,3))
       ! Allocation of box chains:
-      allocate(this%BoxChains_d(nchain))
+      allocate(this%BoxChains_d(ntotchain))
+
+
+      ! this%rcm_d=rcmst(:,:,1)
+      ! this%Rb_d=Rbst(:,1)
+      ! this%rcm_tilde=rcmst(:,:,1)
+      ! this%Q_tilde=Qst(:,1)
+      ! this%Rb_tilde=Rbst(:,1)
+      ! call print_matrix(Rbst,'rbst')
+      ! call QtoR(this%Q_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
+      ! call RbtoRbc(this%Rb_tilde,this%Rbx,this%Rby,this%Rbz,ntotbead)
+      ! this%Rbx_d=this%Rbx
+      ! this%R_d=this%R_tilde
+      ! call print_vector(this%R_tilde,'rtilde')
+
       do ichain=1, nchain
-        call this%BoxChains_d(ichain)%init(ichain,nsegx3,nbead,nbeadx3,&
+        call this%BoxChains_d(ichain)%init(ichain,nchain,nsegx3,nbead,nbeadx3,&
           this%Rb_d,this%Rbx_d,this%Rby_d,this%Rbz_d,this%Q_d,this%R_d,&
           this%rcm_d,this%b_img_d,this%cm_img_d)
       end do
+      if (add_cmb) then
+        do ichain=1, nchain_cmb
+          call this%BoxChains_d(nchain+ichain)%init(ichain,nchain,nsegx3,&
+            nbead,nbeadx3,this%Rb_d,this%Rbx_d,this%Rby_d,this%Rbz_d,this%Q_d,&
+            this%R_d,this%rcm_d,this%b_img_d,this%cm_img_d,nseg_cmb=nseg_cmb)
+        enddo
+      endif
       ! Instantiation of Boxtrsfm_d
       call this%Boxtrsfm_d%init()
       ! Instantiation of Boxtrsfm_d
@@ -453,7 +573,7 @@ contains
       call this%Boxhi_d%init(myrank,ntotbead,this%size)
       ! Instantiation of Boxsprf_d:
       call this%Boxsprf_d%init(ntotsegx3)
-    #endif
+#endif
     
     if (myrank == 0) then
       print *
@@ -495,14 +615,14 @@ contains
     use :: io_mod, only: Qst,rcmst,Rbst,CoMDiff
     use :: force_smdlt, only: Fphi,rFphi
     use :: evforce_mod, only: EVForceLaw
-    #ifdef USE_GPU
+#ifdef USE_GPU
       use :: cublas
       use :: trsfm_cumod, only: init_trsfm_tm_d,update_trsfm_d,update_arng_d
       use :: rndm_cumod, only: dw_bl_d
       use :: force_cumod, only: Fphi_d
       use :: chain_cumod
       use :: diffcalc_cumod, only: PME_d
-    #endif
+#endif
     
     class(box),intent(inout) :: this
     real(wp),intent(in) :: Pe,dt,eps
@@ -513,11 +633,11 @@ contains
     logical :: updateList
     real(wp),pointer :: rcmP(:) => null()
     real(wp),parameter :: coeff=1/sqrt(2.0_wp)
-    #ifdef USE_GPU
+#ifdef USE_GPU
       type(dim3) :: dimGrid, dimBlock
       integer :: istat,ierr
       real(wp) :: et
-    #endif
+#endif
 
 real(wp),allocatable :: rbtest(:)
 
@@ -531,8 +651,10 @@ real(wp),allocatable :: rbtest(:)
 
     if (itime == itrst+1) then
 
-      do ichain=1, nchain
-        this%BoxChains(ichain)%chain_Q(:)=Qst(:,ichain,irun)
+      this%Q_tilde(:)=Qst(:,irun)
+
+      do ichain=1, ntotchain
+        ! this%BoxChains(ichain)%chain_Q(:)=Qst(:,ichain,irun)
         this%BoxChains(ichain)%chain_rcm(:)=rcmst(ichain,:,irun)
         if ((FlowType == 'Equil').and.CoMDiff) then
           ! this%BoxChains(ichain)%rcm_ImFlag(:)=cmifst(ichain,:,irun)
@@ -550,8 +672,8 @@ real(wp),allocatable :: rbtest(:)
       end if
 
       if ((FlowType == 'PEF') .and. (this%BoxIO%initmode == 'st')) then
-        call zrotate(this%Qdagger_tilde,-theta_0)
-        do ich=1, nchain
+        call zrotate(this%Q_tilde,-theta_0)
+        do ich=1, ntotchain
           rcmx=this%rcm_tilde(ich,1)
           rcmy=this%rcm_tilde(ich,2)
           this%rcm_tilde(ich,1)= cos(-theta_0)*rcmx+sin(-theta_0)*rcmy
@@ -559,12 +681,19 @@ real(wp),allocatable :: rbtest(:)
         end do
       end if
 
-      call QtoR(this%Qdagger_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
+      call QtoR(this%Q_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
       call RtoRbc(this%R_tilde,this%rcm_tilde,this%Rbx,this%Rby,this%Rbz,&
-                  nchain,nbead,ntotbead,ntotbeadx3)
+                  nchain,nbead,ntotbead,ntotbeadx3,add_cmb,nchain_cmb,nseg_cmb)
 
-      #ifdef USE_GPU
-        this%Q_d=this%Qdagger_tilde
+      ! call print_vector(this%Q_tilde,'q')
+      ! call print_vector(this%R_tilde,'r')
+      ! call print_vector(this%Rbx,'rbx')
+      ! call print_vector(this%Rby,'rby')
+      ! call print_vector(this%Rbz,'rbz')
+      ! call print_matrix(this%rcm_tilde,'rcm')
+
+#ifdef USE_GPU
+        this%Q_d=this%Q_tilde
         this%rcm_d=this%rcm_tilde
         this%Rb_d=this%Rb_tilde
         this%R_d=this%R_tilde
@@ -581,7 +710,7 @@ real(wp),allocatable :: rbtest(:)
           call init_trsfm_tm_d()
         end if
 
-      #endif
+#endif
 
       this%decompRes%Success=.true.
 
@@ -612,11 +741,10 @@ real(wp),allocatable :: rbtest(:)
     !-----------------------------
 ! print*,'itime',itime
 ! call print_vector(dw_bl(:,1),'dworigin')
-    #ifdef USE_GPU
-      call this%Boxrndm_d%gen(nchain,ntotbeadx3,dt)
+#ifdef USE_GPU
+      call this%Boxrndm_d%gen(ntotbeadx3,dt)
       dw_bl_d=dw_bl
-    #endif
-
+#endif
     !-----------------------------------------
     !>>> Applying Periodic Boundary Condition:
     !-----------------------------------------
@@ -625,28 +753,36 @@ real(wp),allocatable :: rbtest(:)
     ! consistent with calculation of forces.
 
 
-    #ifdef USE_GPU
+      ! call print_vector(this%R_tilde,'rstart')
+      ! call print_matrix(this%rcm_tilde,'rcmstart')
+
+#ifdef USE_GPU
 
       call this%Boxtrsfm_d%applypbc(this%size,this%invsize,this%Rbx_d,this%Rby_d,&
-        this%Rbz_d,this%rcm_d,this%b_img_d,this%cm_img_d,nbead,itime)
+        this%Rbz_d,this%rcm_d,this%b_img_d,this%cm_img_d,itime)
       call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
 
-      this%Qdagger_tilde=this%Q_d
+      this%Q_tilde=this%Q_d
       this%rcm_tilde=this%rcm_d
-      this%R_tilde=this%R_d
+      ! this%R_tilde=this%R_d
       this%Rb_tilde=this%Rb_d
       this%Rbx=this%Rbx_d
       this%Rby=this%Rby_d
       this%Rbz=this%Rbz_d
 
 
-    #else
+      ! call print_vector(this%Q_tilde,'q')
+      ! call print_vector(this%Rb_tilde,'rb')
+      ! call print_matrix(this%rcm_tilde,'rcm')
+
+
+#else
 
       call this%Boxtrsfm%applypbc(this%size,this%invsize,this%Rbx,this%Rby,this%Rbz,&
-        this%rcm_tilde,this%b_img,this%cm_img,nbead,itime)
+        this%rcm_tilde,this%b_img,this%cm_img,itime)
       call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
 
-    #endif
+#endif
 
     ! rbtest=this%Rb_d
     ! print*,'rb1--0',rbtest
@@ -657,7 +793,7 @@ real(wp),allocatable :: rbtest(:)
     !---------------------------------------------------------
     if (doTiming) call tick(count0)
     if (EVForceLaw /= 'NoEV') then
-      #ifdef USE_GPU
+#ifdef USE_GPU
         select case (FlowType)
           case ('Equil')
             ! call this%Boxevf_d%update_vlt(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,&
@@ -665,7 +801,7 @@ real(wp),allocatable :: rbtest(:)
           case ('PSF')
           case ('PEF')
         end select
-      #else
+#else
         select case (FlowType)
           case ('Equil')
             call this%Boxevf%update_vlt(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,&
@@ -679,33 +815,29 @@ real(wp),allocatable :: rbtest(:)
                     this%Rb_tilde,[bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],&
                     itime,itrst,ntotbead,ntotbeadx3)
         end select
-      #endif
+#endif
     end if
     if (doTiming) et_vlt=et_vlt+tock(count0)
 
     !----------------------------------------------------------
     !>>> Constructing Verlet neighbour-list for HI calculation:
     !----------------------------------------------------------
-
     if (HIcalc_mode == 'PME') then
-      #ifdef USE_GPU
+#ifdef USE_GPU
 
-    call update_lst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,itrst,nchain,nbead,&
-      nbeadx3,ntotbead,this%size,this%origin)
-    call this%Boxhi_d%updatelst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,&
-        itrst,nchain,nbead,nbeadx3,ntotbead,this%size,this%origin)
-
+        call update_lst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,itrst,nchain,nbead,&
+          nbeadx3,ntotbead,this%size,this%origin,add_cmb,nchain_cmb,nseg_cmb)
+        call this%Boxhi_d%updatelst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,&
+            itrst,ntotbead,this%size,this%origin)
 
         call this%Boxhi_d%updatelst_(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,itime,&
-          itrst,nchain,nbead,nbeadx3,ntotbead,ntotbeadx3,this%size,this%origin)
+          itrst,ntotbead,ntotbeadx3,this%size,this%origin)
 
-
-      #else
+#else
         call update_lst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,itrst,nchain,nbead,&
-          nbeadx3,ntotbead,this%size,this%origin)
-      #endif
+          nbeadx3,ntotbead,this%size,this%origin,add_cmb,nchain_cmb,nseg_cmb)
+#endif
     end if
-
     !---------------------------------------------------
     !>>> Calculating conservative forces; spring and EV:
     !---------------------------------------------------
@@ -749,7 +881,7 @@ real(wp),allocatable :: rbtest(:)
 
     if (doTiming) call tick(count0)
 
-    #ifdef USE_GPU
+#ifdef USE_GPU
 
 
       if (hstar == 0._wp) then
@@ -765,15 +897,15 @@ real(wp),allocatable :: rbtest(:)
 
       call this%Boxconv_d%RbtoRbc(this%Rb_d,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotbead)
 
-      this%Qdagger_tilde=this%Q_d
+      this%Q_tilde=this%Q_d
       this%rcm_tilde=this%rcm_d
-      this%R_tilde=this%R_d
+      ! this%R_tilde=this%R_d
       this%Rb_tilde=this%Rb_d
       this%Rbx=this%Rbx_d
       this%Rby=this%Rby_d
       this%Rbz=this%Rbz_d
 
-    #else
+#else
 
       if (FlowType /= 'Equil') call this%Boxflow%apply(Pe,dt,this%Rb_tilde,ntotbeadx3)
 
@@ -795,11 +927,11 @@ real(wp),allocatable :: rbtest(:)
         ! #ifdef USE_GPU
         !   this%Rb_tilde=this%Rb_tilde+coeff*dw_bltmp(:,col)
         ! #else
-        #ifdef USE_DP
+#ifdef USE_DP
           this%Rb_tilde=this%Rb_tilde+coeff*dw_bltmp(:,col)
-        #elif USE_SP
+#elif USE_SP
           this%Rb_tilde=this%Rb_tilde+coeff*real(dw_bltmp(:,col),kind=wp)
-        #endif
+#endif
         ! #endif
 
       end if
@@ -807,23 +939,30 @@ real(wp),allocatable :: rbtest(:)
       call RbtoRbc(this%Rb_tilde,this%Rbx,this%Rby,this%Rbz,ntotbead)
 
 
-    #endif
+#endif
 
+        ! print*,'itime',itime
         ! this%b_img=this%b_img_d
         ! this%cm_img=this%cm_img_d
-        ! print*,'b_img',this%b_img
-        ! print*,'cm_img',this%cm_img
+        
+        ! call print_matrix(this%cm_img,'cmimgbox')
         ! call print_vector(this%Rb_tilde,'rb')
         ! call print_matrix(this%rcm_tilde,'rcm')
 
-        if (itime == 1000 .or. itime==2000) then
+        if (itime == 10 .or. itime==2000) then
 
         ! #ifdef USE_GPU
         ! dw_bltmp=dw_bl_d
         ! #endif
         ! call print_vector(dw_bltmp(:,col),'dw_bl')
+        ! call print_vector(this%R_tilde,'r')
         call print_vector(this%Rb_tilde,'rb')
-        ! call print_matrix(this%rcm_tilde,'rcm')
+        ! call print_vector(this%Rbx,'rbx')
+        ! this%b_img=this%b_img_d
+        ! this%cm_img=this%cm_img_d
+        ! call print_matrix(this%b_img,'bimg')
+        ! call print_matrix(this%cm_img,'cmimg')
+        call print_matrix(this%rcm_tilde,'rcm')
 
         endif
 
@@ -836,7 +975,7 @@ real(wp),allocatable :: rbtest(:)
 
     call tick(count0)
 
-    #ifdef USE_GPU
+#ifdef USE_GPU
 
     !   call update_chain_krnl <<<(ntotbead+255)/256,256>>>(this%b_img_d,this%cm_img_d,this%rcm_d,&
     !     this%Rbx_d,this%Rby_d,this%Rbz_d,nbead,ntotbead,nchain,this%size(1),this%size(2),this%size(3))
@@ -846,26 +985,27 @@ real(wp),allocatable :: rbtest(:)
     !     stop
     !   endif
 
-      do ichain=1, nchain
-        call this%BoxChains_d(ichain)%update(this%size)
+      do ichain=1, ntotchain
+        call this%BoxChains_d(ichain)%update(this%size,this%Rbx_d,&
+          this%Rby_d,this%Rbz_d,this%b_img_d)
       end do
 
-      this%rcm_tilde=this%rcm_d
-      ! call print_matrix(this%rcm_tilde,'rcm')
+      ! this%rcm_tilde=this%rcm_d
+      ! call print_matrix(this%rcm_tilde,'rcmafter')
 
-    #else
+#else
 
-      !$omp parallel default(private) shared(nchain,nbead,this)
+      !$omp parallel default(private) shared(ntotchain,this)
       !$omp do schedule(auto)
-        do ichain=1, nchain
-          call this%BoxChains(ichain)%update(nbead,this%size,this%invsize)
+        do ichain=1, ntotchain
+          call this%BoxChains(ichain)%update(this%size,this%invsize)
         end do
       !$omp end do
       !$omp end parallel
 
-      ! call print_matrix(this%rcm_tilde,'rcm')
+      ! call print_matrix(this%rcm_tilde,'rcmafter')
 
-    #endif
+#endif
 
     if (doTiming) et_CM=et_CM+tock(count0)
 
@@ -873,12 +1013,12 @@ real(wp),allocatable :: rbtest(:)
     !>>> Updating the dimension of the deformed box :
     !------------------------------------------------
 
-    #ifdef USE_GPU
+#ifdef USE_GPU
 
       call update_arng_d()
       call update_trsfm_d()
 
-    #else
+#else
 
       call update_arng(eps)
       if (reArng) then
@@ -886,7 +1026,7 @@ real(wp),allocatable :: rbtest(:)
       end if
       call update_trsfm(this%size)
 
-    #endif
+#endif
 
   end subroutine move_box
 
@@ -897,7 +1037,7 @@ real(wp),allocatable :: rbtest(:)
     class(box),intent(inout) :: this
     integer,intent(in) :: p,irun
 
-    call this%BoxIO%read_init(p,irun,nchain,MPI_REAL_WP)
+    call this%BoxIO%read_init(p,irun,ntotchain,MPI_REAL_WP)
 
   end subroutine read_init_cnf
 
@@ -908,16 +1048,17 @@ real(wp),allocatable :: rbtest(:)
     class(box),intent(inout) :: this
     integer,intent(in) :: p,irun,idmp,ndmp
 
-    call this%BoxIO%read_dmp(p,irun,idmp,this%Qdagger_tilde,this%rcm_tilde,this%cmif,&
-                             nchain,ntotsegx3,ndmp,MPI_REAL_WP)
-    call QtoR(this%Qdagger_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
+    call this%BoxIO%read_dmp(p,irun,idmp,this%Q_tilde,this%rcm_tilde,this%cmif,&
+                             ntotchain,ntotsegx3,ndmp,MPI_REAL_WP)
+    call QtoR(this%Q_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
 
   end subroutine read_dmp_cnf
 
   subroutine write_cnf(this,id,p,itime,ntime,irun,idmp,time,Wi,dt,ndmp)
 
+    use :: arry_mod, only: print_vector,print_matrix
     use :: flow_mod, only: FlowType
-    use :: conv_mod, only: RbctoQ,QtoR
+    use :: conv_mod, only: RbctoQ,QtoR,RbctoRb,RbtoQ
     use :: trsfm_mod, only: bsx,bsy,invbsx,invbsy,eps_m,sinth,costh,tanb
 
     class(box),intent(inout) :: this
@@ -928,8 +1069,11 @@ real(wp),allocatable :: rbtest(:)
     
     select case (FlowType)
       case ('Equil')
-        call RbctoQ(this%Rbx,this%Rby,this%Rbz,this%Qdagger_tilde,this%size,&
-                                 this%invsize,nseg,nbead,ntotseg)
+        ! call RbctoQ(this%Rbx,this%Rby,this%Rbz,this%Q_tilde,this%size,&
+        !                          this%invsize,nseg,nbead,ntotseg)
+        call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
+        call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
+
       case ('PSF')
         !$omp parallel default(private) shared(this,ntotbead,eps_m)
         !$omp do simd
@@ -938,7 +1082,7 @@ real(wp),allocatable :: rbtest(:)
         end do
         ! !$omp end do simd
         !$omp end parallel
-        call RbctoQ(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Qdagger_tilde,&
+        call RbctoQ(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Q_tilde,&
                              this%size,this%invsize,nseg,nbead,ntotseg)
       case ('PEF')
         !$omp parallel default(private) shared(this,ntotbead,sinth,costh,tanb)
@@ -949,15 +1093,15 @@ real(wp),allocatable :: rbtest(:)
         end do
         ! !$omp end do simd
         !$omp end parallel
-        call RbctoQ(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,this%Qdagger_tilde,&
-                            [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],nseg,&
-                            nbead,ntotseg)
+        call RbctoQ(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,this%Q_tilde,&
+            [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],nseg,nbead,ntotseg)
     end select
-    call QtoR(this%Qdagger_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
 
-    call this%BoxIO%write(id,p,itime,ntime,irun,idmp,time,Wi,dt,nchain,nbead,nsegx3,nbeadx3,ntotsegx3,&
-                       ntotbeadx3,ndmp,lambda,MPI_REAL_WP,this%Qdagger_tilde,this%rcm_tilde,this%cmif,&
-                       this%Rb_tilde,this%R_tilde)
+    call QtoR(this%Q_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
+
+    call this%BoxIO%write(id,p,itime,ntime,irun,idmp,time,Wi,dt,nchain,nbead,nsegx3,nbeadx3,&
+      ntotchain,ntotsegx3,ntotbeadx3,ndmp,lambda,MPI_REAL_WP,this%Q_tilde,this%rcm_tilde,&
+      this%cmif,this%Rb_tilde,this%R_tilde,add_cmb,nchain_cmb,nseg_cmb)
 
   end subroutine write_cnf
 
@@ -981,11 +1125,11 @@ real(wp),allocatable :: rbtest(:)
     use :: force_smdlt, only: del_force
 
     integer,intent(in) :: myrank
-
+print*,'b1'
     call del_conv()
-
+print*,'b2'
     call del_force()
-
+print*,'b3'
     call del_hi(myrank,Lbox)
 
   end subroutine del_box
@@ -1000,6 +1144,7 @@ real(wp),allocatable :: rbtest(:)
     type(box) :: this
     integer :: ichain
 
+print*,'hel1'
     select case (FlowType)
       case ('Equil')
         if (CoMDiff) deallocate(this%cmif)
@@ -1010,20 +1155,25 @@ real(wp),allocatable :: rbtest(:)
         deallocate(this%Rbtr)
         deallocate(this%rcmtr)
     end select
+print*,'hel2'
     deallocate(this%BoxChains)
+print*,'hel3'
     deallocate(this%Rb_tilde)
+print*,'hel4'
     deallocate(this%Rbx,this%Rby,this%Rbz)
     deallocate(this%R_tilde)
+print*,'hel5'
     deallocate(this%rcm_tilde)!,this%Fseg_tilde)
-    deallocate(this%Qdagger_tilde)!,Fbead_tilde)
+    deallocate(this%Q_tilde)!,Fbead_tilde)
     deallocate(this%b_img,this%cm_img)
+print*,'hel6'
 
-    #ifdef USE_GPU
+#ifdef USE_GPU
       deallocate(this%Rb_d)
       deallocate(this%Rbx_d,this%Rby_d,this%Rbz_d)
       deallocate(this%Q_d)
       deallocate(this%rcm_d)
-    #endif
+#endif
     
   end subroutine del_box_t
 
@@ -1033,26 +1183,26 @@ real(wp),allocatable :: rbtest(:)
     use :: hi_mod, only: HI_M,Mstart,restartHIpar,updateHIpar,hstar
     use :: tmng_mod, only: et_DT,et_DEC,HIcount,doTiming,tick,tock
     use :: arry_mod, only: print_vector,print_matrix
-    #ifdef USE_GPU
+#ifdef USE_GPU
       use :: diffcalc_mod, only: calcDiffTens_cpu,calcDiffTens_dev
       use :: diffdcmp_mod, only: calcBrownNoise_cpu,calcBrownNoise_dev
-    #else
+#else
       use :: diffcalc_mod, only: calcDiffTens_cpu
       use :: diffdcmp_mod, only: calcBrownNoise_cpu
-    #endif
+#endif
 
 
-    #ifdef USE_GPU
+#ifdef USE_GPU
       use :: diffcalc_cumod, only: calcDiffTens_d
       use :: diffdcmp_cumod, only: calcBrownNoise_d
-    #endif
+#endif
     use :: mpi
     !include 'mpif.h'
 
 
-    #ifdef USE_GPU
+#ifdef USE_GPU
     use :: rndm_cumod, only: dw_bl_d
-    #endif
+#endif
     use :: hi_mod, only: dw_bltmp
 
     class(box),intent(inout) :: this
@@ -1068,18 +1218,14 @@ real(wp),allocatable :: rbtest(:)
     end if
     HIlp: do
       HIcount=HIcount+1
-      
-
-
 
       if (doTiming) call tick(count0)
-
 
       ! #ifdef USE_GPU
       !   call calcDiffTens_d(this%Boxhi_d,this%Rb_d,ntotbead,this%size,this%origin)
       ! #endif
 
-      #ifdef USE_GPU
+#ifdef USE_GPU
 
         if (hstar /= 0._wp) then
           ! call calcDiffTens_dev(this%Boxhi_d,this%Rb_tilde,ntotbead,this%size,this%origin,itime)
@@ -1092,7 +1238,7 @@ real(wp),allocatable :: rbtest(:)
         dw_bltmp=dw_bl_d
         ! remember that the following routine is where PME_d is called for the first time
         call calcBrownNoise_d(this%Boxhi_d,this%decompRes,itime,ntotbeadx3,this%size)
-      #else
+#else
 
         if (hstar /= 0._wp) then
           ! #ifdef USE_GPU
@@ -1113,7 +1259,7 @@ real(wp),allocatable :: rbtest(:)
         ! #endif
 
 
-      #endif
+#endif
 
         ! print*,'nnzb_h',this%Boxhi_d%nnzb
         ! print*,'col_h',this%Boxhi_d%P_ColInd_h
@@ -1138,13 +1284,14 @@ real(wp),allocatable :: rbtest(:)
   subroutine calcForce(this,itime)
 
     use :: arry_mod, only: print_vector
+    use :: conv_mod, only: RbctoRb,RbtoQ
     use :: force_smdlt, only: Fphi,rFphi
     use :: evforce_mod, only: EVForceLaw
     use :: flow_mod, only: FlowType
     use :: trsfm_mod, only: bsx,bsy,invbsx,invbsy,eps_m,reArng
-    #ifdef USE_GPU
+#ifdef USE_GPU
       use :: force_cumod, only: Fphi_d
-    #endif
+#endif
 
     class(box),intent(inout) :: this
     integer,intent(in) :: itime
@@ -1152,43 +1299,45 @@ real(wp),allocatable :: rbtest(:)
     Fphi=0._wp
     rFphi=0._wp
 
+    call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
+    call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
+
     select case (FlowType)
       case ('Equil')
-        call this%Boxsprf%update(this%Rbx,this%Rby,this%Rbz,this%size,&
-                                 this%invsize,itime,nchain,nseg,nbead,&
-                                 ntotseg,ntotsegx3,ntotbeadx3)
+        call this%Boxsprf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
+          nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_tilde)
         if (EVForceLaw /= 'NoEV') then
-          call this%Boxevf%update(this%Rbx,this%Rby,this%Rbz,this%size,&
-                                  this%invsize,itime,nchain,nseg,nbead,&
-                                  ntotseg,ntotsegx3,ntotbeadx3)
+          call this%Boxevf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
+            nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_tilde)
         end if
       case ('PSF')
-        call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,&
-                             this%size,this%invsize,itime,nchain,nseg,&
-                             nbead,ntotseg,ntotsegx3,ntotbeadx3)
+        call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
+          itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_tilde)
         if (EVForceLaw /= 'NoEV') then
-          call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,&
-                               this%size,this%invsize,itime,nchain,nseg,&
-                               nbead,ntotseg,ntotsegx3,ntotbeadx3)
+          call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
+            itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_tilde)
         end if
       case ('PEF')
         call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
-                           [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],&
-                           itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3)
+          [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
+          nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_tilde)
         if (EVForceLaw /= 'NoEV') then
           call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
-                            [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],&
-                            itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3)
+             [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
+             nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_tilde)
         end if
     end select
 
-    #ifdef USE_GPU
+#ifdef USE_GPU
 
       Fphi_d=0._wp
 
+      call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
+      call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
+
       call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,&
-        this%invsize,itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3)
-    #endif
+        this%invsize,itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_d)
+#endif
 
   end subroutine calcForce
 

@@ -365,10 +365,12 @@ allocate(valcpu_test(maxNb_list_D))
 
   end subroutine init_hi
 
-  subroutine update_lst(Rb,Rbtr,itime,itrst,nchain,nbead,nbeadx3,ntotbead,bs,bo)
+  subroutine update_lst(Rb,Rbtr,itime,itrst,nchain,nbead,nbeadx3,ntotbead,bs,bo,add_cmb,nchain_cmb,nseg_cmb)
 
     real(wp),intent(in) :: Rb(:),Rbtr(:),bs(3),bo(3)
     integer,intent(in) :: itime,itrst,nchain,nbead,nbeadx3,ntotbead
+    logical,intent(in) :: add_cmb
+    integer,intent(in) :: nchain_cmb,nseg_cmb
     logical :: update
 
     if (itime == itrst+1) then
@@ -384,12 +386,12 @@ allocate(valcpu_test(maxNb_list_D))
     if (update) then
       ! Save positions for next evaluations:
       Rb0=Rb
-      call cnstrlst_D(Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo)
+      call cnstrlst_D(Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo,add_cmb,nchain_cmb,nseg_cmb)
     end if
 
   end subroutine update_lst
   
-  subroutine cnstrlst_D(Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo)
+  subroutine cnstrlst_D(Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo,add_cmb,nchain_cmb,nseg_cmb)
 
     use :: arry_mod, only: print_vector,ResizeArray
     use :: flow_mod, only: FlowType
@@ -397,6 +399,8 @@ allocate(valcpu_test(maxNb_list_D))
 
     real(wp),intent(in) :: Rb(:),Rbtr(:),bs(3),bo(3)
     integer,intent(in) :: itime,nchain,nbead,nbeadx3,ntotbead
+    logical,intent(in) :: add_cmb
+    integer,intent(in) :: nchain_cmb,nseg_cmb
     integer,dimension(3) :: cell_ind,neigcell_ind_p ! should contain 0~(ncells-1) cell indices
     integer,dimension(3),target :: neigcell_ind ! should contain 0~(ncells-1) cell indices
     real(wp),dimension(3) :: rij,rbtmp,rbi,rbj
@@ -413,6 +417,33 @@ allocate(valcpu_test(maxNb_list_D))
     head_D=EMPTY
     ! Note!!: the loops are in reverse order to make them 
     ! sorted and appropriate for sparse operations.
+
+    ! The comb information is stored last, but it should be read first 
+    ! for constructing head and linked list
+    if (add_cmb) then
+      do ichain=nchain_cmb, 1, -1
+        offsetch=nchain*nbeadx3+(ichain-1)*(nseg_cmb+1)*3
+        do ibead=(nseg_cmb+1), 1, -1
+          iglobbead=nchain*nbead+(ichain-1)*(nseg_cmb+1)+ibead
+          offset=offsetch+(ibead-1)*3
+          rbtmp=Rb(offset+1:offset+3)
+          select case (FlowType)
+          case ('Equil')
+            cell_ind(1:3)=(rbtmp(1:3)-bo(1:3))/CellSize_D(1:3)
+          case ('PSF')
+            cell_ind(1)=(Rbtr(iglobbead)-bo(1))/CellSize_D(1)
+            cell_ind(2:3)=(rbtmp(2:3)-bo(2:3))/CellSize_D(2:3)
+          end select
+          icell=cell_ind(1)*ncells_D(2)*ncells_D(3)+&
+            cell_ind(2)*ncells_D(3)+cell_ind(3)
+          ! Link to the previous occupant to EMPTY if you are the first
+          LkdLst_D(iglobbead)=head_D(icell)
+          ! The previous one goes to header
+          head_D(icell)=iglobbead
+        end do
+      end do
+    endif
+
     do ichain=nchain, 1, -1
       offsetch=(ichain-1)*nbeadx3
       do ibead=nbead, 1, -1
@@ -434,7 +465,7 @@ allocate(valcpu_test(maxNb_list_D))
         head_D(icell)=iglobbead
       end do
     end do
-
+    
     !------------------------------------------------------------
     ! Construction of Verlet neighbor-list, by using linked-list:
     !------------------------------------------------------------
@@ -531,18 +562,22 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
     integer,intent(in) :: myrank
     real(wp),intent(in) :: bs(3)
 
+print*,'hi1'
     deallocate(dw_bl,dw_bltmp)
+print*,'hi2'
     if (HIcalc_mode == 'Ewald') then
       if (hstar /= 0._wp) deallocate(Diff_tens)
     elseif (HIcalc_mode == 'PME') then
       deallocate(P_vals,P_cols,P_rowInd)
       deallocate(F_mesh) 
+print*,'hi3'
       if (Dreal_sparse_mode) then
         deallocate(Dreal_vals,Dreal_cols,Dreal_rowInd)
         deallocate(DF_tot,DF_self,DF_real,DF_recip)
       else
         deallocate(Diff_tens_real,DF_tot,DF_self,DF_real,DF_recip)
       end if
+print*,'hi4'
       ! Destroying FFT handles:
       FFTStatus=DftiFreeDescriptor(FFTfwDescHand)
       if (FFTStatus /= 0) then

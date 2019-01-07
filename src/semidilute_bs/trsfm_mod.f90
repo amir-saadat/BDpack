@@ -243,13 +243,13 @@ contains
   !> Constructor for trsfm type
   !! \param ntotbead total number of beads inside the box
   !! \param nchain the number of chain inside the box
-  subroutine init_trsfm_t(this,nchain,ntotbead,Rbtr,rcmtr)
+  subroutine init_trsfm_t(this,Rbtr,rcmtr)
 
 !    use :: inp_smdlt, only: ntotbead,nchain
     use :: flow_mod, only: FlowType
 
     class(trsfm),intent(inout) :: this
-    integer,intent(in) :: ntotbead,nchain
+    ! integer,intent(in) :: ntotbead,nchain
     real(wp),intent(in),target :: Rbtr(:,:)
     real(wp),intent(in),target :: rcmtr(:,:)
 
@@ -278,12 +278,12 @@ contains
   !! \param str the modulo(strain,max(strain))
   !! \param b_img the image of the beads inside the primary box
   !! \param cm_img the image of the center of mass inside the primary box
-  subroutine applypbc_glob(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,nbead,itime)
+  subroutine applypbc_glob(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,itime)
 
     use :: flow_mod, only: FlowType
 
     class(trsfm),intent(inout) :: this
-    integer,intent(in) :: nbead,itime
+    integer,intent(in) :: itime
     real(wp),intent(in) :: bs(3),invbs(3)
     real(wp),intent(inout) :: Rbx(:)
     real(wp),intent(inout) :: Rby(:)
@@ -293,7 +293,7 @@ contains
     integer,intent(inout) :: cm_img(:,:)
 
     if (FlowType /= 'Equil') call map(this,Rbx,Rby,rcm,itime)
-    call applypbc_rec(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,nbead,itime)
+    call applypbc_rec(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,itime)
     if (FlowType /= 'Equil') call remap(this,bs,invbs,Rbx,Rby,rcm,b_img,cm_img,itime)
 
   end subroutine applypbc_glob
@@ -306,14 +306,14 @@ contains
   !! \param Rbz z-coordinate of the position vector
   !! \param b_img the image of the beads inside the primary box
   !! \param cm_img the image of the center of mass inside the primary box
-  subroutine applypbc_rec(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,nbead,itime)
+  subroutine applypbc_rec(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,itime)
 
     use :: flow_mod, only: FlowType
     use :: arry_mod, only: print_vector,print_matrix
 
     class(trsfm),intent(inout) :: this
     real(wp),intent(in) :: bs(3),invbs(3)
-    integer,intent(in) :: nbead,itime
+    integer,intent(in) :: itime
     real(wp),intent(inout) :: Rbx(:)
     real(wp),intent(inout) :: Rby(:)
     real(wp),intent(inout) :: Rbz(:)
@@ -336,6 +336,8 @@ contains
           Rbz(igb)=Rbz(igb)-nint(Rbz(igb)*invbs(3)-0.5_wp)*bs(3)
         end do
 !!$omp end do simd
+
+call print_matrix(rcm,'rcmtrsfm')
 !$omp do simd
         do ich=1, size(rcm,1)
           cm_img(ich,1)=-nint(rcm(ich,1)*invbs(1)-0.5_wp)
@@ -347,6 +349,8 @@ contains
         end do
 !!$omp end do simd
 !$omp end parallel
+call print_matrix(cm_img,'cm_imgtrsfm')
+call print_matrix(rcm,'rcmtrsfmafter')
       case ('PSF')
 !$omp parallel default(private) shared(this,Rby,Rbz,b_img,bs,invbs,cm_img,rcm)
 !$omp do simd

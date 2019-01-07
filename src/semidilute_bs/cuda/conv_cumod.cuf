@@ -5,7 +5,6 @@
 !|  Material Research and Innovation Laboratory                           |
 !|  University of Tennessee-Knoxville                                     |
 !|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
-!|             Tiras Y. Lin       <tlin@stanford.edu>                     |
 !|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
 !|             Bamin Khomami      <bkhomami@utk.edu>                      |
 !|                                                                        |
@@ -52,7 +51,8 @@ module conv_cumod
 
     procedure,pass(this) :: init => init_conv_t
     procedure,pass(this) :: RbtoRbc 
-    procedure,pass(this) :: RbctoRb 
+    procedure,pass(this) :: RbctoRb
+    procedure,pass(this) :: RbtoQ
 
   end type conv_cu_t
 
@@ -85,19 +85,21 @@ module conv_cumod
 contains
 
   !> Initialization of conversion module
-  subroutine init_conv_d(ns,ntsx3,ntbx3)
+  subroutine init_conv_d(ntsx3,ntbx3)
 
-    use :: conv_mod, only: B_vals,B_cols,B_rowInd,Bbar_vals,Bbar_cols,Bbar_rowInd
+    use :: conv_mod, only: B_vals,B_cols,B_rowInd,Bbar_vals,Bbar_cols,Bbar_rowInd,maxnz_B,maxnz_Bbar
 
-    integer,intent(in) :: ns,ntsx3,ntbx3
+    integer,intent(in) :: ntsx3,ntbx3
     integer :: istat
 
-    nnz_B=ntbx3*ns
+    ! nnz_B=ntbx3*ns
+    nnz_B=maxnz_B
     allocate(B_Val_d(nnz_B))
     allocate(B_ColInd_d(nnz_B))
     allocate(B_RowPtr_d(ntbx3+1))
 
-    nnz_Bbar=ntsx3*2
+    ! nnz_Bbar=ntsx3*2
+    nnz_Bbar=maxnz_Bbar
     allocate(Bbar_Val_d(nnz_Bbar))
     allocate(Bbar_ColInd_d(nnz_Bbar))
     allocate(Bbar_RowPtr_d(ntsx3+1))
@@ -160,7 +162,7 @@ contains
 
   ! end subroutine RtoRb
 
-    !> Converting (Rx,Ry,Rz) to Rb
+  !> Converting (Rx,Ry,Rz) to Rb
   !! \param Rbx x-coordinate of the position vector
   !! \param Rby y-coordinate of the position vector
   !! \param Rbz z-coordinate of the position vector
@@ -183,7 +185,7 @@ contains
 
   end subroutine RbctoRb 
 
-    !> Converting Rb to (Rx,Ry,Rz)
+  !> Converting Rb to (Rx,Ry,Rz)
   !! \param Rb the position vector of the beads for all chains
   !! \param Rbx x-coordinate of the position vector
   !! \param Rby y-coordinate of the position vector
@@ -205,6 +207,54 @@ contains
     end do
 
   end subroutine RbtoRbc
+
+  !> Converting Rb to Q using sparse multiplication
+  !! \param Q connectivity vectors
+  !! \param R bead to center of mass vectors
+  subroutine RbtoQ(this,Rb,Q,ntsx3,ntbx3,bs)
+
+    class(conv_cu_t),intent(inout) :: this
+    integer,intent(in) :: ntsx3,ntbx3
+    real(wp),device,intent(in) :: Rb(:)
+    real(wp),device,intent(inout) :: Q(:)
+    real(wp),intent(in) :: bs(3)
+
+    real(wp) :: qx,qy,qz,bsx,bsy,bsz,invbsx,invbsy,invbsz
+    integer :: its,istat
+
+    istat = cusparseDcsrmv(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,ntsx3,ntbx3,nnz_Bbar,&
+      1._wp,descr_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,Rb,0._wp,Q)
+
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod: ",i)',istat
+
+    !$cuf kernel do <<< *,* >>>
+    do its=1, ntsx3/3
+
+      !!!! might become redundnt with the new RbtoQ
+      qx=Q((its-1)*3+1)
+      qy=Q((its-1)*3+2)
+      qz=Q((its-1)*3+3)
+
+      qx=qx-nint(qx*invbsx)*bsx
+      qy=qy-nint(qy*invbsy)*bsy
+      qz=qz-nint(qz*invbsz)*bsz
+      ! select case (FlowType)
+      !   case ('PSF')
+      !     qx=qx+eps_m*qy
+      !   case ('PEF')
+      !     qytmp=qy
+      !     qx=qx+tanb*qytmp
+      !     qy=sinth*qx+costh*qytmp
+      !     qx=costh*qx-sinth*qytmp
+      ! end select
+
+      Q((its-1)*3+1)=qx
+      Q((its-1)*3+2)=qy
+      Q((its-1)*3+3)=qz
+
+    enddo
+
+  end subroutine RbtoQ
 
 
 end module conv_cumod

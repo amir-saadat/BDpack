@@ -1448,11 +1448,11 @@ kg_c:     do kgrid=1, p_PME
     subroutine calcDF_real()
   
       if (Dreal_sparse_mode) then
-        #ifdef USE_DP
+#ifdef USE_DP
           call mkl_dbsrsymv('U',ntotbead,3,Dreal_vals,Dreal_rowInd,Dreal_cols,F,DF_real)
-        #elif USE_SP
+#elif USE_SP
           call mkl_sbsrsymv('U',ntotbead,3,Dreal_vals,Dreal_rowInd,Dreal_cols,F,DF_real)
-        #endif
+#endif
       else
         call symv(Diff_tens_real,F,DF_real)        
       end if
@@ -1486,15 +1486,15 @@ kg_c:     do kgrid=1, p_PME
       FPx => F(1:ntotbead*3-2:3)
       FPy => F(2:ntotbead*3-1:3)
       FPz => F(3:ntotbead*3:3)
-      #ifdef USE_DP
+#ifdef USE_DP
         call mkl_dcsrmv('T',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),FPx,0._wp,F_meshPx)
         call mkl_dcsrmv('T',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),FPy,0._wp,F_meshPy)
         call mkl_dcsrmv('T',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),FPz,0._wp,F_meshPz)
-      #elif USE_SP
+#elif USE_SP
         call mkl_scsrmv('T',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),FPx,0._wp,F_meshPx)
         call mkl_scsrmv('T',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),FPy,0._wp,F_meshPy)
         call mkl_scsrmv('T',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),FPz,0._wp,F_meshPz)
-      #endif
+#endif
       if (doTiming) et_SPR=et_SPR+tock(count2)
       !-----------------------------------
       !>>> FWD in-place Fourier Transform:
@@ -1650,15 +1650,15 @@ kg_c:     do kgrid=1, p_PME
       DFPx => DF_recip(1:ntotbead*3-2:3)
       DFPy => DF_recip(2:ntotbead*3-1:3)
       DFPz => DF_recip(3:ntotbead*3:3)
-      #ifdef USE_DP
+#ifdef USE_DP
         call mkl_dcsrmv('N',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),F_meshPx,0._wp,DFPx)
         call mkl_dcsrmv('N',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),F_meshPy,0._wp,DFPy)
         call mkl_dcsrmv('N',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),F_meshPz,0._wp,DFPz)
-      #elif USE_SP
+#elif USE_SP
         call mkl_scsrmv('N',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),F_meshPx,0._wp,DFPx)
         call mkl_scsrmv('N',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),F_meshPy,0._wp,DFPy)
         call mkl_scsrmv('N',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),F_meshPz,0._wp,DFPz)
-      #endif
+#endif
       if (doTiming) et_INT=et_INT+tock(count2)
   
     end subroutine calcDF_recip

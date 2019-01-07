@@ -54,7 +54,7 @@ module force_cumod
 
   abstract interface
  
-    subroutine updateforce(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntbx3)
+    subroutine updateforce(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntbx3,Qt)
       import :: force_cu_t
       import :: wp
       implicit none
@@ -65,6 +65,7 @@ module force_cumod
       real(wp),intent(in) :: bs(3),invbs(3)
 !      real(wp),intent(inout) :: F(:)
       integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntbx3
+      real(wp),device,intent(in) :: Qt(:)
       
     end subroutine updateforce
 

@@ -84,7 +84,7 @@ contains
   !! \param bs the dimension of the box
   !! \param invbs the inverse of box dimensions
   !! \param F totoal force on particles
-  subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntbx3)
+  subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntbx3,Qt)
 
     
     ! use :: flow_mod, only: FlowType
@@ -100,6 +100,7 @@ contains
     real(wp),intent(in) :: bs(3),invbs(3) 
 !    real(wp),intent(inout) :: F(:)
     integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntbx3
+    real(wp),device,intent(in) :: Qt(:)
     integer :: istat
 
     ! integer :: its,ich,osb,oss,is
@@ -109,7 +110,7 @@ contains
     ! bsx=bs(1);bsy=bs(2);bsz=bs(3)
     ! invbsx=invbs(1);invbsy=invbs(2);invbsz=invbs(3)
 
-    call update_force_krnl(this%Fs,Rbx,Rby,Rbz,bs,invbs,ns,nb,nts)
+    call update_force_krnl(this%Fs,Rbx,Rby,Rbz,bs,invbs,ns,nb,nts,Qt)
 
     istat = cusparseDcsrmv(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,ntbx3,ntsx3,nnz_Bbar,&
       -1._wp,descr_Bbar,Bbar_Val_tr_d,Bbar_ColPtr_d,Bbar_RowInd_d,this%Fs,1._wp,Fphi_d)
@@ -128,7 +129,7 @@ contains
   end subroutine del_sprforce_d
 
 
-  subroutine update_force_krnl(Fs,Rbx,Rby,Rbz,bs,invbs,ns,nb,nts)
+  subroutine update_force_krnl(Fs,Rbx,Rby,Rbz,bs,invbs,ns,nb,nts,Qt)
 
     real(wp),device,intent(inout) :: Fs(:)
     real(wp),device,intent(in) :: Rbx(:)
@@ -136,6 +137,7 @@ contains
     real(wp),device,intent(in) :: Rbz(:)
     real(wp),intent(in) :: bs(3),invbs(3) 
     integer,intent(in) :: ns,nb,nts
+    real(wp),device,intent(in) :: Qt(:)
     integer :: its,ich,osb,oss,is
     real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
     real(wp) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
@@ -145,13 +147,17 @@ contains
 
     !$cuf kernel do <<< *,* >>>
     do its=1, nts
-      ich=(its-1)/ns+1
-      oss=(ich-1)*ns
-      osb=(ich-1)*nb
-      is=its-oss
-      qx=Rbx(osb+is+1)-Rbx(osb+is)
-      qy=Rby(osb+is+1)-Rby(osb+is)
-      qz=Rbz(osb+is+1)-Rbz(osb+is)
+      ! ich=(its-1)/ns+1
+      ! oss=(ich-1)*ns
+      ! osb=(ich-1)*nb
+      ! is=its-oss
+      ! qx=Rbx(osb+is+1)-Rbx(osb+is)
+      ! qy=Rby(osb+is+1)-Rby(osb+is)
+      ! qz=Rbz(osb+is+1)-Rbz(osb+is)
+      qx=Qt((its-1)*3+1)
+      qy=Qt((its-1)*3+2)
+      qz=Qt((its-1)*3+3)
+
       qx=qx-nint(qx*invbsx)*bsx
       qy=qy-nint(qy*invbsy)*bsy
       qz=qz-nint(qz*invbsz)*bsz
@@ -179,9 +185,12 @@ contains
       case (Hookean)
         Ftmp = 1._wp
       end select
-      Fs((oss+is-1)*3+1)=Ftmp*qx
-      Fs((oss+is-1)*3+2)=Ftmp*qy
-      Fs((oss+is-1)*3+3)=Ftmp*qz
+      ! Fs((oss+is-1)*3+1)=Ftmp*qx
+      ! Fs((oss+is-1)*3+2)=Ftmp*qy
+      ! Fs((oss+is-1)*3+3)=Ftmp*qz
+      Fs((its-1)*3+1)=Ftmp*qx
+      Fs((its-1)*3+2)=Ftmp*qy
+      Fs((its-1)*3+3)=Ftmp*qz
       ! rFphi(1)=rFphi(1)-qx*Ftmp*qx
       ! rFphi(2)=rFphi(2)-qx*Ftmp*qy
       ! rFphi(3)=rFphi(3)-qy*Ftmp*qy

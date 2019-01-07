@@ -5,7 +5,6 @@
 !|  Material Research and Innovation Laboratory                           |
 !|  University of Tennessee-Knoxville                                     |
 !|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
-!|             Tiras Y. Lin       <tlin@stanford.edu>                     |
 !|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
 !|             Bamin Khomami      <bkhomami@utk.edu>                      |
 !|                                                                        |
@@ -186,12 +185,12 @@ contains
   !! \param str the modulo(strain,max(strain))
   !! \param b_img the image of the beads inside the primary box
   !! \param cm_img the image of the center of mass inside the primary box
-  subroutine applypbc_glob(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,nbead,itime)
+  subroutine applypbc_glob(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,itime)
 
     use :: flow_mod, only: FlowType
 
     class(trsfm_cu_t),intent(inout) :: this
-    integer,intent(in) :: nbead,itime
+    integer,intent(in) :: itime
     real(wp),intent(in) :: bs(3),invbs(3)
     real(wp),device,intent(inout) :: Rbx(:)
     real(wp),device,intent(inout) :: Rby(:)
@@ -202,7 +201,7 @@ contains
 
     ! if (FlowType /= 'Equil') call map(this,Rbx,Rby,rcm,itime)
     call applypbc_rec(this,bs(1),bs(2),bs(3),invbs(1),invbs(2),invbs(3),Rbx,Rby,Rbz,&
-      rcm,b_img,cm_img,nbead,itime)
+      rcm,b_img,cm_img,itime)
     ! if (FlowType /= 'Equil') call remap(this,bs,invbs,Rbx,Rby,rcm,b_img,cm_img,itime)
 
   end subroutine applypbc_glob
@@ -218,14 +217,14 @@ contains
   ! subroutine applypbc_rec(this,bsx,bsy,bsz,invbsx,invbsy,invbsz,&
   !   Rbx,Rby,Rbz,rcm,b_img,cm_img,ntb,nch,itime)
   subroutine applypbc_rec(this,bsx,bsy,bsz,invbsx,invbsy,invbsz,Rbx,Rby,Rbz,&
-    rcm,b_img,cm_img,nbead,itime)
+    rcm,b_img,cm_img,itime)
 
     use :: flow_mod, only: FlowType
     use :: arry_mod, only: print_vector,print_matrix
 
     class(trsfm_cu_t),intent(inout) :: this
     real(wp),intent(in) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
-    integer,intent(in) :: nbead,itime
+    integer,intent(in) :: itime
     real(wp),device,intent(inout) :: Rbx(:)
     real(wp),device,intent(inout) :: Rby(:)
     real(wp),device,intent(inout) :: Rbz(:)

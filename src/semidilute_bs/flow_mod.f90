@@ -118,6 +118,9 @@ ef: do
     nbeadx3=nbead*3
     ntotbeadx3=nchain*nbead*3
 
+
+    !!!!!! should be fixed for comb polymer
+
     ! For making K sparse (CSR):
     ! Specifying kappa based on type of flow
     select case (FlowType)

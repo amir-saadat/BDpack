@@ -5,7 +5,6 @@
 !|  Material Research and Innovation Laboratory                           |
 !|  University of Tennessee-Knoxville                                     |
 !|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
-!|             Tiras Y. Lin       <tlin@stanford.edu>                     |
 !|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
 !|             Bamin Khomami      <bkhomami@utk.edu>                      |
 !|                                                                        |
@@ -37,10 +36,10 @@
 module chain_cumod
 
   use :: prcn_mod
+  use :: arry_mod, only: print_vector
   !$ use :: omp_lib
 
   implicit none
-
 
   ! Private module procedures:
   private :: init_chain
@@ -48,22 +47,38 @@ module chain_cumod
   type :: chain_cu_t
 
     integer :: chain_ID
-    !> The pointer to the chain section of Rb_tilde
-    real(wp),device,pointer :: chain_Rb(:)
-    !> The pointer to the chain section of Rb x-component
-    real(wp),device,pointer :: chain_Rbx(:)
-    !> The pointer to the chain section of Rb y-component
-    real(wp),device,pointer :: chain_Rby(:)
-    !> The pointer to the chain section of Rb z-component
-    real(wp),device,pointer :: chain_Rbz(:)
-    !> The pointer to the chain section of the b_img
-    integer,device,pointer :: chain_b_imgx(:)
-    integer,device,pointer :: chain_b_imgy(:)
-    integer,device,pointer :: chain_b_imgz(:)
-    !> The pointer to chain section of Qdagger_tilde
-    real(wp),device,pointer :: chain_Q(:)
-    !> The pointer to chain section of R_tilde
-    real(wp),device,pointer :: chain_R(:)
+
+    !!!! due to current limitation of using pointer only in the module scope
+    !!!! only scaler pointer works well when inside a type
+
+    ! !> The pointer to the chain section of Rb_tilde
+    ! real(wp),device,pointer :: chain_Rb(:)
+    ! !> The pointer to the chain section of Rb x-component
+    ! real(wp),device,pointer :: chain_Rbx(:)
+    ! !> The pointer to the chain section of Rb y-component
+    ! real(wp),device,pointer :: chain_Rby(:)
+    ! !> The pointer to the chain section of Rb z-component
+    ! real(wp),device,pointer :: chain_Rbz(:)
+    ! !> The pointer to the chain section of the b_img x-component
+    ! integer,device,pointer :: chain_b_imgx(:)
+    ! !> The pointer to the chain section of the b_img y-component
+    ! integer,device,pointer :: chain_b_imgy(:)
+    ! !> The pointer to the chain section of the b_img z-component
+    ! integer,device,pointer :: chain_b_imgz(:)
+    ! !> The pointer to chain section of Qdagger_tilde
+    ! real(wp),device,pointer :: chain_Q(:)
+    ! !> The pointer to chain section of R_tilde
+    ! real(wp),device,pointer :: chain_R(:)
+
+    !> index of first and last component of the global Q
+    integer :: chain_Q_idx(2)
+    !> index of first and last component of the global R
+    integer :: chain_R_idx(2)
+    !> index of first and last component of the global Rbc
+    integer :: chain_Rbc_idx(2)
+    !> index of first and last component of the global b_img
+    integer :: chain_b_imgc_idx(2)
+
     !> x-comp The pointer to chain section of rcm_tilde
     real(wp),device,pointer :: chain_rcmx
     !> y-comp The pointer to chain section of rcm_tilde
@@ -107,35 +122,98 @@ module chain_cumod
 
 contains
 
-  subroutine init_chain(this,id,nsegx3,nbead,nbeadx3,Rb,Rbx,Rby,Rbz,Q,R,&
-                        rcm,b_img,cm_img)
+  subroutine init_chain(this,id,nchain,nsegx3,nbead,nbeadx3,Rb,Rbx,Rby,Rbz,Q,R,&
+    rcm,b_img,cm_img,nseg_cmb)
 
     class(chain_cu_t),intent(inout) :: this
-    integer,intent(in) :: id,nsegx3,nbead,nbeadx3
+    integer,intent(in) :: id,nchain,nsegx3,nbead,nbeadx3
     real(wp),device,intent(in),target :: Rb(:)
     real(wp),device,intent(in),target :: Rbx(:),Rby(:),Rbz(:)
     real(wp),device,intent(in),target :: Q(:)
     real(wp),device,intent(in),target :: R(:)
     real(wp),device,intent(in),target :: rcm(:,:)
+    ! integer,device,intent(in),target :: cmif(:,:)
+    ! real(wp),device,intent(in),target :: Rbtr(:,:)
+    ! real(wp),device,intent(in),target :: rcmtr(:,:)
     integer,device,intent(in),target :: b_img(:,:)
     integer,device,intent(in),target :: cm_img(:,:)
+    integer,intent(in),optional :: nseg_cmb
 
-    this%chain_ID=id
-    this%chain_Q => Q((id-1)*nsegx3+1:(id-1)*nsegx3+nsegx3)
-    this%chain_R => R((id-1)*nbeadx3+1:(id-1)*nbeadx3+nbeadx3)
-    this%chain_Rbx => Rbx((id-1)*nbead+1:(id-1)*nbead+nbead)
-    this%chain_Rby => Rby((id-1)*nbead+1:(id-1)*nbead+nbead)
-    this%chain_Rbz => Rbz((id-1)*nbead+1:(id-1)*nbead+nbead)
-    this%chain_rcmx => rcm(id,1)
-    this%chain_rcmy => rcm(id,2)
-    this%chain_rcmz => rcm(id,3)
+    real(wp) :: rbead(5),rr(6)
 
-    this%chain_b_imgx => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,1)
-    this%chain_b_imgy => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,2)
-    this%chain_b_imgz => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,3)
-    this%chain_cm_imgx => cm_img(id,1)
-    this%chain_cm_imgy => cm_img(id,2)
-    this%chain_cm_imgz => cm_img(id,3)
+
+    integer :: offsetseg,offsetbead1,offsetbead2,nbead_cmb
+
+
+    if (present(nseg_cmb)) then ! comb chain
+
+      offsetseg=nchain*nsegx3
+      offsetbead1=nchain*nbead
+      offsetbead2=nchain*nbeadx3
+      nbead_cmb=nseg_cmb+1
+
+      this%chain_ID=nchain+id
+      ! this%chain_Q => Q(offsetseg+(id-1)*nseg_cmb*3+1:offsetseg+(id-1)*nseg_cmb*3+nseg_cmb*3)
+      ! this%chain_R => R(offsetbead2+(id-1)*nbead_cmb*3+1:offsetbead2+(id-1)*nbead_cmb*3+nbead_cmb*3)
+      ! this%chain_Rbx => Rbx(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb)
+      ! this%chain_Rby => Rby(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb)
+      ! this%chain_Rbz => Rbz(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb)
+      this%chain_Q_idx=[offsetseg+(id-1)*nseg_cmb*3+1,offsetseg+(id-1)*nseg_cmb*3+nseg_cmb*3]
+      this%chain_R_idx=[offsetbead2+(id-1)*nbead_cmb*3+1,offsetbead2+(id-1)*nbead_cmb*3+nbead_cmb*3]
+      this%chain_Rbc_idx=[offsetbead1+(id-1)*nbead_cmb+1,offsetbead1+(id-1)*nbead_cmb+nbead_cmb]
+      
+      this%chain_rcmx => rcm(nchain+id,1)
+      this%chain_rcmy => rcm(nchain+id,2)
+      this%chain_rcmz => rcm(nchain+id,3)
+
+      ! this%chain_b_imgx => b_img(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb,1)
+      ! this%chain_b_imgy => b_img(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb,2)
+      ! this%chain_b_imgz => b_img(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb,3)
+
+      this%chain_b_imgc_idx=[offsetbead1+(id-1)*nbead_cmb+1,offsetbead1+(id-1)*nbead_cmb+nbead_cmb]
+
+      this%chain_cm_imgx => cm_img(nchain+id,1)
+      this%chain_cm_imgy => cm_img(nchain+id,2)
+      this%chain_cm_imgz => cm_img(nchain+id,3)
+
+      ! print*,'id',this%chain_ID,offsetbead1+(id-1)*nbead_cmb+1,offsetbead1+(id-1)*nbead_cmb+nbead_cmb
+
+    else ! linear chains
+
+      this%chain_ID=id
+      ! this%chain_Q => Q((id-1)*nsegx3+1:(id-1)*nsegx3+nsegx3)
+      ! this%chain_R => R((id-1)*nbeadx3+1:(id-1)*nbeadx3+nbeadx3)
+      ! this%chain_Rbx => Rbx((id-1)*nbead+1:(id-1)*nbead+nbead)
+      ! this%chain_Rby => Rby((id-1)*nbead+1:(id-1)*nbead+nbead)
+      ! this%chain_Rbz => Rbz((id-1)*nbead+1:(id-1)*nbead+nbead)
+
+      this%chain_Q_idx=[(id-1)*nsegx3+1,(id-1)*nsegx3+nsegx3]
+      this%chain_R_idx=[(id-1)*nbeadx3+1,(id-1)*nbeadx3+nbeadx3]
+      this%chain_Rbc_idx=[(id-1)*nbead+1,(id-1)*nbead+nbead]
+
+      this%chain_rcmx => rcm(id,1)
+      this%chain_rcmy => rcm(id,2)
+      this%chain_rcmz => rcm(id,3)
+
+      ! this%chain_b_imgx => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,1)
+      ! this%chain_b_imgy => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,2)
+      ! this%chain_b_imgz => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,3)
+
+      this%chain_b_imgc_idx=[(id-1)*nbead+1,(id-1)*nbead+nbead]
+
+      this%chain_cm_imgx => cm_img(id,1)
+      this%chain_cm_imgy => cm_img(id,2)
+      this%chain_cm_imgz => cm_img(id,3)
+
+      ! print*,'id',this%chain_ID,(id-1)*nbeadx3+1,(id-1)*nbeadx3+nbeadx3
+      ! rr=this%chain_R
+      ! rbead=this%chain_Rbx
+      ! call print_vector(rr,'r init')
+      ! call print_vector(rbead(1:2),'rbxinit')
+
+    endif
+
+
 
   end subroutine init_chain
 
@@ -144,9 +222,10 @@ contains
 
     type(chain_cu_t),intent(inout) :: this
 
-    nullify(this%chain_Rbx,this%chain_Rby,this%chain_Rbz)
-    nullify(this%chain_Rb)
-    nullify(this%chain_Q,this%chain_R,this%chain_rcmx,this%chain_rcmy,this%chain_rcmz)
+    ! nullify(this%chain_Rbx,this%chain_Rby,this%chain_Rbz)
+    ! nullify(this%chain_Rb)
+    ! nullify(this%chain_Q,this%chain_R)
+    nullify(this%chain_rcmx,this%chain_rcmy,this%chain_rcmz)
 
   end subroutine del_chain
 
@@ -187,18 +266,24 @@ contains
 
   !> Kernel for updating the properties of the chain
   !! \param invbs the inverse of box dimensions
-  subroutine update_chain(this,bs)
+  subroutine update_chain(this,bs,Rbx,Rby,Rbz,b_img)
 
     use :: arry_mod, only: print_vector
 
     class(chain_cu_t),intent(inout) :: this
     real(wp),intent(in) :: bs(3)
+    real(wp),device,intent(in),target :: Rbx(:),Rby(:),Rbz(:)
+    integer,device,intent(inout),target :: b_img(:,:)
+
     real(wp) :: bsx,bsy,bsz,sumx,sumy,sumz
-    integer :: nb,ib
+    integer :: nb,ib,os_bimg,os_rbc
+    real(wp) :: rbead(10),rcm
+
 
     ! print*,'tid',threadIdx%x,ib!,boxchains(ich)%chain_ID
 
-    nb=size(this%chain_Rbx,1)
+    ! nb=size(this%chain_Rbx,1)
+    nb=this%chain_Rbc_idx(2)-this%chain_Rbc_idx(1)+1
 
     bsx=bs(1)
     bsy=bs(2)
@@ -212,23 +297,47 @@ contains
     cm_imgx_ptr => this%chain_cm_imgx
     cm_imgy_ptr => this%chain_cm_imgy
     cm_imgz_ptr => this%chain_cm_imgz
-    b_imgx_ptr => this%chain_b_imgx
-    b_imgy_ptr => this%chain_b_imgy
-    b_imgz_ptr => this%chain_b_imgz
-    Rbx_ptr => this%chain_Rbx
-    Rby_ptr => this%chain_Rby
-    Rbz_ptr => this%chain_Rbz
+    ! b_imgx_ptr => this%chain_b_imgx
+    ! b_imgy_ptr => this%chain_b_imgy
+    ! b_imgz_ptr => this%chain_b_imgz
+    ! Rbx_ptr => this%chain_Rbx
+    ! Rby_ptr => this%chain_Rby
+    ! Rbz_ptr => this%chain_Rbz
+
+    ! b_imgx_ptr => b_img(this%chain_b_imgc_idx(1):this%chain_b_imgc_idx(2),1)
+    ! b_imgy_ptr => b_img(this%chain_b_imgc_idx(1):this%chain_b_imgc_idx(2),2)
+    ! b_imgz_ptr => b_img(this%chain_b_imgc_idx(1):this%chain_b_imgc_idx(2),3)
+    ! Rbx_ptr => Rbx(this%chain_Rbc_idx(1):this%chain_Rbc_idx(2))
+    ! Rby_ptr => Rby(this%chain_Rbc_idx(1):this%chain_Rbc_idx(2))
+    ! Rbz_ptr => Rbz(this%chain_Rbc_idx(1):this%chain_Rbc_idx(2))
+
+! print*,'id',this%chain_ID,this%chain_Rbc_idx(1),this%chain_Rbc_idx(2)
+!     rbead=Rbx_ptr
+!     rcm=this%chain_rcmx
+!     print*,'rbx',rbead(1)
+!     print*,'rcmx',rcm
+
+    os_bimg=this%chain_b_imgc_idx(1)-1
+    os_rbc=this%chain_Rbc_idx(1)-1
 
     !$cuf kernel do <<< *,* >>>
     do ib=1, nb
 
-      b_imgx_ptr(ib)=b_imgx_ptr(ib)-cm_imgx_ptr
-      b_imgy_ptr(ib)=b_imgy_ptr(ib)-cm_imgy_ptr
-      b_imgz_ptr(ib)=b_imgz_ptr(ib)-cm_imgz_ptr
+      ! b_imgx_ptr(ib)=b_imgx_ptr(ib)-cm_imgx_ptr
+      ! b_imgy_ptr(ib)=b_imgy_ptr(ib)-cm_imgy_ptr
+      ! b_imgz_ptr(ib)=b_imgz_ptr(ib)-cm_imgz_ptr
 
-      sumx=sumx+(Rbx_ptr(ib)-b_imgx_ptr(ib)*bsx)/nb
-      sumy=sumy+(Rby_ptr(ib)-b_imgy_ptr(ib)*bsy)/nb
-      sumz=sumz+(Rbz_ptr(ib)-b_imgz_ptr(ib)*bsz)/nb
+      ! sumx=sumx+(Rbx_ptr(ib)-b_imgx_ptr(ib)*bsx)/nb
+      ! sumy=sumy+(Rby_ptr(ib)-b_imgy_ptr(ib)*bsy)/nb
+      ! sumz=sumz+(Rbz_ptr(ib)-b_imgz_ptr(ib)*bsz)/nb
+
+      b_img(os_bimg+ib,1)=b_img(os_bimg+ib,1)-cm_imgx_ptr
+      b_img(os_bimg+ib,2)=b_img(os_bimg+ib,2)-cm_imgy_ptr
+      b_img(os_bimg+ib,3)=b_img(os_bimg+ib,3)-cm_imgz_ptr
+
+      sumx=sumx+(Rbx(os_rbc+ib)-b_img(os_bimg+ib,1)*bsx)/nb
+      sumy=sumy+(Rby(os_rbc+ib)-b_img(os_bimg+ib,2)*bsy)/nb
+      sumz=sumz+(Rbz(os_rbc+ib)-b_img(os_bimg+ib,3)*bsz)/nb
 
     enddo
 

@@ -585,7 +585,7 @@ contains
 
 
 
-  subroutine updatelst_dev(this,Rbx_d,Rby_d,Rbz_d,Rb_d,itime,itrst,nch,nb,nbx3,ntb,ntbx3,bs,bo)
+  subroutine updatelst_dev(this,Rbx_d,Rby_d,Rbz_d,Rb_d,itime,itrst,ntb,ntbx3,bs,bo)
 
     use :: hi_mod, only: rlist_D,rc_D
     use :: arry_mod, only: print_vector
@@ -597,7 +597,7 @@ contains
     real(wp),device,intent(in),target :: Rbz_d(:)
     ! real(wp),intent(in) :: Rbtr(:)
     real(wp),intent(in) :: bs(3),bo(3)
-    integer,intent(in) :: itime,itrst,nch,nb,nbx3,ntb,ntbx3
+    integer,intent(in) :: itime,itrst,ntb,ntbx3
     real(wp) :: dispmax,bsx,bsy,bsz
     integer :: max_idx,nct,nthrd,r
     logical :: update
@@ -703,13 +703,13 @@ contains
   end subroutine cnstrlst_part1
 
 
-  subroutine updatelst_D(this,Rb,Rbtr,itime,itrst,nchain,nbead,nbeadx3,ntotbead,bs,bo)
+  subroutine updatelst_D(this,Rb,Rbtr,itime,itrst,ntotbead,bs,bo)
 
     use :: hi_mod, only: rlist_D,rc_D
 
     class(hi_cu_t),intent(inout) :: this
     real(wp),intent(in) :: Rb(:),Rbtr(:),bs(3),bo(3)
-    integer,intent(in) :: itime,itrst,nchain,nbead,nbeadx3,ntotbead
+    integer,intent(in) :: itime,itrst,ntotbead
     real(wp) :: dispmax
     logical :: update
 
@@ -725,13 +725,13 @@ contains
     if (update) then
       ! Save positions for next evaluations:
       this%Rb0=Rb
-      call cnstrlst_D(this,Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo)
+      call cnstrlst_D(this,Rb,Rbtr,itime,ntotbead,bs,bo)
     end if
 
 
   end subroutine updatelst_D
 
-  subroutine cnstrlst_D(this,Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo)
+  subroutine cnstrlst_D(this,Rb,Rbtr,itime,ntotbead,bs,bo)
 
     use :: arry_mod, only: print_vector,print_matrix,ResizeArray
     use :: flow_mod, only: FlowType
@@ -740,7 +740,7 @@ contains
 
     class(hi_cu_t),intent(inout) :: this
     real(wp),intent(in) :: Rb(:),Rbtr(:),bs(3),bo(3)
-    integer,intent(in) :: itime,nchain,nbead,nbeadx3,ntotbead
+    integer,intent(in) :: itime,ntotbead
     integer,dimension(3) :: cell_ind,neigcell_ind_p ! should contain 0~(ncells-1) cell indices
     integer,dimension(3),target :: neigcell_ind ! should contain 0~(ncells-1) cell indices
     real(wp),dimension(3) :: rij,rbtmp,rbi,rbj

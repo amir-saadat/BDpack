@@ -48,7 +48,8 @@ contains
     integer :: irun,tgap,idmp,dmpmx
     integer(long) :: count0
     real(wp) :: rtpassed,sqrtdt,wx,wy,wz,eps,time
-    real(wp),allocatable :: rdn(:,:,:) ! random array
+    ! real(wp),allocatable :: rdn(:,:,:) ! random array
+    real(wp),allocatable :: rdn(:,:) ! random array
     real(wp),parameter :: c1=14.14858378_wp,c2=1.21569221_wp
     type(box) :: MainBox
     integer :: nWi,itrst,nrun,runrst,ndmp,dmprst,nprun,ndt
@@ -108,7 +109,8 @@ contains
     ntime(:)=ceiling(tend*lambda/dt(:))
 
     ! Allocating total and local random arrays
-    allocate(rdn(nbeadx3,ncols,nchain))
+    ! allocate(rdn(nbeadx3,ncols,nchain))
+    allocate(rdn(ntotbeadx3,ncols))
 
   ! Loop over Pe number:
   do iPe=1, nWi
@@ -145,11 +147,19 @@ contains
         do itime=itrst+1, ntime(idt)
           ! constructing a block of random numbers
           if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
-            do ichain=1, nchain
-              do icol=1, ncols
-                do ibead=1, 3*nbead
-                  rdn(ibead,icol,ichain)=ranuls()-0.5
-                end do
+
+
+            ! do ichain=1, nchain
+            !   do icol=1, ncols
+            !     do ibead=1, 3*nbead
+            !       rdn(ibead,icol,ichain)=ranuls()-0.5
+            !     end do
+            !   end do
+            ! end do
+
+            do icol=1, ncols
+              do ibead=1, 3*ntotbead
+                rdn(ibead,icol)=ranuls()-0.5
               end do
             end do
 
@@ -187,16 +197,26 @@ contains
           ! Constructing the random vector,dW, for the whole Box:
           if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
 
-            do kchain=1, nchain
-              do kcol=1, ncols
-                do kbead=1, nbead
-                  offset=3*(kbead-1)
-                  wx=rdn(offset+1,kcol,kchain);wx=sqrtdt*wx*(c1*wx**2+c2)
-                  wy=rdn(offset+2,kcol,kchain);wy=sqrtdt*wy*(c1*wy**2+c2)
-                  wz=rdn(offset+3,kcol,kchain);wz=sqrtdt*wz*(c1*wz**2+c2)
-                  offsettot=(kchain-1)*nbeadx3+offset
-                  dw_bl(offsettot+1:offsettot+3,kcol)=[wx,wy,wz]
-                end do
+            ! do kchain=1, nchain
+            !   do kcol=1, ncols
+            !     do kbead=1, nbead
+            !       offset=3*(kbead-1)
+            !       wx=rdn(offset+1,kcol,kchain);wx=sqrtdt*wx*(c1*wx**2+c2)
+            !       wy=rdn(offset+2,kcol,kchain);wy=sqrtdt*wy*(c1*wy**2+c2)
+            !       wz=rdn(offset+3,kcol,kchain);wz=sqrtdt*wz*(c1*wz**2+c2)
+            !       offsettot=(kchain-1)*nbeadx3+offset
+            !       dw_bl(offsettot+1:offsettot+3,kcol)=[wx,wy,wz]
+            !     end do
+            !   end do
+            ! end do
+
+            do kcol=1, ncols
+              do kbead=1, ntotbead
+                offset=3*(kbead-1)
+                wx=rdn(offset+1,kcol);wx=sqrtdt*wx*(c1*wx**2+c2)
+                wy=rdn(offset+2,kcol);wy=sqrtdt*wy*(c1*wy**2+c2)
+                wz=rdn(offset+3,kcol);wz=sqrtdt*wz*(c1*wz**2+c2)
+                dw_bl(offset+1:offset+3,kcol)=[wx,wy,wz]
               end do
             end do
 
@@ -271,12 +291,13 @@ contains
     !----------------------------------------------
     !>>> Termination of the modules:
     !----------------------------------------------
-
+print*,'t1'
     call del_box(id)
+print*,'t2'
     call del_pp(id)
-
+print*,'t3'
     deallocate(rdn)
-
+print*,'t4'
     call del()
 
 contains

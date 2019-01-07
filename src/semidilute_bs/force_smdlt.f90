@@ -51,7 +51,7 @@ module force_smdlt
   abstract interface
  
     subroutine updateforce(this,Rbx,Rby,Rbz,bs,invbs,itime,nchain,nseg,nbead,&
-                          ntotseg,ntotsegx3,ntotbeadx3)
+                          ntotseg,ntotsegx3,ntotbeadx3,Qt)
       import :: force
       import :: wp
       implicit none
@@ -62,6 +62,7 @@ module force_smdlt
       real(wp),intent(in) :: bs(3),invbs(3)
 !      real(wp),intent(inout) :: F(:)
       integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3
+      real(wp),intent(in) :: Qt(:)
       
     end subroutine updateforce
 

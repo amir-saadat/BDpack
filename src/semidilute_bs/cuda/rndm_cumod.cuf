@@ -120,12 +120,12 @@ contains
 
 
   !> Generates uniform random numbers and populates dw_bl_d
-  subroutine gen_rndm(this,nchain,ntotbeadx3,dt)
+  subroutine gen_rndm(this,ntotbeadx3,dt)
 
     use :: hi_mod, only: ncols
 
     class(rndm_cu_t),intent(inout) :: this
-    integer,intent(in) :: nchain,ntotbeadx3
+    integer,intent(in) :: ntotbeadx3
     real(wp),intent(in) :: dt
 
     integer(kind=c_intptr_t) :: dim

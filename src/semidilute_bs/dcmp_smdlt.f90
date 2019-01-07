@@ -32,6 +32,7 @@ module dcmp_smdlt
   use :: types, only: decomp
 
 
+#ifdef USE_GPU
   ! CUDA variables:
   !>
   real(wp),device,pointer :: VPt_d(:,:)
@@ -39,6 +40,7 @@ module dcmp_smdlt
   real(wp),device,pointer :: VP_d(:)
   real(wp),device,pointer :: lamVPt(:)
   real(wp),device,pointer :: e1Pt_d(:)
+#endif
   
 contains
 
