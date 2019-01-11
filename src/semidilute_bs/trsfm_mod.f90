@@ -53,13 +53,13 @@ module trsfm_mod
     private
 
     !> The x-component of transformed position of the beads
-    real(wp),pointer,contiguous,public :: Rbtrx(:) => null()
+    real(wp),pointer,public :: Rbtrx(:) => null()
     !> The y-component of transformed position of the beads
-    real(wp),pointer,contiguous,public :: Rbtry(:) => null()
+    real(wp),pointer,public :: Rbtry(:) => null()
     !> The x-component of transformed position of the center of mass
-    real(wp),pointer,contiguous,public :: rcmtrx(:) => null()
+    real(wp),pointer,public :: rcmtrx(:) => null()
     !> The y-component of transformed position of the center of mass
-    real(wp),pointer,contiguous,public :: rcmtry(:) => null()
+    real(wp),pointer,public :: rcmtry(:) => null()
 
   contains
 
@@ -250,13 +250,14 @@ contains
 
     class(trsfm),intent(inout) :: this
     ! integer,intent(in) :: ntotbead,nchain
-    real(wp),intent(in),target :: Rbtr(:,:)
-    real(wp),intent(in),target :: rcmtr(:,:)
+    real(wp),intent(in),target,contiguous :: Rbtr(:,:)
+    real(wp),intent(in),target,contiguous :: rcmtr(:,:)
 
     select case (FlowType)
       case ('Equil')
-        this%Rbtrx => Rbtr(:,0)
-        this%rcmtrx => rcmtr(:,0)
+        ! Rbtr and rcmtr in this case are zero-sized
+        this%Rbtrx(1:size(Rbtr)) => Rbtr
+        this%rcmtrx(1:size(rcmtr)) => rcmtr
       case ('PSF')
         this%Rbtrx => Rbtr(:,1)
         this%rcmtrx => rcmtr(:,1)
