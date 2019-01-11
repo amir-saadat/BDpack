@@ -37,11 +37,11 @@ module diffdcmp_mod
     HIcalc_mode,Coeff_tens,aBlLan,WBlLan,VBlLan,Ybar,VcntBlLan,upfactr,mBlLan,mset,&
     mst,hstar
   use :: types, only: decomp
-  #ifdef USE_GPU
+#ifdef USE_GPU
     use :: dcmp_smdlt, only: Lanczos,BlockLanczos,Lanczos_dev,Lanczos_dev2
-  #else
+#else
     use :: dcmp_smdlt, only: Lanczos,BlockLanczos
-  #endif
+#endif
   use :: arry_mod, only: print_vector,print_matrix
 
 contains
