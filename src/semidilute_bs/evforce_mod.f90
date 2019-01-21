@@ -34,7 +34,7 @@ module evforce_mod
 
   use :: prcn_mod
   use :: force_smdlt, only: force
-  use :: verlet_mod, only: verlet
+  use :: evverlet_mod, only: evverlet
 
   implicit none
 
@@ -49,9 +49,9 @@ module evforce_mod
     private
     
     !> An object for construcing neighbor list for ev force
-    type(verlet) :: evvlt
+    type(evverlet) :: evvlt
     !> The position vector in the previous list update iteration
-    real(wp),allocatable :: Rb0(:) 
+    real(wp),allocatable :: Rb0(:)
     !> The neighbor list
     integer,allocatable :: nlst(:,:)
     !> Gaussian ev force parameters
@@ -229,8 +229,7 @@ ef: do
         call this%evvlt%init_cll(rs_F,bs,ntotbead)
       end if
       call this%evvlt%cnstr_cll(Rbx,Rby,Rbz,itime,ntotbead,ntotbeadx3)
-      call this%evvlt%cnstr_nab(Rbx,Rby,Rbz,rs_F,bs,invbs,this%nlst,itime,&
-                                ntotbead,ntotbeadx3)
+      call this%evvlt%cnstr_nab(Rbx,Rby,Rbz,rs_F,bs,invbs,this%nlst,itime,ntotbead,ntotbeadx3)
     end if
 
   end subroutine update_vlt_lst
@@ -242,7 +241,7 @@ ef: do
   !! \param bs the dimension of the box
   !! \param invbs the inverse of box dimensions
   subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nchain,nseg,nbead,&
-                          ntotseg,ntotsegx3,ntotbeadx3,Qt)
+                          ntotseg,ntotsegx3,ntotbead,ntotbeadx3,Qt)
 
     use :: arry_mod, only: print_vector
     use :: trsfm_mod, only: eps_m,tanb,sinth,costh
@@ -255,7 +254,7 @@ ef: do
     real(wp),intent(in) :: Rbz(:)
     real(wp),intent(in) :: bs(3),invbs(3) 
 !    real(wp),intent(inout) :: F(:)
-    integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3
+    integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3
     real(wp),intent(in) :: Qt(:)
     integer :: iint,i,j
     real(wp) :: rijx,rijy,rijz,rijsq,rijytmp,Fevij(3)

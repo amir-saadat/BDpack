@@ -72,24 +72,24 @@ module hiverlet_cumod
     integer,allocatable :: nclst(:,:)
     !> Maximum occupancy of the cells
     integer :: mocc
-    !> i index in all possible interactions
-    integer,allocatable :: iidx(:)
-    !> j index in all possible interactions
-    integer,allocatable :: jidx(:)
-    !> An array for keeping track of interactions of interest
-    logical,allocatable :: inside(:)
-    !> The x-component of vector between beads with indices i,j
-    real(wp),allocatable :: Rijx(:)
-    !> The y-component of vector between beads with indices i,j
-    real(wp),allocatable :: Rijy(:)
-    !> The temporary y-component of vector between beads with indices i,j
-    real(wp),allocatable :: Rijytmp(:)
-    !> The z-component of vector between beads with indices i,j
-    real(wp),allocatable :: Rijz(:)
-    !> The squared distance between beads with indices i,j
-    real(wp),allocatable :: Rijsq(:)
-    !> Total number of interactions possible
-    integer :: num_int
+    ! !> i index in all possible interactions
+    ! integer,allocatable :: iidx(:)
+    ! !> j index in all possible interactions
+    ! integer,allocatable :: jidx(:)
+    ! !> An array for keeping track of interactions of interest
+    ! logical,allocatable :: inside(:)
+    ! !> The x-component of vector between beads with indices i,j
+    ! real(wp),allocatable :: Rijx(:)
+    ! !> The y-component of vector between beads with indices i,j
+    ! real(wp),allocatable :: Rijy(:)
+    ! !> The temporary y-component of vector between beads with indices i,j
+    ! real(wp),allocatable :: Rijytmp(:)
+    ! !> The z-component of vector between beads with indices i,j
+    ! real(wp),allocatable :: Rijz(:)
+    ! !> The squared distance between beads with indices i,j
+    ! real(wp),allocatable :: Rijsq(:)
+    ! !> Total number of interactions possible
+    ! integer :: num_int
     !> The x-component of position vector on host
     real(wp),allocatable :: Rbx_h(:)
     !> The y-component of position vector on host
@@ -117,7 +117,8 @@ module hiverlet_cumod
 
 
   ! Private module variables:
-  private :: cll_dns_hi,nnc,shifts,j_clx,j_cly,j_clz,j_cll
+  ! private :: cll_dns_hi,nnc,shifts,j_clx,j_cly,j_clz,j_cll
+  private :: cll_dns_hi,nnc,Rbx_tex,Rby_tex,Rbz_tex
   ! Protected module variables:
 !  protected ::
 
@@ -125,10 +126,10 @@ module hiverlet_cumod
   real(wp),save :: cll_dns_hi
   !> Number of neighbering cells
   integer,save :: nnc
-  !> The neighboring cells offset
-  integer,allocatable,save :: shifts(:,:)
-  !> The coordinates for neighboring cells
-  integer,allocatable :: j_clx(:),j_cly(:),j_clz(:),j_cll(:)
+  ! !> The neighboring cells offset
+  ! integer,allocatable,save :: shifts(:,:)
+  ! !> The coordinates for neighboring cells
+  ! integer,allocatable :: j_clx(:),j_cly(:),j_clz(:),j_cll(:)
 
 
   !> Texture memory pointers for x-direction coordinates
@@ -139,9 +140,9 @@ module hiverlet_cumod
   real(wp),texture,pointer :: Rbz_tex(:)
 
 
-integer,allocatable :: nn_test(:),nlst_test(:,:)
-real(wp),device,allocatable :: vallst_d(:,:)
-real,allocatable :: vallst_test(:,:)
+! integer,allocatable :: nn_test(:),nlst_test(:,:)
+! real(wp),device,allocatable :: vallst_d(:,:)
+! real,allocatable :: vallst_test(:,:)
 
 
 contains 
@@ -184,78 +185,78 @@ contains
 !     end do ef
 !     close(u1)
 
-    call read_input('cll_dns_hi',0,cll_dns_hi,0.1_wp)
+    call read_input('cll-dns-hi',0,cll_dns_hi,0.1_wp)
 
     select case (FlowType)
 
       case ('Equil','PSF')
         nnc=27
-        allocate(shifts(nnc,3))
-        shifts(1,:) =[ 0, 0,-1]
-        shifts(2,:) =[ 1, 0,-1]
-        shifts(3,:) =[ 1, 0, 0]
-        shifts(4,:) =[ 1, 0, 1]
-        shifts(5,:) =[-1, 1,-1]
-        shifts(6,:) =[ 0, 1,-1]
-        shifts(7,:) =[ 1, 1,-1]
-        shifts(8,:) =[-1, 1, 0]
-        shifts(9,:) =[ 0, 1, 0]
-        shifts(10,:)=[ 1, 1, 0]
-        shifts(11,:)=[-1, 1, 1]
-        shifts(12,:)=[ 0, 1, 1]
-        shifts(13,:)=[ 1, 1, 1]
+        ! allocate(shifts(nnc,3))
+        ! shifts(1,:) =[ 0, 0,-1]
+        ! shifts(2,:) =[ 1, 0,-1]
+        ! shifts(3,:) =[ 1, 0, 0]
+        ! shifts(4,:) =[ 1, 0, 1]
+        ! shifts(5,:) =[-1, 1,-1]
+        ! shifts(6,:) =[ 0, 1,-1]
+        ! shifts(7,:) =[ 1, 1,-1]
+        ! shifts(8,:) =[-1, 1, 0]
+        ! shifts(9,:) =[ 0, 1, 0]
+        ! shifts(10,:)=[ 1, 1, 0]
+        ! shifts(11,:)=[-1, 1, 1]
+        ! shifts(12,:)=[ 0, 1, 1]
+        ! shifts(13,:)=[ 1, 1, 1]
 
-        shifts(14,:)=[ 0, 0, 0]
+        ! shifts(14,:)=[ 0, 0, 0]
 
-        shifts(15:27,:) = - shifts(1:13,:)
+        ! shifts(15:27,:) = - shifts(1:13,:)
 
       case ('PEF')
         nnc=63
-        allocate(shifts(nnc,3))
-        shifts(1,:) =[ 0, 0,-1]
-        shifts(2,:) =[ 1, 0,-1]
-        shifts(3,:) =[ 2, 0,-1]
-        shifts(4,:) =[ 3, 0,-1]
-        shifts(5,:) =[ 1, 0, 0]
-        shifts(6,:) =[ 2, 0, 0]
-        shifts(7,:) =[ 3, 0, 0]
-        shifts(8,:) =[ 1, 0, 1]
-        shifts(9,:) =[ 2, 0, 1]
-        shifts(10,:)=[ 3, 0, 1]
-        shifts(11,:)=[-3, 1,-1]
-        shifts(12,:)=[-2, 1,-1]
-        shifts(13,:)=[-1, 1,-1]
-        shifts(14,:)=[ 0, 1,-1]
-        shifts(15,:)=[ 1, 1,-1]
-        shifts(16,:)=[ 2, 1,-1]
-        shifts(17,:)=[ 3, 1,-1]
-        shifts(18,:)=[-3, 1, 0]
-        shifts(19,:)=[-2, 1, 0]
-        shifts(20,:)=[-1, 1, 0]
-        shifts(21,:)=[ 0, 1, 0]
-        shifts(22,:)=[ 1, 1, 0]
-        shifts(23,:)=[ 2, 1, 0]
-        shifts(24,:)=[ 3, 1, 0]
-        shifts(25,:)=[-3, 1, 1]
-        shifts(26,:)=[-2, 1, 1]
-        shifts(27,:)=[-1, 1, 1]
-        shifts(28,:)=[ 0, 1, 1]
-        shifts(29,:)=[ 1, 1, 1]
-        shifts(30,:)=[ 2, 1, 1]
-        shifts(31,:)=[ 3, 1, 1]
+        ! allocate(shifts(nnc,3))
+        ! shifts(1,:) =[ 0, 0,-1]
+        ! shifts(2,:) =[ 1, 0,-1]
+        ! shifts(3,:) =[ 2, 0,-1]
+        ! shifts(4,:) =[ 3, 0,-1]
+        ! shifts(5,:) =[ 1, 0, 0]
+        ! shifts(6,:) =[ 2, 0, 0]
+        ! shifts(7,:) =[ 3, 0, 0]
+        ! shifts(8,:) =[ 1, 0, 1]
+        ! shifts(9,:) =[ 2, 0, 1]
+        ! shifts(10,:)=[ 3, 0, 1]
+        ! shifts(11,:)=[-3, 1,-1]
+        ! shifts(12,:)=[-2, 1,-1]
+        ! shifts(13,:)=[-1, 1,-1]
+        ! shifts(14,:)=[ 0, 1,-1]
+        ! shifts(15,:)=[ 1, 1,-1]
+        ! shifts(16,:)=[ 2, 1,-1]
+        ! shifts(17,:)=[ 3, 1,-1]
+        ! shifts(18,:)=[-3, 1, 0]
+        ! shifts(19,:)=[-2, 1, 0]
+        ! shifts(20,:)=[-1, 1, 0]
+        ! shifts(21,:)=[ 0, 1, 0]
+        ! shifts(22,:)=[ 1, 1, 0]
+        ! shifts(23,:)=[ 2, 1, 0]
+        ! shifts(24,:)=[ 3, 1, 0]
+        ! shifts(25,:)=[-3, 1, 1]
+        ! shifts(26,:)=[-2, 1, 1]
+        ! shifts(27,:)=[-1, 1, 1]
+        ! shifts(28,:)=[ 0, 1, 1]
+        ! shifts(29,:)=[ 1, 1, 1]
+        ! shifts(30,:)=[ 2, 1, 1]
+        ! shifts(31,:)=[ 3, 1, 1]
 
-        shifts(32,:)=[ 0, 0, 0]
+        ! shifts(32,:)=[ 0, 0, 0]
 
-        shifts(33:63,:) = - shifts(1:31,:)
+        ! shifts(33:63,:) = - shifts(1:31,:)
 
 !        this%ncps(1:2)=bs(1:2)/(sqrt(10._wp)*rc_F)
 !        this%ncps(3)=bs(3)/rc_F
     end select
 
-    allocate(j_clx(nnc))
-    allocate(j_cly(nnc))
-    allocate(j_clz(nnc))
-    allocate(j_cll(nnc))
+    ! allocate(j_clx(nnc))
+    ! allocate(j_cly(nnc))
+    ! allocate(j_clz(nnc))
+    ! allocate(j_cll(nnc))
 
   end subroutine init_hiverlet_d
 
@@ -307,6 +308,7 @@ contains
   !! \param bs The dimension of the box
   subroutine init_clllst(this,rc,bs,ntotbead,nlst_d)
 
+    use :: verlet_mod, only: shifts,j_clx,j_cly,j_clz,j_cll
     use :: flow_mod, only: FlowType
 !    use :: inp_smdlt, only: ntotbead
     use :: arry_mod, only: print_vector,print_matrix
@@ -817,11 +819,10 @@ contains
 
   end subroutine del_verlet_t
 
-  subroutine del_verlet()
+  subroutine del_hiverlet_d()
 
-    deallocate(shifts)
-    deallocate(j_clx,j_cly,j_clz,j_cll)
+    nullify(Rbx_tex,Rby_tex,Rbz_tex)
 
-  end subroutine del_verlet
+  end subroutine del_hiverlet_d
 
 end module hiverlet_cumod

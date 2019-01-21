@@ -562,22 +562,18 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
     integer,intent(in) :: myrank
     real(wp),intent(in) :: bs(3)
 
-print*,'hi1'
     deallocate(dw_bl,dw_bltmp)
-print*,'hi2'
     if (HIcalc_mode == 'Ewald') then
       if (hstar /= 0._wp) deallocate(Diff_tens)
     elseif (HIcalc_mode == 'PME') then
       deallocate(P_vals,P_cols,P_rowInd)
       deallocate(F_mesh) 
-print*,'hi3'
       if (Dreal_sparse_mode) then
         deallocate(Dreal_vals,Dreal_cols,Dreal_rowInd)
         deallocate(DF_tot,DF_self,DF_real,DF_recip)
       else
         deallocate(Diff_tens_real,DF_tot,DF_self,DF_real,DF_recip)
       end if
-print*,'hi4'
       ! Destroying FFT handles:
       FFTStatus=DftiFreeDescriptor(FFTfwDescHand)
       if (FFTStatus /= 0) then

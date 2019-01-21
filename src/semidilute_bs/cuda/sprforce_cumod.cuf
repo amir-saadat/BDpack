@@ -5,7 +5,6 @@
 !|  Material Research and Innovation Laboratory                           |
 !|  University of Tennessee-Knoxville                                     |
 !|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
-!|             Tiras Y. Lin       <tlin@stanford.edu>                     |
 !|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
 !|             Bamin Khomami      <bkhomami@utk.edu>                      |
 !|                                                                        |
@@ -84,7 +83,7 @@ contains
   !! \param bs the dimension of the box
   !! \param invbs the inverse of box dimensions
   !! \param F totoal force on particles
-  subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntbx3,Qt)
+  subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3,Qt)
 
     
     ! use :: flow_mod, only: FlowType
@@ -99,7 +98,7 @@ contains
     real(wp),device,intent(in) :: Rbz(:)
     real(wp),intent(in) :: bs(3),invbs(3) 
 !    real(wp),intent(inout) :: F(:)
-    integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntbx3
+    integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3
     real(wp),device,intent(in) :: Qt(:)
     integer :: istat
 

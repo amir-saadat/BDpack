@@ -173,7 +173,7 @@ ef: do
   !! \param invbs the inverse of box dimensions
   !! \param F totoal force on particles
   subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nchain,nseg,nbead,&
-                          ntotseg,ntotsegx3,ntotbeadx3,Qt)
+                          ntotseg,ntotsegx3,ntotbead,ntotbeadx3,Qt)
 
     use :: arry_mod, only: print_vector
     use :: conv_mod, only: Bbar_vals,Bbar_cols,Bbar_rowInd
@@ -187,7 +187,7 @@ ef: do
     real(wp),intent(in) :: Rbz(:)
     real(wp),intent(in) :: bs(3),invbs(3)
 !    real(wp),intent(inout) :: F(:)
-    integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3
+    integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3
     real(wp),intent(in) :: Qt(:)
     integer :: its,ich,osb,oss,is
     real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp

@@ -291,13 +291,9 @@ contains
     !----------------------------------------------
     !>>> Termination of the modules:
     !----------------------------------------------
-print*,'t1'
     call del_box(id)
-print*,'t2'
     call del_pp(id)
-print*,'t3'
     deallocate(rdn)
-print*,'t4'
     call del()
 
 contains

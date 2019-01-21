@@ -29,7 +29,7 @@ module box_mod
   use :: flow_mod, only: flow
   use :: chain_mod
   use :: io_mod
-  use :: verlet_mod, only: verlet
+  use :: evverlet_mod, only: evverlet
   use :: sprforce_mod, only: sprforce
   use :: evforce_mod, only: evforce
   use :: trsfm_mod, only: trsfm
@@ -41,6 +41,7 @@ module box_mod
   use :: rndm_cumod, only: rndm_cu_t
   use :: hi_cumod, only: hi_cu_t
   use :: sprforce_cumod, only: sprforce_cu_t
+  use :: evforce_cumod, only: evforce_cu_t
 #endif
 !$ use :: omp_lib
   
@@ -141,6 +142,8 @@ module box_mod
       type(hi_cu_t) :: Boxhi_d
       !> An object for calculating net spring force on device
       type(sprforce_cu_t) :: Boxsprf_d
+      !> An object for calculating ev force on device
+      type(evforce_cu_t) :: Boxevf_d
 #endif
     
     contains
@@ -225,6 +228,7 @@ contains
     use :: trsfm_mod, only: init_trsfm
     use :: hi_mod, only: init_hi
     use :: verlet_mod, only: init_verlet
+    use :: evverlet_mod, only: init_evverlet
     use :: force_smdlt, only: init_force
     use :: sprforce_mod, only: init_sprforce
     use :: evforce_mod, only: init_evforce
@@ -234,6 +238,7 @@ contains
       use :: flow_cumod, only: init_flow_d
       use :: conv_cumod, only: init_conv_d
       use :: hiverlet_cumod, only: init_hiverlet_d
+      use :: evverlet_cumod, only: init_evverlet_d
       use :: force_cumod, only: init_force_d
 #endif
     !include 'mpif.h'
@@ -420,6 +425,7 @@ contains
     ! end if
     call init_io(myrank,nchain,nsegx3,nbeadx3,ntotchain,ntotsegx3,ntotbeadx3,nprun)
     call init_verlet(myrank)
+    call init_evverlet(myrank)
     call init_force(ntotbeadx3)
     call init_sprforce(myrank)
     call init_evforce(myrank)
@@ -429,6 +435,7 @@ contains
       call init_flow_d()
       call init_conv_d(ntotsegx3,ntotbeadx3)
       call init_hiverlet_d()
+      call init_evverlet_d()
       call init_force_d(ntotbeadx3)
 #endif
 
@@ -573,6 +580,8 @@ contains
       call this%Boxhi_d%init(myrank,ntotbead,this%size)
       ! Instantiation of Boxsprf_d:
       call this%Boxsprf_d%init(ntotsegx3)
+      ! Instantiation of Boxsprf_d:
+      call this%Boxevf_d%init(myrank,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotbead,ntotbeadx3,this%size)
 #endif
     
     if (myrank == 0) then
@@ -796,8 +805,8 @@ real(wp),allocatable :: rbtest(:)
 #ifdef USE_GPU
         select case (FlowType)
           case ('Equil')
-            ! call this%Boxevf_d%update_vlt(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,&
-            !                this%size,this%invsize,itime,itrst,ntotbead,ntotbeadx3)
+            call this%Boxevf_d%update_vlt(this%Rbx_d,this%Rby_d,this%Rbz_d,&
+              this%Rb_d,itime,itrst,ntotbead,ntotbeadx3,this%size,this%origin)
           case ('PSF')
           case ('PEF')
         end select
@@ -805,15 +814,14 @@ real(wp),allocatable :: rbtest(:)
         select case (FlowType)
           case ('Equil')
             call this%Boxevf%update_vlt(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,&
-                           this%size,this%invsize,itime,itrst,ntotbead,ntotbeadx3)
+              this%size,this%invsize,itime,itrst,ntotbead,ntotbeadx3)
           case ('PSF')
             call this%Boxevf%update_vlt(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,&
-                                   this%Rb_tilde,this%size,this%invsize,itime,&
-                                   itrst,ntotbead,ntotbeadx3)
+              this%Rb_tilde,this%size,this%invsize,itime,itrst,ntotbead,ntotbeadx3)
           case ('PEF')
             call this%Boxevf%update_vlt(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
-                    this%Rb_tilde,[bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],&
-                    itime,itrst,ntotbead,ntotbeadx3)
+              this%Rb_tilde,[bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,&
+              itrst,ntotbead,ntotbeadx3)
         end select
 #endif
     end if
@@ -1123,14 +1131,18 @@ real(wp),allocatable :: rbtest(:)
     use :: conv_mod, only: del_conv
     use :: hi_mod, only: del_hi
     use :: force_smdlt, only: del_force
+#ifdef USE_GPU
+      use :: force_cumod, only: del_force_d
+#endif
 
     integer,intent(in) :: myrank
-print*,'b1'
+
     call del_conv()
-print*,'b2'
     call del_force()
-print*,'b3'
     call del_hi(myrank,Lbox)
+#ifdef USE_GPU
+    call del_force_d()
+#endif
 
   end subroutine del_box
 
@@ -1144,7 +1156,6 @@ print*,'b3'
     type(box) :: this
     integer :: ichain
 
-print*,'hel1'
     select case (FlowType)
       case ('Equil')
         if (CoMDiff) deallocate(this%cmif)
@@ -1155,18 +1166,16 @@ print*,'hel1'
         deallocate(this%Rbtr)
         deallocate(this%rcmtr)
     end select
-print*,'hel2'
+
     deallocate(this%BoxChains)
-print*,'hel3'
     deallocate(this%Rb_tilde)
-print*,'hel4'
+
     deallocate(this%Rbx,this%Rby,this%Rbz)
     deallocate(this%R_tilde)
-print*,'hel5'
+
     deallocate(this%rcm_tilde)!,this%Fseg_tilde)
     deallocate(this%Q_tilde)!,Fbead_tilde)
     deallocate(this%b_img,this%cm_img)
-print*,'hel6'
 
 #ifdef USE_GPU
       deallocate(this%Rb_d)
@@ -1290,7 +1299,7 @@ print*,'hel6'
     use :: flow_mod, only: FlowType
     use :: trsfm_mod, only: bsx,bsy,invbsx,invbsy,eps_m,reArng
 #ifdef USE_GPU
-      use :: force_cumod, only: Fphi_d
+      use :: force_cumod, only: Fphi_d,rFphi_d
 #endif
 
     class(box),intent(inout) :: this
@@ -1305,38 +1314,66 @@ print*,'hel6'
     select case (FlowType)
       case ('Equil')
         call this%Boxsprf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
-          nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_tilde)
+          nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
         if (EVForceLaw /= 'NoEV') then
           call this%Boxevf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
-            nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_tilde)
+            nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
         end if
       case ('PSF')
         call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
-          itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_tilde)
+          itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
         if (EVForceLaw /= 'NoEV') then
           call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
-            itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_tilde)
+            itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
         end if
       case ('PEF')
         call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
           [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
-          nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_tilde)
+          nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
         if (EVForceLaw /= 'NoEV') then
           call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
              [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
-             nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_tilde)
+             nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
         end if
     end select
 
 #ifdef USE_GPU
 
       Fphi_d=0._wp
+      rFphi_d=0._wp
 
       call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
       call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
 
       call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,&
-        this%invsize,itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3,this%Q_d)
+        this%invsize,itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+
+      select case (FlowType)
+      case ('Equil')
+        call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
+          itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+        if (EVForceLaw /= 'NoEV') then
+          call this%Boxevf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
+            itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+        end if
+      ! case ('PSF')
+      !   call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
+      !     itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+      !   if (EVForceLaw /= 'NoEV') then
+      !     call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
+      !       itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+      !   end if
+      ! case ('PEF')
+      !   call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
+      !     [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
+      !     nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+      !   if (EVForceLaw /= 'NoEV') then
+      !     call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
+      !      [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
+      !      nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+      !   end if
+      end select
+
 #endif
 
   end subroutine calcForce

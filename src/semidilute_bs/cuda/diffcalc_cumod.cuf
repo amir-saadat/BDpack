@@ -690,6 +690,7 @@ contains
       ! deallocate(neig_count)
 
       ! First count the neighbors
+      ! each thread in a block needs to know this to write into the proper location
       allocate(neig_count(ntb))
       neig_count=0
       call calcDiff_real_d_part1 <<<(ntb+255)/256,256>>> (this%nn_d,this%nlst_d,Rb,ntb,this%mnnt/ntb,&

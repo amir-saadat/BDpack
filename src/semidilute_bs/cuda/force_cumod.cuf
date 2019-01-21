@@ -5,7 +5,6 @@
 !|  Material Research and Innovation Laboratory                           |
 !|  University of Tennessee-Knoxville                                     |
 !|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
-!|             Tiras Y. Lin       <tlin@stanford.edu>                     |
 !|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
 !|             Bamin Khomami      <bkhomami@utk.edu>                      |
 !|                                                                        |
@@ -54,7 +53,7 @@ module force_cumod
 
   abstract interface
  
-    subroutine updateforce(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntbx3,Qt)
+    subroutine updateforce(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3,Qt)
       import :: force_cu_t
       import :: wp
       implicit none
@@ -64,7 +63,7 @@ module force_cumod
       real(wp),device,intent(in) :: Rbz(:)
       real(wp),intent(in) :: bs(3),invbs(3)
 !      real(wp),intent(inout) :: F(:)
-      integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntbx3
+      integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3
       real(wp),device,intent(in) :: Qt(:)
       
     end subroutine updateforce
@@ -73,6 +72,8 @@ module force_cumod
 
   !> Total force acting on the particles
   real(wp),device,allocatable,target :: Fphi_d(:)
+  !> Interparticle distance times total force
+  real(wp),device :: rFphi_d(4)
 
 contains
 
@@ -84,6 +85,13 @@ contains
     allocate(Fphi_d(ntbx3))
 
   end subroutine init_force_d
+
+  !> Deletion of the force_mod module variables
+  subroutine del_force_d()
+
+    deallocate(Fphi_d)
+
+  end subroutine del_force_d
 
 
 end module force_cumod

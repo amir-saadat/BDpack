@@ -190,6 +190,10 @@ module hi_cumod
     final :: del_hi_t
   end type hi_cu_t
 
+  ! I had to define these variables in the module scope
+  ! constant can't be define as a derived type as of now
+  ! and also for Fmc, since the first argument of Fmc,.. starts from 0
+
   complex(wp),device,pointer :: Fmx(:)
   complex(wp),device,pointer :: Fmy(:)
   complex(wp),device,pointer :: Fmz(:)
@@ -197,8 +201,6 @@ module hi_cumod
   real(wp),device,pointer :: mpy_p(:)
   real(wp),device,pointer :: mpz_p(:)
   real(wp),device,pointer :: m2vec_p(:)
-  integer,device :: K_d(3)
-
   ! constants on device
   real(wp),constant :: M1_c1_d,M1_c2_d,M1_c3_d,M1_c4_d,M1_c5_d,M1_c6_d,M1_c7_d,M1_c8_d,M1_c9_d
   real(wp),constant :: M1_c10_d,M1_c11_d,M1_c12_d,M1_c13_d,M2_c1_d,M2_c2_d,M2_c3_d,M2_c4_d
@@ -207,6 +209,8 @@ module hi_cumod
   logical,constant :: Dreal_sparse_mode_d
   integer,constant :: p_PME_d,p_PME_dto3
 
+  ! used in diffcalc_cumod
+  integer,device :: K_d(3)
 
 contains
 
