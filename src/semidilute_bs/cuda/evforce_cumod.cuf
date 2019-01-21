@@ -1,0 +1,320 @@
+!%------------------------------------------------------------------------%
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
+!|  University of Tennessee-Knoxville                                     |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
+!|                                                                        |
+!|  This file is part of BDpack.                                          |
+!|                                                                        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
+!|  it under the terms of the GNU General Public License as published by  |
+!|  the Free Software Foundation, either version 3 of the License, or     |
+!|  (at your option) any later version.                                   |
+!|                                                                        |
+!|  BDpack is distributed in the hope that it will be useful,             |
+!|  but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+!|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+!|  GNU General Public License for more details.                          |
+!|                                                                        |
+!|  You should have received a copy of the GNU General Public License     |
+!|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
+!%------------------------------------------------------------------------%
+!--------------------------------------------------------------------
+!
+! MODULE: 
+!
+!> @author
+!> Amir Saadat, Stanford University, May 2018
+!
+! DESCRIPTION: 
+!> Calculating the net ev forces on the beads on GPU
+!--------------------------------------------------------------------
+module evforce_cumod
+
+  use :: prcn_mod
+  use :: evforce_mod
+  use :: force_cumod, only: force_cu_t
+  use :: evverlet_cumod, only: evverlet_cu_t
+  use :: cudafor
+
+  implicit none
+
+  ! Private module procedures:
+  private :: init_evforce_t ,&
+             update_force
+
+  !> A public type for EV force calcualtion
+  type, extends(force_cu_t) :: evforce_cu_t
+
+    private
+
+    ! Construction of the verlet list
+    integer :: mnnt
+    real(wp),device,allocatable :: Rb0_d(:)
+    integer,device,allocatable :: nlst_d(:,:)
+    integer,device,allocatable :: nn_d(:)
+
+    type(evverlet_cu_t) :: vlt_d
+
+
+
+  contains
+     
+    procedure,pass(this) :: init => init_evforce_t
+    procedure,pass(this) :: update_vlt => update_vlt_lst
+    procedure,pass(this) :: update => update_force
+    final :: del_evforce_t
+
+  end type evforce_cu_t
+
+  ! Private module variables:
+  ! private :: 
+
+  ! These variables are required to be defined in the module scope
+  ! but I will treat them as if they are part of the evforce type
+
+  !> Texture memory pointers for x-direction coordinates
+  real(wp),texture,pointer :: Rbx_tex(:)
+  !> Texture memory pointers for y-direction coordinates
+  real(wp),texture,pointer :: Rby_tex(:)
+  !> Texture memory pointers for y-direction coordinates
+  real(wp),texture,pointer :: Rbz_tex(:)
+  !> Texture memory pointers for Fphi
+  real(wp),texture,pointer :: Fphi_tex(:)
+
+  ! constants on device
+  real(wp),constant :: rc_F_d
+  !> Gaussian ev force parameters
+  !> @{
+  real(wp),constant :: fctr_d,efctr_d
+  !> @}
+
+contains
+
+  !> Constructor for evforce type
+  !! \param id The rank of the process
+  subroutine init_evforce_t(this,id,Rbx,Rby,Rbz,ntotbead,ntotbeadx3,bs)
+
+    use :: evforce_mod, only: EVForceLaw,rc_F,rs_F,zstar,dstar
+    use :: force_cumod, only: Fphi_d
+
+    class(evforce_cu_t),intent(inout) :: this
+    real(wp),device,intent(in),target :: Rbx(:)
+    real(wp),device,intent(in),target :: Rby(:)
+    real(wp),device,intent(in),target :: Rbz(:)
+    integer,intent(in) :: id,ntotbead,ntotbeadx3
+    real(wp),intent(in) :: bs(3)
+
+    ! For Construction of verlet list
+    allocate(this%Rb0_d(ntotbead*3))
+    allocate(this%nn_d(ntotbead))
+
+    ! instantiation of verlet type
+    call this%vlt_d%init(rs_F,bs,ntotbead,this%nlst_d)
+    if (id == 0) call this%vlt_d%get_ncps()
+
+    this%mnnt=this%vlt_d%get_mbpc()*ntotbead
+
+    ! The parameters used for EV potentials
+    select case (EVForceLaw)
+      case ('Gauss')
+        fctr_d=zstar/dstar**5
+        efctr_d=1/(2*dstar**2)
+      case ('LJ')
+      case ('NoEV')
+    end select
+    rc_F_d=rc_F
+
+    Rbx_tex => Rbx
+    Rby_tex => Rby
+    Rbz_tex => Rbz
+    Fphi_tex => Fphi_d
+  
+  end subroutine init_evforce_t
+
+
+  !> Updates the verlet list
+  !! \param Rbx x-coordinate of the position vector
+  !! \param Rby y-coordinate of the position vector
+  !! \param Rbz z-coordinate of the position vector
+  !! \param bs the dimension of the box
+  !! \param invbs the inverse of box dimensions
+  subroutine update_vlt_lst(this,Rbx_d,Rby_d,Rbz_d,Rb_d,itime,itrst,ntb,ntbx3,bs,bo)
+
+    use :: evforce_mod, only: rs_F,rc_F
+    use :: arry_mod, only: print_vector
+    use :: flow_mod, only: FlowType
+    use :: cublas
+
+    class(evforce_cu_t),intent(inout) :: this
+    real(wp),device,intent(in),target :: Rb_d(:)
+    real(wp),device,intent(in),target :: Rbx_d(:)
+    real(wp),device,intent(in),target :: Rby_d(:)
+    real(wp),device,intent(in),target :: Rbz_d(:)
+    ! real(wp),intent(in) :: Rbtr(:)
+    real(wp),intent(in) :: bs(3),bo(3)
+    integer,intent(in) :: itime,itrst,ntb,ntbx3
+    real(wp) :: dispmax,bsx,bsy,bsz
+    integer :: max_idx,nct,nthrd,r
+    logical :: update
+
+    real(wp),device,allocatable :: diff(:)
+
+    if (itime == itrst+1) then
+      update=.true.
+    else
+      ! Calculate maximum displacement since last update:
+      allocate(diff(ntbx3))
+
+      call cublasDcopy(ntbx3,Rb_d,1,diff,1)
+      call cublasDaxpy(ntbx3,-1._wp,this%Rb0_d,1,diff,1)
+      max_idx = cublasIdamax(ntbx3,diff,1)
+      dispmax = diff(max_idx)
+      
+      deallocate(diff)
+
+      ! dispmax=maxval(abs(Rb-this%Rb0))
+      ! A conservative testing of the list skin crossing:
+      dispmax=2*sqrt(3*dispmax*dispmax)
+      
+      update=dispmax > (rs_F-rc_F)
+    
+    end if
+    ! print*,'update_cu',update
+    if (update) then
+      ! Save positions for next evaluations:
+      call cublasDcopy(ntbx3,Rb_d,1,this%Rb0_d,1)
+      ! this%Rb0=Rb
+      
+      if ((FlowType == 'PEF').and.(itime /= itrst+1)) then
+        call this%vlt_d%init_cll(rs_F,bs,ntb,this%nlst_d)
+      end if
+
+      ! creating the cell linked-list
+      call this%vlt_d%cnstr_nab(Rbx_d,Rby_d,Rbz_d,itime,ntb,ntbx3,rs_F,bs,this%nn_d,this%nlst_d)
+
+      ! call cnstrlst_part1(this,ntb,bo)
+
+      ! creating the verlet list
+
+      ! call cnstrlst_part2(this,Rb,itime,nch,nb,nbx3,ntb,bs,bo)
+    end if
+
+  end subroutine update_vlt_lst
+
+
+
+  !> Updates the force by adding spring force contribution
+  !! \param Rbx x-coordinate of the position vector
+  !! \param Rby y-coordinate of the position vector
+  !! \param Rbz z-coordinate of the position vector
+  !! \param bs the dimension of the box
+  !! \param invbs the inverse of box dimensions
+  !! \param F totoal force on particles
+  subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3,Qt)
+
+    
+    ! use :: flow_mod, only: FlowType
+    ! use :: trsfm_mod, only: eps_m,tanb,sinth,costh
+
+    use :: conv_cumod, only: h_Bbar,descr_Bbar,Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,nnz_Bbar
+    use :: cusparse
+
+    
+    class(evforce_cu_t),intent(inout) :: this
+    real(wp),device,intent(in),target :: Rbx(:)
+    real(wp),device,intent(in),target :: Rby(:)
+    real(wp),device,intent(in),target :: Rbz(:)
+    real(wp),intent(in) :: bs(3),invbs(3) 
+    integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3
+    real(wp),device,intent(in) :: Qt(:)
+
+    real(wp) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
+
+    ! integer :: its,ich,osb,oss,is
+    ! real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
+
+    bsx=bs(1);bsy=bs(2);bsz=bs(3)
+    invbsx=invbs(1);invbsy=invbs(2);invbsz=invbs(3)
+
+
+    call update_force_krnl <<<(ntb+255)/256,256>>> (this%nn_d,this%nlst_d,ntb,this%mnnt/ntb,&
+      bsx,bsy,bsz)
+
+  end subroutine update_force
+
+
+  attributes(global) subroutine update_force_krnl(nn,nlst,ntb,mnn,bsx,bsy,bsz)
+
+    use :: force_cumod, only: rFphi_d
+    use :: flow_cumod, only: FlowType_d,PSF,PEF
+    use :: trsfm_cumod, only: eps_m_d,tanb_d,sinth_d,costh_d
+
+    integer,device,intent(in) :: nn(ntb)
+    integer,device,intent(in) :: nlst(mnn,ntb)
+    integer,value,intent(in) :: ntb,mnn
+    real(wp),value,intent(in) :: bsx,bsy,bsz
+    integer :: igb,jgb,jneig,jend
+    real(wp) :: rijx,rijy,rijz,rijsq,Fevij(3),rijytmp
+
+    igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
+
+    if (igb > ntb ) return
+    
+    jend=nn(igb)
+
+    ! Check if igb has neighbor:
+    if (jend > 0) then
+      ! loop in each thread
+      do jneig=1, jend
+
+        jgb=nlst(jneig,igb)
+
+        rijx=Rbx_tex(igb)-Rbx_tex(jgb)
+        rijy=Rby_tex(igb)-Rby_tex(jgb)
+        rijz=Rbz_tex(igb)-Rbz_tex(jgb)
+        rijx=rijx-nint(rijx*1/bsx)*bsx
+        rijy=rijy-nint(rijy*1/bsy)*bsy
+        rijz=rijz-nint(rijz*1/bsz)*bsz
+        if (FlowType_d == PSF) then
+            rijx=rijx+eps_m_d*rijy
+        elseif (FlowType_d == PEF) then
+            rijytmp=rijy
+            rijx=rijx+tanb_d*rijytmp
+            rijy=sinth_d*rijx+costh_d*rijytmp
+            rijx=costh_d*rijx-sinth_d*rijytmp
+        endif
+        rijsq=rijx*rijx+rijy*rijy+rijz*rijz
+        if (rijsq <= rc_F_d**2) then
+
+          Fevij=fctr_d*[rijx,rijy,rijz]*exp(-rijsq*efctr_d)
+          Fphi_tex((igb-1)*3+1)=Fphi_tex((igb-1)*3+1)+Fevij(1)
+          Fphi_tex((igb-1)*3+2)=Fphi_tex((igb-1)*3+2)+Fevij(2)
+          Fphi_tex((igb-1)*3+3)=Fphi_tex((igb-1)*3+3)+Fevij(3)
+          Fphi_tex((jgb-1)*3+1)=Fphi_tex((jgb-1)*3+1)-Fevij(1)
+          Fphi_tex((jgb-1)*3+2)=Fphi_tex((jgb-1)*3+2)-Fevij(2)
+          Fphi_tex((jgb-1)*3+3)=Fphi_tex((jgb-1)*3+3)-Fevij(3)
+          rFphi_d(1)=rFphi_d(1)+rijx*Fevij(1)
+          rFphi_d(2)=rFphi_d(2)+rijx*Fevij(2)
+          rFphi_d(3)=rFphi_d(3)+rijy*Fevij(2)
+          rFphi_d(4)=rFphi_d(4)+rijz*Fevij(3)
+        
+        end if
+      end do
+
+    endif
+
+  end subroutine update_force_krnl
+
+  !> Destructor for ev force type
+  subroutine del_evforce_t(this)
+
+    type(evforce_cu_t),intent(inout) :: this
+
+  end subroutine del_evforce_t
+
+end module evforce_cumod
