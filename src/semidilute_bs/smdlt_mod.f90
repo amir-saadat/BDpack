@@ -54,6 +54,7 @@ contains
     type(box) :: MainBox
     integer :: nWi,itrst,nrun,runrst,ndmp,dmprst,nprun,ndt
     real(wp) :: Wii,Wif,tend,tss,trst,dti,dtf
+    real(wp) :: wx1,wx2,wy1,wy2,wz1,wz2
     character(len=10) :: WiSpacing,dtSpacing
     real(wp),allocatable :: dt(:),Wi(:),Pe(:)
     integer,allocatable :: ntime(:)
@@ -91,14 +92,12 @@ contains
     !----------------------------------------------
     !>>> Initialization of the modules:
     !----------------------------------------------
-
     call init_box(id,nprun)
     call init_tmng(id)
     call init_pp(id,nrun)
 
     ! Instantiation of the box:
     call MainBox%init(id,p,nprun,runrst)
-
     !----------------------------------------------
     !>>> Time integration of SDE:
     !----------------------------------------------

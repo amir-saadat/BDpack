@@ -416,20 +416,21 @@ contains
     !----------------------------------------------
     !>>> Initialization of the modules:
     !----------------------------------------------
+
     call init_flow(myrank)
+
     call init_trsfm()
     call init_conv(nchain,nseg,nbead,nsegx3,nbeadx3,ntotsegx3,ntotbeadx3,&
       add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar,Na,Ia)
     ! if (hstar /= 0._wp) then
       call init_hi(myrank,ntotbead,ntotbeadx3,Lbox)
-    ! end if
+    ! end if   
     call init_io(myrank,nchain,nsegx3,nbeadx3,ntotchain,ntotsegx3,ntotbeadx3,nprun)
     call init_verlet(myrank)
-    call init_evverlet(myrank)
+    call init_evverlet(myrank)  
     call init_force(ntotbeadx3)
     call init_sprforce(myrank)
     call init_evforce(myrank)
-
 #ifdef USE_GPU
       call init_rndm_d(ntotbeadx3)
       call init_flow_d()
@@ -524,7 +525,6 @@ contains
 
     call this%BoxIO%read(myrank,nproc,this%size,nchain,nseg,nbead,nsegx3,ntotchain,ntotbead,ntotsegx3,&
       ntotbeadx3,nprun,runrst,qmx,MPI_REAL_WP,add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar)
-
     ! Instantiation of Boxevf:
     call this%Boxevf%init(myrank,this%size,ntotbead,ntotbeadx3)
 
@@ -648,12 +648,6 @@ contains
       real(wp) :: et
 #endif
 
-real(wp),allocatable :: rbtest(:)
-
-
-
-    allocate(rbtest(ntotbeadx3))
-
     !----------------------
     !>>> Initial time step:
     !----------------------
@@ -748,8 +742,9 @@ real(wp),allocatable :: rbtest(:)
     !-----------------------------
     !>>> Random number generation:
     !-----------------------------
-! print*,'itime',itime
-! call print_vector(dw_bl(:,1),'dworigin')
+    ! print*,'itime',itime
+    ! call print_vector(dw_bl(:,1),'dworigin')
+
 #ifdef USE_GPU
       call this%Boxrndm_d%gen(ntotbeadx3,dt)
       dw_bl_d=dw_bl
@@ -760,7 +755,6 @@ real(wp),allocatable :: rbtest(:)
 
     ! Note that PBC is applied in the beginning of the time step to stay
     ! consistent with calculation of forces.
-
 
       ! call print_vector(this%R_tilde,'rstart')
       ! call print_matrix(this%rcm_tilde,'rcmstart')
@@ -773,17 +767,10 @@ real(wp),allocatable :: rbtest(:)
 
       this%Q_tilde=this%Q_d
       this%rcm_tilde=this%rcm_d
-      ! this%R_tilde=this%R_d
       this%Rb_tilde=this%Rb_d
       this%Rbx=this%Rbx_d
       this%Rby=this%Rby_d
       this%Rbz=this%Rbz_d
-
-
-      ! call print_vector(this%Q_tilde,'q')
-      ! call print_vector(this%Rb_tilde,'rb')
-      ! call print_matrix(this%rcm_tilde,'rcm')
-
 
 #else
 
@@ -793,10 +780,9 @@ real(wp),allocatable :: rbtest(:)
 
 #endif
 
-    ! rbtest=this%Rb_d
-    ! print*,'rb1--0',rbtest
-    ! print*,'rb2--0',this%Rb_tilde
-
+    ! call print_vector(this%Q_tilde,'q0')
+    ! call print_vector(this%Rb_tilde,'rb0')
+    ! call print_matrix(this%rcm_tilde,'rcm0')
     !---------------------------------------------------------
     !>>> Constructing Verlet neighbor list for EV calculation:
     !---------------------------------------------------------
@@ -826,7 +812,6 @@ real(wp),allocatable :: rbtest(:)
 #endif
     end if
     if (doTiming) et_vlt=et_vlt+tock(count0)
-
     !----------------------------------------------------------
     !>>> Constructing Verlet neighbour-list for HI calculation:
     !----------------------------------------------------------
@@ -854,38 +839,22 @@ real(wp),allocatable :: rbtest(:)
     call calcForce(this,itime)
     if (doTiming) et_CF=et_CF+tock(count0)
 
-!if ((itime==24).or.(itime==1000)) then
-!print*,'itime',itime
-!call print_vector(Fphi,'fphi')
-!!call print_vector(this%Rb_tilde,'rb')
-!!call print_matrix(this%rcm_tilde,'rcm')
-!end if
+    ! call print_vector(Fphi,'fphi')
+    ! call print_vector(this%Rb_tilde,'rb1')
+    ! call print_matrix(this%rcm_tilde,'rcm1')
     !-----------------------------------------
     !>>> Calculating hydrodynamic interaction:
     !-----------------------------------------
 
-! print*,'box1','size',size(this%Boxhi_d%P_vals)
-
     if (doTiming) call tick(count0)
-!    if (hstar /= 0._wp) then
-      if ( (mod(itime,ncols) == 1) .or. (ncols == 1) ) then
-        call calcHI(this,itime,dt)
-      end if
-! print*,'box2'
-
-!    end if
+    if ( (mod(itime,ncols) == 1) .or. (ncols == 1) ) then
+      call calcHI(this,itime,dt)
+    end if
     if (doTiming) et_HI=et_HI+tock(count0)
 
     !--------------------------------
     !>>> Integration in Euler scheme:
     !--------------------------------
-
-    ! rbtest=dw_bl_d(:,1)
-    ! print*,'dw cuda',rbtest
-    ! rbtest=Fphi_d
-    ! print*,'fphi cuda',rbtest
-    ! rbtest=this%Rb_d
-    ! print*,'rb1',rbtest
 
     if (doTiming) call tick(count0)
 
@@ -907,11 +876,12 @@ real(wp),allocatable :: rbtest(:)
 
       this%Q_tilde=this%Q_d
       this%rcm_tilde=this%rcm_d
-      ! this%R_tilde=this%R_d
       this%Rb_tilde=this%Rb_d
       this%Rbx=this%Rbx_d
       this%Rby=this%Rby_d
       this%Rbz=this%Rbz_d
+      this%b_img=this%b_img_d
+      this%cm_img=this%cm_img_d
 
 #else
 
@@ -948,14 +918,9 @@ real(wp),allocatable :: rbtest(:)
 
 
 #endif
-
-        ! print*,'itime',itime
-        ! this%b_img=this%b_img_d
-        ! this%cm_img=this%cm_img_d
-        
-        ! call print_matrix(this%cm_img,'cmimgbox')
-        ! call print_vector(this%Rb_tilde,'rb')
-        ! call print_matrix(this%rcm_tilde,'rcm')
+        ! call print_matrix(this%cm_img,'cmimgbox2')
+        ! call print_vector(this%Rb_tilde,'rb2')
+        ! call print_matrix(this%rcm_tilde,'rcm2')
 
         if (itime == 10 .or. itime==2000) then
 
@@ -975,11 +940,6 @@ real(wp),allocatable :: rbtest(:)
         endif
 
     if (doTiming) et_PR=et_PR+tock(count0)
-
-    ! print*,'dw_bl',dw_bltmp(:,col)
-    ! print*,'df',DF_tot
-    ! print*,'rb2',this%Rb_tilde
-    ! stop
 
     call tick(count0)
 
@@ -1074,11 +1034,19 @@ real(wp),allocatable :: rbtest(:)
     real(wp),intent(in) :: time,Wi,dt
     integer :: igb
 
+    ! we will work on components, i.e. Rbc, because in the case
+    ! of reArng=true, only Rbc is the most updated in the move_box
+
+#ifdef USE_GPU
+    this%Rbx=this%Rbx_d
+    this%Rby=this%Rby_d
+    this%Rbz=this%Rbz_d
+#endif
     
     select case (FlowType)
       case ('Equil')
         ! call RbctoQ(this%Rbx,this%Rby,this%Rbz,this%Q_tilde,this%size,&
-        !                          this%invsize,nseg,nbead,ntotseg)
+        !   this%invsize,nseg,nbead,ntotseg)
         call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
         call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
 
@@ -1090,6 +1058,8 @@ real(wp),allocatable :: rbtest(:)
         end do
         ! !$omp end do simd
         !$omp end parallel
+
+        !!!! has to be changed to RbctoRb abd RbtoQ to be consistent for comb simulations 
         call RbctoQ(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Q_tilde,&
                              this%size,this%invsize,nseg,nbead,ntotseg)
       case ('PEF')
@@ -1101,6 +1071,9 @@ real(wp),allocatable :: rbtest(:)
         end do
         ! !$omp end do simd
         !$omp end parallel
+
+        !!!! has to be changed to RbctoRb abd RbtoQ to be consistent for comb simulations 
+        
         call RbctoQ(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,this%Q_tilde,&
             [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],nseg,nbead,ntotseg)
     end select
@@ -1308,25 +1281,36 @@ real(wp),allocatable :: rbtest(:)
     Fphi=0._wp
     rFphi=0._wp
 
-    call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
-    call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
-
     select case (FlowType)
       case ('Equil')
+
+        call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
+        call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
+
         call this%Boxsprf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
           nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
         if (EVForceLaw /= 'NoEV') then
           call this%Boxevf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
             nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-        end if
+        end if     
       case ('PSF')
+
+        call RbctoRb(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
+        call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
+
         call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
           itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+
         if (EVForceLaw /= 'NoEV') then
           call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
             itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
         end if
+
       case ('PEF')
+
+        call RbctoRb(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,this%Q_tilde,ntotbead)
+        call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,[bsx,bsy,this%size(3)])
+
         call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
           [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
           nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
@@ -1342,16 +1326,15 @@ real(wp),allocatable :: rbtest(:)
       Fphi_d=0._wp
       rFphi_d=0._wp
 
-      call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
-      call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
-
-      call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,&
-        this%invsize,itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
-
       select case (FlowType)
       case ('Equil')
+
+        call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
+        call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
+
         call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
           itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+
         if (EVForceLaw /= 'NoEV') then
           call this%Boxevf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
             itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
@@ -1374,7 +1357,11 @@ real(wp),allocatable :: rbtest(:)
       !   end if
       end select
 
+      Fphi=Fphi_d
+
 #endif
+
+      ! call print_vector(Fphi,'fphi')
 
   end subroutine calcForce
 

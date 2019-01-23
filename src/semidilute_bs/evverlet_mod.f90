@@ -102,12 +102,12 @@ module evverlet_mod
 
 
   ! Private module variables:
-  private :: cll_dns,nnc
+  private :: cll_dns_ev,nnc
   ! Protected module variables:
   ! protected :: 
 
   !> The density of particles in a cell
-  real(wp),save :: cll_dns
+  real(wp),save :: cll_dns_ev
   !> Number of neighbering cells
   integer,save :: nnc
   ! !> The neighboring cells offset
@@ -125,35 +125,10 @@ contains
     use :: flow_mod, only: FlowType
     use :: strg_mod
     use,intrinsic :: iso_fortran_env
+    use :: cmn_io_mod, only: read_input    
 
     integer,intent(in) :: id
-    integer :: il,j,ntokens,u1,stat,ios
-    character(len=1024) :: line
-    character(len=100) :: tokens(10)
-
-    open (newunit=u1,action='read',file='input.dat',status='old')
-    il=1
-ef: do
-      read(u1,'(A)',iostat=stat) line
-      if (stat == iostat_end) then
-        exit ef ! end of file
-      elseif (stat > 0) then
-        print '(" io_mod: Error reading line ", i0, " Process ID ", i0)', il,id
-        stop
-      else
-        il=il+1
-      end if
-      call parse(line,': ',tokens,ntokens)
-      if (ntokens > 0) then
-        do j=1,ntokens
-          if(trim(adjustl(tokens(j))) == 'cll-dns-ev') then
-            call value(tokens(j+1),cll_dns,ios)
-          end if
-        end do ! j
-      end if ! ntokens
-    end do ef
-    close(u1)
-
+    call read_input('cll-dns-ev',0,cll_dns_ev,0.1_wp)
     select case (FlowType)
 
       case ('Equil','PSF')
@@ -282,7 +257,7 @@ ef: do
 !!
 !print *,'cll_vol',this%cll_vol,'cll_vol',this%cll_sz(1)*this%cll_sz(2)*this%cll_sz(3)
 
-    this%mbpc=int(this%cll_vol*cll_dns)
+    this%mbpc=int(this%cll_vol*cll_dns_ev)
 
     if (allocated(this%binc)) deallocate(this%binc)
     allocate(this%binc(this%nct,this%mbpc))

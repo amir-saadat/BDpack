@@ -838,6 +838,7 @@ contains
     ! call print_vector(ftest,'df_self')
 
     call cublasDaxpy(ntbx3,1._wp,this%DF_real_d,1,F_d,1)
+
     ! ftest=this%DF_real_d
     ! call print_vector(ftest,'df_real')
 

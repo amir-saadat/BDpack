@@ -139,7 +139,7 @@ ef: do
     end do ef
     close(u1)
 
-    rs_F=rc_F+s_F*rc_F
+    rs_F=rc_F*(1+s_F)
 
     ! The parameters used for EV potentials
     select case (EVForceLaw)

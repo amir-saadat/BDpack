@@ -72,7 +72,6 @@ contains
 
     integer, intent(in) :: ntotbeadx3
 
-    
     allocate(dw_bl_d(ntotbeadx3,ncols))
       
   end subroutine init_rndm_d

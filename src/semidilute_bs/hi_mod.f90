@@ -357,7 +357,7 @@ allocate(valcpu_test(maxNb_list_D))
       mst=mBlLan
     end if
     ! For cut off checking:
-    rc_Dto2=rc_D*rc_D 
+    rc_Dto2=rc_D**2 
 
     unitDelta(1,1:3)=[1._wp,0._wp,0._wp]
     unitDelta(2,1:3)=[0._wp,1._wp,0._wp]

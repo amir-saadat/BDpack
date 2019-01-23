@@ -338,7 +338,7 @@ contains
         end do
 !!$omp end do simd
 
-call print_matrix(rcm,'rcmtrsfm')
+! call print_matrix(rcm,'rcmtrsfm')
 !$omp do simd
         do ich=1, size(rcm,1)
           cm_img(ich,1)=-nint(rcm(ich,1)*invbs(1)-0.5_wp)
@@ -350,8 +350,8 @@ call print_matrix(rcm,'rcmtrsfm')
         end do
 !!$omp end do simd
 !$omp end parallel
-call print_matrix(cm_img,'cm_imgtrsfm')
-call print_matrix(rcm,'rcmtrsfmafter')
+! call print_matrix(cm_img,'cm_imgtrsfm')
+! call print_matrix(rcm,'rcmtrsfmafter')
       case ('PSF')
 !$omp parallel default(private) shared(this,Rby,Rbz,b_img,bs,invbs,cm_img,rcm)
 !$omp do simd
