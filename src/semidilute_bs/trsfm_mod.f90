@@ -198,12 +198,16 @@ contains
         eps_m=mod(eps,eps_p)
         eps_r=eps/eps_p
     end select
-    if (floor(eps_r) == ieps) then
-      ieps=ieps+1
-      reArng=.true.
-    else
-      reArng=.false.
-    end if
+
+    reArng=.false.
+    if (FlowType == 'PSF' .or. FlowType == 'PEF') then
+      if (floor(eps_r) == ieps) then
+        ieps=ieps+1
+        reArng=.true.
+      else
+        reArng=.false.
+      end if
+    endif
 
   end subroutine update_arng
 

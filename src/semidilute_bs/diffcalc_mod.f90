@@ -317,7 +317,6 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
       if (doTiming) et_EW=et_EW+tock(count0)
 
     elseif (HIcalc_mode == 'PME') then
-
       if (doTiming) call tick(count0)
       call calcDiff_real(Rb,ntotbead,boxsize,boxorigin) ! Calculation of real part of D.
       if (doTiming) then
@@ -866,14 +865,15 @@ n3lp:         do n3=-nmax(3),nmax(3)
     integer :: k_ind,k1,k2,k3,elem_count,elem_counttmp,k2Kx,k3KxKy
     integer,allocatable,dimension(:,:),save :: grid
 
-!$omp threadprivate (grid)
+!!$omp threadprivate (grid)
 
-!$omp parallel default(private) copyin(grid) &
-!$omp shared(ntotbead,Rb,boxsize,boxorigin,K_mesh,InterpMethod,p_PME,p_PMEto3,r_str,P_vals) &
-!$omp shared(P_cols,eps_m,FlowType)
+!!$omp parallel default(private) copyin(grid) &
+!!$omp shared(ntotbead,Rb,boxsize,boxorigin,K_mesh,InterpMethod,p_PME,p_PMEto3,r_str,P_vals) &
+!!$omp shared(P_cols,eps_m,FlowType)
+
     allocate(grid(p_PME,3))
 !   elem_count=0 ! used for sparse P.
-!$omp do schedule(auto)
+!!$omp do schedule(auto)
     do iglobbead=1, ntotbead
       iglob=(iglobbead-1)*3
       select case (FlowType)
@@ -908,7 +908,7 @@ n3lp:         do n3=-nmax(3),nmax(3)
 !      elem_counttmp=elem_count
       elem_count=(iglobbead-1)*p_PMEto3
       elem_counttmp=elem_count
-kg:   do kgrid=1, p_PME
+      kg: do kgrid=1, p_PME
         k3=grid(kgrid,3)
         select case(InterpMethod)
           case('BSpline')
@@ -917,7 +917,7 @@ kg:   do kgrid=1, p_PME
             ! Not implemented yet!
         end select
         k3KxKy=k3*r_str(3)
-jg:     do jgrid=1, p_PME
+        jg: do jgrid=1, p_PME
           k2=grid(jgrid,2)
           select case(InterpMethod)
             case('BSpline')
@@ -926,7 +926,7 @@ jg:     do jgrid=1, p_PME
               ! Not implemented yet!
           end select
           k2Kx=k2*r_str(2)
-ig:       do igrid=1, p_PME
+          ig: do igrid=1, p_PME
             k1=grid(igrid,1)
             select case(InterpMethod)
               case('BSpline')
@@ -945,17 +945,11 @@ ig:       do igrid=1, p_PME
 
     end do ! iglobbead
 
-!$omp end do
+!!$omp end do
     deallocate(grid)
-!$omp end parallel
+!!$omp end parallel
 
   end subroutine calcDiff_recip
-
-
-
-
-
-
 
 #ifdef USE_GPU
 
@@ -1617,7 +1611,6 @@ kg_c:     do kgrid=1, p_PME
         enddo
       end if
       if (doTiming) et_INF=et_INF+tock(count2)
-
       !-----------------------------------
       !>>> BWD in-place Fourier Transform:
       !-----------------------------------
@@ -1658,8 +1651,9 @@ kg_c:     do kgrid=1, p_PME
         call mkl_scsrmv('N',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),F_meshPz,0._wp,DFPz)
 #endif
       if (doTiming) et_INT=et_INT+tock(count2)
-  
+
     end subroutine calcDF_recip
+
  
   end subroutine PME_cpu
 

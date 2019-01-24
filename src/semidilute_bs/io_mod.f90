@@ -168,6 +168,7 @@ contains
     CoMDiff=.false.
 
     open (newunit=u1,action='read',file='input.dat',status='old')
+    il=1
 ef: do
       read(u1,'(A)',iostat=stat) line
       if (stat == iostat_end) then
@@ -259,6 +260,7 @@ ef: do
     this%MakeAnim=.false.
 
     open (newunit=u1,action='read',file='input.dat',status='old')
+    il=1
 ef: do
       read(u1,'(A)',iostat=stat) line
       if (stat == iostat_end) then

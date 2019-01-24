@@ -222,7 +222,7 @@ contains
   !! \param bs The dimension of the box
   subroutine init_clllst(this,rc,bs,ntotbead)
 
-    use :: verlet_mod, only: nnc,shifts,j_clx,j_cly,j_clz,j_cll
+    use :: verlet_mod, only: shifts,j_clx,j_cly,j_clz,j_cll
     use :: flow_mod, only: FlowType
 !    use :: inp_smdlt, only: ntotbead
     use :: arry_mod, only: print_vector
@@ -362,6 +362,12 @@ contains
       ! print*,'2',clx,cly,clz,cll
 
       this%head(cll)=this%head(cll)+1
+
+      if (this%head(cll) >= this%mbpc) then
+        print '(" Warning: cll-dns-ev is too small. ")'
+        stop
+      endif
+
       this%binc(cll,this%head(cll))=i
 
 !      print *,'cll,head,i',cll,this%head(cll),i
@@ -438,7 +444,6 @@ contains
         idx=idx+nab
       end do
     end do
-
     deallocate(beadi_tmp)
     deallocate(beadj_tmp)
     deallocate(pair)
@@ -466,15 +471,16 @@ contains
       end do ! i
     end do ! cll
     idx=idx-1
-    
+
     deallocate(beadj)
     deallocate(beadj_tmp)
     deallocate(pair)
      
 !$omp parallel default(private) shared(this,Rbx,Rby,Rbz,eps_m,sinth,costh,tanb,rc) &
-!$omp shared(idx,bs,invbs)
+!$omp shared(idx,bs,invbs,FlowType)
 !$omp do simd
     do intidx=1, idx
+
       this%Rijx(intidx)=Rbx(this%iidx(intidx))-Rbx(this%jidx(intidx))
       this%Rijy(intidx)=Rby(this%iidx(intidx))-Rby(this%jidx(intidx))
       this%Rijz(intidx)=Rbz(this%iidx(intidx))-Rbz(this%jidx(intidx))
@@ -509,7 +515,6 @@ contains
     allocate(nlst(nab,2))
     nlst(:,1)=pack(this%iidx,mask=this%inside)
     nlst(:,2)=pack(this%jidx,mask=this%inside)
-
   end subroutine cnstr_nablst
   
 

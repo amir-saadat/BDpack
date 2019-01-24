@@ -779,7 +779,6 @@ contains
       call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
 
 #endif
-
     ! call print_vector(this%Q_tilde,'q0')
     ! call print_vector(this%Rb_tilde,'rb0')
     ! call print_matrix(this%rcm_tilde,'rcm0')
@@ -884,7 +883,6 @@ contains
       this%cm_img=this%cm_img_d
 
 #else
-
       if (FlowType /= 'Equil') call this%Boxflow%apply(Pe,dt,this%Rb_tilde,ntotbeadx3)
 
       if (hstar == 0._wp) then
@@ -901,7 +899,6 @@ contains
             ! #endif
             this%Rb_tilde=this%Rb_tilde+0.25_wp*dt*DF_tot
         end select
-
         ! #ifdef USE_GPU
         !   this%Rb_tilde=this%Rb_tilde+coeff*dw_bltmp(:,col)
         ! #else
@@ -1208,7 +1205,6 @@ contains
       ! #endif
 
 #ifdef USE_GPU
-
         if (hstar /= 0._wp) then
           ! call calcDiffTens_dev(this%Boxhi_d,this%Rb_tilde,ntotbead,this%size,this%origin,itime)
           call calcDiffTens_d(this%Boxhi_d,this%Rb_d,ntotbead,this%size,this%origin)
@@ -1221,7 +1217,6 @@ contains
         ! remember that the following routine is where PME_d is called for the first time
         call calcBrownNoise_d(this%Boxhi_d,this%decompRes,itime,ntotbeadx3,this%size)
 #else
-
         if (hstar /= 0._wp) then
           ! #ifdef USE_GPU
           !   call calcDiffTens_dev(this%Boxhi_d,this%Rb_tilde,ntotbead,this%size,this%origin,itime)
@@ -1239,8 +1234,6 @@ contains
 
           call calcBrownNoise_cpu(this%decompRes,itime,ntotbeadx3,this%size)
         ! #endif
-
-
 #endif
 
         ! print*,'nnzb_h',this%Boxhi_d%nnzb

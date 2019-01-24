@@ -74,7 +74,7 @@ CUFLGS  += -Mbounds -Minfo=all -traceback -Mchkfpstk -Mchkstk -Mdalign -g -ta=te
 #CUFLGS  += -Mdclchk -Mdepchk -Miomutex -Mrecursive -Msave -Ktrap=fp -O0 -g -byteswapio
 #CUFLGS   = -DADD_
 #----------------------------------------------------------------------
-# Libraries and Include Path
+# MKL Libraries and Include Path
 #----------------------------------------------------------------------
 GLBINCS  = -I/usr/include
 GLBINCS	+= -I$(MKLROOT)/include
@@ -90,7 +90,7 @@ CUINCS  =
 #CUINCS  = -I /global/software/extras/pgi/17.4/linux86-64/2017/mpi/openmpi/lib
 
 ifeq ($(FCOMP),ifort)
-GLBLIBS  = -L$(MKLROOT)/lib/intel64/
+GLBLIBS  = -L$(MKLROOT)/lib/intel64/ -liomp5
 GLBLIBS += -lmkl_lapack95_lp64 -lmkl_blas95_lp64
 else
 ifeq ($(FCOMP),pgf90)

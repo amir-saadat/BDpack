@@ -335,7 +335,7 @@ ef: do
       ! Arrays containing cell information:
       allocate(head_D(0:ntotcells_D-1),LkdLst_D(ntotbead))
       allocate(point_D(ntotbead),list_D(maxNb_list_D))
-allocate(valcpu_test(maxNb_list_D))
+      ! allocate(valcpu_test(maxNb_list_D))
       if (myrank == 0) then
         print * 
         print '(" No. cells for diffusion tensor in real space:")'
@@ -475,7 +475,7 @@ allocate(valcpu_test(maxNb_list_D))
     rlist_Dto2=rlist_D*rlist_D
     nlist=0
     ! For the last bead, jglobbead<iglobbead, so it is not required!
-    do 20 iglobbead=1, ntotbead-1
+      iblp: do iglobbead=1, ntotbead-1
       point_D(iglobbead)=nlist+1
       offseti=(iglobbead-1)*3
       rbi=Rb(offseti+1:offseti+3)
@@ -487,9 +487,9 @@ allocate(valcpu_test(maxNb_list_D))
           cell_ind(2:3)=(rbi(2:3)-bo(2:3))/CellSize_D(2:3)
       end select
       ! Scan the neighbouring cells:
-ncix: do neigcell_indx=cell_ind(1)-1, cell_ind(1)+1
-nciy:   do neigcell_indy=cell_ind(2)-1, cell_ind(2)+1
-nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
+        ncix: do neigcell_indx=cell_ind(1)-1, cell_ind(1)+1
+          nciy: do neigcell_indy=cell_ind(2)-1, cell_ind(2)+1
+            nciz: do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
             ! Calculate the scalar neigbor cell index:
             ! Corresponding periodic cell for neighbor cell:
             neigcell_ind_p(:)=mod(neigcell_ind(:)+ncells_D(:),ncells_D(:)) 
@@ -500,7 +500,7 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
 
 
 
-            do 10 while (jglobbead /= EMPTY)
+            jblp: do while (jglobbead /= EMPTY)
 
               offsetj=(jglobbead-1)*3
               ! Equal is important only if we have one cell.
@@ -534,15 +534,15 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
                     call ResizeArray(list_D,maxNb_list_D)
                   end if
                   list_D(nlist)=jglobbead
-  valcpu_test(nlist)=rijmagto2
+                  ! valcpu_test(nlist)=rijmagto2
                 end if
               end if
               jglobbead=LkdLst_D(jglobbead)
-10          end do
+            end do jblp
           end do nciz
         end do nciy
       end do ncix
-20  end do
+    end do iblp
     point_D(ntotbead)=nlist+1
     list_DP => list_D(1:nlist)
     ! Resizing the Dreal related arrays:
