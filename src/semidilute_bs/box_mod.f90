@@ -747,7 +747,7 @@ contains
 
 #ifdef USE_GPU
       call this%Boxrndm_d%gen(ntotbeadx3,dt)
-      dw_bl_d=dw_bl
+      ! dw_bl_d=dw_bl
 #endif
     !-----------------------------------------
     !>>> Applying Periodic Boundary Condition:
@@ -782,6 +782,7 @@ contains
     ! call print_vector(this%Q_tilde,'q0')
     ! call print_vector(this%Rb_tilde,'rb0')
     ! call print_matrix(this%rcm_tilde,'rcm0')
+
     !---------------------------------------------------------
     !>>> Constructing Verlet neighbor list for EV calculation:
     !---------------------------------------------------------
@@ -817,12 +818,12 @@ contains
     if (HIcalc_mode == 'PME') then
 #ifdef USE_GPU
 
-        call update_lst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,itrst,nchain,nbead,&
-          nbeadx3,ntotbead,this%size,this%origin,add_cmb,nchain_cmb,nseg_cmb)
-        call this%Boxhi_d%updatelst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,&
-            itrst,ntotbead,this%size,this%origin)
+        ! call update_lst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,itrst,nchain,nbead,&
+        !   nbeadx3,ntotbead,this%size,this%origin,add_cmb,nchain_cmb,nseg_cmb)
+        ! call this%Boxhi_d%updatelst_(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,&
+        !     itrst,ntotbead,this%size,this%origin)
 
-        call this%Boxhi_d%updatelst_(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,itime,&
+        call this%Boxhi_d%updatelst(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,itime,&
           itrst,ntotbead,ntotbeadx3,this%size,this%origin)
 
 #else
@@ -873,14 +874,14 @@ contains
 
       call this%Boxconv_d%RbtoRbc(this%Rb_d,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotbead)
 
-      this%Q_tilde=this%Q_d
-      this%rcm_tilde=this%rcm_d
-      this%Rb_tilde=this%Rb_d
-      this%Rbx=this%Rbx_d
-      this%Rby=this%Rby_d
-      this%Rbz=this%Rbz_d
-      this%b_img=this%b_img_d
-      this%cm_img=this%cm_img_d
+      ! this%Q_tilde=this%Q_d
+      ! this%rcm_tilde=this%rcm_d
+      ! this%Rb_tilde=this%Rb_d
+      ! this%Rbx=this%Rbx_d
+      ! this%Rby=this%Rby_d
+      ! this%Rbz=this%Rbz_d
+      ! this%b_img=this%b_img_d
+      ! this%cm_img=this%cm_img_d
 
 #else
       if (FlowType /= 'Equil') call this%Boxflow%apply(Pe,dt,this%Rb_tilde,ntotbeadx3)
@@ -915,25 +916,28 @@ contains
 
 
 #endif
-        ! call print_matrix(this%cm_img,'cmimgbox2')
-        ! call print_vector(this%Rb_tilde,'rb2')
-        ! call print_matrix(this%rcm_tilde,'rcm2')
-
+        ! For debugging
         if (itime == 10 .or. itime==2000) then
+#ifdef USE_GPU
+          this%Q_tilde=this%Q_d
+          this%rcm_tilde=this%rcm_d
+          this%Rb_tilde=this%Rb_d
+          this%Rbx=this%Rbx_d
+          this%Rby=this%Rby_d
+          this%Rbz=this%Rbz_d
+          this%b_img=this%b_img_d
+          this%cm_img=this%cm_img_d
+          ! dw_bltmp=dw_bl_d
+#endif
+          ! call print_vector(dw_bltmp(:,col),'dw_bl')
+          ! call print_vector(this%R_tilde,'r')
 
-        ! #ifdef USE_GPU
-        ! dw_bltmp=dw_bl_d
-        ! #endif
-        ! call print_vector(dw_bltmp(:,col),'dw_bl')
-        ! call print_vector(this%R_tilde,'r')
-        call print_vector(this%Rb_tilde,'rb')
-        ! call print_vector(this%Rbx,'rbx')
-        ! this%b_img=this%b_img_d
-        ! this%cm_img=this%cm_img_d
-        ! call print_matrix(this%b_img,'bimg')
-        ! call print_matrix(this%cm_img,'cmimg')
-        call print_matrix(this%rcm_tilde,'rcm')
-
+          ! this%b_img=this%b_img_d
+          ! this%cm_img=this%cm_img_d
+          ! call print_matrix(this%b_img,'bimg')
+          ! call print_matrix(this%cm_img,'cmimg')
+          call print_vector(this%Rb_tilde,'rb')
+          call print_matrix(this%rcm_tilde,'rcm')
         endif
 
     if (doTiming) et_PR=et_PR+tock(count0)
@@ -1271,48 +1275,6 @@ contains
     class(box),intent(inout) :: this
     integer,intent(in) :: itime
 
-    Fphi=0._wp
-    rFphi=0._wp
-
-    select case (FlowType)
-      case ('Equil')
-
-        call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
-        call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
-
-        call this%Boxsprf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
-          nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-        if (EVForceLaw /= 'NoEV') then
-          call this%Boxevf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
-            nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-        end if     
-      case ('PSF')
-
-        call RbctoRb(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
-        call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
-
-        call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
-          itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-
-        if (EVForceLaw /= 'NoEV') then
-          call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
-            itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-        end if
-
-      case ('PEF')
-
-        call RbctoRb(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,this%Q_tilde,ntotbead)
-        call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,[bsx,bsy,this%size(3)])
-
-        call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
-          [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
-          nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-        if (EVForceLaw /= 'NoEV') then
-          call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
-             [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
-             nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-        end if
-    end select
 
 #ifdef USE_GPU
 
@@ -1350,11 +1312,57 @@ contains
       !   end if
       end select
 
-      Fphi=Fphi_d
+      ! Fphi=Fphi_d
+
+#else
+
+      Fphi=0._wp
+      rFphi=0._wp
+
+      select case (FlowType)
+        case ('Equil')
+
+          call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
+          call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
+
+          call this%Boxsprf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
+            nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+          if (EVForceLaw /= 'NoEV') then
+            call this%Boxevf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
+              nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+          end if     
+        case ('PSF')
+
+          call RbctoRb(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
+          call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
+
+          call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
+            itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+
+          if (EVForceLaw /= 'NoEV') then
+            call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
+              itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+          end if
+
+        case ('PEF')
+
+          call RbctoRb(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,this%Q_tilde,ntotbead)
+          call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,[bsx,bsy,this%size(3)])
+
+          call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
+            [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
+            nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+          if (EVForceLaw /= 'NoEV') then
+            call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
+               [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
+               nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+          end if
+      end select
 
 #endif
 
       ! call print_vector(Fphi,'fphi')
+      ! if (itime == 5) stop
 
   end subroutine calcForce
 

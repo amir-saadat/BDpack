@@ -3,8 +3,8 @@
 # Intel and MKL Path
 # Uncomment for using <Address of MKL directory>
 #----------------------------------------------------------------------
-#MKLROOT  = /opt/intel/mkl
-PGIROOT  = /share/software/user/open/pgi/linux86-64/18.4
+MKLROOT  = /opt/intel/compilers_and_libraries_2018.5.274/linux/mkl
+#PGIROOT  = /share/software/user/open/pgi/linux86-64/18.4
 #----------------------------------------------------------------------
 # mpif90, mpiifort or <Address of OpenMPI bin directory>/<MPI compiler>
 #----------------------------------------------------------------------

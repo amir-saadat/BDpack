@@ -258,11 +258,16 @@ ef: do
     real(wp),intent(in) :: Qt(:)
     integer :: iint,i,j
     real(wp) :: rijx,rijy,rijz,rijsq,rijytmp,Fevij(3)
+    ! real(wp),allocatable :: ftest(:)
+
+! allocate(ftest(ntotbeadx3))
 
 !    this%Fev=0._wp
     do iint=1, size(this%nlst,1)
       i=this%nlst(iint,1)
       j=this%nlst(iint,2)
+
+
       rijx=Rbx(i)-Rbx(j)
       rijy=Rby(i)-Rby(j)
       rijz=Rbz(i)-Rbz(j)
@@ -279,6 +284,10 @@ ef: do
           rijx=costh*rijx-sinth*rijytmp
       end select
       rijsq=rijx*rijx+rijy*rijy+rijz*rijz
+
+      ! print*,'i,j',i,j,rijsq
+
+
       if (rijsq <= rc_F**2) then
         Fevij=this%fctr*[rijx,rijy,rijz]*exp(-rijsq*this%efctr)
         Fx(i)=Fx(i)+Fevij(1)
@@ -287,6 +296,14 @@ ef: do
         Fx(j)=Fx(j)-Fevij(1)
         Fy(j)=Fy(j)-Fevij(2)
         Fz(j)=Fz(j)-Fevij(3)
+
+        ! ftest((i-1)*3+1)=Fevij(1)
+        ! ftest((i-1)*3+2)=Fevij(2)
+        ! ftest((i-1)*3+3)=Fevij(3)        
+        ! ftest((j-1)*3+1)=-Fevij(1)
+        ! ftest((j-1)*3+2)=-Fevij(2)
+        ! ftest((j-1)*3+3)=-Fevij(3)
+        
 !        this%Fevx(i)=this%Fevx(i)+this%fctr*rijx*exp(-rijsq*this%efctr)
 !        this%Fevy(i)=this%Fevy(i)+this%fctr*rijy*exp(-rijsq*this%efctr)
 !        this%Fevz(i)=this%Fevz(i)+this%fctr*rijz*exp(-rijsq*this%efctr)
@@ -301,6 +318,7 @@ ef: do
       end if
     end do
 
+! call print_vector(ftest,'f_h')
 !    F=F+this%Fev
 
   end subroutine update_force

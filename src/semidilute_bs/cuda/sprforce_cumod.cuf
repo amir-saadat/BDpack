@@ -130,6 +130,8 @@ contains
 
   subroutine update_force_krnl(Fs,Rbx,Rby,Rbz,bs,invbs,ns,nb,nts,Qt)
 
+    use :: force_cumod, only: Fphi_d,rFphi_d
+
     real(wp),device,intent(inout) :: Fs(:)
     real(wp),device,intent(in) :: Rbx(:)
     real(wp),device,intent(in) :: Rby(:)
@@ -169,6 +171,7 @@ contains
       !     qy=sinth*qx+costh*qytmp
       !     qx=costh*qx-sinth*qytmp
       ! end select
+      
       qsq=qx*qx+qy*qy+qz*qz
 
       select case (ForceLaw_i)
@@ -190,10 +193,14 @@ contains
       Fs((its-1)*3+1)=Ftmp*qx
       Fs((its-1)*3+2)=Ftmp*qy
       Fs((its-1)*3+3)=Ftmp*qz
-      ! rFphi(1)=rFphi(1)-qx*Ftmp*qx
-      ! rFphi(2)=rFphi(2)-qx*Ftmp*qy
-      ! rFphi(3)=rFphi(3)-qy*Ftmp*qy
-      ! rFphi(4)=rFphi(4)-qz*Ftmp*qz
+
+      !!!! should be fixed for comb
+      !!!!!!!!
+      rFphi_d(1)=rFphi_d(1)-qx*Ftmp*qx
+      rFphi_d(2)=rFphi_d(2)-qx*Ftmp*qy
+      rFphi_d(3)=rFphi_d(3)-qy*Ftmp*qy
+      rFphi_d(4)=rFphi_d(4)-qz*Ftmp*qz
+
     end do
 
   end subroutine update_force_krnl

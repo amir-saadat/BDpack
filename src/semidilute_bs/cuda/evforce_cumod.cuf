@@ -83,8 +83,6 @@ module evforce_cumod
   real(wp),texture,pointer :: Rby_tex(:)
   !> Texture memory pointers for y-direction coordinates
   real(wp),texture,pointer :: Rbz_tex(:)
-  !> Texture memory pointers for Fphi
-  real(wp),texture,pointer :: Fphi_tex(:)
 
   ! constants on device
   real(wp),constant :: rc_F_d
@@ -115,7 +113,9 @@ contains
 
     ! instantiation of verlet type
     call this%vlt_d%init(rs_F,bs,ntotbead,this%nlst_d)
-    if (id == 0) call this%vlt_d%get_ncps()
+
+    if (id == 0) call this%vlt_d%print_ncps()
+    if (id == 0) call this%vlt_d%print_mbpc()
 
     this%mnnt=this%vlt_d%get_mbpc()*ntotbead
 
@@ -132,7 +132,6 @@ contains
     Rbx_tex => Rbx
     Rby_tex => Rby
     Rbz_tex => Rbz
-    Fphi_tex => Fphi_d
   
   end subroutine init_evforce_t
 
@@ -220,10 +219,10 @@ contains
     
     ! use :: flow_mod, only: FlowType
     ! use :: trsfm_mod, only: eps_m,tanb,sinth,costh
+    use :: arry_mod, only: print_vector
 
     use :: conv_cumod, only: h_Bbar,descr_Bbar,Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,nnz_Bbar
     use :: cusparse
-
     
     class(evforce_cu_t),intent(inout) :: this
     real(wp),device,intent(in),target :: Rbx(:)
@@ -232,8 +231,10 @@ contains
     real(wp),intent(in) :: bs(3),invbs(3) 
     integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3
     real(wp),device,intent(in) :: Qt(:)
-
     real(wp) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
+
+    ! real(wp),device,allocatable :: ftest(:)
+    ! real(wp),allocatable :: ftest_h(:)
 
     ! integer :: its,ich,osb,oss,is
     ! real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
@@ -241,16 +242,20 @@ contains
     bsx=bs(1);bsy=bs(2);bsz=bs(3)
     invbsx=invbs(1);invbsy=invbs(2);invbsz=invbs(3)
 
+    ! allocate(ftest(ntbx3),ftest_h(ntbx3))
 
     call update_force_krnl <<<(ntb+255)/256,256>>> (this%nn_d,this%nlst_d,ntb,this%mnnt/ntb,&
       bsx,bsy,bsz)
+
+    ! ftest_h=ftest
+    ! call print_vector(ftest_h,'f_d')
 
   end subroutine update_force
 
 
   attributes(global) subroutine update_force_krnl(nn,nlst,ntb,mnn,bsx,bsy,bsz)
 
-    use :: force_cumod, only: rFphi_d
+    use :: force_cumod, only: Fphi_d,rFphi_d
     use :: flow_cumod, only: FlowType_d,PSF,PEF
     use :: trsfm_cumod, only: eps_m_d,tanb_d,sinth_d,costh_d
 
@@ -261,11 +266,15 @@ contains
     integer :: igb,jgb,jneig,jend
     real(wp) :: rijx,rijy,rijz,rijsq,Fevij(3),rijytmp
 
+    ! real(wp),device,intent(out) :: ftest(ntb*3)
+
     igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
 
     if (igb > ntb ) return
     
     jend=nn(igb)
+
+    ! print*,'igb',igb
 
     ! Check if igb has neighbor:
     if (jend > 0) then
@@ -289,19 +298,29 @@ contains
             rijx=costh_d*rijx-sinth_d*rijytmp
         endif
         rijsq=rijx*rijx+rijy*rijy+rijz*rijz
+
+        ! print*,'jgb',jgb,rijsq
+
+        ! print*,'thread',threadIdx%x,rc_F_d
+
         if (rijsq <= rc_F_d**2) then
 
           Fevij=fctr_d*[rijx,rijy,rijz]*exp(-rijsq*efctr_d)
-          Fphi_tex((igb-1)*3+1)=Fphi_tex((igb-1)*3+1)+Fevij(1)
-          Fphi_tex((igb-1)*3+2)=Fphi_tex((igb-1)*3+2)+Fevij(2)
-          Fphi_tex((igb-1)*3+3)=Fphi_tex((igb-1)*3+3)+Fevij(3)
-          Fphi_tex((jgb-1)*3+1)=Fphi_tex((jgb-1)*3+1)-Fevij(1)
-          Fphi_tex((jgb-1)*3+2)=Fphi_tex((jgb-1)*3+2)-Fevij(2)
-          Fphi_tex((jgb-1)*3+3)=Fphi_tex((jgb-1)*3+3)-Fevij(3)
-          rFphi_d(1)=rFphi_d(1)+rijx*Fevij(1)
-          rFphi_d(2)=rFphi_d(2)+rijx*Fevij(2)
-          rFphi_d(3)=rFphi_d(3)+rijy*Fevij(2)
-          rFphi_d(4)=rFphi_d(4)+rijz*Fevij(3)
+
+          Fphi_d((igb-1)*3+1)=Fphi_d((igb-1)*3+1)+Fevij(1)
+          Fphi_d((igb-1)*3+2)=Fphi_d((igb-1)*3+2)+Fevij(2)
+          Fphi_d((igb-1)*3+3)=Fphi_d((igb-1)*3+3)+Fevij(3)
+
+          !!!!! revisit this later!!!!!!!
+          !!!!!!!!!!!!!!!!! maybe divided by two cause counted twice
+          rFphi_d(1)=rFphi_d(1)+0.5*rijx*Fevij(1)
+          rFphi_d(2)=rFphi_d(2)+0.5*rijx*Fevij(2)
+          rFphi_d(3)=rFphi_d(3)+0.5*rijy*Fevij(2)
+          rFphi_d(4)=rFphi_d(4)+0.5*rijz*Fevij(3)
+
+          ! ftest((igb-1)*3+1)=Fevij(1)
+          ! ftest((igb-1)*3+2)=Fevij(2)
+          ! ftest((igb-1)*3+3)=Fevij(3)
         
         end if
       end do

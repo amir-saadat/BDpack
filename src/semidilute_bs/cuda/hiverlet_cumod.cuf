@@ -45,7 +45,10 @@ module hiverlet_cumod
   ! Private module procedures:
   private :: init_verlet_t,&
              init_clllst  ,&
-             get_ncps     ,&
+             print_ncps   ,&
+             print_mbpc   ,&
+             get_nct      ,&
+             get_mbpc     ,&
              cnstr_clllst ,&
              ! cnstr_nab_d  ,&
              del_verlet_t
@@ -107,7 +110,9 @@ module hiverlet_cumod
     procedure,pass(this) :: init_cll => init_clllst
     procedure,pass(this) :: cnstr_nab => cnstr_nablst
     procedure,pass(this) :: cnstr_cll => cnstr_clllst
-    procedure,pass(this) :: get_ncps
+    procedure,pass(this) :: print_ncps
+    procedure,pass(this) :: print_mbpc
+    procedure,pass(this) :: get_nct
     procedure,pass(this) :: get_mbpc
     final :: del_verlet_t
 
@@ -278,16 +283,28 @@ contains
 
   end subroutine init_verlet_t
 
-  subroutine get_ncps(this)
+  subroutine print_ncps(this)
 
     class(hiverlet_cu_t),intent(inout) :: this
     character(len=32) :: vlt_mode
 
     print *
-    print '(" Initial number of cells for HI real space calculations: ")'
+    print '(" Initial number of cells for HI verlet calculations: ")'
     print '(3(i10,1x))',this%ncps
 
-  end subroutine get_ncps
+  end subroutine print_ncps
+
+  subroutine print_mbpc(this)
+
+    class(hiverlet_cu_t),intent(inout) :: this
+    character(len=32) :: vlt_mode
+
+    print *
+    print '(" Maximum number of beads per cell for HI verlet: ")'
+    print '(i10,1x)',this%mbpc
+    print '(" Note that it has to be smaller than maxThreadsperBlock, see above. ")'
+
+  end subroutine print_mbpc
 
   integer function get_nct(this)
 
@@ -510,7 +527,9 @@ contains
     ierr = cudaGetLastError()
     if (ierr /= cudaSuccess) then
       print '(" cnstr neighbor for hi error: ",a)', cudaGetErrorString(ierr)
-      print '(" cll_dns_hi might be too small ")'
+      print '(" cll-dns-hi might be too small ")'
+      print '(" Maybe mbpc is greater than maxThreadsperBlock. ")'
+      print '(" If so, either increase box size or decrease rc. ")'
       stop
     endif
 

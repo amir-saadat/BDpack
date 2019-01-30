@@ -45,7 +45,10 @@ module evverlet_cumod
   ! Private module procedures:
   private :: init_verlet_t,&
              init_clllst  ,&
-             get_ncps     ,&
+             print_ncps   ,&
+             print_mbpc   ,&
+             get_nct      ,&
+             get_mbpc     ,&
              cnstr_clllst ,&
              ! cnstr_nab_d  ,&
              del_verlet_t
@@ -107,7 +110,9 @@ module evverlet_cumod
     procedure,pass(this) :: init_cll => init_clllst
     procedure,pass(this) :: cnstr_nab => cnstr_nablst
     procedure,pass(this) :: cnstr_cll => cnstr_clllst
-    procedure,pass(this) :: get_ncps
+    procedure,pass(this) :: print_ncps
+    procedure,pass(this) :: print_mbpc
+    procedure,pass(this) :: get_nct
     procedure,pass(this) :: get_mbpc
     final :: del_verlet_t
 
@@ -185,7 +190,7 @@ contains
     select case (FlowType)
 
       case ('Equil','PSF')
-        nnc=13
+        nnc=27
 !         allocate(shifts(nnc,3))
 !         shifts(1,:) =[ 0, 0,-1]
 !         shifts(2,:) =[ 1, 0,-1]
@@ -206,7 +211,7 @@ contains
 !         shifts(15:27,:) = - shifts(1:13,:)
 
       case ('PEF')
-        nnc=31
+        nnc=63
 !         allocate(shifts(nnc,3))
 !         shifts(1,:) =[ 0, 0,-1]
 !         shifts(2,:) =[ 1, 0,-1]
@@ -273,16 +278,27 @@ contains
 
   end subroutine init_verlet_t
 
-  subroutine get_ncps(this)
+  subroutine print_ncps(this)
 
     class(evverlet_cu_t),intent(inout) :: this
     character(len=32) :: vlt_mode
 
     print *
-    print '(" Initial number of cells for HI real space calculations: ")'
+    print '(" Initial number of cells for EV verlet calculations: ")'
     print '(3(i10,1x))',this%ncps
 
-  end subroutine get_ncps
+  end subroutine print_ncps
+
+  subroutine print_mbpc(this)
+
+    class(evverlet_cu_t),intent(inout) :: this
+    character(len=32) :: vlt_mode
+
+    print *
+    print '(" Maximum number of beads per cell for EV verlet: ")'
+    print '(i10,1x)',this%mbpc
+
+  end subroutine print_mbpc
 
   integer function get_nct(this)
 
@@ -440,8 +456,10 @@ contains
 
     ierr = cudaGetLastError()
     if (ierr /= cudaSuccess) then
-      print '(" cnstr neighbor for hi error: ",a)', cudaGetErrorString(ierr)
-      print '(" cll_dns_hi might be too small ")'
+      print '(" cnstr neighbor for ev error: ",a)', cudaGetErrorString(ierr)
+      print '(" cll-dns-ev might be too small ")'
+      print '(" Maybe mbpc is greater than maxThreadsperBlock. ")'
+      print '(" If so, either increase box size or decrease rc. ")'
       stop
     endif
 

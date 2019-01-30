@@ -354,7 +354,7 @@ contains
     real(wp),device,intent(in) :: Rb(ntb)
     integer,value :: ntb,mnn
     real(wp),value :: bsx,bsy,bsz
-    integer,device,intent(out) :: neig_count(ntb)
+    integer,device,intent(inout) :: neig_count(ntb)
     real(wp) :: r2,ri(3),rj(3),rij(3)
     integer :: igb,ig,jgb,jg,jbeg,jend,jneig
 
@@ -419,7 +419,6 @@ contains
     igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
 
     if (igb > ntb ) return
-
 
     if (Dreal_sparse_mode_d) then
 
@@ -688,7 +687,6 @@ contains
       ! call calcDiff_real_d_part2 <<<(ntb+255)/256,256>>> (this%point_D_d,this%list_D_d,Rb,ntb,nlst,&
       !   bsx,bsy,bsz,neig_count,this%Val_d,this%ColInd_d,this%RowPtr_d,this%nn_d,this%nlst_d,this%mnnt/ntb)
       ! deallocate(neig_count)
-
       ! First count the neighbors
       ! each thread in a block needs to know this to write into the proper location
       allocate(neig_count(ntb))
@@ -699,7 +697,7 @@ contains
       ! Second populate the arrays
       call calcDiff_real_d_part2 <<<(ntb+255)/256,256>>> (this%nn_d,this%nlst_d,Rb,ntb,this%mnnt/ntb,&
         this%mnnt,bsx,bsy,bsz,this%Val_d,this%ColInd_d,this%RowPtr_d,neig_count)
-      r = cudathreadsynchronize()
+      ! r = cudathreadsynchronize()
       deallocate(neig_count)
 
       ! nc_test=this%RowPtr_h(ntb+1)-1

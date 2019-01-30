@@ -184,8 +184,8 @@ module hi_cumod
 
   contains
     procedure,pass(this) :: init => init_hi
-    procedure,pass(this) :: updatelst => updatelst_D
-    procedure,pass(this) :: updatelst_ => updatelst_dev
+    ! procedure,pass(this) :: updatelst => updatelst_D
+    procedure,pass(this) :: updatelst => updatelst_dev
     procedure,pass(this) :: cnstrlst => cnstrlst_D
     final :: del_hi_t
   end type hi_cu_t
@@ -225,7 +225,6 @@ contains
     use :: trsfm_mod, only: eps_m
     use :: hi_mod, only: b_splx2,b_sply2,b_splz2,m2_alpha,PIx2
     use :: mpi
-    use :: hiverlet_cumod, only: get_mbpc
 
     class(hi_cu_t),intent(inout) :: this
     integer,intent(in) :: myrank,ntotbead
@@ -497,7 +496,9 @@ contains
 
     ! instantiation of verlet type
     call this%vlt_d%init(rlist_D,boxdim,ntotbead,this%nlst_d)
-    if (myrank == 0) call this%vlt_d%get_ncps()
+
+    if (myrank == 0) call this%vlt_d%print_ncps()
+    if (myrank == 0) call this%vlt_d%print_ncps()
 
     this%mnnt=this%vlt_d%get_mbpc()*ntotbead
     ! n_dim=maxNb_list_D
