@@ -346,9 +346,7 @@ ef: do
 
     ! Allocation of arrays for Brownian noise:
     allocate(dw_bl(ntotbeadx3,ncols),dw_bltmp(ntotbeadx3,ncols))
-
     call setupKSPACE(myrank,bs,ntotbead)
-
     if (DecompMeth == 'Lanczos') then
       allocate(aBlLan(ntotbeadx3,ncols),WBlLan(ntotbeadx3,ncols))
       allocate(VBlLan(ntotbeadx3,mBlLan*ncols),Ybar(ntotbeadx3))
@@ -990,7 +988,7 @@ ef: do
     integer :: ktot,kix,kiy,kiz,kisqmax,kiymin,kizmin,mivecx,mivecy,mivecz
     integer :: mpivecx,mpivecy,mpivecz,mtot,kiydev,kikix,kiyy,kikixy,ierr
     real(wp) :: kvec(3),k,kto2,mpvec(3)
-    
+
     if (HIcalc_mode == 'Ewald') then       
       if (present(reset)) then
         if (reset) then
@@ -1022,16 +1020,17 @@ ef: do
                            1*(HI_kimax(1) + HI_kimax(2) + HI_kimax(3)) ))
         end if
       else ! .not.present(reset)
-        allocate(kvecx(0:HI_kimax(1)),           &
-                 kvecy(-HI_kimax(2):HI_kimax(2)),&
-                 kvecz(-HI_kimax(3):HI_kimax(3)))
         allocate(eikx(0:HI_kimax(1),ntotbead),           &
                  eiky(-HI_kimax(2):HI_kimax(2),ntotbead),&
                  eikz(-HI_kimax(3):HI_kimax(3),ntotbead))
-        allocate(m2_vec( 4*HI_kimax(1)*HI_kimax(2)*HI_kimax(3) +                                           &
-                         2*(HI_kimax(1)*HI_kimax(2) + HI_kimax(2)*HI_kimax(3) + HI_kimax(1)*HI_kimax(3)) + &
-                         1*(HI_kimax(1) + HI_kimax(2) + HI_kimax(3)) ))
+        allocate(kvecx(0:HI_kimax(1)),           &
+                 kvecy(-HI_kimax(2):HI_kimax(2)),&
+                 kvecz(-HI_kimax(3):HI_kimax(3)))
+        allocate(m2_vec( 4*HI_kimax(1)*HI_kimax(2)*HI_kimax(3) + 2*(HI_kimax(1)*HI_kimax(2) + &
+          HI_kimax(2)*HI_kimax(3) + HI_kimax(1)*HI_kimax(3)) + 1*(HI_kimax(1) + HI_kimax(2) + &
+          HI_kimax(3)) ))
       end if
+
 !     kvecx~z will be used in Diffcalc_mod. 
 !     Note!!: that the formula is correct for equal or non-equal box length.
       do kix=0, HI_kimax(1)
@@ -1076,14 +1075,14 @@ ef: do
           end do ! kix
         else ! Equal box length
           ktot=0
-kx:       do kix=0, kiuppr(0)
+          kx: do kix=0, kiuppr(0)
             kikix=kix*kix
             kvec(1)=kvecx(kix)
-ky:         do kiy=kiylowr(kikix), kiuppr(kikix)
+            ky: do kiy=kiylowr(kikix), kiuppr(kikix)
 !              kiy=kiyy+kiydev
               kikixy=kikix+kiy*kiy
               kvec(2)=kvecy(kiy)
-kz:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
+              kz: do kiz=kizlowr(kikixy), kiuppr(kikixy)
                 kvec(3)=kvecz(kiz)
 !                print *,'ki2',kix,kiy,kiz,kiydev
 !                kvec=[kvecx(kix),kvecy(kiyy)+kvecy(kiydev),kvecz(kiz)]
@@ -1094,9 +1093,17 @@ kz:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
           end do kx
         end if ! BoxDim ...
 
-        if (present(reset) .and. (reset)) then
-          print '(" Reciprocal space set up complete in Process ID: ",i0)',myrank
-          print '(" Number of reciprocal vectors: ",i8)',ktot
+        if (present(reset)) then
+          if (reset) then
+            print '(" Reciprocal space set up complete in Process ID: ",i0)',myrank
+            print '(" Number of reciprocal vectors: ",i8)',ktot
+          else
+            call MPI_Barrier(MPI_COMM_WORLD,ierr)
+            if (myrank == 0) then
+              print '(" Reciprocal space set up complete.")'
+              print '(" Number of reciprocal vectors: ",i8)',ktot
+            end if
+          endif
         else
           call MPI_Barrier(MPI_COMM_WORLD,ierr)
           if (myrank == 0) then
@@ -1109,11 +1116,11 @@ kz:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
 
     elseif (HIcalc_mode == 'PME') then
 
-!     Note!!!!!: This part should be changed in case K1,K2,K3 are different.
-!      if ((K_mesh(1) /= K_mesh(2)) .or. (K_mesh(2) /= K_mesh(3))) then
-!        print *,'(" Warning!!: For different K_mesh, a part in GlobalData.f90 should be changed.")'
-!        stop
-!      end if
+      !     Note!!!!!: This part should be changed in case K1,K2,K3 are different.
+      !      if ((K_mesh(1) /= K_mesh(2)) .or. (K_mesh(2) /= K_mesh(3))) then
+      !        print *,'(" Warning!!: For different K_mesh, a part in GlobalData.f90 should be changed.")'
+      !        stop
+      !      end if
 
       if (present(reset)) then
         if (reset) then
@@ -1138,7 +1145,7 @@ kz:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
         allocate(m2_vec((K_mesh(1)/2+1)*K_mesh(2)*K_mesh(3)))
       end if
       mtot=0
-mz:   do mivecz=0, K_mesh(3)-1
+      mz: do mivecz=0, K_mesh(3)-1
         if (mivecz <= K_mesh(3)/2) then
           mpivecz=mivecz
         else
@@ -1146,7 +1153,7 @@ mz:   do mivecz=0, K_mesh(3)-1
         end if
         mpvec(3)=PIx2/BoxDim(3)*mpivecz
         mpvecz(mivecz)=mpvec(3)
-my:     do mivecy=0, K_mesh(2)-1
+        my: do mivecy=0, K_mesh(2)-1
           if (mivecy <= K_mesh(2)/2) then
             mpivecy=mivecy
           else
@@ -1154,7 +1161,7 @@ my:     do mivecy=0, K_mesh(2)-1
           end if
           mpvec(2)=PIx2/BoxDim(2)*mpivecy
           if (FlowType == 'Equil') mpvecy(mivecy)=mpvec(2)
-mx:       do mivecx=0, K_mesh(1)/2
+          mx: do mivecx=0, K_mesh(1)/2
             mpivecx=mivecx
             mpvec(1)=PIx2/BoxDim(1)*mpivecx
             mpvecx(mivecx)=mpvec(1)
@@ -1174,6 +1181,12 @@ mx:       do mivecx=0, K_mesh(1)/2
         if (reset) then
           print '(" Reciprocal space set up complete in Process ID: ",i0)',myrank
           print '(" Number of reciprocal vectors: ",i8)',mtot
+        else
+          call MPI_Barrier(MPI_COMM_WORLD,ierr)
+          if (myrank == 0) then
+            print '(" Reciprocal space set up complete.")'
+            print '(" Number of reciprocal vectors: ",i8)',mtot
+          end if
         endif
       else
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
@@ -1188,12 +1201,13 @@ mx:       do mivecx=0, K_mesh(1)/2
   end subroutine setupKSPACE
 
   function m2_alpha(kvec)
-    implicit none
+
     real(wp) :: m2_alpha,kvec(3),kto2
 
     kto2=dot_product(kvec,kvec)
 
     m2_alpha=(HI_a-M2_c1*kto2)*(1+M2_c2*kto2+M2_c3*kto2*kto2)*(M2_c4/kto2)*exp(-M2_c2*kto2)
+
   end function m2_alpha
 
   subroutine strupdateKSPACE(BoxDim)
@@ -1242,15 +1256,15 @@ mx:       do mivecx=0, K_mesh(1)/2
       else ! Equal box length
 
         ktot=0
-kx:     do kix=0, kiuppr(0)
+        kx: do kix=0, kiuppr(0)
           kiydev=nint(eps_m*kix)
           kikix=kix*kix
           kvec(1)=kvecx(kix)
-ky:       do kiyy=kiylowr(kikix), kiuppr(kikix)
+          ky: do kiyy=kiylowr(kikix), kiuppr(kikix)
 !            kiy=kiyy+kiydev
             kikixy=kikix+kiyy*kiyy
             kvec(2)=kvecy(kiyy)+kvecy(kiydev)
-kz:         do kiz=kizlowr(kikixy), kiuppr(kikixy)
+            kz: do kiz=kizlowr(kikixy), kiuppr(kikixy)
               kvec(3)=kvecz(kiz)
               ktot=ktot+1
               m2_vec(ktot)=m2_alpha(kvec)

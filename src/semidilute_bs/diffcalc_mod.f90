@@ -1425,9 +1425,9 @@ kg_c:     do kgrid=1, p_PME
     ! Tot DF calculation:
     DF_tot=DF_self+DF_real+DF_recip
     
-    ! call print_vector(DF_recip,'df_recip')
-    ! call print_vector(DF_self,'df_self')
-    ! call print_vector(DF_real,'df_real')
+    call print_vector(DF_recip(1:50),'df_recip')
+    call print_vector(DF_self(1:50),'df_self')
+    call print_vector(DF_real(1:50),'df_real')
 
   contains
 

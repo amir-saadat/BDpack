@@ -300,7 +300,6 @@ contains
     this%DFPy => this%DF_recip(2:ntotbead*3-1:3)
     this%DFPz => this%DF_recip(3:ntotbead*3:3)
 
-
     K_dim = K_mesh(1)*K_mesh(2)*K_mesh(3)
     K_dim_CCE = K_mesh(1)*K_mesh(2)*(K_mesh(3)/2+1)
 
@@ -341,9 +340,6 @@ contains
     Fmy(0:) => this%F_mesh_do(:,2)
     Fmz(0:) => this%F_mesh_do(:,3)
 
-
-
-    ! print*,'p_PMEto3',p_PMEto3
     allocate(this%P_Val_h(ntotbead*p_PMEto3))
     allocate(this%P_RowPtr_h(ntotbead+1))
     allocate(this%P_ColInd_h(ntotbead*p_PMEto3))
@@ -383,10 +379,6 @@ contains
     ! status = cufftCreate(this%plan_bw)
     ! status = cufftPlan3d(this%plan_bw,n_k(0),n_k(1),n_k(2),CUFFT_Z2D)
 
-
-
-
-
     RANK = 3
     BATCH = 3
 
@@ -405,7 +397,6 @@ contains
       print '(" status = ",i0)', status
       stop
     endif
-
     ! status = cufftPlan3d(this%plan,K_mesh(1),K_mesh(2),K_mesh(3),CUFFT_C2C)
     allocate(this%mpx_h(0:K_mesh(1)-1))
     allocate(this%mpy_h(0:K_mesh(2)-1))
@@ -499,7 +490,6 @@ contains
 
     if (myrank == 0) call this%vlt_d%print_ncps()
     if (myrank == 0) call this%vlt_d%print_ncps()
-
     this%mnnt=this%vlt_d%get_mbpc()*ntotbead
     ! n_dim=maxNb_list_D
     n_dim=this%mnnt
@@ -531,7 +521,6 @@ contains
     allocate(this%DFz_d(ntotbead))
     allocate(this%DF_tmp(ntotbead))
     allocate(this%DF_d(ntotbead*3))
-
     ! cusolver handle creation
     status = cusolverDnCreate(this%h_lam)
     if (status /= CUSOLVER_STATUS_SUCCESS) print('(" cusolver handle creation failed")')

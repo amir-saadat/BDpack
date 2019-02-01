@@ -1371,27 +1371,35 @@ ef: do
       if (id == 0) then
 
         rtpassed=time/lambda
-        write (this%oldu3,'(f8.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
-        write (this%oldu4,'(f8.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
-        write (this%oldu9,'(f8.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
+        write (this%oldu3,'(f14.7,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
+        write (this%oldu4,'(f14.7,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
+        write (this%oldu9,'(f14.7,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
         write(this%oldu3,'(2x,a)') 'AT:'
-        write(this%oldu3,'(2x,a,1x,f10.3)') 'Wi:',Wi
-        write(this%oldu3,'(2x,a,1x,f10.3)') 'dt:',dt
+        write(this%oldu3,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(this%oldu3,'(2x,a,1x,f14.7)') 'dt:',dt
         write(this%oldu3,'(2x,a,1x,i8)') 'run number:',irun
         write(this%oldu3,'(2x,a,1x,i8)') 'time index number:',itime
         if (DumpConf) write(this%oldu3,'(2x,a,1x,i8)') 'dump number:',idmp
         write(this%oldu4,'(2x,a)') 'AT:'
-        write(this%oldu4,'(2x,a,1x,f10.3)') 'Wi:',Wi
-        write(this%oldu4,'(2x,a,1x,f10.3)') 'dt:',dt
+        write(this%oldu4,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(this%oldu4,'(2x,a,1x,f14.7)') 'dt:',dt
         write(this%oldu4,'(2x,a,1x,i8)') 'run number:',irun
         write(this%oldu4,'(2x,a,1x,i8)') 'time index number:',itime
         if (DumpConf) write(this%oldu4,'(2x,a,1x,i8)') 'dump number:',idmp
         write(this%oldu9,'(2x,a)') 'AT:'
-        write(this%oldu9,'(2x,a,1x,f10.3)') 'Wi:',Wi
-        write(this%oldu9,'(2x,a,1x,f10.3)') 'dt:',dt
+        write(this%oldu9,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(this%oldu9,'(2x,a,1x,f14.7)') 'dt:',dt
         write(this%oldu9,'(2x,a,1x,i8)') 'run number:',irun
         write(this%oldu9,'(2x,a,1x,i8)') 'time index number:',itime
         if (DumpConf) write(this%oldu9,'(2x,a,1x,i8)') 'dump number:',idmp
+        write(*,'(2x,a)') 'You can restart using the following:'
+        write (*,'(a,f14.7)') " trst: ",rtpassed
+        write(*,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(*,'(2x,a,1x,f14.7)') 'dt:',dt
+        write(*,'(2x,a,1x,i8)') 'runrst:',irun-1
+        write(*,'(2x,a,1x,i8)') 'trst index (second entry):',itime
+        if (DumpConf) write(*,'(2x,a,1x,i8)') 'dmprst:',idmp
+        write (*,*)
 
       end if ! id
 
@@ -1401,27 +1409,35 @@ ef: do
 
         rewind(this%oldu1);rewind(this%oldu2);rewind(this%oldu8)
         rtpassed=time/lambda
-        write (this%oldu1,'(f8.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
-        write (this%oldu2,'(f8.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
-        write (this%oldu8,'(f8.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
+        write (this%oldu1,'(f14.7,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
+        write (this%oldu2,'(f14.7,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
+        write (this%oldu8,'(f14.7,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
         write(this%oldu1,'(2x,a)') 'AT:'
-        write(this%oldu1,'(2x,a,1x,f10.3)') 'Wi:',Wi
-        write(this%oldu1,'(2x,a,1x,f10.3)') 'dt:',dt
+        write(this%oldu1,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(this%oldu1,'(2x,a,1x,f14.7)') 'dt:',dt
         write(this%oldu1,'(2x,a,1x,i8)') 'run number:',irun
         write(this%oldu1,'(2x,a,1x,i8)') 'time index number:',itime
         if (DumpConf) write(this%oldu1,'(2x,a,1x,i8)') 'dump number:',idmp
         write(this%oldu2,'(2x,a)') 'AT:'
-        write(this%oldu2,'(2x,a,1x,f10.3)') 'Wi:',Wi
-        write(this%oldu2,'(2x,a,1x,f10.3)') 'dt:',dt
+        write(this%oldu2,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(this%oldu2,'(2x,a,1x,f14.7)') 'dt:',dt
         write(this%oldu2,'(2x,a,1x,i8)') 'run number:',irun
         write(this%oldu2,'(2x,a,1x,i8)') 'time index number:',itime
         if (DumpConf) write(this%oldu2,'(2x,a,1x,i8)') 'dump number:',idmp
         write(this%oldu8,'(2x,a)') 'AT:'
-        write(this%oldu8,'(2x,a,1x,f10.3)') 'Wi:',Wi
-        write(this%oldu8,'(2x,a,1x,f10.3)') 'dt:',dt
+        write(this%oldu8,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(this%oldu8,'(2x,a,1x,f14.7)') 'dt:',dt
         write(this%oldu8,'(2x,a,1x,i8)') 'run number:',irun
         write(this%oldu8,'(2x,a,1x,i8)') 'time index number:',itime
         if (DumpConf) write(this%oldu8,'(2x,a,1x,i8)') 'dump number:',idmp
+        write(*,'(2x,a)') 'You can restart using the following:'
+        write (*,'(a,f14.7)') " trst: ",rtpassed
+        write(*,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(*,'(2x,a,1x,f14.7)') 'dt:',dt
+        write(*,'(2x,a,1x,i8)') 'runrst:',irun-1
+        write(*,'(2x,a,1x,i8)') 'trst index (second entry):',itime
+        if (DumpConf) write(*,'(2x,a,1x,i8)') 'dmprst:',idmp
+        write (*,*)
 
       end if ! id
 

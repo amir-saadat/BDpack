@@ -16,7 +16,7 @@ tss           : 0.0
 trst          : 0.0 0
 ndt           : 1
 dt            : 5.e-3 5.e-3 Linear Self
-nrun          : 64
+nrun          : 60
 runrst        : 0
 DumpConf      : TRUE
 ndmp          : 3000
@@ -35,12 +35,13 @@ Wi            : 23.68 23.68 Linear
 #------------------------------------------
 hstar         : 0.25
 HITens        : RPY
-HIcalc-mode   : Ewald
-Interp-method : BSpline 4
+HIcalc-mode   : PME
+Interp-method : BSpline 6
 Mesh-size     : 65 65 65 FALSE
 M-exp         : 3.5 0.2
-rc_D          : 2.e4 0.2
+rc_D          : 2.e3 0.2
 Nblist-size   : 500000000
+cll-dns-hi    : 1.e-8
 Decomp-method : Lanczos
 ncols         : 1
 errormin      : 1.e-2
@@ -50,10 +51,10 @@ upfactr       : 50
 #------------------------------------------
 SPR-Force     : FENE
 b             : 25.0
-cll_dns       : 1.e-8
+cll-dns-ev    : 1.e-8
 EVForceLaw    : Gauss
 zstar         : 1.2021
-rc_F          : 4000.0 0.2
+rc_F          : 2000.0 0.2
 #------------------------------------------
 # Output parameters
 #------------------------------------------

@@ -116,6 +116,12 @@ contains
     ! Loop over dt:
     do idt=1, ndt
       tgap=ceiling(tend*lambda/(ndmp*dt(idt)))
+
+      if (id == 0) then
+        print *
+        print '(" Time index and value between restarts: ",i,1x,f14.7)',tgap,tgap*dt
+      end if
+
       ! Initializing for run averaging:
       call data_run_init(id,ntime(idt),tgap,ndmp,nprun,nchain,ntotbeadx3)
       ! Loop over run:
@@ -190,7 +196,9 @@ contains
           end if
           if ((mod(itime,ceiling(tend*lambda/(100*dt(idt)))) == 0) .and. (id == 0)) then
             rtpassed=time/lambda
-            print '(1x,f10.3," Chain-Relaxation-Time(s) Passed!")',rtpassed
+
+            print '(" >>> Time steps and Time Passed: ", i, f10.5)',itime,time
+            print '(" >>> Chain-Relaxation(s) Passed: ", f10.5)',rtpassed
           end if
 !print*,'itime',itime,id  
           ! Constructing the random vector,dW, for the whole Box:
@@ -230,6 +238,10 @@ contains
           ! To be done at each lambda/?*dt iteration
           ! 1/(dt) and lambda/dt is the itime for segment and chain relaxation time.
           if ( (mod(itime,tgap) == 0) .or. (itime == ntime(idt)) ) then
+
+            print *
+            print '(" >>> Dumping restart files at time: ",f14.7)',time
+
 !          if ( ((time-time_check3) >= -1.d-10) .or. (itime == ntime(iPe,idt)) ) then
             idmp=idmp+1
             if ((irun == runrst+1) .and. (itime == ntime(idt))) then

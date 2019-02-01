@@ -284,7 +284,7 @@ contains
     character(len=32) :: vlt_mode
 
     print *
-    print '(" Initial number of cells for EV verlet calculations: ")'
+    print '(" Initial number of cells for EV verlet calculations on device: ")'
     print '(3(i10,1x))',this%ncps
 
   end subroutine print_ncps
@@ -295,7 +295,7 @@ contains
     character(len=32) :: vlt_mode
 
     print *
-    print '(" Maximum number of beads per cell for EV verlet: ")'
+    print '(" Maximum number of beads per cell for EV verlet on device: ")'
     print '(i10,1x)',this%mbpc
 
   end subroutine print_mbpc
@@ -390,8 +390,9 @@ contains
 
     end if
 
+    ! Note!!!: I am using a conservative choice of this%mbpc * ncll for number of neighbors.
     if (allocated(nlst_d)) deallocate(nlst_d)
-    allocate(nlst_d(this%mbpc,ntotbead))
+    allocate(nlst_d(this%mbpc*nnc,ntotbead))
 
 
   end subroutine init_clllst
@@ -509,12 +510,21 @@ contains
 
       ! the number of beads (occupants) of cell cll
       this%head(cll)=this%head(cll)+1
+
+      if (this%head(cll) >= this%mbpc) then
+        print '(" Error: cll-dns-ev is too small from evverlet_cumod. ")'
+        stop
+      endif
+
       ! the bead index correspoding to bead this%head(cll) for cell cll
+
       this%binc(cll,this%head(cll))=i
 
     end do
     ! max occupancy of cells
     this%mocc=maxval(this%head)
+
+    ! print*,'maxocc',this%mocc,this%mbpc
 
    ! print *,'mocc',this%mocc
    ! call print_vector(this%head,'newhead')
@@ -542,8 +552,8 @@ contains
 
     real(wp),value :: rc,bsx,bsy,bsz
     integer,device :: nn(ntb)
-    integer,device :: nlst(blockDim%x,ntb)
-    real(wp),device :: vallst(blockDim%x,ntb)
+    integer,device :: nlst(blockDim%x*nnc,ntb)
+    ! real(wp),device :: vallst(blockDim%x*nnc,ntb)
 
     integer,shared :: beadj_tmp(blockDim%x)
     real(wp),shared :: rjx_tmp(blockDim%x)

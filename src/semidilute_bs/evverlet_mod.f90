@@ -364,7 +364,7 @@ contains
       this%head(cll)=this%head(cll)+1
 
       if (this%head(cll) >= this%mbpc) then
-        print '(" Warning: cll-dns-ev is too small. ")'
+        print '(" Warning: cll-dns-ev is too small from evverlet_mod. ")'
         stop
       endif
 
@@ -375,6 +375,8 @@ contains
 
     end do
     this%mocc=maxval(this%head)
+
+    print*,'maxocc',this%mocc,this%mbpc
 
 !if (itime==8479)then
 !    call print_vector(this%head,'newhead')

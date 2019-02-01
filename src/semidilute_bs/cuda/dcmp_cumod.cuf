@@ -234,9 +234,9 @@ mlp:do
 ! call print_vector(testr,'wbef')
             call cublasDcopy(nbeadx3,VP_d,1,w_d,1)
             call PME_d(hi_d,w_d,nbead,nbeadx3,boxsizeinp)
-! testr=w_d
-! call print_vector(testr,'waf')
-
+testr=w_d
+print*,'k,m',k,m
+call print_vector(testr(1:50),'waf')
             ! w_d=w
             ! call PME_cpu(VP,nbead,boxsizeinp,w)
           ! end if

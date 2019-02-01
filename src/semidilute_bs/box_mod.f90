@@ -226,7 +226,7 @@ contains
     use :: conv_mod, only: init_conv
     use :: flow_mod, only: init_flow
     use :: trsfm_mod, only: init_trsfm
-    use :: hi_mod, only: init_hi
+    use :: hi_mod, only: init_hi,HIcalc_mode
     use :: verlet_mod, only: init_verlet
     use :: evverlet_mod, only: init_evverlet
     use :: force_smdlt, only: init_force
@@ -426,12 +426,17 @@ contains
       call init_hi(myrank,ntotbead,ntotbeadx3,Lbox)
     ! end if   
     call init_io(myrank,nchain,nsegx3,nbeadx3,ntotchain,ntotsegx3,ntotbeadx3,nprun)
+
     call init_verlet(myrank)
     call init_evverlet(myrank)  
     call init_force(ntotbeadx3)
     call init_sprforce(myrank)
     call init_evforce(myrank)
 #ifdef USE_GPU
+      ! if (HIcalc_mode == 'Ewald') then
+      !   print '(" Error: GPU usage only for hstar/=0 and HIcalc-mode=PME. ")'
+      !   stop
+      ! endif
       call init_rndm_d(ntotbeadx3)
       call init_flow_d()
       call init_conv_d(ntotsegx3,ntotbeadx3)
@@ -527,10 +532,8 @@ contains
       ntotbeadx3,nprun,runrst,qmx,MPI_REAL_WP,add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar)
     ! Instantiation of Boxevf:
     call this%Boxevf%init(myrank,this%size,ntotbead,ntotbeadx3)
-
     ! Instantiation of Boxsprf:
     call this%Boxsprf%init(myrank,ntotsegx3)
-
 #ifdef USE_GPU
       ! Allocation of configurational variables:
       allocate(this%R_d(ntotbeadx3))
@@ -647,6 +650,7 @@ contains
       integer :: istat,ierr
       real(wp) :: et
 #endif
+      integer :: ufo
 
     !----------------------
     !>>> Initial time step:
@@ -744,10 +748,9 @@ contains
     !-----------------------------
     ! print*,'itime',itime
     ! call print_vector(dw_bl(:,1),'dworigin')
-
 #ifdef USE_GPU
       call this%Boxrndm_d%gen(ntotbeadx3,dt)
-      ! dw_bl_d=dw_bl
+      dw_bl_d=dw_bl
 #endif
     !-----------------------------------------
     !>>> Applying Periodic Boundary Condition:
@@ -780,8 +783,8 @@ contains
 
 #endif
     ! call print_vector(this%Q_tilde,'q0')
-    ! call print_vector(this%Rb_tilde,'rb0')
-    ! call print_matrix(this%rcm_tilde,'rcm0')
+    call print_vector(this%Rb_tilde(1:50),'rb0')
+    call print_matrix(this%rcm_tilde(1:10,:),'rcm0')
 
     !---------------------------------------------------------
     !>>> Constructing Verlet neighbor list for EV calculation:
@@ -839,7 +842,7 @@ contains
     call calcForce(this,itime)
     if (doTiming) et_CF=et_CF+tock(count0)
 
-    ! call print_vector(Fphi,'fphi')
+    call print_vector(Fphi(1:50),'fphi')
     ! call print_vector(this%Rb_tilde,'rb1')
     ! call print_matrix(this%rcm_tilde,'rcm1')
     !-----------------------------------------
@@ -858,6 +861,12 @@ contains
 
     if (doTiming) call tick(count0)
 
+    call print_vector(Fphi(1:50),'fphi2')
+
+open (newunit=ufo,action='write',file='force.dat',status='replace')
+do ibead=1, ntotbeadx3
+write(ufo,'(f14.10)') Fphi(ibead)
+enddo
 #ifdef USE_GPU
 
 
@@ -865,6 +874,8 @@ contains
         call cublasDaxpy(ntotbeadx3,0.25_wp*dt,Fphi_d,1,this%Rb_d,1)
         call cublasDaxpy(ntotbeadx3,coeff,dw_bl_d(:,col),1,this%Rb_d,1)
       else
+        Fphi=Fphi_d
+        call print_vector(Fphi,'fphi3')
         call PME_d(this%Boxhi_d,Fphi_d,ntotbead,ntotbeadx3,this%size)
 
         call cublasDaxpy(ntotbeadx3,0.25_wp*dt,Fphi_d,1,this%Rb_d,1)
@@ -896,6 +907,7 @@ contains
             ! #ifdef USE_GPU
             !   call PME_dev(this%Boxhi_d,Fphi,ntotbead,this%size,DF_tot)
             ! #else
+            call print_vector(Fphi,'fphi3')
               call PME_cpu(Fphi,ntotbead,this%size,DF_tot)
             ! #endif
             this%Rb_tilde=this%Rb_tilde+0.25_wp*dt*DF_tot
@@ -917,7 +929,7 @@ contains
 
 #endif
         ! For debugging
-        if (itime == 10 .or. itime==2000) then
+        if (itime == itrst+1 .or. itime==2000) then
 #ifdef USE_GPU
           this%Q_tilde=this%Q_d
           this%rcm_tilde=this%rcm_d
@@ -936,8 +948,8 @@ contains
           ! this%cm_img=this%cm_img_d
           ! call print_matrix(this%b_img,'bimg')
           ! call print_matrix(this%cm_img,'cmimg')
-          call print_vector(this%Rb_tilde,'rb')
-          call print_matrix(this%rcm_tilde,'rcm')
+          ! call print_vector(this%Rb_tilde,'rb')
+          ! call print_matrix(this%rcm_tilde,'rcm')
         endif
 
     if (doTiming) et_PR=et_PR+tock(count0)
@@ -959,8 +971,8 @@ contains
           this%Rby_d,this%Rbz_d,this%b_img_d)
       end do
 
-      ! this%rcm_tilde=this%rcm_d
-      ! call print_matrix(this%rcm_tilde,'rcmafter')
+      this%rcm_tilde=this%rcm_d
+      call print_matrix(this%rcm_tilde,'rcmafter')
 
 #else
 
@@ -972,7 +984,7 @@ contains
       !$omp end do
       !$omp end parallel
 
-      ! call print_matrix(this%rcm_tilde,'rcmafter')
+      call print_matrix(this%rcm_tilde,'rcmafter')
 
 #endif
 
@@ -996,6 +1008,8 @@ contains
       call update_trsfm(this%size)
 
 #endif
+
+      stop
 
   end subroutine move_box
 
@@ -1312,7 +1326,7 @@ contains
       !   end if
       end select
 
-      ! Fphi=Fphi_d
+      Fphi=Fphi_d
 
 #else
 
