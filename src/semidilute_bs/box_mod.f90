@@ -472,7 +472,6 @@ contains
 
     ! Instantiation of Boxflow:
     call this%Boxflow%init(nchain,nbead) !!!! should be fixed for comb
-
     ! zero-size allocation is for avoiding passing a null-array to a subroutine
     select case (FlowType)
       case ('Equil')
@@ -499,7 +498,6 @@ contains
     allocate(this%R_tilde(ntotbeadx3))
     allocate(this%rcm_tilde(ntotchain,3))
     allocate(this%Q_tilde(ntotsegx3))
-
     ! Array for bead positions:
     allocate(this%Rb_tilde(ntotbeadx3))
     allocate(this%Rbx(ntotbead),&
@@ -527,7 +525,6 @@ contains
     ! Instantiation of BoxIO:
     ! call this%BoxIO%init(myrank,nproc,nchain,nsegx3,nbeadx3,MPI_REAL_WP)
     call this%BoxIO%init(myrank,nproc,ntotchain,ntotsegx3,ntotbeadx3,MPI_REAL_WP)
-
     call this%BoxIO%read(myrank,nproc,this%size,nchain,nseg,nbead,nsegx3,ntotchain,ntotbead,ntotsegx3,&
       ntotbeadx3,nprun,runrst,qmx,MPI_REAL_WP,add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar)
     ! Instantiation of Boxevf:
@@ -547,7 +544,6 @@ contains
       allocate(this%cm_img_d(ntotchain,3))
       ! Allocation of box chains:
       allocate(this%BoxChains_d(ntotchain))
-
 
       ! this%rcm_d=rcmst(:,:,1)
       ! this%Rb_d=Rbst(:,1)
@@ -768,12 +764,12 @@ contains
         this%Rbz_d,this%rcm_d,this%b_img_d,this%cm_img_d,itime)
       call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
 
-      this%Q_tilde=this%Q_d
-      this%rcm_tilde=this%rcm_d
-      this%Rb_tilde=this%Rb_d
-      this%Rbx=this%Rbx_d
-      this%Rby=this%Rby_d
-      this%Rbz=this%Rbz_d
+      ! this%Q_tilde=this%Q_d
+      ! this%rcm_tilde=this%rcm_d
+      ! this%Rb_tilde=this%Rb_d
+      ! this%Rbx=this%Rbx_d
+      ! this%Rby=this%Rby_d
+      ! this%Rbz=this%Rbz_d
 
 #else
 
@@ -783,8 +779,8 @@ contains
 
 #endif
     ! call print_vector(this%Q_tilde,'q0')
-    call print_vector(this%Rb_tilde(1:50),'rb0')
-    call print_matrix(this%rcm_tilde(1:10,:),'rcm0')
+    ! call print_vector(this%Rb_tilde(1:50),'rb0')
+    ! call print_matrix(this%rcm_tilde(1:10,:),'rcm0')
 
     !---------------------------------------------------------
     !>>> Constructing Verlet neighbor list for EV calculation:
@@ -842,7 +838,7 @@ contains
     call calcForce(this,itime)
     if (doTiming) et_CF=et_CF+tock(count0)
 
-    call print_vector(Fphi(1:50),'fphi')
+    ! call print_vector(Fphi(1:50),'fphi')
     ! call print_vector(this%Rb_tilde,'rb1')
     ! call print_matrix(this%rcm_tilde,'rcm1')
     !-----------------------------------------
@@ -861,12 +857,12 @@ contains
 
     if (doTiming) call tick(count0)
 
-    call print_vector(Fphi(1:50),'fphi2')
+    ! call print_vector(Fphi(1:50),'fphi2')
 
-open (newunit=ufo,action='write',file='force.dat',status='replace')
-do ibead=1, ntotbeadx3
-write(ufo,'(f14.10)') Fphi(ibead)
-enddo
+! open (newunit=ufo,action='write',file='force.dat',status='replace')
+! do ibead=1, ntotbeadx3
+! write(ufo,'(f14.10)') Fphi(ibead)
+! enddo
 #ifdef USE_GPU
 
 
@@ -875,7 +871,7 @@ enddo
         call cublasDaxpy(ntotbeadx3,coeff,dw_bl_d(:,col),1,this%Rb_d,1)
       else
         Fphi=Fphi_d
-        call print_vector(Fphi,'fphi3')
+        ! call print_vector(Fphi,'fphi3')
         call PME_d(this%Boxhi_d,Fphi_d,ntotbead,ntotbeadx3,this%size)
 
         call cublasDaxpy(ntotbeadx3,0.25_wp*dt,Fphi_d,1,this%Rb_d,1)
@@ -907,7 +903,7 @@ enddo
             ! #ifdef USE_GPU
             !   call PME_dev(this%Boxhi_d,Fphi,ntotbead,this%size,DF_tot)
             ! #else
-            call print_vector(Fphi,'fphi3')
+            ! call print_vector(Fphi,'fphi3')
               call PME_cpu(Fphi,ntotbead,this%size,DF_tot)
             ! #endif
             this%Rb_tilde=this%Rb_tilde+0.25_wp*dt*DF_tot
@@ -928,29 +924,29 @@ enddo
 
 
 #endif
-        ! For debugging
-        if (itime == itrst+1 .or. itime==2000) then
-#ifdef USE_GPU
-          this%Q_tilde=this%Q_d
-          this%rcm_tilde=this%rcm_d
-          this%Rb_tilde=this%Rb_d
-          this%Rbx=this%Rbx_d
-          this%Rby=this%Rby_d
-          this%Rbz=this%Rbz_d
-          this%b_img=this%b_img_d
-          this%cm_img=this%cm_img_d
-          ! dw_bltmp=dw_bl_d
-#endif
-          ! call print_vector(dw_bltmp(:,col),'dw_bl')
-          ! call print_vector(this%R_tilde,'r')
+!         ! For debugging
+!         if (itime == 100 .or. itime==2000) then
+! #ifdef USE_GPU
+!           this%Q_tilde=this%Q_d
+!           this%rcm_tilde=this%rcm_d
+!           this%Rb_tilde=this%Rb_d
+!           this%Rbx=this%Rbx_d
+!           this%Rby=this%Rby_d
+!           this%Rbz=this%Rbz_d
+!           this%b_img=this%b_img_d
+!           this%cm_img=this%cm_img_d
+!           ! dw_bltmp=dw_bl_d
+! #endif
+!           ! call print_vector(dw_bltmp(:,col),'dw_bl')
+!           ! call print_vector(this%R_tilde,'r')
 
-          ! this%b_img=this%b_img_d
-          ! this%cm_img=this%cm_img_d
-          ! call print_matrix(this%b_img,'bimg')
-          ! call print_matrix(this%cm_img,'cmimg')
-          ! call print_vector(this%Rb_tilde,'rb')
-          ! call print_matrix(this%rcm_tilde,'rcm')
-        endif
+!           ! this%b_img=this%b_img_d
+!           ! this%cm_img=this%cm_img_d
+!           ! call print_matrix(this%b_img,'bimg')
+!           ! call print_matrix(this%cm_img,'cmimg')
+!           ! call print_vector(this%Rb_tilde,'rb')
+!           ! call print_matrix(this%rcm_tilde,'rcm')
+!         endif
 
     if (doTiming) et_PR=et_PR+tock(count0)
 
@@ -971,8 +967,8 @@ enddo
           this%Rby_d,this%Rbz_d,this%b_img_d)
       end do
 
-      this%rcm_tilde=this%rcm_d
-      call print_matrix(this%rcm_tilde,'rcmafter')
+      ! this%rcm_tilde=this%rcm_d
+      ! call print_matrix(this%rcm_tilde,'rcmafter')
 
 #else
 
@@ -984,7 +980,7 @@ enddo
       !$omp end do
       !$omp end parallel
 
-      call print_matrix(this%rcm_tilde,'rcmafter')
+      ! call print_matrix(this%rcm_tilde,'rcmafter')
 
 #endif
 
@@ -1008,8 +1004,6 @@ enddo
       call update_trsfm(this%size)
 
 #endif
-
-      stop
 
   end subroutine move_box
 
@@ -1326,7 +1320,7 @@ enddo
       !   end if
       end select
 
-      Fphi=Fphi_d
+      ! Fphi=Fphi_d
 
 #else
 

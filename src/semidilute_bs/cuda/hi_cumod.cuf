@@ -489,7 +489,7 @@ contains
     call this%vlt_d%init(rlist_D,boxdim,ntotbead,this%nlst_d)
 
     if (myrank == 0) call this%vlt_d%print_ncps()
-    if (myrank == 0) call this%vlt_d%print_ncps()
+    if (myrank == 0) call this%vlt_d%print_mbpc()
     this%mnnt=this%vlt_d%get_mbpc()*ntotbead
     ! n_dim=maxNb_list_D
     n_dim=this%mnnt

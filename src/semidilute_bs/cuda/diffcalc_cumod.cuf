@@ -770,7 +770,7 @@ contains
 
     real(wp),allocatable :: ftest(:)
 
-    allocate(ftest(ntbx3))
+    ! allocate(ftest(ntbx3))
 
     ! ftest=F_d
 
@@ -827,18 +827,18 @@ contains
       F_d(3*ib  )=Fz_d(ib)
     enddo
 
-    ftest=F_d
-    call print_vector(ftest(1:50),'df_recip')
+    ! ftest=F_d
+    ! call print_vector(ftest(1:50),'df_recip')
 
     call cublasDaxpy(ntbx3,1._wp,this%DF_self_d,1,F_d,1)
 
-    ftest=this%DF_self_d
-    call print_vector(ftest(1:50),'df_self')
+    ! ftest=this%DF_self_d
+    ! call print_vector(ftest(1:50),'df_self')
 
     call cublasDaxpy(ntbx3,1._wp,this%DF_real_d,1,F_d,1)
 
-    ftest=this%DF_real_d
-    call print_vector(ftest(1:50),'df_real')
+    ! ftest=this%DF_real_d
+    ! call print_vector(ftest(1:50),'df_real')
 
     ! ftest=F_d
     ! call print_vector(ftest,'cuda df')

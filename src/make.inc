@@ -69,8 +69,9 @@ endif
 endif
 endif
 CUFLGS   = -DUSE_GPU
-CUFLGS  += -Mpreprocess -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand -Minfo
-CUFLGS  += -Mbounds -Minfo=all -traceback -Mchkfpstk -Mchkstk -Mdalign -g -ta=tesla:cc35,cc60,cc70
+CUFLGS  += -Mpreprocess -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand -Minfo=all
+CUFLGS  += -ta=tesla:cc35,cc60,cc70
+#CUFLGS  += -traceback -Mbounds -Mchkfpstk -Mchkstk -Mdalign -g
 #CUFLGS  += -Mdclchk -Mdepchk -Miomutex -Mrecursive -Msave -Ktrap=fp -O0 -g -byteswapio
 #CUFLGS   = -DADD_
 #----------------------------------------------------------------------

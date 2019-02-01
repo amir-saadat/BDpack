@@ -67,6 +67,8 @@ module hiverlet_cumod
     real(wp) :: cll_vol
     !> Maximum number of beads per cell
     integer :: mbpc
+    !> Maximum number of beads for all neighboring cells
+    integer :: mbpct
     !> The array which contains the number of beads in cells
     integer,allocatable :: head(:)
     !> The array which contains the beads index in cells
@@ -303,6 +305,9 @@ contains
     print '(" Maximum number of beads per cell for HI verlet on device: ")'
     print '(i10,1x)',this%mbpc
     print '(" Note that it has to be smaller than maxThreadsperBlock, see above. ")'
+    print '(" Note that I am choosing this number for the number of neighboring cells. ")'
+    print '(" This is a risky choice and the user needs to make sure that the results ")'
+    print '(" are not dependent on the value of cll-dns-hi. ")'
 
   end subroutine print_mbpc
 
@@ -360,9 +365,9 @@ contains
 !print *,'size',this%cll_sz
 !!
 !print *,'cll_vol',this%cll_vol,'cll_vol',this%cll_sz(1)*this%cll_sz(2)*this%cll_sz(3)
-
     ! determined based on the number of warps
     this%mbpc=ceiling(this%cll_vol*cll_dns_hi/32)*32
+    this%mbpct=this%mbpc*nnc
 
     if (allocated(this%binc)) deallocate(this%binc)
     allocate(this%binc(this%nct,this%mbpc))
@@ -378,7 +383,6 @@ contains
       allocate(this%head(this%nct))
       allocate(this%nclst(this%nct,nnc))
       ! allocate(this%nclst_d(this%nct,nnc))
-
 
 
 ! print *,'ncps',this%ncps
@@ -420,7 +424,6 @@ contains
       this%nclst_d=this%nclst
 
     end if
-
     ! this%num_int=ntotbead*nnc*this%mbpc*0.5
     ! total number of interactions are included, since no symmetric option in cusparse bsr
     ! this%num_int=ntotbead*nnc*this%mbpc
@@ -450,9 +453,11 @@ contains
 
     ! this%num_int=nnc*this%mbpc
 
+
+    ! note that I am using a risky choice of this%mbpc instead of this%mbpct
+    ! the user needs to check if the results are dependent on the choice of cll-dns-hi
     if (allocated(nlst_d)) deallocate(nlst_d)
     allocate(nlst_d(this%mbpc,ntotbead))
-
 ! if(allocated(nlst_test)) deallocate(nlst_test)
 ! allocate(nlst_test(this%mbpc,ntotbead))
 
@@ -508,7 +513,7 @@ contains
     nbytes=(4+3*8)*this%mbpc
 
     call cnstr_nab_d <<< this%nct,this%mbpc,nbytes >>> (this%binc_d,this%nclst_d,nnc,rc,bsx,bsy,bsz,&
-      nn_d,nlst_d,ntb)
+      nn_d,nlst_d,ntb,this%mbpct)
     ! r = cudathreadsynchronize()
 
     ! allocate(nn_h(ntb),nlst_h(this%mbpc,ntb))
@@ -728,7 +733,7 @@ contains
   !! \param invbs the inverse of box dimensions
   !! \param nlst The neighbor list
   ! attributes(global) subroutine cnstr_nab_d(binc,nclst,nnc,rc,bsx,bsy,bsz,nn,nlst,ntb,vallst)
-  attributes(global) subroutine cnstr_nab_d(binc,nclst,nnc,rc,bsx,bsy,bsz,nn,nlst,ntb)
+  attributes(global) subroutine cnstr_nab_d(binc,nclst,nnc,rc,bsx,bsy,bsz,nn,nlst,ntb,mbpct)
      
     !    use :: inp_smdlt, only: ntotbead,ntotbeadx3
     use :: flow_cumod, only: FlowType_d,PSF,PEF
@@ -736,12 +741,15 @@ contains
 
     integer,device :: binc(gridDim%x,blockDim%x)
     integer,device :: nclst(gridDim%x,nnc)
-    integer,value :: nnc,ntb
+    integer,value :: nnc,ntb,mbpct
 
     real(wp),value :: rc,bsx,bsy,bsz
     integer,device :: nn(ntb)
+    ! note that i am using a risky choice of mbpc instead of mbpct
+    ! the user needs to check if the results are dependent on cll-dns-hi
     integer,device :: nlst(blockDim%x,ntb)
-    real(wp),device :: vallst(blockDim%x,ntb)
+    ! integer,device :: nlst(mbpct,ntb)
+    ! real(wp),device :: vallst(mbpct,ntb)
 
     integer,shared :: beadj_tmp(blockDim%x)
     real(wp),shared :: rjx_tmp(blockDim%x)
@@ -824,6 +832,10 @@ contains
     ! number of neighboring beads for beadi correspoding to threadIdx%x of blockIdx%x
     nn(beadi)=nab
 
+    if (nab > blockDim%x) then
+      stop
+      ! print '(" Error: cll-dns-hi is small. from cnstr_nab_d kernel. ")'
+    endif
     ! print*,'beadi',blockIdx%x,threadIdx%x,beadi,nn(beadi)
 
   end subroutine cnstr_nab_d

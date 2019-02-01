@@ -100,8 +100,8 @@ mlp:do
             call PME_cpu(real(VP,kind=wp),nbead,boxsizeinp,wtemp2)
             w=real(wtemp2,kind=double)
 #endif
-print*,'k,m',k,m
-call print_vector(w(1:50),'waf')
+! print*,'k,m',k,m
+! call print_vector(w(1:50),'waf')
 
           end if
           if (k == m) wtemp=w

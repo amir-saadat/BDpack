@@ -258,7 +258,6 @@ ef: do
     this%qfctr_cmbar=[0.0_wp,0.7_wp,0._wp]
     this%initmode='st'
     this%MakeAnim=.false.
-
     open (newunit=u1,action='read',file='input.dat',status='old')
     il=1
 ef: do
