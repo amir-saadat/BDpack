@@ -528,7 +528,7 @@ contains
     call this%BoxIO%read(myrank,nproc,this%size,nchain,nseg,nbead,nsegx3,ntotchain,ntotbead,ntotsegx3,&
       ntotbeadx3,nprun,runrst,qmx,MPI_REAL_WP,add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar)
     ! Instantiation of Boxevf:
-    call this%Boxevf%init(myrank,this%size,ntotbead,ntotbeadx3)
+    call this%Boxevf%init(myrank,this%size,ntotsegx3,ntotbead,ntotbeadx3)
     ! Instantiation of Boxsprf:
     call this%Boxsprf%init(myrank,ntotsegx3)
 #ifdef USE_GPU
@@ -576,11 +576,12 @@ contains
       ! Instantiation of Boxrndm_d
       call this%Boxrndm_d%init(myrank)
       ! Instantiation of Boxhi_d
-      call this%Boxhi_d%init(myrank,ntotbead,this%size)
+      call this%Boxhi_d%init(myrank,ntotseg,ntotbead,this%size)
       ! Instantiation of Boxsprf_d:
       call this%Boxsprf_d%init(ntotsegx3)
       ! Instantiation of Boxsprf_d:
-      call this%Boxevf_d%init(myrank,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotbead,ntotbeadx3,this%size)
+      call this%Boxevf_d%init(myrank,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotsegx3,&
+        ntotbead,ntotbeadx3,this%size)
 #endif
     
     if (myrank == 0) then
@@ -791,7 +792,8 @@ contains
         select case (FlowType)
           case ('Equil')
             call this%Boxevf_d%update_vlt(this%Rbx_d,this%Rby_d,this%Rbz_d,&
-              this%Rb_d,itime,itrst,ntotbead,ntotbeadx3,this%size,this%origin)
+              this%Rb_d,this%Q_d,itime,itrst,ntotsegx3,ntotbead,ntotbeadx3,&
+              this%size,this%origin)
           case ('PSF')
           case ('PEF')
         end select
@@ -799,14 +801,16 @@ contains
         select case (FlowType)
           case ('Equil')
             call this%Boxevf%update_vlt(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,&
-              this%size,this%invsize,itime,itrst,ntotbead,ntotbeadx3)
+              this%Q_tilde,this%size,this%invsize,itime,itrst,ntotsegx3,ntotbead,&
+              ntotbeadx3)
           case ('PSF')
             call this%Boxevf%update_vlt(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,&
-              this%Rb_tilde,this%size,this%invsize,itime,itrst,ntotbead,ntotbeadx3)
+              this%Rb_tilde,this%Q_tilde,this%size,this%invsize,itime,itrst,&
+              ntotsegx3,ntotbead,ntotbeadx3)
           case ('PEF')
             call this%Boxevf%update_vlt(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
-              this%Rb_tilde,[bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,&
-              itrst,ntotbead,ntotbeadx3)
+              this%Rb_tilde,this%Q_tilde,[bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],&
+              itime,itrst,ntotsegx3,ntotbead,ntotbeadx3)
         end select
 #endif
     end if
@@ -822,8 +826,8 @@ contains
         ! call this%Boxhi_d%updatelst_(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,&
         !     itrst,ntotbead,this%size,this%origin)
 
-        call this%Boxhi_d%updatelst(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,itime,&
-          itrst,ntotbead,ntotbeadx3,this%size,this%origin)
+        call this%Boxhi_d%updatelst(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,this%Q_d,&
+          itime,itrst,ntotsegx3,ntotbead,ntotbeadx3,this%size,this%origin)
 
 #else
         call update_lst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,itrst,nchain,nbead,&
@@ -983,7 +987,6 @@ contains
       ! call print_matrix(this%rcm_tilde,'rcmafter')
 
 #endif
-
     if (doTiming) et_CM=et_CM+tock(count0)
 
     !------------------------------------------------

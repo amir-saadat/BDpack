@@ -55,6 +55,7 @@ module evforce_cumod
     ! Construction of the verlet list
     integer :: mnnt
     real(wp),device,allocatable :: Rb0_d(:)
+    real(wp),device,allocatable :: Q0_d(:)
     integer,device,allocatable :: nlst_d(:,:)
     integer,device,allocatable :: nn_d(:)
 
@@ -95,7 +96,7 @@ contains
 
   !> Constructor for evforce type
   !! \param id The rank of the process
-  subroutine init_evforce_t(this,id,Rbx,Rby,Rbz,ntotbead,ntotbeadx3,bs)
+  subroutine init_evforce_t(this,id,Rbx,Rby,Rbz,ntotsegx3,ntotbead,ntotbeadx3,bs)
 
     use :: evforce_mod, only: EVForceLaw,rc_F,rs_F,zstar,dstar
     use :: force_cumod, only: Fphi_d
@@ -104,11 +105,12 @@ contains
     real(wp),device,intent(in),target :: Rbx(:)
     real(wp),device,intent(in),target :: Rby(:)
     real(wp),device,intent(in),target :: Rbz(:)
-    integer,intent(in) :: id,ntotbead,ntotbeadx3
+    integer,intent(in) :: id,ntotsegx3,ntotbead,ntotbeadx3
     real(wp),intent(in) :: bs(3)
 
     ! For Construction of verlet list
-    allocate(this%Rb0_d(ntotbead*3))
+    allocate(this%Rb0_d(ntotbeadx3))
+    allocate(this%Q0_d(ntotsegx3))
     allocate(this%nn_d(ntotbead))
 
     ! instantiation of verlet type
@@ -142,7 +144,7 @@ contains
   !! \param Rbz z-coordinate of the position vector
   !! \param bs the dimension of the box
   !! \param invbs the inverse of box dimensions
-  subroutine update_vlt_lst(this,Rbx_d,Rby_d,Rbz_d,Rb_d,itime,itrst,ntb,ntbx3,bs,bo)
+  subroutine update_vlt_lst(this,Rbx_d,Rby_d,Rbz_d,Rb_d,Q_d,itime,itrst,ntsx3,ntb,ntbx3,bs,bo)
 
     use :: evforce_mod, only: rs_F,rc_F
     use :: arry_mod, only: print_vector
@@ -151,12 +153,13 @@ contains
 
     class(evforce_cu_t),intent(inout) :: this
     real(wp),device,intent(in),target :: Rb_d(:)
+    real(wp),device,intent(in),target :: Q_d(:)
     real(wp),device,intent(in),target :: Rbx_d(:)
     real(wp),device,intent(in),target :: Rby_d(:)
     real(wp),device,intent(in),target :: Rbz_d(:)
     ! real(wp),intent(in) :: Rbtr(:)
     real(wp),intent(in) :: bs(3),bo(3)
-    integer,intent(in) :: itime,itrst,ntb,ntbx3
+    integer,intent(in) :: itime,itrst,ntsx3,ntb,ntbx3
     real(wp) :: dispmax,bsx,bsy,bsz
     integer :: max_idx,nct,nthrd,r
     logical :: update
@@ -167,26 +170,30 @@ contains
       update=.true.
     else
       ! Calculate maximum displacement since last update:
-      allocate(diff(ntbx3))
+      allocate(diff(ntsx3))
 
-      call cublasDcopy(ntbx3,Rb_d,1,diff,1)
-      call cublasDaxpy(ntbx3,-1._wp,this%Rb0_d,1,diff,1)
-      max_idx = cublasIdamax(ntbx3,diff,1)
+      ! call cublasDcopy(ntbx3,Rb_d,1,diff,1)
+      ! call cublasDaxpy(ntbx3,-1._wp,this%Rb0_d,1,diff,1)
+      ! max_idx = cublasIdamax(ntbx3,diff,1)
+      call cublasDcopy(ntsx3,Q_d,1,diff,1)
+      call cublasDaxpy(ntsx3,-1._wp,this%Q0_d,1,diff,1)
+      max_idx = cublasIdamax(ntsx3,diff,1)
       dispmax = diff(max_idx)
       
       deallocate(diff)
 
       ! dispmax=maxval(abs(Rb-this%Rb0))
       ! A conservative testing of the list skin crossing:
-      dispmax=2*sqrt(3*dispmax*dispmax)
-      
+      ! dispmax=2*sqrt(3*dispmax*dispmax)
+     
       update=dispmax > (rs_F-rc_F)
     
     end if
     ! print*,'update_cu',update
     if (update) then
       ! Save positions for next evaluations:
-      call cublasDcopy(ntbx3,Rb_d,1,this%Rb0_d,1)
+      ! call cublasDcopy(ntbx3,Rb_d,1,this%Rb0_d,1)
+      call cublasDcopy(ntsx3,Q_d,1,this%Q0_d,1)
       ! this%Rb0=Rb
       
       if ((FlowType == 'PEF').and.(itime /= itrst+1)) then

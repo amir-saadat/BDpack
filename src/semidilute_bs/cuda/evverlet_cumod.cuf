@@ -428,6 +428,7 @@ contains
 
     ! unfortunately we need to transfer the positions for now
     ! but fortunately it is only done every once a while ...
+    ! print*,'how often ev',itime
     this%Rbx_h=Rbx_d
     this%Rby_h=Rby_d
     this%Rbz_h=Rbz_d
@@ -648,9 +649,9 @@ contains
     ! number of neighboring beads for beadi correspoding to threadIdx%x of blockIdx%x
     nn(beadi)=nab
 
-    if (nab > blockDim%x) then
-      stop
-    endif
+    ! if (nab > blockDim%x) then
+    !   stop
+    ! endif
     ! print*,'beadi',blockIdx%x,threadIdx%x,beadi,nn(beadi)
 
   end subroutine cnstr_nab_d

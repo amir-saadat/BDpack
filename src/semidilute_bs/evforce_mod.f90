@@ -52,6 +52,7 @@ module evforce_mod
     type(evverlet) :: evvlt
     !> The position vector in the previous list update iteration
     real(wp),allocatable :: Rb0(:)
+    real(wp),allocatable :: Q0(:)
     !> The neighbor list
     integer,allocatable :: nlst(:,:)
     !> Gaussian ev force parameters
@@ -173,10 +174,10 @@ ef: do
   end subroutine init_evforce
 
   !> Constructor for evforce type
-  subroutine init_evforce_t(this,id,bs,ntotbead,ntotbeadx3)
+  subroutine init_evforce_t(this,id,bs,ntotsegx3,ntotbead,ntotbeadx3)
 
     class(evforce),intent(inout) :: this
-    integer,intent(in) :: id,ntotbead,ntotbeadx3
+    integer,intent(in) :: id,ntotsegx3,ntotbead,ntotbeadx3
     real(wp),intent(in) :: bs(3)
 
     ! The parameters used for EV potentials
@@ -185,6 +186,7 @@ ef: do
         this%fctr=zstar/dstar**5
         this%efctr=1/(2*dstar**2)
         allocate(this%Rb0(ntotbeadx3))
+        allocate(this%Q0(ntotsegx3))
       case ('LJ')
       case ('NoEV')
     end select
@@ -201,15 +203,16 @@ ef: do
   !! \param bs the dimension of the box
   !! \param invbs the inverse of box dimensions
 !  subroutine update_vlt_lst(this,Rbx,Rby,Rbz,bs,invbs,itime,itrst,ntotbead,ntotbeadx3)
-  subroutine update_vlt_lst(this,Rbx,Rby,Rbz,Rb,bs,invbs,itime,itrst,ntotbead,ntotbeadx3)
+  subroutine update_vlt_lst(this,Rbx,Rby,Rbz,Rb,Q,bs,invbs,itime,itrst,ntotsegx3,ntotbead,ntotbeadx3)
 
     use :: flow_mod, only: FlowType
 
     class(evforce),intent(inout) :: this
     real(wp),intent(in) :: Rbx(:),Rby(:),Rbz(:)
     real(wp),intent(in) :: Rb(:)
+    real(wp),intent(in) :: Q(:)
     real(wp),intent(in) :: bs(3),invbs(3)
-    integer,intent(in) :: itime,itrst,ntotbead,ntotbeadx3
+    integer,intent(in) :: itime,itrst,ntotsegx3,ntotbead,ntotbeadx3
     real(wp) :: dispmax
     logical :: update
 
@@ -217,14 +220,16 @@ ef: do
       update=.true.
     else
       ! Calculate maximum displacement since last update:
-      dispmax=maxval(abs(Rb-this%Rb0))
+      ! dispmax=maxval(abs(Rb-this%Rb0))
+      dispmax=maxval(abs(Q-this%Q0))
       ! A conservative testing of the list skin crossing:
-      dispmax=2*sqrt(3*dispmax*dispmax)
+      ! dispmax=2*sqrt(3*dispmax*dispmax)
       update=dispmax > (rs_F-rc_F)
     end if
     if (update) then
       ! Save positions for next evaluations:
-      this%Rb0=Rb
+      ! this%Rb0=Rb
+      this%Q0=Q
       if ((FlowType == 'PEF').and.(itime /= itrst+1)) then
         call this%evvlt%init_cll(rs_F,bs,ntotbead)
       end if
