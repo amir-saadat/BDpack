@@ -747,7 +747,7 @@ contains
     ! call print_vector(dw_bl(:,1),'dworigin')
 #ifdef USE_GPU
       call this%Boxrndm_d%gen(ntotbeadx3,dt)
-      dw_bl_d=dw_bl
+      ! dw_bl_d=dw_bl
 #endif
     !-----------------------------------------
     !>>> Applying Periodic Boundary Condition:
@@ -848,13 +848,11 @@ contains
     !-----------------------------------------
     !>>> Calculating hydrodynamic interaction:
     !-----------------------------------------
-
     if (doTiming) call tick(count0)
     if ( (mod(itime,ncols) == 1) .or. (ncols == 1) ) then
       call calcHI(this,itime,dt)
     end if
     if (doTiming) et_HI=et_HI+tock(count0)
-
     !--------------------------------
     !>>> Integration in Euler scheme:
     !--------------------------------
@@ -1288,16 +1286,12 @@ contains
 
 
 #ifdef USE_GPU
-
       Fphi_d=0._wp
       rFphi_d=0._wp
-
       select case (FlowType)
       case ('Equil')
-
         call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
         call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
-
         call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
           itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
 

@@ -70,6 +70,7 @@ module force_cumod
 
   end interface
 
+  save
   !> Total force acting on the particles
   real(wp),device,allocatable,target :: Fphi_d(:)
   !> Interparticle distance times total force

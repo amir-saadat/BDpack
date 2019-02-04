@@ -645,6 +645,7 @@ contains
   subroutine calcDiffTens_d(this,Rb,ntb,boxsize,boxorigin)
 
     use :: hi_mod, only: HIcalc_mode,maxNb_list_D,M_spl,p_PME,p_PMEto3,K_mesh
+    use :: tmng_mod, only: tick,tock,et_DCR,et_DCK,doTiming
     use :: hi_cumod, only: hi_cu_t
     use :: cusparse
 
@@ -657,6 +658,8 @@ contains
     integer,device,allocatable :: neig_count(:)
     real(wp) :: bsx,bsy,bsz,box,boy,boz
     integer :: nlst,K_dim,istat,ierr,r
+    integer(long) :: count0
+
     ! integer :: K_dim,istat
     integer,allocatable :: testi(:),nc_tmp1(:),nc_tmp2(:)
     real(wp),allocatable :: testr(:)
@@ -674,8 +677,8 @@ contains
 
     if (HIcalc_mode == 'PME') then
 
+      if (doTiming) call tick(count0)
       ! real part
-
       ! retained for debugging
       ! allocate(neig_count(ntb))
       ! neig_count=0
@@ -715,6 +718,10 @@ contains
         stop
       endif
 
+      if (doTiming) then
+        et_DCR=et_DCR+tock(count0)
+        call tick(count0)
+      end if
 
       ! reciprocal part
       call calcDiff_recip_d <<<(ntb+255)/256,256>>> (Rb,ntb,bsx,bsy,bsz,box,boy,boz,K_mesh(1),&
@@ -735,6 +742,8 @@ contains
         this%P_ColPtr_d,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ZERO)
 
       if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csr2csc Error: ",i)',istat
+
+      if (doTiming) et_DCK=et_DCK+tock(count0)
 
       ! allocate(testi(ntb*p_PMEto3),testr(ntb*p_PMEto3))
       ! testi=this%ColInd_d(1:this%nnzb)-this%ColInd_h(1:this%nnzb)
@@ -959,6 +968,19 @@ contains
         this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fz_d,&
         0._wp,this%F_meshPz_di)
       if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv z-component Error: ",i)',status
+
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,&
+      !   this%nnz,1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fx_d,&
+      !   0._wp,this%F_meshPx_di)
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv x-component Error: ",i)',status
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,&
+      !   this%nnz,1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fy_d,&
+      !   0._wp,this%F_meshPy_di)
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv y-component Error: ",i)',status
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,ntb,K_dim,&
+      !   this%nnz,1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fz_d,&
+      !   0._wp,this%F_meshPz_di)
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv z-component Error: ",i)',status
 
       if (doTiming) et_SPR=et_SPR+tock(count2)
 
