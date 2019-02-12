@@ -166,6 +166,7 @@ module dlt_mod
 
     real(wp),allocatable,dimension(:,:) :: rf_in
     real(wp),allocatable,dimension(:,:,:) :: rf0
+    real(wp),dimension(3) :: rf0_rel_unit
     real(wp),allocatable,dimension(:,:,:),target :: rcm,rcmstart
     real(wp),dimension(:,:),pointer :: rcmP,rcmPy
     real(wp),dimension(:),pointer :: r_sphP
@@ -916,6 +917,24 @@ module dlt_mod
 
           !call print_vector(Fseg(:),'Fseg before: ')
           call sprforce(id,qc,nseg,ForceLaw,TruncMethod,Fseg)
+          !print *, 'spring force is:', Fseg
+
+          !call print_vector(Fseg(:),'Fseg(922): ')
+          !call print_vector(qc(:),'qc(923): ')
+
+          ! !TYL - correcting the force in the tethered springs---
+          ! do ichain_pp=1,nchain_pp
+          !   offset = nseg_indx3*(ichain_pp-1)
+          !
+          !   rf0_rel_unit(:) = rf0(:,ichain,ichain_pp)  - r_sph(:,ichain)
+          !   rf0_rel_unit(:) = rf0_rel_unit(:) / (sqrt(rf0_rel_unit(1)**2+ &
+          !     rf0_rel_unit(2)**2 + rf0_rel_unit(3)**2))
+          !
+          !   Fseg(offset+1:offset+3) = Fseg(offset+1:offset+3) - &
+          !     rf0_rel_unit(1:3)/dot(rf0_rel_unit(1:3),qc(offset+1:offset+3))
+          ! end do
+          ! !------------------------------------------------------
+
           !call print_vector(Fseg(:),'Fseg after: ')
 
           if (ForceLaw == 'WLC_GEN') call bndforce(nbead_bb,qc,Fbnd,itime)
@@ -940,6 +959,7 @@ module dlt_mod
               !print *, 'before first calc--------------------------------'
               call myintrn%calc(id,itime,rvmrcP,rcmP,r_sphP,nseg,DiffTensP,divD,Fev,Fbarev,&
                 calchi=.true.,calcdiv=.true.,calcevbb=.true.,calcevbw=.true.)
+              !call print_matrix(DiffTensP,'DiffTensP (962):')
               !print *, 'after first calc--------------------------------'
 
             end if
@@ -1071,20 +1091,26 @@ module dlt_mod
           !------------ advancing the configuration -------------------------!
           if (sph_move) then
             !make sure Ftet at first time step is just 0
+            !call print_vector(p_sph(:,1),'p_sph(1094) = ')
+            !call print_vector(r_sph(:,1),'r_sph(1095) = ')
             call mysphsde%advance(r_sph,p_sph,q_sph,rf0,iPe,idt,ichain,Fseg,wbl_sph,wbl_sph_or,jcol)
+            !call print_vector(p_sph(:,1),'p_sph after(1097) = ')
+            !call print_vector(r_sph(:,1),'r_sph after(1098) = ')
             !print *, '------------------------'
             !call print_vector(Ftet(:),'Ftet = ')
+            !call print_vector(qc, 'Spring vector')
             !call mysphsde%advance(r_sph,rf0,iPe,idt,ichain,Ftet,wbl_sph,jcol)
           end if
 
           call mysde%advance(myintrn,id,iPe,idt,ichain,itime,Kdotq,qc,Fseg,Fbead,Fev,Fbnd,qstar,Fphi,&
            rvmrcP,rcm,DiffTensP,Ftet,rf0,AdotDP1,divD,FBr,RHS,rcmP,r_sphP,Fbarev,nbead_bb,Fbarbnd,Fbar,Fbartet,&
-           RHScnt,Fbarseg,Fbarbead,root_f,qbar,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE)
+           RHScnt,Fbarseg,Fbarbead,root_f,qbar,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE,r_sph)
           !------------ advancing the configuration -------------------------!
 
 
           ! Inserting back the final result to original arrays
           q(:,ichain)=qc(:)
+          !call print_vector(qc(:),'qc(1112): ')
           Fphi(:,ichain)=Fbead(:)+Fbar(:)
           !note: Fbar includes Fbarev + Fbarbnd + Fbartet
           !      Fbead includes the spring forces
@@ -1094,6 +1120,8 @@ module dlt_mod
           call gemv(Bmat,qc,rvmrcP)
           ! Calculating center of mass and/or center of hydrodynamic resistance movement
           if (CoM) then
+
+            !call print_matrix(rcmP(:,:),'rcmP(:,:) before (1123)')
             FphiP => Fphi(:,ichain)
             rcmP => rcm(:,ichain,:) ! might be redundant
             ! BdotwPx => wbltemp(1:nbeadx3-2:3,jcol,ichain)
@@ -1269,6 +1297,8 @@ module dlt_mod
                 !rf0(:,jchain,ichain_pp) = rf_in(1:3,ichain_pp)
             end do
           end if
+
+          !call print_matrix(rcmP(:,:),'rcmP(:,:) after (1300)')
           !-----
 
         end do ! ichain loop

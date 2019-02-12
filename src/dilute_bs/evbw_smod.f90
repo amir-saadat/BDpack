@@ -106,7 +106,7 @@ contains
     logical :: coll_detect_sw
 
     dr_sph(:) = 0._wp
-    R_pore = 4._wp
+    R_pore = 6.25_wp
     coll_detect_sw = .FALSE.
 
     if ((this%iwall == 3).or.(this%iwall == 4)) then
@@ -123,6 +123,7 @@ contains
         r_sph(1) = r_sph(1) + dr_sph(1)
         r_sph(3) = r_sph(3) + dr_sph(3)
 
+        !shouldn't this affect the first spring as well?
         do ichain_pp=1,nchain_pp
           rf0(1,ichain_pp) = rf0(1,ichain_pp) + dr_sph(1)
           rf0(3,ichain_pp) = rf0(3,ichain_pp) + dr_sph(3)
@@ -146,7 +147,7 @@ contains
     real(wp),dimension(3) :: dr_sph
 
     !dr_sph(:) = 0._wp
-    R_pore = 4._wp
+    R_pore = 6.25_wp
     coll_detect_bs = .FALSE.
     coll_detect_bw = .FALSE.
     !coll_detect_sw = .FALSE.
@@ -202,9 +203,9 @@ contains
     ! endif
 
     ! Reflection of the first bead
-    Rx(1)=rf0(1)
-    Ry(1)=rf0(2)
-    Rz(1)=rf0(3)
+    !Rx(1)=rf0(1)
+    !Ry(1)=rf0(2)
+    !Rz(1)=rf0(3)
 
     select case (tplgy)
     case ('Linear')
@@ -265,7 +266,7 @@ contains
 
           !if ia time is less than some fraction of a relaxation time, record.
           !if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > int(lambda/dt/100._wp)) then !Macromol paper
-          if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > int(lambda/dt/10._wp)) then
+          if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > int(lambda/dt/1._wp)) then
             this%w_coll(ib,ich)=this%w_coll(ib,ich)+1
           else
             this%ia_time(ib,this%w_coll(ib,ich)+1,ich) = 1

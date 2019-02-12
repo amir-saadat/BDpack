@@ -53,7 +53,7 @@ contains
     real(wp),dimension(3) :: dr_sph,dphi_sph,ax_sph
     real(wp) :: ang_sph
     real(wp),dimension(3) :: p_old,q_old, rf0_rel_old,rf0_rel_new
-    real(wp),dimension(3) :: rf0_unit, Tseg
+    real(wp),dimension(3) :: rf0_rel,rf0_rel_unit, Tseg
     real(wp),dimension(3,3) :: R
 
     !initializing the variables
@@ -64,7 +64,9 @@ contains
     q_old(1:3)  = q_sph(:,ichain)
     rf0_rel_old(1:3) = 0._wp
     rf0_rel_new(1:3) = 0._wp
-    rf0_unit = 0._wp
+    !rf0_unit = 0._wp
+    rf0_rel = 0._wp
+    rf0_rel_unit = 0._wp
     Tseg = 0._wp
 
     !ROTATION------------------------------------------------------
@@ -76,11 +78,15 @@ contains
     !advance the orientation of the sphere: torques
     do ichain_pp = 1,nchain_pp
       offset = nseg_indx3*(ichain_pp-1)
-      rf0_unit(:) = rf0(:,ichain,ichain_pp) / (sqrt(rf0(1,ichain,ichain_pp)**2 + rf0(2,ichain,ichain_pp)**2 + rf0(3,ichain,ichain_pp)**2))
+      !rf0_unit(:) = rf0(:,ichain,ichain_pp) / (sqrt(rf0(1,ichain,ichain_pp)**2 + rf0(2,ichain,ichain_pp)**2 + rf0(3,ichain,ichain_pp)**2))
+      !wait...this should be relative!
 
-      Tseg(1) = rf0_unit(2)*Fseg(offset+3) - rf0_unit(3)*Fseg(offset+2)
-      Tseg(2) = rf0_unit(3)*Fseg(offset+1) - rf0_unit(1)*Fseg(offset+3)
-      Tseg(3) = rf0_unit(1)*Fseg(offset+2) - rf0_unit(2)*Fseg(offset+1)
+      rf0_rel(:) = rf0(:,ichain,ichain_pp) - r_sph(:,ichain)
+      rf0_rel_unit(:) = rf0_rel(:) / (sqrt(rf0_rel(1)**2 + rf0_rel(2)**2 + rf0_rel(3)**2))
+
+      Tseg(1) = rf0_rel_unit(2)*Fseg(offset+3) - rf0_rel_unit(3)*Fseg(offset+2)
+      Tseg(2) = rf0_rel_unit(3)*Fseg(offset+1) - rf0_rel_unit(1)*Fseg(offset+3)
+      Tseg(3) = rf0_rel_unit(1)*Fseg(offset+2) - rf0_rel_unit(2)*Fseg(offset+1)
 
       dphi_sph(1) = dphi_sph(1) + (3._wp/16._wp)*(hstar*sqrtPI/(this%a_sph**2))*Tseg(1)*dt(iPe,idt)
       dphi_sph(2) = dphi_sph(2) + (3._wp/16._wp)*(hstar*sqrtPI/(this%a_sph**2))*Tseg(2)*dt(iPe,idt)
@@ -90,6 +96,9 @@ contains
     !axis angle representation of the angular displacement
     ang_sph = sqrt(dphi_sph(1)**2 + dphi_sph(2)**2 + dphi_sph(3)**2)
     ax_sph = dphi_sph(:)/ang_sph
+
+    !ang_sph = 0.001_wp
+    !ax_sph = (/1._wp,0._wp,0._wp/)
 
     !constructing the rotation matrix (Rodriguez formula)
     R(1,1:3) = (/COS(ang_sph),0._wp,0._wp/)
@@ -122,6 +131,15 @@ contains
       dr_sph(2) = dr_sph(2) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fseg(offset+2)*dt(iPe,idt)
       dr_sph(3) = dr_sph(3) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fseg(offset+3)*dt(iPe,idt)
 
+      !call print_vector(Fseg(offset+1:offset+3),'Spring force')
+
+      !using q vector
+      !offset = nseg_indx3*(ichain_pp-1)
+      !dr_sph(1) = dr_sph(1) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*5._wp*q_sph(1,ichain)*dt(iPe,idt)
+      !dr_sph(2) = dr_sph(2) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*5._wp*q_sph(2,ichain)*dt(iPe,idt)
+      !dr_sph(3) = dr_sph(3) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*5._wp*q_sph(3,ichain)*dt(iPe,idt)
+
+
       !using Ftet
       ! offset = 3*(ichain_pp-1)
       ! dr_sph(1) = dr_sph(1) - (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Ftet(offset+1)*dt(iPe,idt)
@@ -134,6 +152,8 @@ contains
     dr_sph(2) = dr_sph(2) + (1._wp/sqrt(2._wp))*sqrt(hstar*sqrtPI/this%a_sph)*wbl_sph(2,jcol)
     dr_sph(3) = dr_sph(3) + (1._wp/sqrt(2._wp))*sqrt(hstar*sqrtPI/this%a_sph)*wbl_sph(3,jcol)
     r_sph(:,ichain) = r_sph(:,ichain) + dr_sph(1:3)
+    !print *, (1._wp/sqrt(2._wp))*sqrt(hstar*sqrtPI/this%a_sph)
+
 
     !update the tether points on the surface of the sphere
     do ichain_pp = 1,nchain_pp

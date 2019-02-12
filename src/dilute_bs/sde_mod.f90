@@ -306,7 +306,7 @@ contains
   !update the configurations of the chains with the SDE
   subroutine advance_sde(this,myintrn,id,iPe,idt,ichain,itime,Kdotq,qc,Fseg,Fbead,Fev,Fbnd,qstar,Fphi,&
     rvmrcP,rcm,DiffTensP,Ftet,rf0,AdotDP1,divD,FBr,RHS,rcmP,r_sphP,Fbarev,nbead_bb,Fbarbnd,Fbar,Fbartet,&
-    RHScnt,Fbarseg,Fbarbead,root_f,qbar,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE)
+    RHScnt,Fbarseg,Fbarbead,root_f,qbar,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE,r_sph)
 
     !variables used from other places
     use :: inp_dlt, only: nseg,nbead,tplgy,dt,Pe,nsegx3,nbeadx3,applFext,Fext0,srf_tet,&
@@ -350,9 +350,10 @@ contains
     real(wp), intent(inout) :: qctemp(:)
     integer,intent(inout) :: mch(:),Lch(:)
     real(wp), intent(inout) :: lambdaBE(:)
+    real(wp), intent(in) :: r_sph(:,:)
 
     !variables used inside advance_sde
-    integer :: kl,is,os,offset,iseg,icount
+    integer :: kl,is,os,offset,offset_bead,iseg,icount
     real(wp) :: eps
     real(wp),dimension(:),pointer  :: RHSP,RHSbaseP,qcP,FsegP
     real(wp),dimension(:,:),pointer :: AdotDP2
@@ -360,6 +361,7 @@ contains
     real(wp),dimension(nbeadx3) :: U_bead
     integer :: ichain_pp
     integer :: idx_pp_seg,idx_pp_bead
+    real(wp),dimension(3) :: rf0_rel_unit
 
     !============ Predictor-Corrector =============!
     !--------Predictor Algorithm----------!
@@ -606,6 +608,27 @@ contains
       !call print_vector(Fbarbead(:),'Fbarbead, after:')
     end do
 
+    ! !TYL - correcting the force in the tethered springs---
+    ! do ichain_pp=1,nchain_pp
+    !   offset = nseg_indx3*(ichain_pp-1)
+    !   offset_bead = nbead_indx3*(ichain_pp-1)
+    !
+    !   rf0_rel_unit(:) = rf0(:,ichain,ichain_pp)  - r_sph(:,ichain)
+    !   rf0_rel_unit(:) = rf0_rel_unit(:) / (sqrt(rf0_rel_unit(1)**2+ &
+    !     rf0_rel_unit(2)**2 + rf0_rel_unit(3)**2))
+    !
+    !   Fbarseg(offset+1:offset+3) = Fbarseg(offset+1:offset+3) - &
+    !     rf0_rel_unit(1:3)/dot(rf0_rel_unit(1:3),qbar(offset+1:offset+3))
+    !
+    !   Fbarbead(offset_bead+1:offset_bead+3)=Fbarseg(offset+1:offset+3)
+    !   Fbarbead(offset_bead+4:offset_bead+6)=Fbarseg(offset+4:offset+6)-&
+    !                                 Fbarseg(offset+1:offset+3)
+    ! end do
+    ! !------------------------------------------------------
+
+
+
+
     !----------Second Corrector Algorithm----------!
     ! q=qbar;Fseg=Fbarseg;Fbead=Fbarbead           !
     ! RHSbase=RHScnt(from 1stCorr.)for while loop. !
@@ -690,6 +713,10 @@ contains
           Ia,Na,itime)
 
       end do
+
+
+
+
       eps=nrm2(qc-qctemp)/nrm2(qctemp)
       icount=icount+1
       if (icount > 5000) then
@@ -710,6 +737,26 @@ contains
         stop
       end if
     end do ! while loop
+
+    ! !TYL - correcting the force in the tethered springs---
+    ! do ichain_pp=1,nchain_pp
+    !   offset = nseg_indx3*(ichain_pp-1)
+    !   offset_bead = nbead_indx3*(ichain_pp-1)
+    !
+    !   rf0_rel_unit(:) = rf0(:,ichain,ichain_pp)  - r_sph(:,ichain)
+    !   rf0_rel_unit(:) = rf0_rel_unit(:) / (sqrt(rf0_rel_unit(1)**2+ &
+    !     rf0_rel_unit(2)**2 + rf0_rel_unit(3)**2))
+    !
+    !   Fseg(offset+1:offset+3) = Fseg(offset+1:offset+3) - &
+    !     rf0_rel_unit(1:3)/dot(rf0_rel_unit(1:3),qc(offset+1:offset+3))
+    !
+    !   Fbead(offset_bead+1:offset_bead+3)=Fseg(offset+1:offset+3)
+    !   Fbead(offset_bead+4:offset_bead+6)=Fseg(offset+4:offset+6)-&
+    !                                 Fseg(offset+1:offset+3)
+    ! end do
+    ! !------------------------------------------------------
+
+
     !==================================================!
     !line 1233, now put back into original arrays
 
