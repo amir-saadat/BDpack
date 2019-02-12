@@ -165,7 +165,7 @@ for ichain in xrange(0,nchain):
 
         for iseg in xrange(0,nseg_ind):
             #change to different magnitude of initial spring length if desired
-            qstart[:,iseg,ichain,ichain_pp] = 1*rf_in_unit[:,ichain_pp].copy()
+            qstart[:,iseg,ichain,ichain_pp] = 0.1*rf_in_unit[:,ichain_pp].copy()
 
             r_curr[:] = r_curr[:] + qstart[:,iseg,ichain,ichain_pp]
             rcmstart[:,ichain,ichain_pp] = rcmstart[:,ichain,ichain_pp]+ r_curr[:]
