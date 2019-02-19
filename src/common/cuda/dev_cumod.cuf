@@ -24,7 +24,7 @@ contains
 
   subroutine init_dev()
 
-    integer :: istat,idev
+    integer :: istat,idev,stream(cuda_stream_kind)
 
     istat = cudaGetDeviceCount(numdevices)
 
@@ -32,7 +32,7 @@ contains
     allocate(dev_ids(0:numdevices-1))
 
     do idev = 0, numdevices-1
-      
+
       istat = cudaGetDeviceProperties(mydevices(idev)%prop,idev)
 
       istat = cudaChooseDevice(mydevices(idev)%id,mydevices(idev)%prop)
@@ -43,6 +43,9 @@ contains
 
     end do
 
+    ! stream = cudaforGetDefaultStream( )
+    ! print "(a,i6)", "cudafor stream", stream
+
   end subroutine init_dev
 
   subroutine print_dev_prop(this)
@@ -51,6 +54,7 @@ contains
 
     integer :: ilen
 
+    print '(" >>> Pringting the properties of the device")'
     ilen = verify(this%prop%name, ' ', .true.)
     write (*,900) "Device Number: " ,this%id
     write (*,901) "Device Name: " ,this%prop%name(1:ilen)
@@ -95,7 +99,7 @@ contains
 
     deallocate(mydevices)
     deallocate(dev_ids)
-      
+
   end subroutine del_dev
 
 end module dev_cumod

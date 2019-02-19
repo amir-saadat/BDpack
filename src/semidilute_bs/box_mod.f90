@@ -44,7 +44,7 @@ module box_mod
   use :: evforce_cumod, only: evforce_cu_t
 #endif
 !$ use :: omp_lib
-  
+
   implicit none
 
   ! Private module procedures:
@@ -77,7 +77,7 @@ module box_mod
     type(sprforce) :: Boxsprf
     !> An object for calculating ev force
     type(evforce) :: Boxevf
-    !> An object for performing transformation  
+    !> An object for performing transformation
     type(trsfm) :: Boxtrsfm
     !> The position vector of all beads
     real(wp),allocatable :: Rb_tilde(:)
@@ -145,14 +145,14 @@ module box_mod
       !> An object for calculating ev force on device
       type(evforce_cu_t) :: Boxevf_d
 #endif
-    
+
     contains
 
       procedure,pass(this) :: init => init_box_t
       procedure,pass(this) :: move => move_box
       procedure,pass(this) :: read_init => read_init_cnf
       procedure,pass(this) :: read_dmp => read_dmp_cnf
-      procedure,pass(this) :: write => write_cnf 
+      procedure,pass(this) :: write => write_cnf
       procedure,pass(this) :: calc_mf => calc_mat_fcn
       final :: del_box_t
 
@@ -165,7 +165,7 @@ module box_mod
   ! integer,device,pointer :: b_img_dp(:,:)
   ! integer,device,pointer :: cm_img_dp(:,:)
 
-  
+
   ! Protected module variables:
   protected :: nchain,nseg,nbead,nsegx3,nbeadx3,ntotsegx3,ntotbeadx3,lambda,&
     add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar,Na,Ia
@@ -242,10 +242,10 @@ contains
       use :: force_cumod, only: init_force_d
 #endif
     !include 'mpif.h'
-    
+
     integer,intent(in) :: myrank,nprun
     integer :: j,ntokens,u1,il,stat,size_sp,size_dp,ierr,ios
-    character(len=1024) :: line 
+    character(len=1024) :: line
     character(len=100) :: tokens(10)
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp) :: b,hstar
@@ -376,7 +376,7 @@ contains
           lambda=nbead**1.5*1.22_wp/(hstar*PI**2)
           ! lambda_eta:
          ! lambda=2.39_wp*(nbead**1.5*1.22_wp/(hstar*PI**2))
-        else          
+        else
           if (myrank == 0) print '(" Zimm relaxation time is only for non-zero hstar.")'
           stop
         end if
@@ -424,11 +424,11 @@ contains
       add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar,Na,Ia)
     ! if (hstar /= 0._wp) then
       call init_hi(myrank,ntotbead,ntotbeadx3,Lbox)
-    ! end if   
+    ! end if
     call init_io(myrank,nchain,nsegx3,nbeadx3,ntotchain,ntotsegx3,ntotbeadx3,nprun)
 
     call init_verlet(myrank)
-    call init_evverlet(myrank)  
+    call init_evverlet(myrank)
     call init_force(ntotbeadx3)
     call init_sprforce(myrank)
     call init_evforce(myrank)
@@ -583,7 +583,7 @@ contains
       call this%Boxevf_d%init(myrank,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotsegx3,&
         ntotbead,ntotbeadx3,this%size)
 #endif
-    
+
     if (myrank == 0) then
       print *
       if ((this%size(1) == this%size(2)) .and. &
@@ -632,7 +632,7 @@ contains
       use :: chain_cumod
       use :: diffcalc_cumod, only: PME_d
 #endif
-    
+
     class(box),intent(inout) :: this
     real(wp),intent(in) :: Pe,dt,eps
     integer,intent(in) :: itime,ntime,irun,myrank,itrst
@@ -667,7 +667,7 @@ contains
       end do
       this%Rb_tilde=Rbst(:,irun)
       this%b_img=0
-      
+
       if (itrst /= 0) then
         call update_arng(eps)
         call update_trsfm(this%size)
@@ -782,7 +782,6 @@ contains
     ! call print_vector(this%Q_tilde,'q0')
     ! call print_vector(this%Rb_tilde(1:50),'rb0')
     ! call print_matrix(this%rcm_tilde(1:10,:),'rcm0')
-
     !---------------------------------------------------------
     !>>> Constructing Verlet neighbor list for EV calculation:
     !---------------------------------------------------------
@@ -825,7 +824,7 @@ contains
         !   nbeadx3,ntotbead,this%size,this%origin,add_cmb,nchain_cmb,nseg_cmb)
         ! call this%Boxhi_d%updatelst_(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,&
         !     itrst,ntotbead,this%size,this%origin)
-
+print*,'here?'
         call this%Boxhi_d%updatelst(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,this%Q_d,&
           itime,itrst,ntotsegx3,ntotbead,ntotbeadx3,this%size,this%origin)
 
@@ -837,11 +836,11 @@ contains
     !---------------------------------------------------
     !>>> Calculating conservative forces; spring and EV:
     !---------------------------------------------------
-
+print*,'he?'
     if (doTiming) call tick(count0)
     call calcForce(this,itime)
     if (doTiming) et_CF=et_CF+tock(count0)
-
+print*,'hi3'
     ! call print_vector(Fphi(1:50),'fphi')
     ! call print_vector(this%Rb_tilde,'rb1')
     ! call print_matrix(this%rcm_tilde,'rcm1')
@@ -858,7 +857,7 @@ contains
     !--------------------------------
 
     if (doTiming) call tick(count0)
-
+print*,'hi4'
     ! call print_vector(Fphi(1:50),'fphi2')
 
 ! open (newunit=ufo,action='write',file='force.dat',status='replace')
@@ -1052,7 +1051,7 @@ contains
     this%Rby=this%Rby_d
     this%Rbz=this%Rbz_d
 #endif
-    
+
     select case (FlowType)
       case ('Equil')
         ! call RbctoQ(this%Rbx,this%Rby,this%Rbz,this%Q_tilde,this%size,&
@@ -1069,7 +1068,7 @@ contains
         ! !$omp end do simd
         !$omp end parallel
 
-        !!!! has to be changed to RbctoRb abd RbtoQ to be consistent for comb simulations 
+        !!!! has to be changed to RbctoRb abd RbtoQ to be consistent for comb simulations
         call RbctoQ(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Q_tilde,&
                              this%size,this%invsize,nseg,nbead,ntotseg)
       case ('PEF')
@@ -1082,8 +1081,8 @@ contains
         ! !$omp end do simd
         !$omp end parallel
 
-        !!!! has to be changed to RbctoRb abd RbtoQ to be consistent for comb simulations 
-        
+        !!!! has to be changed to RbctoRb abd RbtoQ to be consistent for comb simulations
+
         call RbctoQ(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,this%Q_tilde,&
             [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],nseg,nbead,ntotseg)
     end select
@@ -1166,10 +1165,10 @@ contains
       deallocate(this%Q_d)
       deallocate(this%rcm_d)
 #endif
-    
+
   end subroutine del_box_t
 
-  !> Calculating HI 
+  !> Calculating HI
   subroutine calcHI(this,itime,dt)
 
     use :: hi_mod, only: HI_M,Mstart,restartHIpar,updateHIpar,hstar
@@ -1255,7 +1254,7 @@ contains
         ! print*,'row',this%Boxhi_d%P_RowPtr_h
 
 
-      
+
       if (doTiming) et_DEC=et_DEC+tock(count0)
       if (this%decompRes%Success) then
         exit HIlp
@@ -1268,7 +1267,7 @@ contains
 
   end subroutine calcHI
 
-  !> Calculating the force on the beads 
+  !> Calculating the force on the beads
   subroutine calcForce(this,itime)
 
     use :: arry_mod, only: print_vector
@@ -1284,14 +1283,16 @@ contains
     class(box),intent(inout) :: this
     integer,intent(in) :: itime
 
-
 #ifdef USE_GPU
       Fphi_d=0._wp
       rFphi_d=0._wp
+print*,'force3'
       select case (FlowType)
       case ('Equil')
         call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
+print*,'force4'
         call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
+! print*,'force5'
         call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
           itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
 
@@ -1335,7 +1336,7 @@ contains
           if (EVForceLaw /= 'NoEV') then
             call this%Boxevf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
               nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-          end if     
+          end if
         case ('PSF')
 
           call RbctoRb(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)

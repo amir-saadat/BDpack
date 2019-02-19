@@ -6,6 +6,9 @@ OBJS	= prcn_mod.o cmn_tp_mod.o arry_mod.o
 OBJS   += strg_mod.o cmn_io_mod.o mpi_mod.o 
 OBJS   += rand_mod.o
 CUOBJS	= $(CUDIR)/dev_cumod.o
+ifeq ($(USE_MAGMA),TRUE)
+CUOBJS += $(CUDIR)/magma_cumod.o
+endif
 INCS	= -I ./inc
 ifeq ($(FCOMP),gfortran)
 MOD      = -J ./inc

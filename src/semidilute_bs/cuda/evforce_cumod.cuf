@@ -25,12 +25,12 @@
 !%------------------------------------------------------------------------%
 !--------------------------------------------------------------------
 !
-! MODULE: 
+! MODULE:
 !
 !> @author
 !> Amir Saadat, Stanford University, May 2018
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> Calculating the net ev forces on the beads on GPU
 !--------------------------------------------------------------------
 module evforce_cumod
@@ -64,7 +64,7 @@ module evforce_cumod
 
 
   contains
-     
+
     procedure,pass(this) :: init => init_evforce_t
     procedure,pass(this) :: update_vlt => update_vlt_lst
     procedure,pass(this) :: update => update_force
@@ -73,7 +73,7 @@ module evforce_cumod
   end type evforce_cu_t
 
   ! Private module variables:
-  ! private :: 
+  ! private ::
 
   ! These variables are required to be defined in the module scope
   ! but I will treat them as if they are part of the evforce type
@@ -134,7 +134,7 @@ contains
     Rbx_tex => Rbx
     Rby_tex => Rby
     Rbz_tex => Rbz
-  
+
   end subroutine init_evforce_t
 
 
@@ -171,7 +171,6 @@ contains
     else
       ! Calculate maximum displacement since last update:
       allocate(diff(ntsx3))
-
       ! call cublasDcopy(ntbx3,Rb_d,1,diff,1)
       ! call cublasDaxpy(ntbx3,-1._wp,this%Rb0_d,1,diff,1)
       ! max_idx = cublasIdamax(ntbx3,diff,1)
@@ -179,15 +178,14 @@ contains
       call cublasDaxpy(ntsx3,-1._wp,this%Q0_d,1,diff,1)
       max_idx = cublasIdamax(ntsx3,diff,1)
       dispmax = diff(max_idx)
-      
       deallocate(diff)
 
       ! dispmax=maxval(abs(Rb-this%Rb0))
       ! A conservative testing of the list skin crossing:
       ! dispmax=2*sqrt(3*dispmax*dispmax)
-     
+
       update=dispmax > (rs_F-rc_F)
-    
+
     end if
     ! print*,'update_cu',update
     if (update) then
@@ -195,7 +193,6 @@ contains
       ! call cublasDcopy(ntbx3,Rb_d,1,this%Rb0_d,1)
       call cublasDcopy(ntsx3,Q_d,1,this%Q0_d,1)
       ! this%Rb0=Rb
-      
       if ((FlowType == 'PEF').and.(itime /= itrst+1)) then
         call this%vlt_d%init_cll(rs_F,bs,ntb,this%nlst_d)
       end if
@@ -223,19 +220,19 @@ contains
   !! \param F totoal force on particles
   subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3,Qt)
 
-    
+
     ! use :: flow_mod, only: FlowType
     ! use :: trsfm_mod, only: eps_m,tanb,sinth,costh
     use :: arry_mod, only: print_vector
 
     use :: conv_cumod, only: h_Bbar,descr_Bbar,Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,nnz_Bbar
     use :: cusparse
-    
+
     class(evforce_cu_t),intent(inout) :: this
     real(wp),device,intent(in),target :: Rbx(:)
     real(wp),device,intent(in),target :: Rby(:)
     real(wp),device,intent(in),target :: Rbz(:)
-    real(wp),intent(in) :: bs(3),invbs(3) 
+    real(wp),intent(in) :: bs(3),invbs(3)
     integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3
     real(wp),device,intent(in) :: Qt(:)
     real(wp) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
@@ -278,7 +275,7 @@ contains
     igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
 
     if (igb > ntb ) return
-    
+
     jend=nn(igb)
 
     ! print*,'igb',igb
@@ -328,7 +325,7 @@ contains
           ! ftest((igb-1)*3+1)=Fevij(1)
           ! ftest((igb-1)*3+2)=Fevij(2)
           ! ftest((igb-1)*3+3)=Fevij(3)
-        
+
         end if
       end do
 

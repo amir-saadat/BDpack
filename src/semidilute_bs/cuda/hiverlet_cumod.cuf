@@ -31,12 +31,12 @@
 !> Amir Saadat, Stanford University, August 2018
 !
 ! DESCRIPTION: construction of verlet list
-!> 
+!>
 !
 !--------------------------------------------------------------------
 
 module hiverlet_cumod
-  
+
   use :: prcn_mod
   use :: cudafor
 
@@ -55,7 +55,7 @@ module hiverlet_cumod
 
   !> A public type for constructing verlet list
   type hiverlet_cu_t
-   
+
     private
     !> The number of the cells per side
     integer :: ncps(3)
@@ -152,7 +152,7 @@ module hiverlet_cumod
 ! real,allocatable :: vallst_test(:,:)
 
 
-contains 
+contains
 
   !> Initializes the verlet module
   !! \param id The rank of the process
@@ -271,7 +271,7 @@ contains
   !! \param rc The cutoff radius
   !! \param bs The dimension of the box
   subroutine init_verlet_t(this,rc,bs,ntotbead,nlst_d)
-  
+
     class(hiverlet_cu_t),intent(inout) :: this
     real(wp),intent(in) :: rc,bs(3)
     integer,intent(in) :: ntotbead
@@ -315,14 +315,14 @@ contains
 
     class(hiverlet_cu_t),intent(inout) :: this
     get_nct=this%nct
-      
+
   end function get_nct
 
   integer function get_mbpc(this)
 
     class(hiverlet_cu_t),intent(inout) :: this
     get_mbpc=this%mbpc
-      
+
   end function get_mbpc
 
   !> Initializes the cell list
@@ -342,7 +342,7 @@ contains
     integer :: clx,cly,clz,cll,czNxNy,cyNx
     real(wp) :: ncpsl(3)
 
-    
+
     ncpsl=this%ncps
 
     select case (FlowType)
@@ -379,7 +379,7 @@ contains
       if (allocated(this%head)) deallocate(this%head)
       if (allocated(this%nclst)) deallocate(this%nclst)
       if (allocated(this%nclst_d)) deallocate(this%nclst_d)
-  
+
       allocate(this%head(this%nct))
       allocate(this%nclst(this%nct,nnc))
       ! allocate(this%nclst_d(this%nct,nnc))
@@ -500,7 +500,7 @@ contains
     this%Rby_h=Rby_d
     this%Rbz_h=Rbz_d
     call this%cnstr_cll(this%Rbx_h,this%Rby_h,this%Rbz_h,itime,ntb,ntbx3)
-    
+
     this%binc_d=this%binc
     bsx=bs(1)
     bsy=bs(2)
@@ -510,12 +510,12 @@ contains
     Rbz_tex => Rbz_d
 
     ! print*,'nct',this%nct,this%mbpc,this%num_int
-    
+
     ! total number of bytes for shared memory usage in the next cuda kernel
     nbytes=(4+3*8)*this%mbpc
 
     call cnstr_nab_d <<< this%nct,this%mbpc,nbytes >>> (this%binc_d,this%nclst_d,nnc,rc,bsx,bsy,bsz,&
-      nn_d,nlst_d,ntb,this%mbpct)
+      nn_d,nlst_d,ntb,this%mbpct,Rbx_d,Rby_d,Rbz_d)
     ! r = cudathreadsynchronize()
 
     ! allocate(nn_h(ntb),nlst_h(this%mbpc,ntb))
@@ -572,7 +572,7 @@ contains
     this%binc=0
 
     do i=1, ntotbead
-      
+
       clx=int(Rbx(i)/this%cll_sz(1))
       cly=int(Rby(i)/this%cll_sz(2))
       clz=int(Rbz(i)/this%cll_sz(3))
@@ -607,7 +607,7 @@ contains
   ! !! \param invbs the inverse of box dimensions
   ! !! \param nlst The neighbor list
   ! subroutine cnstr_nablst(this,Rbx,Rby,Rbz,rc,bs,invbs,nlst,itime,ntotbead,ntotbeadx3)
-     
+
   !   !    use :: inp_smdlt, only: ntotbead,ntotbeadx3
   !   use :: arry_mod, only: print_vector,print_matrix
   !   use :: flow_mod, only: FlowType
@@ -656,7 +656,7 @@ contains
   !   deallocate(beadi_tmp)
   !   deallocate(beadj_tmp)
   !   deallocate(pair)
-    
+
   !   ! Different-cell interactions:
   !   allocate(beadj(nnc*this%mbpc))
   !   allocate(beadj_tmp(nnc*this%mbpc))
@@ -680,11 +680,11 @@ contains
   !     end do ! i
   !   end do ! cll
   !   idx=idx-1
-    
+
   !   deallocate(beadj)
   !   deallocate(beadj_tmp)
   !   deallocate(pair)
-     
+
   !   !$omp parallel default(private) shared(this,Rbx,Rby,Rbz,eps_m,sinth,costh,tanb,rc) &
   !   !$omp shared(idx,bs,invbs)
   !   !$omp do simd
@@ -735,8 +735,9 @@ contains
   !! \param invbs the inverse of box dimensions
   !! \param nlst The neighbor list
   ! attributes(global) subroutine cnstr_nab_d(binc,nclst,nnc,rc,bsx,bsy,bsz,nn,nlst,ntb,vallst)
-  attributes(global) subroutine cnstr_nab_d(binc,nclst,nnc,rc,bsx,bsy,bsz,nn,nlst,ntb,mbpct)
-     
+  attributes(global) subroutine cnstr_nab_d(binc,nclst,nnc,rc,bsx,bsy,bsz,nn,nlst,ntb,mbpct,&
+    Rbx,Rby,Rbz)
+
     !    use :: inp_smdlt, only: ntotbead,ntotbeadx3
     use :: flow_cumod, only: FlowType_d,PSF,PEF
     use :: trsfm_cumod, only: eps_m_d,tanb_d,sinth_d,costh_d
@@ -744,6 +745,7 @@ contains
     integer,device :: binc(gridDim%x,blockDim%x)
     integer,device :: nclst(gridDim%x,nnc)
     integer,value :: nnc,ntb,mbpct
+    real(wp),device :: Rbx(ntb),Rby(ntb),Rbz(ntb)
 
     real(wp),value :: rc,bsx,bsy,bsz
     integer,device :: nn(ntb)
@@ -762,10 +764,19 @@ contains
 
 
     beadi=binc(blockIdx%x,threadIdx%x)
+
     nab=0
-    ri(1)=Rbx_tex(beadi)
-    ri(2)=Rby_tex(beadi)
-    ri(3)=Rbz_tex(beadi)
+    if (beadi /= 0) then
+      ri(1)=Rbx_tex(beadi)
+      ri(2)=Rby_tex(beadi)
+      ri(3)=Rbz_tex(beadi)
+    endif
+
+    ! if (beadi > ntb .or. beadi <= 0) print*,'woooow',blockIdx%x,threadIdx%x,beadi
+
+    ! ri(1)=Rbx(beadi)
+    ! ri(2)=Rby(beadi)
+    ! ri(3)=Rbz(beadi)
 
     ! print*,'tid',threadIdx%x,blockDim%x
 
@@ -775,18 +786,24 @@ contains
       nabcll=nclst(blockIdx%x,cll)
       ! print*,'nabcll',blockIdx%x,nabcll
 
-      ! populating the shared memory variables with all threads of this bloxk
+      ! populating the shared memory variables with all threads of this block
       beadj_tmp(threadIdx%x)=binc(nabcll,threadIdx%x)
-      rjx_tmp(threadIdx%x)=Rbx_tex(beadj_tmp(threadIdx%x))
-      rjy_tmp(threadIdx%x)=Rby_tex(beadj_tmp(threadIdx%x))
-      rjz_tmp(threadIdx%x)=Rbz_tex(beadj_tmp(threadIdx%x))
+
+      if (beadj_tmp(threadIdx%x) /= 0) then
+        rjx_tmp(threadIdx%x)=Rbx_tex(beadj_tmp(threadIdx%x))
+        rjy_tmp(threadIdx%x)=Rby_tex(beadj_tmp(threadIdx%x))
+        rjz_tmp(threadIdx%x)=Rbz_tex(beadj_tmp(threadIdx%x))
+      endif
+      ! rjx_tmp(threadIdx%x)=Rbx(beadj_tmp(threadIdx%x))
+      ! rjy_tmp(threadIdx%x)=Rby(beadj_tmp(threadIdx%x))
+      ! rjz_tmp(threadIdx%x)=Rbz(beadj_tmp(threadIdx%x))
 
       ! Wait until all elements of the shared arrays are filled
       call syncthreads()
 
 
       if (beadi /= 0) then
-        
+
         jblp: do jb=1, blockDim%x
 
           if (beadj_tmp(jb) == 0) then
@@ -816,6 +833,9 @@ contains
 
             ! print*,'beads',beadi,beadj_tmp(jb),threadIdx%x,blockIdx%x
             nab=nab+1
+            if (nab > blockDim%x) then
+              stop 'Error!!: nab is large in hi'
+            endif
             ! the nab's neighboring bead index for beadi
             nlst(nab,beadi)=beadj_tmp(jb)
             ! vallst(nab,beadi)=rijsq
@@ -825,14 +845,16 @@ contains
 
       endif
 
-      ! Synchronize to make sure all threads are done with the shared arrays before 
+      ! Synchronize to make sure all threads are done with the shared arrays before
       ! overwriting them in the next iteration of the cll loop
       call syncthreads()
 
     end do ! cll
 
     ! number of neighboring beads for beadi correspoding to threadIdx%x of blockIdx%x
-    nn(beadi)=nab
+    if (beadi /= 0) then
+      nn(beadi)=nab
+    endif
 
     ! if (nab > blockDim%x) then
     !   stop
@@ -840,7 +862,7 @@ contains
     ! print*,'beadi',blockIdx%x,threadIdx%x,beadi,nn(beadi)
 
   end subroutine cnstr_nab_d
-  
+
 
   !> Destructor for  verlet type
   subroutine del_verlet_t(this)

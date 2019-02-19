@@ -25,34 +25,34 @@
 !%------------------------------------------------------------------------%
 !--------------------------------------------------------------------
 !
-! MODULE: 
+! MODULE:
 !
 !> @author
 !> Amir Saadat, Stanford University, May 2018
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> force calculation on GPU
 !--------------------------------------------------------------------
 module force_cumod
-  
+
   use :: prcn_mod
 
   implicit none
 
-!  private :: 
+!  private ::
 
   type,abstract :: force_cu_t
 
     private
 
   contains
-    
+
     procedure(updateforce),deferred :: update
 
   end type force_cu_t
 
   abstract interface
- 
+
     subroutine updateforce(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3,Qt)
       import :: force_cu_t
       import :: wp
@@ -65,7 +65,7 @@ module force_cumod
 !      real(wp),intent(inout) :: F(:)
       integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3
       real(wp),device,intent(in) :: Qt(:)
-      
+
     end subroutine updateforce
 
   end interface
@@ -74,7 +74,7 @@ module force_cumod
   !> Total force acting on the particles
   real(wp),device,allocatable,target :: Fphi_d(:)
   !> Interparticle distance times total force
-  real(wp),device :: rFphi_d(4)
+  real(wp),device,allocatable :: rFphi_d(:)
 
 contains
 
@@ -83,7 +83,7 @@ contains
 
     integer,intent(in) :: ntbx3
 
-    allocate(Fphi_d(ntbx3))
+    allocate(Fphi_d(ntbx3),rFphi_d(4))
 
   end subroutine init_force_d
 

@@ -5,6 +5,9 @@ CMNCUDIR = ../common/cuda
 CUDIR	 = ./cuda
 OBJLIBS	 = ../libsmdlt_bs.a
 CMNCUOBJS += $(CMNCUDIR)/dev_cumod.o 
+ifeq ($(USE_MAGMA),TRUE)
+CMNCUOBJS += $(CMNCUDIR)/magma_cumod.o 
+endif
 CMNOBJS += $(CMNDIR)/arry_mod.o 
 CMNOBJS += $(CMNDIR)/prcn_mod.o 
 CMNOBJS += $(CMNDIR)/strg_mod.o
@@ -14,7 +17,8 @@ OBJS_M   = diffcalc_mod.o dcmp_smdlt.o conv_mod.o
 OBJS_M  += evverlet_mod.o force_smdlt.o sprforce_mod.o 
 OBJS_M	+= evforce_mod.o diffdcmp_mod.o io_mod.o chain_mod.o
 OBJS_L   = pp_smdlt.o box_mod.o smdlt_mod.o
-CUOBJS_F  = $(CUDIR)/rndm_cumod.o
+CUOBJS_F  = $(CUDIR)/magma_smdlt.o
+CUOBJS_F += $(CUDIR)/rndm_cumod.o
 CUOBJS_F += $(CUDIR)/flow_cumod.o
 CUOBJS_F += $(CUDIR)/trsfm_cumod.o
 CUOBJS_F += $(CUDIR)/hiverlet_cumod.o

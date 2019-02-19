@@ -3,8 +3,10 @@
 # Intel and MKL Path
 # Uncomment for using <Address of MKL directory>
 #----------------------------------------------------------------------
-#MKLROOT  = /opt/intel/mkl
-PGIROOT  = /share/software/user/open/pgi/linux86-64/18.4
+MKLROOT  = /opt/intel/compilers_and_libraries_2018.5.274/linux/mkl
+#PGIROOT  = /share/software/user/open/pgi/linux86-64/18.4
+INTELROOT = /opt/intel
+MAGMAROOT = /home/asaadat/magma_mkl_pgi
 #----------------------------------------------------------------------
 # mpif90, mpiifort or <Address of OpenMPI bin directory>/<MPI compiler>
 #----------------------------------------------------------------------
@@ -13,6 +15,7 @@ COMP     = mpif90 #$(INTELMPI)/mpiifort
 # pgf90 or <Address of CUDA Fortran bin directory>/pgf90
 #----------------------------------------------------------------------
 USE_GPU  = TRUE
+USE_MAGMA = FALSE
 CUCOMP   = mpif90 #pgf90
 #----------------------------------------------------------------------
 # gfortran, ifort or <Address of Fortran compiler>
@@ -34,6 +37,9 @@ GLBFLGS   = -DUSE_DP # SP or DP for single or double precision
 ifeq ($(USE_GPU),TRUE)
 GLBFLGS	 += -DUSE_GPU
 GLBFLGS  += -ta=tesla:cc35,cc60,cc70
+ifeq ($(USE_MAGMA),TRUE)
+GLBFLGS	 += -DUSE_MAGMA
+endif
 endif
 # Extra debugging flags
 #GLBFLGS += -g -traceback
@@ -68,11 +74,14 @@ endif
 endif
 endif
 CUFLGS   = -DUSE_GPU
+ifeq ($(USE_MAGMA),TRUE)
+CUFLGS	+= -DUSE_MAGMA
+endif
 CUFLGS  += -Mpreprocess -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand -Minfo=all
 CUFLGS  += -ta=tesla:cc35,cc60,cc70
 #CUFLGS  += -traceback -Mbounds -Mchkfpstk -Mchkstk -Mdalign -g
 #CUFLGS  += -Mdclchk -Mdepchk -Miomutex -Mrecursive -Msave -Ktrap=fp -O0 -g -byteswapio
-#CUFLGS   = -DADD_
+
 #----------------------------------------------------------------------
 # MKL Libraries and Include Path
 #----------------------------------------------------------------------
@@ -83,6 +92,9 @@ GLBINCS	+= -I$(MKLROOT)/include/intel64/lp64
 else
 ifeq ($(FCOMP),pgf90)
 GLBINCS	+= -I ~/mkl_pgi17/include/intel64/lp64
+ifeq ($(USE_MAGMA),TRUE)
+GLBINCS += -I$(MAGMAROOT)/include
+endif
 endif
 endif
 
@@ -103,6 +115,11 @@ endif
 GLBLIBS += -L$(MKLROOT)/lib/intel64/
 GLBLIBS += -lmkl_intel_lp64 -lmkl_core
 GLBLIBS += -lmkl_sequential -lpthread
+ifeq ($(USE_MAGMA),TRUE)
+GLBLIBS += -L$(MAGMAROOT)/lib -lmagma -lmagma_sparse
+GLBLIBS += -L$(INTELROOT)/lib/intel64
+GLBLIBS += -lsvml -liomp5
+endif
 
 SHELL   = /bin/sh
 

@@ -20,7 +20,7 @@ module hi_cumod
 
     !> cublas handle for self diffusion calculation
     type(cublasHandle) :: h_sd
-    !> 
+    !>
     real(wp),pointer :: DF_self_h(:) => null()
     !>
     real(wp),device,pointer :: DF_self_d(:) => null()
@@ -29,7 +29,7 @@ module hi_cumod
     type(cusparseHandle) :: h_Dreal
     !> cusparse matrix descriptor for Dreal
     type(cusparseMatDescr) :: descr_Dreal
-    !> 
+    !>
     real(wp),device,allocatable :: Difftensreal_d(:,:)
     !> values of D
     real(wp),device,pointer :: Drealvals_d(:) => null()
@@ -49,18 +49,18 @@ module hi_cumod
     !> PME tensor P columns  on host
     integer,allocatable :: P_ColInd_h(:)
     !> PME tensor P values on device
-    real(wp),device,allocatable :: P_Val_d(:)
+    real(wp),device,pointer :: P_Val_d(:)
     !> PME tensor P row Index  on device
-    integer,device,allocatable :: P_RowPtr_d(:)
+    integer,device,pointer :: P_RowPtr_d(:)
     !> PME tensor P columns  on device
-    integer,device,allocatable :: P_ColInd_d(:)
+    integer,device,pointer :: P_ColInd_d(:)
 
     !> PME tensor P values on device
-    real(wp),device,allocatable :: P_Val_tr_d(:)
+    real(wp),device,pointer :: P_Val_tr_d(:)
     !> PME tensor P row Index  on device
-    integer,device,allocatable :: P_ColPtr_d(:)
+    integer,device,pointer :: P_ColPtr_d(:)
     !> PME tensor P columns  on device
-    integer,device,allocatable :: P_RowInd_d(:)
+    integer,device,pointer :: P_RowInd_d(:)
     integer :: nnz
 
 
@@ -145,7 +145,7 @@ module hi_cumod
 
 
     real(wp),allocatable :: mpx_h(:),mpy_h(:),mpz_h(:),m2vec_h(:)
-    !> 
+    !>
     real(wp),device,pointer :: mpx_d(:) => null()
     real(wp),device,pointer :: mpy_d(:) => null()
     real(wp),device,pointer :: mpz_d(:) => null()
@@ -226,6 +226,12 @@ contains
     use :: trsfm_mod, only: eps_m
     use :: hi_mod, only: b_splx2,b_sply2,b_splz2,m2_alpha,PIx2
     use :: mpi
+    ! use :: magma_cumod
+    ! use :: magma_smdlt
+    use :: arry_mod, only: print_vector,print_matrix
+
+
+
 
     class(hi_cu_t),intent(inout) :: this
     integer,intent(in) :: myrank,ntotseg,ntotbead
@@ -244,6 +250,16 @@ contains
     integer :: K_dim,K_dim_CCE,block_dim,n_dim
 
     integer :: plan_fw,plan_bw,ierr
+
+    ! tests
+    ! integer :: major,minor,micro,dev,mem(c_size_t),sum2
+    ! type(c_ptr) :: queue  !! magma_queue_t
+    real(8) :: sum2
+    real(kind=8),allocatable,device :: dA(:),dB(:)
+    type(c_devptr),device :: dAp,dBp
+    integer :: m,n,k,lda,ldb,ldc
+    real(kind=8),allocatable,device :: daa(:),dbb(:),dcc(:)
+    real(kind=8),allocatable :: hc(:)
 
 
     ! allocate(this%K_d(3))
@@ -282,7 +298,7 @@ contains
     status = cusparseCreateMatDescr(this%descr_Dreal)
     status = cusparseSetMatType(this%descr_Dreal,CUSPARSE_MATRIX_TYPE_GENERAL)
     status = cusparseSetMatIndexBase(this%descr_Dreal, CUSPARSE_INDEX_BASE_ONE)
-    ! status = cusparseCreateSolveAnalysisInfo(saInfo)
+    status = cusparseCreateSolveAnalysisInfo(saInfo)
 
     status = cusparseCreate(this%h_P)
     status = cusparseCreateMatDescr(this%descr_P)
@@ -356,8 +372,6 @@ contains
     allocate(this%P_Val_tr_d(ntotbead*p_PMEto3))
     allocate(this%P_ColPtr_d(K_dim+1))
     allocate(this%P_RowInd_d(ntotbead*p_PMEto3))
-
-
 
 
     n_k(0:2)=[K_mesh(1),K_mesh(2),K_mesh(3)]
@@ -508,7 +522,7 @@ contains
     allocate(this%RowPtr_d(ntotbead+1))
     allocate(this%ColInd_d(n_dim))
 
-    allocate(this%DF_real_h(ntotbead*3))    
+    allocate(this%DF_real_h(ntotbead*3))
     allocate(this%DF_real_d(ntotbead*3))
 
 
@@ -561,7 +575,45 @@ contains
 
     p_PME_d=p_PME
     p_PME_dto3=p_PME**3
-      
+
+    ! allocate(dA(1000),dB(1000))
+    ! ! dAp=c_devloc(dA)
+    ! ! dBp=c_devloc(dB)
+    !
+    ! dA=1.5
+    ! dB=3.
+    !
+    ! sum2 = magma_dasum(1000,dA,1,queue)
+    ! print*,'sum',sum2
+    ! call magma_daxpy(1000,1._wp,dA,1,dB,1,queue)
+    ! sum2 = magma_dasum(1000,dB,1,queue)
+    ! print*,'sum2',sum2
+    ! ! mem = magma_mem_size( queue )
+    ! ! print "(a,i16,a,i16,a)", "mem_size", mem, " bytes", mem/1024/1024, " MiB"
+    ! ! print *
+    !
+    ! allocate(daa(100*100),dbb(100*100),dcc(100*100),hc(100*100))
+    ! m = 100
+    ! n = 100
+    ! k = 100
+    ! lda = 100
+    ! ldb = 100
+    ! ldc = 100
+    ! !
+    ! daa=12
+    ! dbb=1
+    ! !
+    ! ! dA = a
+    ! ! dB = b
+    ! !
+    ! call magma_dgemm(MagmaTrans,MagmaTrans,m,n,k,1._wp,daa,lda,dbb,ldb,&
+    !   0._wp,dcc,ldc,queue)
+    ! hc = dcc
+    ! !
+    ! call print_vector(hc(1:5),'c')
+
+
+
   end subroutine init_hi
 
 
@@ -573,6 +625,8 @@ contains
 
     istat = cusolverDnDestroy(this%h_lam)
     if (istat /= CUSOLVER_STATUS_SUCCESS) print('(" cusolver handle destroy failed in hi_cumod")')
+
+    deallocate(this%P_ColInd_d,this%P_ColPtr_d)
 
   end subroutine del_hi_t
 
@@ -602,27 +656,28 @@ contains
     real(wp),device,allocatable :: diff(:)
     ! real(wp),allocatable :: rtest1(:),rtest2(:)
 
-
+print*,'hello',itime
     if (itime == itrst+1) then
       update=.true.
     else
+print*,'hilst1',ntsx3,size(diff),size(Q_d)
       ! Calculate maximum displacement since last update:
       allocate(diff(ntsx3))
-
       ! call cublasDcopy(ntbx3,Rb_d,1,diff,0)
       ! call cublasDaxpy(ntbx3,-1._wp,this%Rb0_d,1,diff,1)
       call cublasDcopy(ntsx3,Q_d,1,diff,1)
+print*,'hilst2'
       call cublasDaxpy(ntsx3,-1._wp,this%Q0_d,1,diff,1)
-
+print*,'hilst3'
       max_idx = cublasIdamax(ntsx3,diff,1)
       dispmax = diff(max_idx)
-      
+
       deallocate(diff)
 
       ! dispmax=maxval(abs(Rb-this%Rb0))
       ! A conservative testing of the list skin crossing:
       ! dispmax=2*sqrt(3*dispmax*dispmax)
-      
+
       update=dispmax > (rlist_D-rc_D)
 
     end if
@@ -630,12 +685,13 @@ contains
     if (update) then
       ! Save positions for next evaluations:
       ! call cublasDcopy(ntbx3,Rb_d,1,this%Rb0_d,1)
-      call cublasDcopy(ntbx3,Q_d,1,this%Q0_d,1)
+
+      call cublasDcopy(ntsx3,Q_d,1,this%Q0_d,1)
       ! this%Rb0=Rb
-      
+
       ! creating the cell linked-list
       call this%vlt_d%cnstr_nab(Rbx_d,Rby_d,Rbz_d,itime,ntb,ntbx3,rlist_D,bs,this%nn_d,this%nlst_d)
-
+print*,'hilst4'
       ! call cnstrlst_part1(this,ntb,bo)
 
       ! creating the verlet list
@@ -646,7 +702,7 @@ contains
   end subroutine updatelst_dev
 
 
-  !> creating the cell linked-list 
+  !> creating the cell linked-list
   !! this can be optimized later for GPU
   subroutine cnstrlst_part1(this,ntb,bo)
 
@@ -667,7 +723,7 @@ contains
     allocate(nbpc(ntotcells_D))
     nbpc=0
     this%cll_h=0
-    ! Note!!: the loops are in reverse order to make them 
+    ! Note!!: the loops are in reverse order to make them
     ! sorted and appropriate for sparse operations.
     do igb=ntb, 1, -1
       ! offsetch=(ichain-1)*nbeadx3
@@ -758,7 +814,7 @@ contains
     ! !-----------------------------
     ! ! Reset the array head
     ! head_D=EMPTY
-    ! ! Note!!: the loops are in reverse order to make them 
+    ! ! Note!!: the loops are in reverse order to make them
     ! ! sorted and appropriate for sparse operations.
     ! do ichain=nchain, 1, -1
     !   offsetch=(ichain-1)*nbeadx3
@@ -793,7 +849,7 @@ contains
     neigcell_indz => neigcell_ind(3)
     rlist_Dto2=rlist_D*rlist_D
     nlist=0
-    
+
     ! For the last bead, jglobbead<iglobbead, so it is not required!
     ! do iglobbead=1, ntotbead-1
     do iglobbead=1, ntotbead
@@ -808,14 +864,14 @@ contains
       !     cell_ind(1)=(Rbtr(iglobbead)-bo(1))/CellSize_D(1)
       !     cell_ind(2:3)=(rbi(2:3)-bo(2:3))/CellSize_D(2:3)
       ! end select
-      
+
       ! Scan the neighbouring cells:
       ncix: do neigcell_indx=cell_ind(1)-1, cell_ind(1)+1
         nciy: do neigcell_indy=cell_ind(2)-1, cell_ind(2)+1
           nciz: do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
             ! Calculate the scalar neigbor cell index:
             ! Corresponding periodic cell for neighbor cell:
-            neigcell_ind_p(:)=mod(neigcell_ind(:)+ncells_D(:),ncells_D(:)) 
+            neigcell_ind_p(:)=mod(neigcell_ind(:)+ncells_D(:),ncells_D(:))
             neigcell_ID=neigcell_ind_p(1)*ncells_D(2)*ncells_D(3)+&
                         neigcell_ind_p(2)*ncells_D(3)+neigcell_ind_p(3)
             ! Get first bead in neighbour cell:
@@ -829,9 +885,9 @@ contains
               if ( (iglobbead /= jglobbead) .or. &
                   ((iglobbead == jglobbead).and.(any(ncells_D == 1))) ) then
                 ! Calculate the distance:
-                ! The third term in the RHS takes into account the correction 
+                ! The third term in the RHS takes into account the correction
                 ! needed for boundary cells.
-                ! We could use minimum image convension, as for using Verlet 
+                ! We could use minimum image convension, as for using Verlet
                 ! list, we need the rc_F to be smaller than box dimension.
                 rbj=Rb(offsetj+1:offsetj+3)
                 ! select case (FlowType)
@@ -904,5 +960,5 @@ contains
 
 
 
-    
+
 end module hi_cumod
