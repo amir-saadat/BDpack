@@ -1,9 +1,12 @@
 !%------------------------------------------------------------------------%
-!|  Copyright (C) 2013 - 2016:                                            |
-!|  Material Research and Innovation Laboratory (MRAIL)                   |
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
 !|  University of Tennessee-Knoxville                                     |
-!|  Author:    Amir Saadat   <asaadat@vols.utk.edu>                       |
-!|  Advisor:   Bamin Khomami <bkhomami@utk.edu>                           |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
 !|                                                                        |
 !|  This file is part of BDpack.                                          |
 !|                                                                        |
@@ -1129,84 +1132,41 @@ contains
       !-------------------------------------------
       !>>> Spreading the forces onto regular mesh:
       !-------------------------------------------
-print*,'he1'
       if (doTiming) call tick(count2)
 
-
-! #ifdef USE_MAGMA
-
-
-        ! status = magma_dgecsrmv(MagmaTrans,ntb,K_dim,1._wp,this%P_Val_d,this%P_RowPtr_d,&
-        ! this%P_ColInd_d,this%Fx_d,0._wp,this%F_meshPx_di,queue)
-        ! if (status /= MAGMA_SUCCESS) print'(" magma_dgecsrmv x-component Error: ",i)',status
-        ! fmeshtest=this%F_meshPx_di
-        ! call print_vector(fmeshtest,'mag tr')
-        ! status = magma_dgecsrmv(MagmaTrans,ntb,K_dim,1._wp,this%P_Val_d,this%P_RowPtr_d,&
-        !   this%P_ColInd_d,this%Fy_d,0._wp,this%F_meshPy_di,queue)
-        ! if (status /= MAGMA_SUCCESS) print'(" magma_dgecsrmv y-component Error: ",i)',status
-        ! status = magma_dgecsrmv(MagmaTrans,ntb,K_dim,1._wp,this%P_Val_d,this%P_RowPtr_d,&
-        !   this%P_ColInd_d,this%Fz_d,0._wp,this%F_meshPz_di,queue)
-        ! if (status /= MAGMA_SUCCESS) print'(" magma_dgecsrmv z-component Error: ",i)',status
-
-        ! status = magma_dgecsrmv(MagmaNoTrans,K_dim,ntb,1._wp,this%P_Val_tr_d,this%P_ColPtr_d,&
-        ! this%P_RowInd_d,this%Fx_d,0._wp,this%F_meshPx_di,queue)
-        ! if (status /= MAGMA_SUCCESS) print'(" magma_dgecsrmv x-component Error: ",i)',status
-        !
-        ! status = magma_dgecsrmv(MagmaNoTrans,K_dim,ntb,1._wp,this%P_Val_tr_d,this%P_ColPtr_d,&
-        ! this%P_RowInd_d,this%Fy_d,0._wp,this%F_meshPy_di,queue)
-        ! if (status /= MAGMA_SUCCESS) print'(" magma_dgecsrmv y-component Error: ",i)',status
-        !
-        ! status = magma_dgecsrmv(MagmaNoTrans,K_dim,ntb,1._wp,this%P_Val_tr_d,this%P_ColPtr_d,&
-        ! this%P_RowInd_d,this%Fz_d,0._wp,this%F_meshPz_di,queue)
-        ! if (status /= MAGMA_SUCCESS) print'(" magma_dgecsrmv z-component Error: ",i)',status
-
-! #else
       status = cudaMemGetInfo( free, total )
       print*,'free',free,'total',total
 
-      status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,K_dim,ntb,&
-        this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fx_d,&
-        0._wp,this%F_meshPx_di)
-      if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv x-component Error: ",i)',status
-
-      fmeshtest1=this%F_meshPx_di
-      !
-      ! call print_vector(fmeshtest1,'cusparse notr')
-      ! !
+      ! Operation with CSC layout and NON_TRANSPOSE
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,K_dim,ntb,&
+      !   this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fx_d,&
+      !   0._wp,this%F_meshPx_di)
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv x-component Error: ",i)',status
       ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,K_dim,ntb,&
       !   this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fy_d,&
       !   0._wp,this%F_meshPy_di)
       ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv y-component Error: ",i)',status
-      !
       ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,K_dim,ntb,&
       !   this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fz_d,&
       !   0._wp,this%F_meshPz_di)
       ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv z-component Error: ",i)',status
+
+
+      ! Operation with CSR layout and TRANSPOSE
       status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,this%nnz,&
         1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fx_d,0._wp,&
         this%F_meshPx_di)
-      ! r = cudathreadsynchronize()
       if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv x-component Error: ",i)',status
-
-      status = cudaMemGetInfo( free, total )
-      print*,'free',free,'total',total
-
-      fmeshtest2=this%F_meshPx_di
-      print*,'sum',maxval(fmeshtest1-fmeshtest2)
-      ! call print_vector(fmeshtest1,'cusparse tr')
 
       status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,this%nnz,&
         1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fy_d,0._wp,&
         this%F_meshPy_di)
-      ! r = cudathreadsynchronize()
       if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv y-component Error: ",i)',status
+
       status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,this%nnz,&
         1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fz_d,0._wp,&
         this%F_meshPz_di)
-      ! r = cudathreadsynchronize()
       if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv z-component Error: ",i)',status
-
-! #endif
 
       if (doTiming) et_SPR=et_SPR+tock(count2)
 

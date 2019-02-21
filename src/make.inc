@@ -67,7 +67,7 @@ else
 ifeq ($(FCOMP),pgf90)
 GLBFLGS	 += –Ktrap=fp –Minform=inform -g
 GLBFLGS  += -lgomp -Mpreprocess -Mbackslash -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand 
-GLBFLGS  += -ta=tesla:cc35,cc60,cc70
+GLBFLGS  += -ta=tesla:cc35,cc60,cc70 -Minfo=accel
 #GLBFLGS  += -traceback -Mbounds -Mchkfpstk -Mchkstk -Mdalign -g
 #GLBFLGS += -Mmpi=mpich
 endif
@@ -78,7 +78,7 @@ ifeq ($(USE_MAGMA),TRUE)
 CUFLGS	+= -DUSE_MAGMA
 endif
 CUFLGS  += -Mpreprocess -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand -Minfo=all
-CUFLGS  += -ta=tesla:cc35,cc60,cc70
+CUFLGS  += -ta=tesla:cc35,cc60,cc70 -Minfo=accel
 #CUFLGS  += -traceback -Mbounds -Mchkfpstk -Mchkstk -Mdalign -g
 #CUFLGS  += -Mdclchk -Mdepchk -Miomutex -Mrecursive -Msave -Ktrap=fp -O0 -g -byteswapio
 
