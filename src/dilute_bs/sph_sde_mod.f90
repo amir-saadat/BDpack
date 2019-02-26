@@ -97,7 +97,7 @@ contains
     ang_sph = sqrt(dphi_sph(1)**2 + dphi_sph(2)**2 + dphi_sph(3)**2)
     ax_sph = dphi_sph(:)/ang_sph
 
-    !ang_sph = 0.001_wp
+    !ang_sph = 0.0_wp
     !ax_sph = (/1._wp,0._wp,0._wp/)
 
     !constructing the rotation matrix (Rodriguez formula)

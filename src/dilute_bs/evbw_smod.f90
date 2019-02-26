@@ -278,12 +278,14 @@ contains
           Ry(ib)=2*this%a - Ry(ib)
         case (2,3,4)
           shift = this%a + this%a_sph - r_mag_bs
-          ! Rx(ib)=Rx(ib) + 2*shift*Rx(ib)/r_mag_bs
-          ! Ry(ib)=Ry(ib) + 2*shift*Ry(ib)/r_mag_bs
-          ! Rz(ib)=Rz(ib) + 2*shift*Rz(ib)/r_mag_bs
+
+          !commented below 3 lines to see if reflection is messing up MSD. (should be 2)
           Rx(ib)=Rx(ib) + 2*shift*(Rx(ib)-r_sph(1))/r_mag_bs
           Ry(ib)=Ry(ib) + 2*shift*(Ry(ib)-r_sph(2))/r_mag_bs
           Rz(ib)=Rz(ib) + 2*shift*(Rz(ib)-r_sph(3))/r_mag_bs
+          !Rx(ib)=Rx(ib) + 1*shift*(Rx(ib)-r_sph(1))/r_mag_bs
+          !Ry(ib)=Ry(ib) + 1*shift*(Ry(ib)-r_sph(2))/r_mag_bs
+          !Rz(ib)=Rz(ib) + 1*shift*(Rz(ib)-r_sph(3))/r_mag_bs
         end select
 
         select case (tplgy)
