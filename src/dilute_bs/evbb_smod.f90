@@ -53,12 +53,13 @@ contains
     osj=3*(j-1)
 
     if (EV_bb == 'Gauss') then
+      !commented out EV force on bead j since calculation of D is dense
       Fev(osi+1)=Fev(osi+1)+this%prefactor*rij%x*exp(-rij%mag2/this%denom)
-      Fev(osj+1)=Fev(osj+1)-this%prefactor*rij%x*exp(-rij%mag2/this%denom)
+      !Fev(osj+1)=Fev(osj+1)-this%prefactor*rij%x*exp(-rij%mag2/this%denom)
       Fev(osi+2)=Fev(osi+2)+this%prefactor*rij%y*exp(-rij%mag2/this%denom)
-      Fev(osj+2)=Fev(osj+2)-this%prefactor*rij%y*exp(-rij%mag2/this%denom)
+      !Fev(osj+2)=Fev(osj+2)-this%prefactor*rij%y*exp(-rij%mag2/this%denom)
       Fev(osi+3)=Fev(osi+3)+this%prefactor*rij%z*exp(-rij%mag2/this%denom)
-      Fev(osj+3)=Fev(osj+3)-this%prefactor*rij%z*exp(-rij%mag2/this%denom)
+      !Fev(osj+3)=Fev(osj+3)-this%prefactor*rij%z*exp(-rij%mag2/this%denom)
     elseif (EV_bb == 'LJ') then
 !      rij%mag=sqrt(rij%mag2)
       if (abs(i-j) >= minNonBond) then ! Only for Non-neighboring beads. Importrant!!

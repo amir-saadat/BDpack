@@ -40,7 +40,7 @@ program BDpack
   ! Get the individual process ID
   call MPI_Comm_rank(MPI_COMM_WORLD,id,ierr)
 
-  
+
   narg=command_argument_count()
   if (narg /= 0) then
     call get_command_argument(1,inpFile)
@@ -52,7 +52,7 @@ program BDpack
 
   select case (driver)
     case ('dilute_bs')
-      call dlt_bs(p,id)            
+      call dlt_bs(p,id)
     case ('semidilute_bs')
       call smdlt_bs(p,id)
     case default
@@ -125,7 +125,7 @@ ef: do
           if (trim(adjustl(tokens(j))) == 'driver') then
             driver=trim(adjustl(tokens(j+1)))
           end if
-        end do ! j       
+        end do ! j
       end if ! ntokens
     end do ef
 

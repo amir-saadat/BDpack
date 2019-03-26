@@ -167,6 +167,7 @@ module dlt_mod
     real(wp),allocatable,dimension(:,:) :: rf_in
     real(wp),allocatable,dimension(:,:,:) :: rf0
     real(wp),dimension(3) :: rf0_rel_unit
+    real(wp),dimension(3) :: dr_sph_rflc
     real(wp),allocatable,dimension(:,:,:),target :: rcm,rcmstart
     real(wp),dimension(:,:),pointer :: rcmP,rcmPy
     real(wp),dimension(:),pointer :: r_sphP
@@ -174,6 +175,9 @@ module dlt_mod
     real(wp),allocatable,dimension(:,:,:,:),target ::rcmT
     integer :: idx_pp_seg,idx_pp_bead
     real(wp),allocatable,dimension(:) :: Ftet,Fbartet
+    logical :: debug_TYL
+
+    debug_TYL = .false.
 
     call prcs_inp(id,p)
 
@@ -270,8 +274,6 @@ module dlt_mod
          &sizedrecvsubarray,ierr)
         call MPI_Type_commit(rsph_resizedrecvsubarray,ierr)
 
-        !psph_sizes, psph_subsizes, psph_starts, psph_recvsubarray,psph_extent
-        !psph_start,psph_resizedrecvsubarray
         psph_sizes(1)=3;psph_sizes(2)=npchain;psph_sizes(3)=p
         psph_subsizes(1)=3;psph_subsizes(2)=npchain;psph_subsizes(3)=1
         psph_starts(1)=0;psph_starts(2)=0;psph_starts(3)=0
@@ -305,7 +307,7 @@ module dlt_mod
         rcm_sizes(1)=3;rcm_sizes(2)=npchain;rcm_sizes(3)=nchain_pp;rcm_sizes(4)=p
         rcm_subsizes(1)=3;rcm_subsizes(2)=npchain;rcm_subsizes(3)=nchain_pp;rcm_subsizes(4)=1
         rcm_starts(1)=0;rcm_starts(2)=0;rcm_starts(3)=0;rcm_starts(4)=0
-        call MPI_Type_create_subarray(3,rcm_sizes,rcm_subsizes,rcm_starts,MPI_OR&
+        call MPI_Type_create_subarray(4,rcm_sizes,rcm_subsizes,rcm_starts,MPI_OR&
           &DER_FORTRAN,MPI_REAL_WP,rcm_recvsubarra&
           &y,ierr)
         call MPI_Type_commit(rcm_recvsubarray,ierr)
@@ -779,6 +781,12 @@ module dlt_mod
         end if ! Adjust_dt
         ! Calculating time passed based on time step:
         time=time+dt(iPe,idt)
+        if (debug_TYL) then
+          print *, '----------------------------------'
+          print *, 'itime = ', itime
+          print *, 'time = ', time
+          print *, '----------------------------------'
+        end if
         if (id == 0) then
           ! Constructing a block of random numbers for ncols time steps by rank 0
           if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
@@ -915,13 +923,13 @@ module dlt_mod
           !   call wall_rflc(rvmrcPy,rcmP(2))
           ! end if
 
-          !call print_vector(Fseg(:),'Fseg before: ')
+
           call sprforce(id,qc,nseg,ForceLaw,TruncMethod,Fseg)
-          !print *, 'spring force is:', Fseg
 
-          !call print_vector(Fseg(:),'Fseg(922): ')
-          !call print_vector(qc(:),'qc(923): ')
-
+          if (debug_TYL) then
+            call print_vector(Fseg(:),'Fseg(922): ')
+            call print_vector(qc(:),'qc(923): ')
+          end if
           ! !TYL - correcting the force in the tethered springs---
           ! do ichain_pp=1,nchain_pp
           !   offset = nseg_indx3*(ichain_pp-1)
@@ -959,7 +967,15 @@ module dlt_mod
               !print *, 'before first calc--------------------------------'
               call myintrn%calc(id,itime,rvmrcP,rcmP,r_sphP,nseg,DiffTensP,divD,Fev,Fbarev,&
                 calchi=.true.,calcdiv=.true.,calcevbb=.true.,calcevbw=.true.)
-              !call print_matrix(DiffTensP,'DiffTensP (962):')
+
+              if (debug_TYL) then
+                call print_vector(r_sphP,'r_sphP to calc D')
+                call print_vector(rvmrcP(1:9),'rvmrcP 1 to calc D')
+                call print_vector(rcmP(:,1),'rcmP 1 to calc D')
+                call print_vector(rvmrcP(10:18),'rvmrcP 2 to calc D')
+                call print_vector(rcmP(:,2),'rcmP 2 to calc D')
+                call print_matrix(DiffTensP,'DiffTensP (966):')
+              end if
               !print *, 'after first calc--------------------------------'
 
             end if
@@ -974,7 +990,15 @@ module dlt_mod
                 if (HITens == 'Blake') then
                   call potrf(CoeffTensP,info=info)
                 else
+                  if (debug_TYL) then
+                    call print_matrix(CoeffTensP,'CoeffTensP (987) before potrf')
+                  end if
+
                   call potrf(CoeffTensP,info=info)
+
+                  if (debug_TYL) then
+                    call print_matrix(CoeffTensP,'CoeffTensP (989) after potrf')
+                  end if
                 endif
                 !print *, 'after Cholesky'
                 if (info /= 0) then
@@ -989,6 +1013,10 @@ module dlt_mod
                   call trmm(CoeffTensP,wbltempP1,transa='T')
                 else
                   call trmm(CoeffTensP,wbltempP1,transa='T')
+
+                  if (debug_TYL) then
+                    call print_matrix(wbltempP1,'wbltempP1 (1003)')
+                  end if
                 endif
 
               else
@@ -1072,6 +1100,10 @@ module dlt_mod
             ! Calculation of AdotD=Amat.D, to be used in Predictor-Corrector
             if (hstar /= 0._wp) then
               call symm(DiffTensP,Amat,AdotDP1,side='R')
+              if (debug_TYL) then
+                call print_matrix(Amat,'Amat (1079):')
+                call print_matrix(AdotDP1,'AdotDP1 (1080):')
+              end if
             else
               AdotDP1=Amat
             end if
@@ -1090,12 +1122,13 @@ module dlt_mod
 
           !------------ advancing the configuration -------------------------!
           if (sph_move) then
-            !make sure Ftet at first time step is just 0
-            !call print_vector(p_sph(:,1),'p_sph(1094) = ')
-            !call print_vector(r_sph(:,1),'r_sph(1095) = ')
             call mysphsde%advance(r_sph,p_sph,q_sph,rf0,iPe,idt,ichain,Fseg,wbl_sph,wbl_sph_or,jcol)
-            !call print_vector(p_sph(:,1),'p_sph after(1097) = ')
-            !call print_vector(r_sph(:,1),'r_sph after(1098) = ')
+
+            if (debug_TYL) then
+              call print_vector(r_sph(:,1),'r_sph (1100) = ')
+              call print_vector(rf0(:,1,1),'rf0(:,1,1) (1101) = ')
+              call print_vector(rf0(:,1,2),'rf0(:,1,2) (1101) = ')
+            end if
             !print *, '------------------------'
             !call print_vector(Ftet(:),'Ftet = ')
             !call print_vector(qc, 'Spring vector')
@@ -1110,8 +1143,9 @@ module dlt_mod
 
           ! Inserting back the final result to original arrays
           q(:,ichain)=qc(:)
-          !call print_vector(qc(:),'qc(1112): ')
-          Fphi(:,ichain)=Fbead(:)+Fbar(:)
+
+          ! commented below line to test Euler scheme 3/11/19
+          !Fphi(:,ichain)=Fbead(:)+Fbar(:)
           !note: Fbar includes Fbarev + Fbarbnd + Fbartet
           !      Fbead includes the spring forces
 
@@ -1120,8 +1154,12 @@ module dlt_mod
           call gemv(Bmat,qc,rvmrcP)
           ! Calculating center of mass and/or center of hydrodynamic resistance movement
           if (CoM) then
+            if (debug_TYL) then
+              print*, '----------------'
+              print*, 'calculation of CoM'
+              print*, '----------------'
+            end if
 
-            !call print_matrix(rcmP(:,:),'rcmP(:,:) before (1123)')
             FphiP => Fphi(:,ichain)
             rcmP => rcm(:,ichain,:) ! might be redundant
             ! BdotwPx => wbltemp(1:nbeadx3-2:3,jcol,ichain)
@@ -1133,9 +1171,55 @@ module dlt_mod
 
             if (hstar.ne.0._wp) then
               call symv(DiffTensP,FphiP,DdotF)
+
+              if (debug_TYL) then
+                call print_vector(DdotF,'DdotF')
+              end if
             else
               DdotF=FphiP
             end if
+
+            do ichain_pp=1,nchain_pp
+
+
+
+              !TYL: HI for tethered bead ---------------------------------------
+              if (srf_tet) then
+                !call gemv(DiffTensP(:,1:3),FphiP(1:3),DdotF,alpha=-1._wp,beta=1._wp)
+                call gemv(DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,:),FphiP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),DdotF,alpha=-1._wp,&
+                  beta=1._wp,trans='T')
+
+                if (debug_TYL) then
+                  call print_matrix(DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,:),'DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,:)')
+                  call print_vector(FphiP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),'FphiP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3)')
+                end if
+
+
+                !TYL: adding back self-mobility of first bead-------------------------
+                call gemv(DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,&
+                                    nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
+                          FphiP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
+                          DdotF(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
+                          alpha=1._wp,beta=1._wp)
+
+                if (debug_TYL) then
+                  call print_matrix(DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,&
+                                    nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),'DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3)')
+                end if
+                !TYL: adding back self-mobility of first bead-------------------------
+
+                if (debug_TYL) then
+                  call print_vector(DdotF,'fixing DdotF')
+                end if
+              end if
+              !TYL: HI for tethered bead ---------------------------------------
+
+
+              if (unif_flow) then
+                rcmP(:,ichain_pp)=rcmP(:,ichain_pp)+U_unif*dt(iPe,idt)
+              endif
+
+            end do
 
             do ichain_pp=1,nchain_pp
               BdotwPx => wbltemp(nbead_indx3*(ichain_pp-1) + 1 : nbead_indx3*ichain_pp - 2 : 3,jcol,ichain)
@@ -1145,31 +1229,6 @@ module dlt_mod
               sum(real(BdotwPy,kind=wp)),&
               sum(real(BdotwPz,kind=wp))]
 
-              ! !TYL: HI for tethered bead ---------------------------------------
-              ! if (srf_tet) then
-              !   SumBdotw = SumBdotw - [real(BdotwPx(1),kind=wp),&
-              !   real(BdotwPy(1),kind=wp),&
-              !   real(BdotwPz(1),kind=wp)]
-              ! end if
-              ! !TYL: HI for tethered bead ---------------------------------------
-
-              !TYL: HI for tethered bead ---------------------------------------
-              if (srf_tet) then
-                !call gemv(DiffTensP(:,1:3),FphiP(1:3),DdotF,alpha=-1._wp,beta=1._wp)
-                call gemv(DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,:),FphiP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),DdotF,alpha=-1._wp,&
-                  beta=1._wp,trans='T')
-
-                !TYL: adding back self-mobility of first bead-------------------------
-                call gemv(DiffTensP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3,&
-                                    nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
-                          FphiP(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
-                          DdotF(nbead_indx3*(ichain_pp-1) + 1:nbead_indx3*(ichain_pp-1) + 3),&
-                          alpha=1._wp,beta=1._wp)
-                !TYL: adding back self-mobility of first bead-------------------------
-
-              end if
-              !TYL: HI for tethered bead ---------------------------------------
-
               DdotFPx => DdotF(nbead_indx3*(ichain_pp-1) + 1 : nbead_indx3*ichain_pp - 2 : 3)
               DdotFPy => DdotF(nbead_indx3*(ichain_pp-1) + 2 : nbead_indx3*ichain_pp - 1 : 3) !(2 : nbeadx3-1:3)
               DdotFPz => DdotF(nbead_indx3*(ichain_pp-1) + 3 : nbead_indx3*ichain_pp : 3)
@@ -1177,11 +1236,6 @@ module dlt_mod
 
               rcmP(:,ichain_pp)=rcmP(:,ichain_pp)+(Pe(iPe)*matmul(Kappareg,rcmP(:,ichain_pp))&
                 +1._wp/(4*nbead_ind)*SumDdotF)*dt(iPe,idt)+coeff/nbead_ind*SumBdotw
-
-              if (unif_flow) then
-                rcmP(:,ichain_pp)=rcmP(:,ichain_pp)+U_unif*dt(iPe,idt)
-              endif
-
             end do
 
             if (sph_flow) then
@@ -1214,8 +1268,16 @@ module dlt_mod
               end do
             end if
             !!-------------
-
+            if (debug_TYL) then
+              call print_vector(rvmrcP,'rvmrcP (1229)')
+              call print_matrix(rcmP,'rcmP (1230)')
+              call print_vector(rvmrcP(1:3)+rcmP(:,1),'Tether point 1')
+              call print_vector(rf0(:,1,1),'rf0 (1232)')
+              call print_vector(rvmrcP(10:12)+rcmP(:,2),'Tether point 2')
+              call print_vector(rf0(:,1,2),'rf0 (1234)')
+            end if
           end if
+
           if (CoHR) then
             if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
               if (DecompMeth == 'Cholesky') then
@@ -1282,6 +1344,8 @@ module dlt_mod
             !call wall_rflc(dt(iPe,idt),itime,time,id,ichain,qPy,rvmrcPy,rcmP(2),rf_in)
             call wall_rflc_sph(myintrn%evbw,r_sph(:,ichain),rf0(:,ichain,:))
 
+            dr_sph_rflc = 0._wp !total amount to move sphere and tether points
+
             do ichain_pp=1,nchain_pp
               idx_pp_seg = (nseg_ind) * (ichain_pp -1) + 1
               idx_pp_bead = (nbead_ind) * (ichain_pp -1) + 1
@@ -1293,9 +1357,75 @@ module dlt_mod
                 rvmrcPy(idx_pp_bead:idx_pp_bead+(nbead_ind-1)),&
                 rvmrcPz(idx_pp_bead:idx_pp_bead+(nbead_ind-1)),&
                 rcmP(1,ichain_pp),rcmP(2,ichain_pp),rcmP(3,ichain_pp),&
-                rf0(:,ichain,ichain_pp),r_sph(:,ichain)) !rf_in(:,ichain_pp)
+                rf0(:,ichain,ichain_pp),r_sph(:,ichain),dr_sph_rflc(:)) !rf_in(:,ichain_pp)
                 !rf0(:,jchain,ichain_pp) = rf_in(1:3,ichain_pp)
             end do
+
+            !!!!!!!!!!!!!TYL - move sphere due to collisions
+            !if (sqrt(dr_sph_rflc(1)**2+dr_sph_rflc(2)**2+dr_sph_rflc(3)**2) > .000001_wp) then
+            !  call print_vector(dr_sph_rflc(:),'dr_sph_rflc = ')
+            !end if
+
+
+
+            !move the sphere
+            r_sph(:,ichain) = r_sph(:,ichain) + dr_sph_rflc(:)
+
+
+
+            !fix the tether points and center of masses
+            ! do ichain_pp=1,nchain_pp
+            !   !move tether points
+            !   rf0(:,ichain,ichain_pp) = rf0(:,ichain,ichain_pp) + dr_sph_rflc(:)
+            !
+            !   !recalculate the center of mass
+            !   rcmP(1,ichain_pp) = rcmP(1,ichain_pp) + dr_sph_rflc(1)!*(nbead_ind-1)/(nbead_ind)
+            !   rcmP(2,ichain_pp) = rcmP(2,ichain_pp) + dr_sph_rflc(2)!*(nbead_ind-1)/(nbead_ind)
+            !   rcmP(3,ichain_pp) = rcmP(3,ichain_pp) + dr_sph_rflc(3)!*(nbead_ind-1)/(nbead_ind)
+            ! end do
+            !!!!!!!!!!!!!TYL - move sphere due to collisions
+
+            !fix the tether points, tethered springs, and center of masses
+            !THIS ALGORITHM WILL CHANGE THE TETHERED SPRING
+            do ichain_pp=1,nchain_pp
+              idx_pp_seg = (nseg_ind) * (ichain_pp -1) + 1
+              idx_pp_bead = (nbead_ind) * (ichain_pp -1) + 1
+
+              !move tether points
+              rf0(:,ichain,ichain_pp) = rf0(:,ichain,ichain_pp) + dr_sph_rflc(:)
+
+              !temporarily add center of mass to rvmrc to save memory
+              rvmrcPx(idx_pp_bead:idx_pp_bead+(nbead_ind-1)) = rvmrcPx(idx_pp_bead:idx_pp_bead+(nbead_ind-1)) + rcmP(1,ichain_pp)
+              rvmrcPy(idx_pp_bead:idx_pp_bead+(nbead_ind-1)) = rvmrcPy(idx_pp_bead:idx_pp_bead+(nbead_ind-1)) + rcmP(2,ichain_pp)
+              rvmrcPz(idx_pp_bead:idx_pp_bead+(nbead_ind-1)) = rvmrcPz(idx_pp_bead:idx_pp_bead+(nbead_ind-1)) + rcmP(3,ichain_pp)
+
+              !shift tethered bead
+              rvmrcPx(idx_pp_bead) = rvmrcPx(idx_pp_bead) + dr_sph_rflc(1)
+              rvmrcPy(idx_pp_bead) = rvmrcPy(idx_pp_bead) + dr_sph_rflc(2)
+              rvmrcPz(idx_pp_bead) = rvmrcPz(idx_pp_bead) + dr_sph_rflc(3)
+
+              !correct tethered spring (other spring vectors don't change)
+              qPx(idx_pp_seg) = rvmrcPx(idx_pp_bead+1) - rvmrcPx(idx_pp_bead)
+              qPy(idx_pp_seg) = rvmrcPy(idx_pp_bead+1) - rvmrcPy(idx_pp_bead)
+              qPz(idx_pp_seg) = rvmrcPz(idx_pp_bead+1) - rvmrcPz(idx_pp_bead)
+
+              !recalculate the center of mass
+              rcmP(:,ichain_pp) = 0._wp
+              do ibead=1,nbead_ind
+                rcmP(1,ichain_pp) = rcmP(1,ichain_pp) + rvmrcPx(idx_pp_bead+ibead-1)
+                rcmP(2,ichain_pp) = rcmP(2,ichain_pp) + rvmrcPy(idx_pp_bead+ibead-1)
+                rcmP(3,ichain_pp) = rcmP(3,ichain_pp) + rvmrcPz(idx_pp_bead+ibead-1)
+              end do
+              rcmP(:,ichain_pp) = rcmP(:,ichain_pp)/nbead_ind
+
+              !recalculate the positions relative to the center of mass
+              rvmrcPx(idx_pp_bead:idx_pp_bead+(nbead_ind-1)) = rvmrcPx(idx_pp_bead:idx_pp_bead+(nbead_ind-1)) - rcmP(1,ichain_pp)
+              rvmrcPy(idx_pp_bead:idx_pp_bead+(nbead_ind-1)) = rvmrcPy(idx_pp_bead:idx_pp_bead+(nbead_ind-1)) - rcmP(2,ichain_pp)
+              rvmrcPz(idx_pp_bead:idx_pp_bead+(nbead_ind-1)) = rvmrcPz(idx_pp_bead:idx_pp_bead+(nbead_ind-1)) - rcmP(3,ichain_pp)
+            end do
+            !!!!!!!!!!!!!TYL - move sphere due to collisions
+
+
           end if
 
           !call print_matrix(rcmP(:,:),'rcmP(:,:) after (1300)')
@@ -1307,6 +1437,7 @@ module dlt_mod
         !>>>>> data processing and outputs:
         !----------------------------------------------------------------
 
+        !time_check3 is postprocessing
         if ( (time >= time_check3) .or. (itime == ntime(iPe,idt)) ) then
           time_check3=time_check3+frm_rt_pp*lambda
 
@@ -1365,6 +1496,8 @@ module dlt_mod
             end if ! strain ...
           end if ! istr ...
         end if ! DumpstrCalc
+
+        !time_check4 = restart
         if (time >= time_check4) then
           time_check4=time_check4+frm_rt_rst*lambda
           ! For writing restart data to the output file
@@ -1438,6 +1571,8 @@ module dlt_mod
 
 
         ! if (time >= time_check2) then
+
+        !dumping data
         if ((time >= tss*lambda) .and. (mod(itime,tgap_dmp) == 0)) then
 
           time_check2=time_check2+frm_rt_dmp*lambda

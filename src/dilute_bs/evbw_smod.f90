@@ -38,6 +38,7 @@ contains
 
       call read_input('Bead-rad',0,this%a)
       call read_input('Wall-type',0,this%iwall)
+      call read_input('hstar',0,this%hstar)
       allocate(this%w_coll(2:nbead_ind,npchain))
       allocate(this%w_coll_all(2:nbead_ind,npchain))
       allocate(this%ia_time(2:nbead_ind,500,npchain))
@@ -137,7 +138,7 @@ contains
   module procedure wall_rflc
 
     use :: mpi
-    use :: inp_dlt, only: nbead,qmax,tplgy,npchain,lambda,tss,nbead_ind
+    use :: inp_dlt, only: nbead,qmax,tplgy,npchain,lambda,tss,nbead_ind,nchain_pp
     use :: arry_mod, only: print_vector
 
     integer :: ib,ierr,sz,sz_t
@@ -145,6 +146,8 @@ contains
     logical :: coll_detect_bs,coll_detect_bw,coll_detect_sw
     real(wp) :: shift,r_mag_bs,r_mag_s_xz,r_mag_b_xz, R_pore
     real(wp),dimension(3) :: dr_sph
+    real(wp),parameter :: PI=3.1415926535897958648_wp
+    real(wp),parameter :: sqrtPI=sqrt(PI)
 
     !dr_sph(:) = 0._wp
     R_pore = 6.25_wp
@@ -203,9 +206,9 @@ contains
     ! endif
 
     ! Reflection of the first bead
-    !Rx(1)=rf0(1)
-    !Ry(1)=rf0(2)
-    !Rz(1)=rf0(3)
+    Rx(1)=rf0(1)
+    Ry(1)=rf0(2)
+    Rz(1)=rf0(3)
 
     select case (tplgy)
     case ('Linear')
@@ -279,13 +282,42 @@ contains
         case (2,3,4)
           shift = this%a + this%a_sph - r_mag_bs
 
-          !commented below 3 lines to see if reflection is messing up MSD. (should be 2)
-          Rx(ib)=Rx(ib) + 2*shift*(Rx(ib)-r_sph(1))/r_mag_bs
-          Ry(ib)=Ry(ib) + 2*shift*(Ry(ib)-r_sph(2))/r_mag_bs
-          Rz(ib)=Rz(ib) + 2*shift*(Rz(ib)-r_sph(3))/r_mag_bs
-          !Rx(ib)=Rx(ib) + 1*shift*(Rx(ib)-r_sph(1))/r_mag_bs
-          !Ry(ib)=Ry(ib) + 1*shift*(Ry(ib)-r_sph(2))/r_mag_bs
-          !Rz(ib)=Rz(ib) + 1*shift*(Rz(ib)-r_sph(3))/r_mag_bs
+          !print *, ''
+          !print *, 'ibead = ',ib
+          !print *, 'shift amount:', shift
+          !print *, 'particle shift:',-((sqrtPI*this%hstar)/(this%a_sph+sqrtPI*this%hstar))*shift
+          !print *, 'bead shift:',(this%a_sph/(this%a_sph+sqrtPI*this%hstar))*shift
+
+          !collision approximately keeping center of hydrodynamic resistance constant
+          !don't change R first, since that changes the unit vector length
+          ! dr_sph_rflc(1)=dr_sph_rflc(1) - ((sqrtPI*this%hstar)/(this%a_sph+(nbead-nchain_pp)*sqrtPI*this%hstar))*&
+          !   shift*(Rx(ib)-r_sph(1))/r_mag_bs
+          ! dr_sph_rflc(2)=dr_sph_rflc(2) - ((sqrtPI*this%hstar)/(this%a_sph+(nbead-nchain_pp)*sqrtPI*this%hstar))*&
+          !   shift*(Ry(ib)-r_sph(2))/r_mag_bs
+          ! dr_sph_rflc(3)=dr_sph_rflc(3) - ((sqrtPI*this%hstar)/(this%a_sph+(nbead-nchain_pp)*sqrtPI*this%hstar))*&
+          !   shift*(Rz(ib)-r_sph(3))/r_mag_bs
+          ! Rx(ib)=Rx(ib) + (1._wp)*shift*(Rx(ib)-r_sph(1))/r_mag_bs
+          ! Ry(ib)=Ry(ib) + (1._wp)*shift*(Ry(ib)-r_sph(2))/r_mag_bs
+          ! Rz(ib)=Rz(ib) + (1._wp)*shift*(Rz(ib)-r_sph(3))/r_mag_bs
+
+
+          ! if (ib == 2) then
+          dr_sph_rflc(1)=dr_sph_rflc(1) - ((sqrtPI*this%hstar)/(this%a_sph+sqrtPI*this%hstar))*&
+            shift*(Rx(ib)-r_sph(1))/r_mag_bs
+          dr_sph_rflc(2)=dr_sph_rflc(2) - ((sqrtPI*this%hstar)/(this%a_sph+sqrtPI*this%hstar))*&
+            shift*(Ry(ib)-r_sph(2))/r_mag_bs
+          dr_sph_rflc(3)=dr_sph_rflc(3) - ((sqrtPI*this%hstar)/(this%a_sph+sqrtPI*this%hstar))*&
+            shift*(Rz(ib)-r_sph(3))/r_mag_bs
+          Rx(ib)=Rx(ib) + (this%a_sph/(this%a_sph+sqrtPI*this%hstar))*shift*(Rx(ib)-r_sph(1))/r_mag_bs
+          Ry(ib)=Ry(ib) + (this%a_sph/(this%a_sph+sqrtPI*this%hstar))*shift*(Ry(ib)-r_sph(2))/r_mag_bs
+          Rz(ib)=Rz(ib) + (this%a_sph/(this%a_sph+sqrtPI*this%hstar))*shift*(Rz(ib)-r_sph(3))/r_mag_bs
+          ! else
+          !   !elastic collision:
+          !   Rx(ib)=Rx(ib) + 1*shift*(Rx(ib)-r_sph(1))/r_mag_bs
+          !   Ry(ib)=Ry(ib) + 1*shift*(Ry(ib)-r_sph(2))/r_mag_bs
+          !   Rz(ib)=Rz(ib) + 1*shift*(Rz(ib)-r_sph(3))/r_mag_bs
+          ! end if
+
         end select
 
         select case (tplgy)

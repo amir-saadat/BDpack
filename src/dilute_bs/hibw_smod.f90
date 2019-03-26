@@ -50,8 +50,8 @@ contains
       Omegaij_PD = (3*sqrtPI*hstar/4)*Hij_PD
       Omegaji_PD = (3*sqrtPI*hstar/4)*Hji_PD
       Omega_c = (1._wp/2)*(Omegaij_PD+TRANSPOSE(Omegaji_PD))
-      !Omega_W = Omega_PF - (2*((sqrtPI*hstar)**2)/3)*Omega_c
-      Omega_W = Omega_PF !- (2*((sqrtPI*hstar)**2)/3)*Omega_c
+      Omega_W = Omega_PF - (2*((sqrtPI*hstar)**2)/3)*Omega_c
+      !Omega_W = Omega_PF !- (2*((sqrtPI*hstar)**2)/3)*Omega_c
 
       DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) &
                                         + Omega_W

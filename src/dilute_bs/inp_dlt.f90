@@ -497,12 +497,11 @@ rndmlp:         do
       nseg_ind = nseg
       nbead_indx3 = nbead_ind*3
       nseg_indx3 = nseg_ind*3
-      print *, 'only one tethered polymer'
-      print *, 'nchain_pp, ', nchain_pp
-      print *, 'nbead_ind, ', nbead_ind
-      print *, 'nseg_ind, ', nseg_ind
-      print *, 'nbead, ', nbead
-      print *, 'nseg, ', nseg
+      if (id==0) then
+        write (*,*), '%-----------------------------------------------------------%'
+        write (*,*), '|       ***Simulation of a single tethered polymer***       |'
+        write (*,*), '%-----------------------------------------------------------%'
+      end if
     else !multiple tethered polymers
       multet = .true.
       nchain_pp=nseg/nseg_ind
@@ -510,13 +509,20 @@ rndmlp:         do
       nbead=nbead_ind*nchain_pp
       nbead_indx3 = nbead_ind*3
       nseg_indx3 = nseg_ind*3
-      print *, 'more than one tethered polymer'
-      print *, 'nchain_pp, ', nchain_pp
-      print *, 'nbead_ind, ', nbead_ind
-      print *, 'nseg_ind, ', nseg_ind
-      print *, 'nbead, ', nbead
-      print *, 'nseg, ', nseg
+      if (id==0) then
+        write (*,*), '%-----------------------------------------------------------%'
+        write (*,*), '|      ***Simulation of multiple tethered polymers***       |'
+        write (*,*), '%-----------------------------------------------------------%'
+      end if
     endif
+
+    if (id==0) then
+      print *, 'Number of tethered polymers per particle (nchain_pp) =', nchain_pp
+      print *, 'Number of beads per polymer (nbead_ind)              =', nbead_ind
+      print *, 'Number of beads per polymer (nseg_ind)               =', nseg_ind
+      print *, 'Total number of beads (nbead)                        =', nbead
+      print *, 'Total number of segments (nseg)                      =', nseg
+    end if
 
     nbeadx3=nbead*3;nsegx3=nseg*3
     ntotang=nchain*(nbead-2) ! used for calculation of <cosTh>

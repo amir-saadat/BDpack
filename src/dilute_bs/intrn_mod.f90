@@ -55,6 +55,7 @@ module intrn_mod
     ! For Reflc-bc
     real(wp) :: a
     real(wp) :: a_sph
+    real(wp) :: hstar
     integer :: iwall !the type of wall for the reflection BC: 1-plane, 2-sphere
     integer :: u_wc
     integer :: u_wc_all
@@ -161,9 +162,9 @@ module intrn_mod
       real(wp),intent(inout) :: rf0(:,:)
     end subroutine wall_rflc_sph
     module subroutine wall_rflc(this,dt,it,time,id,ich,qx,qy,qz,Rx,Ry,Rz,&
-      rcmx,rcmy,rcmz,rf0,r_sph)
+      rcmx,rcmy,rcmz,rf0,r_sph,dr_sph_rflc)
       class(evbw_t),intent(inout) :: this
-      real(wp),intent(inout),dimension(3) :: rf0,r_sph!rf_in
+      real(wp),intent(inout),dimension(3) :: rf0,r_sph,dr_sph_rflc !rf_in
       !real(wp),intent(in) :: rf_in(:,:)
       real(wp),intent(in) :: dt,time
       integer,intent(in) :: it,id,ich
@@ -282,7 +283,8 @@ contains
         rjy=rjmrc(2)+rcm(2,jchain_pp)
         if (cldiv) call calc_div(jbead,rjy,divD,id,itime)
       else
-        ibead_ulim=jbead !upper triangular
+        !ibead_ulim=jbead !upper triangular
+        ibead_ulim=nbead 
       endif
       !!-------------
 
@@ -357,6 +359,9 @@ contains
           if (clevbb) call calc_evbb(this%evbb,ibead,jbead,rij,Fev)
           if (upevbb) call calc_evbb(this%evbb,ibead,jbead,rij,Fstarev)
 
+          !print *, ibead
+          !print *, jbead
+          !call print_vector(Fev(:),'Constructing Fev:')
         end if ! ibead /= jbead
 
 

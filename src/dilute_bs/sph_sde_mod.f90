@@ -55,6 +55,9 @@ contains
     real(wp),dimension(3) :: p_old,q_old, rf0_rel_old,rf0_rel_new
     real(wp),dimension(3) :: rf0_rel,rf0_rel_unit, Tseg
     real(wp),dimension(3,3) :: R
+    logical :: debug_TYL
+
+    debug_TYL = .false.
 
     !initializing the variables
     dr_sph(1:3) = 0._wp
@@ -87,6 +90,10 @@ contains
       Tseg(1) = rf0_rel_unit(2)*Fseg(offset+3) - rf0_rel_unit(3)*Fseg(offset+2)
       Tseg(2) = rf0_rel_unit(3)*Fseg(offset+1) - rf0_rel_unit(1)*Fseg(offset+3)
       Tseg(3) = rf0_rel_unit(1)*Fseg(offset+2) - rf0_rel_unit(2)*Fseg(offset+1)
+
+      if (debug_TYL) then
+        call print_vector(Tseg(1:3),'Sphere SDE, spring torque:')
+      end if
 
       dphi_sph(1) = dphi_sph(1) + (3._wp/16._wp)*(hstar*sqrtPI/(this%a_sph**2))*Tseg(1)*dt(iPe,idt)
       dphi_sph(2) = dphi_sph(2) + (3._wp/16._wp)*(hstar*sqrtPI/(this%a_sph**2))*Tseg(2)*dt(iPe,idt)
@@ -131,7 +138,9 @@ contains
       dr_sph(2) = dr_sph(2) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fseg(offset+2)*dt(iPe,idt)
       dr_sph(3) = dr_sph(3) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fseg(offset+3)*dt(iPe,idt)
 
-      !call print_vector(Fseg(offset+1:offset+3),'Spring force')
+      if (debug_TYL) then
+        call print_vector(Fseg(offset+1:offset+3),'Sphere SDE, spring force:')
+      end if
 
       !using q vector
       !offset = nseg_indx3*(ichain_pp-1)
