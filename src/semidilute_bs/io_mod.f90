@@ -774,6 +774,10 @@ ef: do
           end do ! irun
 
           ! For debugging:
+        !  rcmst(1,1:3,1)=(/0.1_wp,1._wp,0.1_wp/)
+        !  do ichain=2,size(rcmst,1)
+        !    rcmst(ichain,1:3,1)=rcmst(1,1:3,1)+[0._wp,1._wp,0]
+        !  enddo
         !  rcmst(1,1:3,1)=(/-4.517_wp,2.308_wp,-3.395_wp/)
         !  rcmst(2,1:3,1)=(/5-0.034_wp,5-3.173_wp,5-1.454_wp/) ! For 3
         !  rcmst(3,1:3,1)=(/1-0.034_wp,1-3.173_wp,1-1.454_wp/) ! For 3

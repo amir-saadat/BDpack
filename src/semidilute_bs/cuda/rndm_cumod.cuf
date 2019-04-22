@@ -25,12 +25,12 @@
 !%------------------------------------------------------------------------%
 !--------------------------------------------------------------------
 !
-! MODULE: 
+! MODULE:
 !
 !> @author
 !> Amir Saadat, Stanford University, May 2018
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> randum number generation on GPU
 !--------------------------------------------------------------------
 
@@ -62,7 +62,6 @@ module rndm_cumod
   real(wp),parameter :: c2=1.21569221_wp
   real(wp),device,allocatable :: dw_bl_d(:,:)
 
-
 contains
 
   !> Initializes the rndm cuda module
@@ -73,7 +72,7 @@ contains
     integer, intent(in) :: ntotbeadx3
 
     allocate(dw_bl_d(ntotbeadx3,ncols))
-      
+
   end subroutine init_rndm_d
 
 
@@ -146,14 +145,14 @@ contains
     allocate(dw(ntotbeadx3))
     dw=dw_bl_d(:,1)
     ! print*,dw(1:5)
-      
+
   end subroutine gen_rndm
 
   !> Deletes the rndm cuda module variables
   subroutine del_rndm()
 
     deallocate(dw_bl_d)
-      
+
   end subroutine del_rndm
 
   !> Destructor of rndm_cu_t
@@ -167,7 +166,7 @@ contains
     istat = curandDestroyGenerator ( this%g )
     if (istat /= CURAND_STATUS_SUCCESS) print('(" curand destroy failed")')
 
-      
+
   end subroutine del_rndm_t
-    
+
 end module rndm_cumod

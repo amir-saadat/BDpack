@@ -579,6 +579,7 @@ contains
       call this%Boxhi_d%init(myrank,ntotseg,ntotbead,this%size)
       ! Instantiation of Boxsprf_d:
       call this%Boxsprf_d%init(ntotsegx3)
+
       ! Instantiation of Boxsprf_d:
       call this%Boxevf_d%init(myrank,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotsegx3,&
         ntotbead,ntotbeadx3,this%size)
@@ -747,7 +748,7 @@ contains
     ! call print_vector(dw_bl(:,1),'dworigin')
 #ifdef USE_GPU
       call this%Boxrndm_d%gen(ntotbeadx3,dt)
-      ! dw_bl_d=dw_bl
+      dw_bl_d=dw_bl
 #endif
     !-----------------------------------------
     !>>> Applying Periodic Boundary Condition:
@@ -758,7 +759,6 @@ contains
 
       ! call print_vector(this%R_tilde,'rstart')
       ! call print_matrix(this%rcm_tilde,'rcmstart')
-
 #ifdef USE_GPU
 
       call this%Boxtrsfm_d%applypbc(this%size,this%invsize,this%Rbx_d,this%Rby_d,&
@@ -779,6 +779,7 @@ contains
       call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
 
 #endif
+
     ! call print_vector(this%Q_tilde,'q0')
     ! call print_vector(this%Rb_tilde(1:50),'rb0')
     ! call print_matrix(this%rcm_tilde(1:10,:),'rcm0')
@@ -824,7 +825,6 @@ contains
         !   nbeadx3,ntotbead,this%size,this%origin,add_cmb,nchain_cmb,nseg_cmb)
         ! call this%Boxhi_d%updatelst_(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,&
         !     itrst,ntotbead,this%size,this%origin)
-print*,'here?'
         call this%Boxhi_d%updatelst(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,this%Q_d,&
           itime,itrst,ntotsegx3,ntotbead,ntotbeadx3,this%size,this%origin)
 
@@ -833,15 +833,14 @@ print*,'here?'
           nbeadx3,ntotbead,this%size,this%origin,add_cmb,nchain_cmb,nseg_cmb)
 #endif
     end if
+
     !---------------------------------------------------
     !>>> Calculating conservative forces; spring and EV:
     !---------------------------------------------------
-print*,'he?'
     if (doTiming) call tick(count0)
     call calcForce(this,itime)
     if (doTiming) et_CF=et_CF+tock(count0)
-print*,'hi3'
-    ! call print_vector(Fphi(1:50),'fphi')
+    ! call print_vector(Fphi,'fphi')
     ! call print_vector(this%Rb_tilde,'rb1')
     ! call print_matrix(this%rcm_tilde,'rcm1')
     !-----------------------------------------
@@ -851,19 +850,21 @@ print*,'hi3'
     if ( (mod(itime,ncols) == 1) .or. (ncols == 1) ) then
       call calcHI(this,itime,dt)
     end if
+
     if (doTiming) et_HI=et_HI+tock(count0)
     !--------------------------------
     !>>> Integration in Euler scheme:
     !--------------------------------
 
     if (doTiming) call tick(count0)
-print*,'hi4'
-    ! call print_vector(Fphi(1:50),'fphi2')
 
+    ! call print_vector(Fphi,'fphi2')
 ! open (newunit=ufo,action='write',file='force.dat',status='replace')
 ! do ibead=1, ntotbeadx3
 ! write(ufo,'(f14.10)') Fphi(ibead)
 ! enddo
+
+
 #ifdef USE_GPU
 
 
@@ -871,7 +872,7 @@ print*,'hi4'
         call cublasDaxpy(ntotbeadx3,0.25_wp*dt,Fphi_d,1,this%Rb_d,1)
         call cublasDaxpy(ntotbeadx3,coeff,dw_bl_d(:,col),1,this%Rb_d,1)
       else
-        Fphi=Fphi_d
+        ! Fphi=Fphi_d
         ! call print_vector(Fphi,'fphi3')
         call PME_d(this%Boxhi_d,Fphi_d,ntotbead,ntotbeadx3,this%size)
 
@@ -925,29 +926,29 @@ print*,'hi4'
 
 
 #endif
-!         ! For debugging
-!         if (itime == 100 .or. itime==2000) then
-! #ifdef USE_GPU
-!           this%Q_tilde=this%Q_d
-!           this%rcm_tilde=this%rcm_d
-!           this%Rb_tilde=this%Rb_d
-!           this%Rbx=this%Rbx_d
-!           this%Rby=this%Rby_d
-!           this%Rbz=this%Rbz_d
-!           this%b_img=this%b_img_d
-!           this%cm_img=this%cm_img_d
-!           ! dw_bltmp=dw_bl_d
-! #endif
-!           ! call print_vector(dw_bltmp(:,col),'dw_bl')
-!           ! call print_vector(this%R_tilde,'r')
+        ! For debugging
+        if (itime == 100 .or. itime==2000) then
+#ifdef USE_GPU
+          this%Q_tilde=this%Q_d
+          this%rcm_tilde=this%rcm_d
+          this%Rb_tilde=this%Rb_d
+          this%Rbx=this%Rbx_d
+          this%Rby=this%Rby_d
+          this%Rbz=this%Rbz_d
+          this%b_img=this%b_img_d
+          this%cm_img=this%cm_img_d
+          ! dw_bltmp=dw_bl_d
+#endif
+          ! call print_vector(dw_bltmp(:,col),'dw_bl')
+          ! call print_vector(this%R_tilde,'r')
 
-!           ! this%b_img=this%b_img_d
-!           ! this%cm_img=this%cm_img_d
-!           ! call print_matrix(this%b_img,'bimg')
-!           ! call print_matrix(this%cm_img,'cmimg')
-!           ! call print_vector(this%Rb_tilde,'rb')
-!           ! call print_matrix(this%rcm_tilde,'rcm')
-!         endif
+          ! this%b_img=this%b_img_d
+          ! this%cm_img=this%cm_img_d
+          ! call print_matrix(this%b_img,'bimg')
+          ! call print_matrix(this%cm_img,'cmimg')
+          call print_vector(this%Rb_tilde,'rb')
+          call print_matrix(this%rcm_tilde,'rcm')
+        endif
 
     if (doTiming) et_PR=et_PR+tock(count0)
 
@@ -1202,11 +1203,15 @@ print*,'hi4'
     integer :: offsetch,offsetbead,offsetseg,ibead,iseg,ichain
     integer(long) :: count0
     real(wp) :: t1,t2,rcm(3),R(3),rv(3)
+integer :: status,ierr
+integer(kind=cuda_count_kind) :: free,total
+
     ! After 1/10th of lambda:
     if ((mod(itime,ceiling(lambda/(dt*100))) == 0) .and. &
         (HI_M /= Mstart) .and. (hstar /= 0._wp))   then
       call restartHIpar(this%ID,this%size,ntotbead)
     end if
+
     HIlp: do
       HIcount=HIcount+1
 
@@ -1221,13 +1226,20 @@ print*,'hi4'
           ! call calcDiffTens_dev(this%Boxhi_d,this%Rb_tilde,ntotbead,this%size,this%origin,itime)
           call calcDiffTens_d(this%Boxhi_d,this%Rb_d,ntotbead,this%size,this%origin)
         endif
+
         if (doTiming) then
           et_DT=et_DT+tock(count0)
           call tick(count0)
         end if
+  status = cudaMemGetInfo( free, total )
+  print*,'free',free,'total',total
+print*,'alloc',allocated(dw_bltmp),allocated(dw_bl_d)
+print*,'size',size(dw_bltmp),size(dw_bl_d)
         dw_bltmp=dw_bl_d
+
         ! remember that the following routine is where PME_d is called for the first time
         call calcBrownNoise_d(this%Boxhi_d,this%decompRes,itime,ntotbeadx3,this%size)
+
 #else
         if (hstar /= 0._wp) then
           ! #ifdef USE_GPU
@@ -1252,8 +1264,6 @@ print*,'hi4'
         ! print*,'col_h',this%Boxhi_d%P_ColInd_h
         ! print*,'val_h',this%Boxhi_d%P_Val_h
         ! print*,'row',this%Boxhi_d%P_RowPtr_h
-
-
 
       if (doTiming) et_DEC=et_DEC+tock(count0)
       if (this%decompRes%Success) then
@@ -1286,13 +1296,10 @@ print*,'hi4'
 #ifdef USE_GPU
       Fphi_d=0._wp
       rFphi_d=0._wp
-print*,'force3'
       select case (FlowType)
       case ('Equil')
         call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
-print*,'force4'
         call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
-! print*,'force5'
         call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
           itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
 
@@ -1318,7 +1325,7 @@ print*,'force4'
       !   end if
       end select
 
-      ! Fphi=Fphi_d
+      Fphi=Fphi_d
 
 #else
 

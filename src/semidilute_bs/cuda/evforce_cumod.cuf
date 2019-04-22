@@ -117,10 +117,9 @@ contains
     call this%vlt_d%init(rs_F,bs,ntotbead,this%nlst_d)
 
     if (id == 0) call this%vlt_d%print_ncps()
+
     if (id == 0) call this%vlt_d%print_mbpc()
-
     this%mnnt=this%vlt_d%get_mbpc()*ntotbead
-
     ! The parameters used for EV potentials
     select case (EVForceLaw)
       case ('Gauss')
@@ -199,7 +198,6 @@ contains
 
       ! creating the cell linked-list
       call this%vlt_d%cnstr_nab(Rbx_d,Rby_d,Rbz_d,itime,ntb,ntbx3,rs_F,bs,this%nn_d,this%nlst_d)
-
       ! call cnstrlst_part1(this,ntb,bo)
 
       ! creating the verlet list

@@ -2,66 +2,70 @@ driver        : semidilute_bs
 #------------------------------------------
 # Configuration parameters
 #------------------------------------------
-nchain        : 10
-nseg          : 1
-Rel-Model     : Self 1.184
-Box-dim       : 2.3116e4 2.3116e4 2.3116e4
+nchain        : 112
+nseg          : 20
+Rel-Model     : Rouse
+add-comb      : FALSE
+nchain-comb   : 1
+nseg-comb     : 22
+nseg-arm      : 3
+arms          : 3 Fix 8 24 40
+Box-dim       : 92.85 92.85 92.85
 #------------------------------------------
 # SDE parameters
 #------------------------------------------
 initmode      : st
-qfctr         : 0.2 0.0 0.0
-tend          : 10.0
-tss           : 0.0
+qfctr         : 0.1 0.0 0.0
+qfctr-comb-bb : 0.6 0.0 0.0
+qfctr-comb-ar : 0.0 0.6 0.0
+tend          : 20.
+tss           : 10.
 trst          : 0.0 0
 ndt           : 1
-dt            : 5.e-3 5.e-3 Linear Self
+dt            : 1.e-2 1.e-2 Linear Self
 nrun          : 1
 runrst        : 0
 DumpConf      : TRUE
 ndmp          : 10
 dmprst        : 0
-tol           : 5.e-5
-CoM           : FALSE
-CoHR          : FALSE
+CoM           : TRUE
 #------------------------------------------
 # Flow parameters
 #------------------------------------------
-Flow-Type     : PSF
+Flow-Type     : Equil
 nWi           : 1
-Wi            : 23.68 23.68 Linear
+Wi            : 0.0 0.0 Linear
 #------------------------------------------
 # HI parameters
 #------------------------------------------
-hstar         : 0.25
+hstar         : 0.085
 HITens        : RPY
 HIcalc-mode   : PME
 Interp-method : BSpline 6
 Mesh-size     : 65 65 65 FALSE
 M-exp         : 3.5 0.2
-rc_D          : 2.e3 0.2
-Nblist-size   : 500000000
-cll-dns-hi    : 1.e-8
+rc_D          : 15. 0.2
 Decomp-method : Lanczos
 ncols         : 1
-errormin      : 1.e-2
-upfactr       : 50
+Nblist-size   : 5000000
+cll-dns-hi    : 0.1
 #------------------------------------------
 # Force parameters
 #------------------------------------------
-SPR-Force     : FENE
-b             : 25.0
-cll-dns-ev    : 1.e-8
-EVForceLaw    : Gauss
-zstar         : 1.2021
-rc_F          : 2000.0 0.2
+SPR-Force     : WLC_UD
+N_Ks          : 3.0
+b             : 9.0
+cll-dns-ev    : 0.1
+EVForceLaw    : NoEV
+zstar         : 0.1414
+rc_F          : 15. 0.2
 #------------------------------------------
 # Output parameters
 #------------------------------------------
-Conf-anal     : TRUE Visc
+Conf-anal     : TRUE Stress
 Timer-rep     : TRUE
 CoM-diff      : TRUE
 Rg-calc       : TRUE
 AveIter-rep   : TRUE
-CorrFcn-calc  : FALSE Stress
+CorrFcn-calc  : TRUE Rg
 MakeAnim      : TRUE

@@ -358,10 +358,12 @@ contains
     this%mbpc=ceiling(this%cll_vol*cll_dns_ev/32)*32
     this%mbpct=this%mbpc*nnc
 
+    print*,'mpc',this%mbpc,this%mbpct
+
     if (allocated(this%binc)) deallocate(this%binc)
     allocate(this%binc(this%nct,this%mbpc))
     if (allocated(this%binc_d)) deallocate(this%binc_d)
-    ! allocate(this%binc_d(this%nct,this%mbpc))
+    allocate(this%binc_d(this%nct,this%mbpc))
 
     if (any(this%ncps /= ncpsl)) then
 
@@ -371,7 +373,7 @@ contains
 
       allocate(this%head(this%nct))
       allocate(this%nclst(this%nct,nnc))
-      ! allocate(this%nclst_d(this%nct,nnc))
+      allocate(this%nclst_d(this%nct,nnc))
 
 
       do clz=0, this%ncps(3)-1
@@ -414,9 +416,9 @@ contains
     use :: arry_mod, only: print_vector,print_matrix
 
     class(evverlet_cu_t),intent(inout) :: this
-    real(wp),device,intent(in),target :: Rbx_d(ntb)
-    real(wp),device,intent(in),target :: Rby_d(ntb)
-    real(wp),device,intent(in),target :: Rbz_d(ntb)
+    real(wp),device,intent(in),target :: Rbx_d(:)
+    real(wp),device,intent(in),target :: Rby_d(:)
+    real(wp),device,intent(in),target :: Rbz_d(:)
     integer,intent(in) :: ntb,ntbx3,itime
     real(wp),intent(in) :: rc,bs(3)
     integer,device,intent(inout) :: nn_d(:)
@@ -472,7 +474,6 @@ contains
       print '(" If so, either increase box size or decrease rc. ")'
       stop
     endif
-
 
     ! nn_test=nn_d
     ! nlst_test=nlst_d

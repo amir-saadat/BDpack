@@ -59,7 +59,7 @@ contains
     real(wp),allocatable :: dt(:),Wi(:),Pe(:)
     integer,allocatable :: ntime(:)
     logical :: DumpConf
-    
+
     !----------------------------------------------
     !>>> Initialization of SDE in Semi-dilute BD:
     !----------------------------------------------
@@ -72,10 +72,10 @@ contains
         print '(" Error: No. processes should be a multiple of No. Boxes.")'
         stop
       end if
-      write (*,*) 
+      write (*,*)
         write (*,*) "%------------------------------------------------------------%"
         write (*,*) "| ***Start of BDpack program to perform Brownian dynamics*** |"
-        write (*,*) "|           simulation for semidilute solution               |" 
+        write (*,*) "|           simulation for semidilute solution               |"
         write (*,*) "%------------------------------------------------------------%"
     endif
 
@@ -200,7 +200,7 @@ contains
             print '(" >>> Time steps and Time Passed: ", i, f10.5)',itime,time
             print '(" >>> Chain-Relaxation(s) Passed: ", f10.5)',rtpassed
           end if
-!print*,'itime',itime,id  
+!print*,'itime',itime,id
           ! Constructing the random vector,dW, for the whole Box:
           if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
 
@@ -234,7 +234,7 @@ contains
           ! Box advancement:
           call MainBox%move(itime,ntime(idt),irun,Pe(iPe),dt(idt),jcol,id,eps,itrst)
 
-          ! Data Processing: 
+          ! Data Processing:
           ! To be done at each lambda/?*dt iteration
           ! 1/(dt) and lambda/dt is the itime for segment and chain relaxation time.
           if ( (mod(itime,tgap) == 0) .or. (itime == ntime(idt)) ) then
@@ -257,7 +257,7 @@ contains
 
         end do ! time loop
 
-        if (id == 0) then        
+        if (id == 0) then
           if (doTiming) then
             et_whole=tock(count0)
             call reportTiming(nchain,nbead)
@@ -279,7 +279,7 @@ contains
 !            call QtoR(MainBox%Qdagger_tilde,MainBox%R_tilde)
 !****!           Q to Fseg:
 !****            call QtoFseg(Qdagger_tilde,Fseg_tilde,ForceLaw,qmx)
-                 
+
             if (idmp /= dmpmx) then
               itime=idmp*tgap
             else
@@ -313,9 +313,9 @@ contains
 
     use :: strg_mod
     use,intrinsic :: iso_fortran_env
-    
+
     integer :: j,ntokens,u1,il,stat,ios
-    character(len=1024) :: line 
+    character(len=1024) :: line
     character(len=100) :: tokens(10)
 
     ! default setting:
@@ -374,7 +374,7 @@ ef: do
                 DumpConf=.false.
               else
                 print *,'Incorrect Type for DumpConf.'
-              end if 
+              end if
             case ('ndmp')
               call value(tokens(j+1),ndmp,ios)
             case ('dmprst')
@@ -423,7 +423,7 @@ ef: do
     real(wp) :: seedtmp
     integer,intent(in) :: myrank
     integer :: s,i,msec,n,time_info(8)
-    
+
      call date_and_time(values=time_info)
      msec=(1000*time_info(7)+time_info(8))*((myrank-83)*359) ! a random integer
      call random_seed(size=n) ! get the number of integers used for the seed
@@ -436,7 +436,7 @@ ef: do
 
   ! Random numeber seeding (from H. C. Ottinger):
   subroutine ranils(iseed)
-  
+
     integer,intent(in) :: iseed
     integer,parameter :: in=2147483563,ik=40014,iq=53668,ir=12211,ntab=32
     integer :: iv(ntab),idum,idum2,iy
@@ -457,12 +457,12 @@ ef: do
     10 continue
     iy=iv(1)
     return
-  
+
   end subroutine ranils
-  
+
   ! Uniform random number generator (from H. C. Ottinger):
   real(wp) function ranuls()
-  
+
     integer,parameter :: in1=2147483563,ik1=40014,iq1=53668,ir1=12211,&
                          in2=2147483399,ik2=40692,iq2=52774,ir2=3791 ,&
                          ntab=32,inm1=in1-1,ndiv=1+inm1/ntab
@@ -489,12 +489,12 @@ ef: do
     if(iy < 1) iy=iy+inm1
     ranuls=an*iy
     return
-   
+
   end function ranuls
-  
+
   ! Gaussian random number generator (from H. C. Ottinger):
   real(wp) function rangls()
-  
+
     integer :: iflag
     real(wp) :: gauss2,x1,x2,xsq,aux
 
@@ -507,7 +507,7 @@ ef: do
     ! pair of uniform random numbers in [-1,1]x[-1,1]
     x1=2*ranuls()-1
     x2=2*ranuls()-1
-  
+
     ! if not in the unit circle, try again
     xsq=x1*x1+x2*x2
     if(xsq >= 1._wp .or. xsq == 0._wp) goto 10

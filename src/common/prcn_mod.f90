@@ -38,7 +38,11 @@ module prcn_mod
   include 'mkl_spblas_crr.fi'
 
   integer,parameter :: single=selected_real_kind(p=6,r=37)
+#ifdef USE_GPU
+  integer,parameter :: double=wp
+#else
   integer,parameter :: double=selected_real_kind(p=15,r=307)
+#endif
 !  integer,parameter :: wp=selected_real_kind(p=15,r=307)
   integer,parameter :: short=selected_int_kind(4)
   integer,parameter :: long=selected_int_kind(9)

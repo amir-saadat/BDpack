@@ -26,12 +26,12 @@
 !%------------------------------------------------------------------------%
 !--------------------------------------------------------------------
 !
-! MODULE: 
+! MODULE:
 !
 !> @author
 !> Amir Saadat, Stanford University, May 2018
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !>  on GPU
 !--------------------------------------------------------------------
 module diffdcmp_cumod
@@ -50,7 +50,7 @@ contains
   subroutine calcBrownNoise_d(hi_d,decompRes,itime,ntotbeadx3,boxsize)
 
     use :: hi_cumod, only: hi_cu_t
-    
+
     type(hi_cu_t),intent(inout) :: hi_d
     integer,intent(in) :: ntotbeadx3
     integer :: itime,mrst

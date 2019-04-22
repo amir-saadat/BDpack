@@ -372,7 +372,7 @@ contains
     if (allocated(this%binc)) deallocate(this%binc)
     allocate(this%binc(this%nct,this%mbpc))
     if (allocated(this%binc_d)) deallocate(this%binc_d)
-    ! allocate(this%binc_d(this%nct,this%mbpc))
+    allocate(this%binc_d(this%nct,this%mbpc))
 
     if (any(this%ncps /= ncpsl)) then
 
@@ -382,7 +382,7 @@ contains
 
       allocate(this%head(this%nct))
       allocate(this%nclst(this%nct,nnc))
-      ! allocate(this%nclst_d(this%nct,nnc))
+      allocate(this%nclst_d(this%nct,nnc))
 
 
 ! print *,'ncps',this%ncps
