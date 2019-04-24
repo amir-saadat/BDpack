@@ -107,8 +107,8 @@ GLBLIBS += -lmkl_lapack95_lp64 -lmkl_blas95_lp64
 else
 ifeq ($(FCOMP),pgf90)
 #GLBLIBS += -L$(PGIROOT)/lib -L$(PGIROOT)/cuda/9.1/lib64
-GLBLIBS += -L$(PGIROOT)/lib
-GLBLIBS += -lcudafor -lcudaforblas -lcublas_static -lcudart
+#GLBLIBS += -L$(PGIROOT)/lib
+#GLBLIBS += -lcudafor -lcudaforblas -lcublas_static -lcudart
 GLBLIBS += -L ~/mkl_pgi18/lib/intel64/
 GLBLIBS += -lmkl_lapack95_lp64 -lmkl_blas95_lp64
 endif
