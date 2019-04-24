@@ -3,7 +3,7 @@
 # Intel and MKL Path
 # Uncomment for using <Address of MKL directory>
 #----------------------------------------------------------------------
-MKLROOT  = /opt/intel/compilers_and_libraries_2018.5.274/linux/mkl
+#MKLROOT  = /opt/intel/compilers_and_libraries_2018.5.274/linux/mkl
 #PGIROOT  = /share/software/user/open/pgi/linux86-64/18.4
 INTELROOT = /opt/intel
 MAGMAROOT = /home/asaadat/magma_mkl_pgi
@@ -36,7 +36,7 @@ MV	 = mv
 GLBFLGS   = -DUSE_DP # SP or DP for single or double precision
 ifeq ($(USE_GPU),TRUE)
 GLBFLGS	 += -DUSE_GPU
-GLBFLGS  += -ta=tesla:cc35,cc60,cc70
+GLBFLGS  += -ta=tesla:cc35,cc60,cc70 -Mallocatable=95
 ifeq ($(USE_MAGMA),TRUE)
 GLBFLGS	 += -DUSE_MAGMA
 endif
@@ -66,8 +66,8 @@ GLBFLGS += -qopenmp # Enables openmp directives
 else
 ifeq ($(FCOMP),pgf90)
 GLBFLGS	 += –Ktrap=fp –Minform=inform -g
-GLBFLGS  += -lgomp -Mpreprocess -Mbackslash -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand 
-GLBFLGS  += -ta=tesla:cc35,cc60,cc70 -Minfo=accel
+GLBFLGS  += -lgomp -Mpreprocess -Mbackslash -mp -Mcuda=charstring -Mcuda -Mcudalib=cublas,cusolver,cusparse,cufft,curand 
+GLBFLGS  += -ta=tesla:cc35,cc60,cc70 -Minfo=accel -Mallocatable=95
 #GLBFLGS  += -traceback -Mbounds -Mchkfpstk -Mchkstk -Mdalign -g
 #GLBFLGS += -Mmpi=mpich
 endif
@@ -77,7 +77,7 @@ CUFLGS   = -DUSE_GPU
 ifeq ($(USE_MAGMA),TRUE)
 CUFLGS	+= -DUSE_MAGMA
 endif
-CUFLGS  += -Mpreprocess -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand -Minfo=all
+CUFLGS  += -Mpreprocess -mp -Mcuda=charstring -Mcuda -Mcudalib=cublas,cusolver,cusparse,cufft,curand -Minfo=all
 CUFLGS  += -ta=tesla:cc35,cc60,cc70 -Minfo=accel
 #CUFLGS  += -traceback -Mbounds -Mchkfpstk -Mchkstk -Mdalign -g
 #CUFLGS  += -Mdclchk -Mdepchk -Miomutex -Mrecursive -Msave -Ktrap=fp -O0 -g -byteswapio
@@ -91,7 +91,7 @@ ifeq ($(FCOMP),ifort)
 GLBINCS	+= -I$(MKLROOT)/include/intel64/lp64
 else
 ifeq ($(FCOMP),pgf90)
-GLBINCS	+= -I ~/mkl_pgi17/include/intel64/lp64
+GLBINCS	+= -I ~/mkl_pgi18/include/intel64/lp64
 ifeq ($(USE_MAGMA),TRUE)
 GLBINCS += -I$(MAGMAROOT)/include
 endif
@@ -106,9 +106,10 @@ GLBLIBS  = -L$(MKLROOT)/lib/intel64/ -liomp5
 GLBLIBS += -lmkl_lapack95_lp64 -lmkl_blas95_lp64
 else
 ifeq ($(FCOMP),pgf90)
-GLBLIBS += -L$(PGIROOT)/lib -L$(PGIROOT)/cuda/9.1/lib64
+#GLBLIBS += -L$(PGIROOT)/lib -L$(PGIROOT)/cuda/9.1/lib64
+GLBLIBS += -L$(PGIROOT)/lib
 GLBLIBS += -lcudafor -lcudaforblas -lcublas_static -lcudart
-GLBLIBS += -L ~/mkl_pgi17/lib/intel64/
+GLBLIBS += -L ~/mkl_pgi18/lib/intel64/
 GLBLIBS += -lmkl_lapack95_lp64 -lmkl_blas95_lp64
 endif
 endif

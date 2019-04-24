@@ -422,7 +422,7 @@ contains
     integer,intent(in) :: ntb,ntbx3,itime
     real(wp),intent(in) :: rc,bs(3)
     integer,device,intent(inout) :: nn_d(:)
-    integer,device,intent(inout) :: nlst_d(:,:)
+    integer,device,intent(inout),contiguous :: nlst_d(:,:)
     integer,allocatable :: nn_h(:)
     integer,allocatable :: nlst_h(:,:)
     real(wp) :: bsx,bsy,bsz
