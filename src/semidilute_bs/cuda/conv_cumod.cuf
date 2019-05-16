@@ -25,12 +25,12 @@
 !%------------------------------------------------------------------------%
 !--------------------------------------------------------------------
 !
-! MODULE: 
+! MODULE:
 !
 !> @author
 !> Amir Saadat, Stanford University, May 2018
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> (1) Interchanging the configurational state Rb to its components
 !! (2) {R,rc} <--> position vector Rb
 !--------------------------------------------------------------------
@@ -50,7 +50,7 @@ module conv_cumod
   contains
 
     procedure,pass(this) :: init => init_conv_t
-    procedure,pass(this) :: RbtoRbc 
+    procedure,pass(this) :: RbtoRbc
     procedure,pass(this) :: RbctoRb
     procedure,pass(this) :: RbtoQ
 
@@ -135,7 +135,7 @@ contains
   subroutine init_conv_t(this)
 
     class(conv_cu_t),intent(inout) :: this
-        
+
   end subroutine init_conv_t
 
   ! !> Converting {R,rc} to Rb
@@ -183,7 +183,7 @@ contains
       Rb(os+3)=Rbz(igb)
     end do
 
-  end subroutine RbctoRb 
+  end subroutine RbctoRb
 
   !> Converting Rb to (Rx,Ry,Rz)
   !! \param Rb the position vector of the beads for all chains
@@ -260,4 +260,3 @@ contains
 
 
 end module conv_cumod
-

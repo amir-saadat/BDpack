@@ -554,7 +554,7 @@ contains
 
   !> calculating the reciprocal part inofrmation of diffusion tensor
   attributes(global) subroutine calcDiff_recip_d_part1(Rb,ntb,bsx,bsy,bsz,box,boy,boz,&
-    Kx,Ky,Kz,K_dim,P_Val_d,P_ColInd_d,P_RowPtr_d,P_ColPtr_d)!,P_d)
+    Kx,Ky,Kz,K_dim,P_Val_d,P_ColInd_d,P_RowPtr_d,P_ColPtr_d,pval_tmp,pcolind_tmp)!,P_d)
 
     use :: hi_cumod, only: p_PME_d,p_PME_dto3
     use :: cusparse
@@ -573,9 +573,10 @@ contains
     integer,device :: P_ColPtr_d(K_dim+1)
 
     integer :: irow,krow,jrow
-    real(wp) :: pval_tmp(p_PME_dto3),pval_buf
-    integer :: pcolind_tmp(p_PME_dto3),pcolind_buf
-
+    real(wp),device :: pval_tmp(ntb*p_PME_dto3)
+    integer,device :: pcolind_tmp(ntb*p_PME_dto3)
+    real(wp) :: pval_buf
+    integer :: pcolind_buf
 
 
     igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
@@ -627,7 +628,7 @@ contains
     elem_count_c=(igb-1)*p_PME_dto3
     elem_counttmp_c=elem_count_c
 
-    elem_count_c2=0
+    elem_count_c2=(igb-1)*p_PME_dto3
 
     ig_c: do igrid=1, p_PME_d
       k1=grid(igrid,1)
@@ -670,9 +671,9 @@ contains
     end do ig_c
 
     ! sorting of pval_tmp and pcolind_tmp
-    do irow = 1, p_PME_dto3
+    do irow = elem_counttmp_c+1, elem_counttmp_c+p_PME_dto3
       ! check this behavier: the minloc is given for pcolind_tmp not pcolind_tmp(irow:)
-      krow = minloc(pcolind_tmp(irow:p_PME_dto3),1) ! + irow - 1
+      krow = minloc(pcolind_tmp(irow:elem_counttmp_c+p_PME_dto3),1) ! + irow - 1
       pcolind_buf = pcolind_tmp( irow )
       pcolind_tmp( irow ) = pcolind_tmp( krow )
       pcolind_tmp( krow ) = pcolind_buf
@@ -680,9 +681,9 @@ contains
       pval_tmp( irow ) = pval_tmp( krow )
       pval_tmp( krow ) = pval_buf
     enddo
-    !
-    P_Val_d(elem_counttmp_c+1:elem_counttmp_c+p_PME_dto3)=pval_tmp(1:p_PME_dto3)
-    P_ColInd_d(elem_counttmp_c+1:elem_counttmp_c+p_PME_dto3)=pcolind_tmp(1:p_PME_dto3)
+
+    P_Val_d(elem_counttmp_c+1:elem_counttmp_c+p_PME_dto3)=pval_tmp(elem_counttmp_c+1:elem_counttmp_c+p_PME_dto3)
+    P_ColInd_d(elem_counttmp_c+1:elem_counttmp_c+p_PME_dto3)=pcolind_tmp(elem_counttmp_c+1:elem_counttmp_c+p_PME_dto3)
 
   end subroutine calcDiff_recip_d_part1
 
@@ -857,8 +858,9 @@ contains
       ! reciprocal part 1: determining P_Val_d and P_ColInd_d
       this%P_ColPtr_d=0
 
-      call calcDiff_recip_d_part1 <<<(ntb+255)/256,256>>> (Rb,ntb,bsx,bsy,bsz,box,boy,boz,K_mesh(1),&
-        K_mesh(2),K_mesh(3),K_dim,this%P_Val_d,this%P_ColInd_d,this%P_RowPtr_d,this%P_ColPtr_d)!,this%P_d)
+      call calcDiff_recip_d_part1 <<<(ntb+255)/256,256>>> (Rb,ntb,bsx,bsy,bsz,box,boy,boz,&
+        K_mesh(1),K_mesh(2),K_mesh(3),K_dim,this%P_Val_d,this%P_ColInd_d,this%P_RowPtr_d,&
+        this%P_ColPtr_d,this%pval_tmp,this%pcolind_tmp)!,this%P_d)
 
       ierr = cudaGetLastError()
       if (ierr /= cudaSuccess) then
@@ -1186,7 +1188,7 @@ contains
       ! status = cudaMemGetInfo( free, total )
       ! print*,'free',free,'total',total
 
-      ! Operation with CSC layout and NON_TRANSPOSE
+      ! ! Operation with CSC layout and NON_TRANSPOSE
       ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,K_dim,ntb,&
       !   this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fx_d,&
       !   0._wp,this%F_meshPx_di(1:K_dim))
@@ -1199,7 +1201,6 @@ contains
       !   this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fz_d,&
       !   0._wp,this%F_meshPz_di(1:K_dim))
       ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv z-component Error: ",i)',status
-
 
       ! Operation with CSR layout and TRANSPOSE
       ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,this%nnz,&

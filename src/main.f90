@@ -36,7 +36,7 @@ program BDpack
 
 
   ! MPI variables
-  integer :: ierr,p,id,narg
+  integer :: ierr,p,id,narg,dev_id
   character(len=20) :: inpFile
   character(len=20) :: driver
 
@@ -49,8 +49,8 @@ program BDpack
   call MPI_Comm_rank(MPI_COMM_WORLD,id,ierr)
 
 #ifdef USE_GPU
-  ! Initialize GPU devices
-  call init_dev()
+  ! Initialize GPU device
+  call init_dev(id,dev_id)
 #ifdef USE_MAGMA
   call init_magma()
 #endif

@@ -55,6 +55,10 @@ module hi_cumod
     integer,device,allocatable :: P_RowPtr_d(:)
     !> PME tensor P columns  on device
     integer,device,allocatable :: P_ColInd_d(:)
+    !> Temporary PME tensor P values on device
+    real(wp),device,allocatable :: pval_tmp(:)
+    !> Temporary PME tensor P columns  on device
+    integer,device,allocatable :: pcolind_tmp(:)
 
     !> PME tensor P values on device
     real(wp),device,allocatable :: P_Val_tr_d(:)
@@ -389,8 +393,10 @@ contains
     ! this%P_d=0._wp
 
     allocate(this%P_Val_d(ntotbead*p_PMEto3))
+    allocate(this%pval_tmp(ntotbead*p_PMEto3))
     allocate(this%P_RowPtr_d(ntotbead+1))
     allocate(this%P_ColInd_d(ntotbead*p_PMEto3))
+    allocate(this%pcolind_tmp(ntotbead*p_PMEto3))
     this%P_RowPtr_d=this%P_RowPtr_h
 
     allocate(this%P_Val_tr_d(ntotbead*p_PMEto3))

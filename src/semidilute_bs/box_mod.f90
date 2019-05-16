@@ -748,7 +748,7 @@ contains
     ! call print_vector(dw_bl(:,1),'dworigin')
 #ifdef USE_GPU
       call this%Boxrndm_d%gen(ntotbeadx3,dt)
-      dw_bl_d=dw_bl
+      ! dw_bl_d=dw_bl
 #endif
     !-----------------------------------------
     !>>> Applying Periodic Boundary Condition:
@@ -927,28 +927,28 @@ contains
 
 #endif
         ! For debugging
-        if (itime == 100 .or. itime==2000) then
-#ifdef USE_GPU
-          this%Q_tilde=this%Q_d
-          this%rcm_tilde=this%rcm_d
-          this%Rb_tilde=this%Rb_d
-          this%Rbx=this%Rbx_d
-          this%Rby=this%Rby_d
-          this%Rbz=this%Rbz_d
-          this%b_img=this%b_img_d
-          this%cm_img=this%cm_img_d
-          ! dw_bltmp=dw_bl_d
-#endif
-          ! call print_vector(dw_bltmp(:,col),'dw_bl')
-          ! call print_vector(this%R_tilde,'r')
-
-          ! this%b_img=this%b_img_d
-          ! this%cm_img=this%cm_img_d
-          ! call print_matrix(this%b_img,'bimg')
-          ! call print_matrix(this%cm_img,'cmimg')
-          call print_vector(this%Rb_tilde,'rb')
-          call print_matrix(this%rcm_tilde,'rcm')
-        endif
+!         if (itime == 100 .or. itime==2000) then
+! #ifdef USE_GPU
+!           this%Q_tilde=this%Q_d
+!           this%rcm_tilde=this%rcm_d
+!           this%Rb_tilde=this%Rb_d
+!           this%Rbx=this%Rbx_d
+!           this%Rby=this%Rby_d
+!           this%Rbz=this%Rbz_d
+!           this%b_img=this%b_img_d
+!           this%cm_img=this%cm_img_d
+!           ! dw_bltmp=dw_bl_d
+! #endif
+!           ! call print_vector(dw_bltmp(:,col),'dw_bl')
+!           ! call print_vector(this%R_tilde,'r')
+!
+!           ! this%b_img=this%b_img_d
+!           ! this%cm_img=this%cm_img_d
+!           ! call print_matrix(this%b_img,'bimg')
+!           ! call print_matrix(this%cm_img,'cmimg')
+!           call print_vector(this%Rb_tilde,'rb')
+!           call print_matrix(this%rcm_tilde,'rcm')
+!         endif
 
     if (doTiming) et_PR=et_PR+tock(count0)
 
@@ -1203,8 +1203,8 @@ contains
     integer :: offsetch,offsetbead,offsetseg,ibead,iseg,ichain
     integer(long) :: count0
     real(wp) :: t1,t2,rcm(3),R(3),rv(3)
-integer :: status,ierr
-integer(kind=cuda_count_kind) :: free,total
+! integer :: status,ierr
+! integer(kind=cuda_count_kind) :: free,total
 
     ! After 1/10th of lambda:
     if ((mod(itime,ceiling(lambda/(dt*100))) == 0) .and. &
@@ -1231,10 +1231,12 @@ integer(kind=cuda_count_kind) :: free,total
           et_DT=et_DT+tock(count0)
           call tick(count0)
         end if
-  status = cudaMemGetInfo( free, total )
-  print*,'free',free,'total',total
-print*,'alloc',allocated(dw_bltmp),allocated(dw_bl_d)
-print*,'size',size(dw_bltmp),size(dw_bl_d)
+
+! status = cudaMemGetInfo( free, total )
+! print*,'free',free,'total',total
+! print*,'alloc',allocated(dw_bltmp),allocated(dw_bl_d)
+! print*,'size',size(dw_bltmp),size(dw_bl_d)
+
         dw_bltmp=dw_bl_d
 
         ! remember that the following routine is where PME_d is called for the first time

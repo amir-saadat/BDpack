@@ -258,7 +258,7 @@ contains
     nx = size(a,1)
     print *, myname
     do i=1,nx
-       write(*,'(i4)') a(i)
+       write(*,'(i10)') a(i)
     end do
   end subroutine print_vector_int
 

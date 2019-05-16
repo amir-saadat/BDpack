@@ -14,7 +14,7 @@ COMP     = mpif90 #$(INTELMPI)/mpiifort
 #----------------------------------------------------------------------
 # pgf90 or <Address of CUDA Fortran bin directory>/pgf90
 #----------------------------------------------------------------------
-USE_GPU  = TRUE
+USE_GPU  = FALSE
 USE_MAGMA = FALSE
 CUCOMP   = mpif90 #pgf90
 #----------------------------------------------------------------------
@@ -36,7 +36,7 @@ MV	 = mv
 GLBFLGS   = -DUSE_DP # SP or DP for single or double precision
 ifeq ($(USE_GPU),TRUE)
 GLBFLGS	 += -DUSE_GPU
-GLBFLGS  += -ta=tesla:cc35,cc60,cc70 -Mallocatable=95
+GLBFLGS  += -ta=tesla:cc35,cc60,cc70
 ifeq ($(USE_MAGMA),TRUE)
 GLBFLGS	 += -DUSE_MAGMA
 endif
@@ -67,7 +67,7 @@ else
 ifeq ($(FCOMP),pgf90)
 GLBFLGS	 += –Ktrap=fp –Minform=inform -g
 GLBFLGS  += -lgomp -Mpreprocess -Mbackslash -mp -Mcuda=charstring -Mcuda -Mcudalib=cublas,cusolver,cusparse,cufft,curand 
-GLBFLGS  += -ta=tesla:cc35,cc60,cc70 -Minfo=accel -Mallocatable=95
+GLBFLGS  += -ta=tesla:cc35,cc60,cc70 -Minfo=accel
 #GLBFLGS  += -traceback -Mbounds -Mchkfpstk -Mchkstk -Mdalign -g
 #GLBFLGS += -Mmpi=mpich
 endif
@@ -78,7 +78,7 @@ ifeq ($(USE_MAGMA),TRUE)
 CUFLGS	+= -DUSE_MAGMA
 endif
 CUFLGS  += -Mpreprocess -mp -Mcuda=charstring -Mcuda -Mcudalib=cublas,cusolver,cusparse,cufft,curand -Minfo=all
-CUFLGS  += -ta=tesla:cc35,cc60,cc70 -Minfo=accel
+CUFLGS  += -ta=tesla:cc35,cc60,cc70
 #CUFLGS  += -traceback -Mbounds -Mchkfpstk -Mchkstk -Mdalign -g
 #CUFLGS  += -Mdclchk -Mdepchk -Miomutex -Mrecursive -Msave -Ktrap=fp -O0 -g -byteswapio
 
@@ -109,6 +109,7 @@ ifeq ($(FCOMP),pgf90)
 #GLBLIBS += -L$(PGIROOT)/lib -L$(PGIROOT)/cuda/9.1/lib64
 #GLBLIBS += -L$(PGIROOT)/lib
 #GLBLIBS += -lcudafor -lcudaforblas -lcublas_static -lcudart
+GLBLIBS = -Mcuda -Mcudalib=cublas
 GLBLIBS += -L ~/mkl_pgi18/lib/intel64/
 GLBLIBS += -lmkl_lapack95_lp64 -lmkl_blas95_lp64
 endif

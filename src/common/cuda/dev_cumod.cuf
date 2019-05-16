@@ -15,33 +15,39 @@ module dev_cumod
 
   !> Total number of gpus
   integer :: numdevices
-  !> GPU object
-  type(dev_cu_t),allocatable :: mydevices(:)
-  !> GPU id s
-  integer, allocatable :: dev_ids(:)
+  type(dev_cu_t),allocatable :: devices(:)
 
 contains
 
-  subroutine init_dev()
+  subroutine init_dev(myrank,mydev)
 
+    integer,intent(in) :: myrank
+    integer,intent(out) :: mydev
     integer :: istat,idev,stream(cuda_stream_kind)
+    type(cudadeviceprop) :: prop
+    integer(kind=cuda_count_kind) :: heapsize
 
     istat = cudaGetDeviceCount(numdevices)
 
-    allocate(mydevices(0:numdevices-1))
-    allocate(dev_ids(0:numdevices-1))
+    allocate(devices(0:numdevices-1))
 
-    do idev = 0, numdevices-1
+    ! only rank 0 prints Available gpu properties
+    if (myrank == 0) then
+      do idev = 0, numdevices-1
+        istat = cudaGetDeviceProperties(devices(idev)%prop,idev)
+        ! istat = cudaChooseDevice(devices(idev)%id,devices(idev)%prop)
+        devices(idev)%id=idev
+        call devices(idev)%print_prop()
+      end do
+    endif
 
-      istat = cudaGetDeviceProperties(mydevices(idev)%prop,idev)
+    ! setting the device id based on the rank
+    mydev=mod(myrank,numdevices)
+    istat = cudaSetDevice(mydev)
 
-      istat = cudaChooseDevice(mydevices(idev)%id,mydevices(idev)%prop)
-
-      call mydevices(idev)%print_prop()
-
-      dev_ids(idev)=mydevices(idev)%id
-
-    end do
+    ! increasing the size of the device heap size
+    heapsize = 24_8*1024_8*1024_8
+    istat = cudaDeviceSetLimit(cudaLimitMallocHeapSize,heapsize)
 
     ! stream = cudaforGetDefaultStream( )
     ! print "(a,i6)", "cudafor stream", stream
@@ -97,8 +103,7 @@ contains
   ! Deleting arrays in dev_cumod
   subroutine del_dev()
 
-    deallocate(mydevices)
-    deallocate(dev_ids)
+    deallocate(devices)
 
   end subroutine del_dev
 
