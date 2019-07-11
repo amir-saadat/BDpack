@@ -485,6 +485,7 @@ contains
     qc(:)=qstar(:)
 
     if (debug_TYL) then
+      call print_vector(FBr(:),'FBr(:)')
       call print_vector(qstar(:),'End of Polymer SDE, qstar:')
     end if
 

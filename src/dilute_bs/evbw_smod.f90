@@ -148,6 +148,7 @@ contains
     real(wp),dimension(3) :: dr_sph
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp),parameter :: sqrtPI=sqrt(PI)
+    real(wp) :: corr
 
     !dr_sph(:) = 0._wp
     R_pore = 6.25_wp
@@ -302,15 +303,38 @@ contains
 
 
           ! if (ib == 2) then
-          dr_sph_rflc(1)=dr_sph_rflc(1) - ((sqrtPI*this%hstar)/(this%a_sph+sqrtPI*this%hstar))*&
+
+          !corr = 0.278337291378604_wp
+          corr = 1._wp
+          !corr = 0.5_wp
+          !print *, '(sqrtPI*this%hstar/corr)=',(sqrtPI*this%hstar/corr)
+          !print *, '(this%a_sph+sqrtPI*this%hstar/corr)',(this%a_sph+sqrtPI*this%hstar/corr)
+
+
+
+          ! print *, 'bead id = ', ib
+          ! print *, 'shift = ',shift
+          !
+          ! print *, 'dRx = ', 2._wp*(this%a_sph/(this%a_sph+sqrtPI*this%hstar/corr))*shift*(Rx(ib)-r_sph(1))/r_mag_bs
+          ! print *, 'dRy = ', 2._wp*(this%a_sph/(this%a_sph+sqrtPI*this%hstar/corr))*shift*(Ry(ib)-r_sph(2))/r_mag_bs
+          ! print *, 'dRz = ', 2._wp*(this%a_sph/(this%a_sph+sqrtPI*this%hstar/corr))*shift*(Rz(ib)-r_sph(3))/r_mag_bs
+
+
+
+
+          dr_sph_rflc(1)=dr_sph_rflc(1) - 1._wp*((sqrtPI*this%hstar/corr)/(this%a_sph+sqrtPI*this%hstar/corr))*&
             shift*(Rx(ib)-r_sph(1))/r_mag_bs
-          dr_sph_rflc(2)=dr_sph_rflc(2) - ((sqrtPI*this%hstar)/(this%a_sph+sqrtPI*this%hstar))*&
+          dr_sph_rflc(2)=dr_sph_rflc(2) - 1._wp*((sqrtPI*this%hstar/corr)/(this%a_sph+sqrtPI*this%hstar/corr))*&
             shift*(Ry(ib)-r_sph(2))/r_mag_bs
-          dr_sph_rflc(3)=dr_sph_rflc(3) - ((sqrtPI*this%hstar)/(this%a_sph+sqrtPI*this%hstar))*&
+          dr_sph_rflc(3)=dr_sph_rflc(3) - 1._wp*((sqrtPI*this%hstar/corr)/(this%a_sph+sqrtPI*this%hstar/corr))*&
             shift*(Rz(ib)-r_sph(3))/r_mag_bs
-          Rx(ib)=Rx(ib) + (this%a_sph/(this%a_sph+sqrtPI*this%hstar))*shift*(Rx(ib)-r_sph(1))/r_mag_bs
-          Ry(ib)=Ry(ib) + (this%a_sph/(this%a_sph+sqrtPI*this%hstar))*shift*(Ry(ib)-r_sph(2))/r_mag_bs
-          Rz(ib)=Rz(ib) + (this%a_sph/(this%a_sph+sqrtPI*this%hstar))*shift*(Rz(ib)-r_sph(3))/r_mag_bs
+          Rx(ib)=Rx(ib) + 1._wp*(this%a_sph/(this%a_sph+sqrtPI*this%hstar/corr))*shift*(Rx(ib)-r_sph(1))/r_mag_bs
+          Ry(ib)=Ry(ib) + 1._wp*(this%a_sph/(this%a_sph+sqrtPI*this%hstar/corr))*shift*(Ry(ib)-r_sph(2))/r_mag_bs
+          Rz(ib)=Rz(ib) + 1._wp*(this%a_sph/(this%a_sph+sqrtPI*this%hstar/corr))*shift*(Rz(ib)-r_sph(3))/r_mag_bs
+
+          !call print_vector(dr_sph_rflc(:),'dr_sph_rflc(:) = ')
+          !print *, '------------------------------'
+
           ! else
           !   !elastic collision:
           !   Rx(ib)=Rx(ib) + 1*shift*(Rx(ib)-r_sph(1))/r_mag_bs

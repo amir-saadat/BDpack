@@ -164,7 +164,7 @@ module dlt_mod
     real(wp),allocatable,dimension(:) :: U_seg
     real(wp),allocatable,dimension(:) :: U_bead
 
-    real(wp),allocatable,dimension(:,:) :: rf_in
+    real(wp),allocatable,dimension(:,:,:) :: rf_in
     real(wp),allocatable,dimension(:,:,:) :: rf0
     real(wp),dimension(3) :: rf0_rel_unit
     real(wp),dimension(3) :: dr_sph_rflc
@@ -450,7 +450,7 @@ module dlt_mod
      &(3,nbeadx3),weightTenstmp(3,nbeadx3))
     if (srf_tet) then
       allocate(rf0(3,npchain,nchain_pp))
-      allocate(rf_in(3,nchain_pp))
+      allocate(rf_in(3,npchain,nchain_pp))
       allocate(Ftet(3*nchain_pp))
       allocate(Fbartet(3*nchain_pp))
       ! call read_input('rf-in',0,rf_in(1),def=0._wp)
@@ -663,6 +663,9 @@ module dlt_mod
         do iread=1, id*nseg*npchain
           read(u2,*)
         end do
+        do iread=1, id*npchain*nchain_pp
+          if (srf_tet) read(u_rf_in,*)
+        end do
         do iread=1, id*npchain
           if (CoHR) read(u4,*)
         end do
@@ -676,6 +679,11 @@ module dlt_mod
             offset=3*(iseg-1)
             read(u2,*) qstart(offset+1:offset+3,ichain)
           end do
+          if (srf_tet) then
+            do ichain_pp=1,nchain_pp
+              read(u_rf_in,*) rf_in(1:3,ichain,ichain_pp)
+            end do
+          end if
           if (CoM) then
             do ichain_pp=1,nchain_pp
               read(u3,*) rcmstart(1:3,ichain,ichain_pp)
@@ -686,13 +694,28 @@ module dlt_mod
       end if
       call MPI_Barrier(MPI_COMM_WORLD,ierr)
     end do
-    if (srf_tet) then
-      do ichain_pp=1, nchain_pp
-        read(u_rf_in,*) rf_in(1:3,ichain_pp)
-      end do
-    end if
+    ! if (srf_tet) then
+    !   do ichain_pp=1, nchain_pp
+    !     read(u_rf_in,*) rf_in(1:3,ichain_pp)
+    !   end do
+    ! end if
   end if
   close (u2);if (CoM) close (u3);if (CoHR) close(u4);if (srf_tet) close(u_rf_in)
+
+  ! do ip=1,p
+  !   if (id == ip-1) then
+  !     print *, '---------------'
+  !     print *, 'id = ',id
+  !     do ichain=1,npchain
+  !       call print_matrix(rf_in(1:3,ichain,:),'rf_in(1:3,ichain,:)')
+  !       call print_matrix(rcmstart(1:3,ichain,:),'rcmstart(1:3,ichain,:)')
+  !       call print_vector(qstart(:,ichain),'qstart(:,ichain)')
+  !     end do
+  !
+  !     print *, '---------------'
+  !   end if
+  !   call MPI_Barrier(MPI_COMM_WORLD,ierr)
+  ! end do
   !call print_matrix(rf_in,'rf_in')
   !call print_matrix(rcmstart(:,1,:),'rcmstart')
   !call print_vector(qstart(:,1),'qstart')
@@ -841,10 +864,24 @@ module dlt_mod
             if (srf_tet) then
               do ichain_pp=1,nchain_pp
                 !rf0(:,jchain)=rf_in(1:3)
-                rf0(:,jchain,ichain_pp) = rf_in(1:3,ichain_pp)
+                rf0(:,jchain,ichain_pp) = rf_in(1:3,jchain,ichain_pp)
               end do
             end if
           end do
+
+          ! do ip=1,p
+          !   if (id == ip-1) then
+          !     print *, '---------------'
+          !     print *, 'id = ',id
+          !     do ichain=1,npchain
+          !       call print_matrix(rf0(1:3,ichain,:),'rf0(1:3,ichain,:)')
+          !     end do
+          !     print *, '---------------'
+          !   end if
+          !   call MPI_Barrier(MPI_COMM_WORLD,ierr)
+          ! end do
+
+
           !call print_matrix(rf0(:,1,:),'rf0')
           r_sph=0
           p_sph=0
@@ -968,6 +1005,8 @@ module dlt_mod
               call myintrn%calc(id,itime,rvmrcP,rcmP,r_sphP,nseg,DiffTensP,divD,Fev,Fbarev,&
                 calchi=.true.,calcdiv=.true.,calcevbb=.true.,calcevbw=.true.)
 
+              !call print_matrix(DiffTensP,'DiffTensP (966):')
+
               if (debug_TYL) then
                 call print_vector(r_sphP,'r_sphP to calc D')
                 call print_vector(rvmrcP(1:9),'rvmrcP 1 to calc D')
@@ -990,11 +1029,16 @@ module dlt_mod
                 if (HITens == 'Blake') then
                   call potrf(CoeffTensP,info=info)
                 else
+
+
                   if (debug_TYL) then
-                    call print_matrix(CoeffTensP,'CoeffTensP (987) before potrf')
+                    call print_matrix(CoeffTensP,'CoeffTensP (987) before potrf (DiffTensP)')
                   end if
 
+
                   call potrf(CoeffTensP,info=info)
+
+
 
                   if (debug_TYL) then
                     call print_matrix(CoeffTensP,'CoeffTensP (989) after potrf')

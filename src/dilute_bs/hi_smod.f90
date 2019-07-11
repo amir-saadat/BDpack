@@ -123,6 +123,7 @@ contains
     ! Oseen solid sphere
     if (HITens == 'Osph') then
       if (i==j) then
+        !4/16/19 TYL do we need the correction to self-mobility?
         call calc_hibw(this%hibw,i,j,rij,DiffTens)
       else
         call calc_hibw(this%hibw,i,j,rij,DiffTens)
