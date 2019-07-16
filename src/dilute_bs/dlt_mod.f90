@@ -116,7 +116,7 @@ module dlt_mod
     ! Allocatable arrays:
     integer,allocatable,dimension(:) :: mch,Lch
     real(wp),allocatable,dimension(:) :: qstar,qbar,Fbead,Fbarseg
-    real(wp),allocatable,dimension(:) :: Fbarbead,Fev,w,FBr,Kdotq,ADFev,RHScnt
+    real(wp),allocatable,dimension(:) :: Fbarbead,Fev,w,FBr,Kdotq,ADFev,RHScnt,Fev_sph
     real(wp),allocatable,dimension(:) :: Fbarev,root_f,Ybar,qctemp,uminus,uplus
     real(wp),allocatable,dimension(:) :: Ddotuminus,Ddotuplus
     real(wp),allocatable,dimension(:) :: Fbnd,Fbarbnd,Fbar,divD
@@ -414,7 +414,7 @@ module dlt_mod
     allocate (wbltemp(nbeadx3,ncols,npchain),w(nbeadx3),Kappa(nsegx3,nsegx3))
     allocate (Amat(nsegx3,nbeadx3),Kdotq(nsegx3),FBr(nsegx3))
     allocate (FBrbl(nsegx3,ncols,npchain),AdotD(nsegx3,nbeadx3,npchain))
-    allocate (ADFev(nsegx3),Fev(nbeadx3),Fbead(nbeadx3),RHS(nsegx3),RHScnt(nsegx3))
+    allocate (ADFev(nsegx3),Fev(nbeadx3),Fbead(nbeadx3),RHS(nsegx3),RHScnt(nsegx3),Fev_sph(3))
     allocate (RHSbase(nsegx3),Fbarseg(nsegx3),qbar(nsegx3),Fbarbead(nbeadx3))
     allocate (q(nsegx3,npchain),qstart(nsegx3,npchain),Fphi(nbeadx3,npchain))
     allocate (Bmat(nbeadx3,nsegx3),Fbarev(nbeadx3),KappaBF(2,nsegx3),Fbar(nbeadx3))
@@ -1002,7 +1002,7 @@ module dlt_mod
   !   endif
   ! endif
               !print *, 'before first calc--------------------------------'
-              call myintrn%calc(id,itime,rvmrcP,rcmP,r_sphP,nseg,DiffTensP,divD,Fev,Fbarev,&
+              call myintrn%calc(id,itime,rvmrcP,rcmP,r_sphP,nseg,DiffTensP,divD,Fev,Fbarev,Fev_sph,&
                 calchi=.true.,calcdiv=.true.,calcevbb=.true.,calcevbw=.true.)
 
               !call print_matrix(DiffTensP,'DiffTensP (966):')
@@ -1159,14 +1159,14 @@ module dlt_mod
           !            if (hstar == 0._wp .and. EV_bw /= 'Rflc_bc') then
           if (hstar == 0._wp) then
             !                call EVCalc(rvmrcP,nseg,EV_bb,Fev)
-            call myintrn%calc(id,itime,rvmrcP,rcmP,r_sphP,nseg,DiffTensP,divD,Fev,Fbarev,&
+            call myintrn%calc(id,itime,rvmrcP,rcmP,r_sphP,nseg,DiffTensP,divD,Fev,Fbarev,Fev_sph,&
               calcevbb=.true.,calcevbw=.true.)
             !call evcalc2(rvmrcP,nseg,Fev)
           end if
 
           !------------ advancing the configuration -------------------------!
           if (sph_move) then
-            call mysphsde%advance(r_sph,p_sph,q_sph,rf0,iPe,idt,ichain,Fseg,wbl_sph,wbl_sph_or,jcol)
+            call mysphsde%advance(r_sph,p_sph,q_sph,rf0,iPe,idt,ichain,Fseg,wbl_sph,wbl_sph_or,jcol,Fev_sph)
 
             if (debug_TYL) then
               call print_vector(r_sph(:,1),'r_sph (1100) = ')

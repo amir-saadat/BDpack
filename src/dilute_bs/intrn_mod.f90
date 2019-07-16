@@ -150,11 +150,12 @@ module intrn_mod
     !> calculates EV force between particles and the wall
     !! \param ry the vertical distance of particle & the wall
     !! \param Fev EV force
-    module subroutine calc_evbw(this,i,ry,Fev)
+    module subroutine calc_evbw(this,i,ry,Fev,Fev_sph,r_sph,rjmrc,rcmj)
       class(evbw_t),intent(inout) :: this
       integer,intent(in) :: i
       real(wp),intent(in) :: ry
-      real(wp),intent(inout) :: Fev(:)
+      real(wp),intent(inout) :: Fev(:),Fev_sph(:)
+      real(wp),intent(in) :: r_sph(:),rjmrc(:),rcmj(:)
     end subroutine calc_evbw
     module subroutine wall_rflc_sph(this,r_sph,rf0)
       class(evbw_t),intent(inout) :: this
@@ -199,7 +200,7 @@ contains
 
   end subroutine init_intrn
 
-  subroutine calc_intrn(this,id,itime,rvmrc,rcm,r_sph,nseg,DiffTens,divD,Fev,Fbarev,&
+  subroutine calc_intrn(this,id,itime,rvmrc,rcm,r_sph,nseg,DiffTens,divD,Fev,Fbarev,Fev_sph,&
                       calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw)
 
     use :: inp_dlt, only: EV_bb,EV_bw,hstar,HITens,nbead,nbead_ind
@@ -216,7 +217,7 @@ contains
     real(wp) :: sigOVrtr,sigOVrtrto6,sigOVrmag,sigOVrmagto6
     real(wp) :: ry,rimrc(3),rjmrc(3),rjy
     real(wp),allocatable :: Fstarev(:)
-    real(wp) :: DiffTens(:,:),divD(:),Fev(:),Fbarev(:)
+    real(wp) :: DiffTens(:,:),divD(:),Fev(:),Fbarev(:),Fev_sph(:)
     logical :: clhi,cldiv,clevbb,clevbw,upevbb,upevbw
     logical,optional :: calchi,calcdiv,calcevbb,calcevbw,updtevbb,updtevbw
     integer :: ichain_pp,jchain_pp
@@ -255,7 +256,7 @@ contains
       upevbw=.false.
     end if
 
-    if (clevbb.or.clevbw) Fev=0._wp
+    if (clevbb.or.clevbw) Fev=0._wp; Fev_sph=0._wp
     if ((upevbb).or.(upevbw)) then
       allocate(Fstarev(3*(nbead)))
       Fstarev=0._wp
@@ -284,7 +285,7 @@ contains
         if (cldiv) call calc_div(jbead,rjy,divD,id,itime)
       else
         !ibead_ulim=jbead !upper triangular
-        ibead_ulim=nbead 
+        ibead_ulim=nbead
       endif
       !!-------------
 
@@ -390,11 +391,16 @@ contains
 
       if (clevbw) then
         ry=rjmrc(2)+rcm(2,jchain_pp)
-        call calc_evbw(this%evbw,jbead,ry,Fev)
+        if (MOD(jbead-1,nbead_ind)/=0) then
+          !print *, 'current bead is ',jbead
+          call calc_evbw(this%evbw,jbead,ry,Fev,Fev_sph,r_sph,rjmrc,rcm(:,jchain_pp))
+        end if
       end if
       if (upevbw) then
         ry=rjmrc(2)+rcm(2,jchain_pp)
-        call calc_evbw(this%evbw,jbead,ry,Fstarev)
+        if (MOD(jbead-1,nbead_ind)/=0) then
+          call calc_evbw(this%evbw,jbead,ry,Fstarev,Fev_sph,r_sph,rjmrc,rcm(:,jchain_pp))
+        end if
       end if
 
     end do ! jbead

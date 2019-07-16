@@ -36,6 +36,10 @@ contains
 
     case ('Rflc_bc')
 
+      this%delw=0.5_wp*sqrt( 3.0 )
+      this%prf=Aw*N_Ks/(3*qmax*this%delw**2)
+
+
       call read_input('Bead-rad',0,this%a)
       call read_input('Wall-type',0,this%iwall)
       call read_input('hstar',0,this%hstar)
@@ -81,8 +85,12 @@ contains
   module procedure calc_evbw
 
     use :: inp_dlt, only: EV_bw
+    use :: arry_mod, only: print_vector, print_matrix
 
+    !variables used inside calc_evbw
     integer :: osi
+    real(wp),dimension(3) :: unit_beadsph
+    real(wp) :: mag_beadsph,dist
 
     osi=3*(i-1)
 
@@ -93,6 +101,39 @@ contains
       end if
 
     elseif (EV_bw == 'Gaussian') then
+
+    elseif (EV_bw == 'Rflc_bc') then
+      ! call print_vector(Fev(osi+1:osi+3),'Fev before')
+      ! call print_vector(Fev_sph(1:3),'Fev_sph before')
+
+      ! unit_beadsph(1:3) = rjmrc(1:3) + rcmj(1:3) - r_sph(1:3)
+      ! mag_beadsph = sqrt(unit_beadsph(1)**2 + unit_beadsph(2)**2 + unit_beadsph(3)**2)
+      ! unit_beadsph(1) = unit_beadsph(1)/mag_beadsph
+      ! unit_beadsph(2) = unit_beadsph(2)/mag_beadsph
+      ! unit_beadsph(3) = unit_beadsph(3)/mag_beadsph
+      ! dist = mag_beadsph - (this%a+this%a_sph)
+      !
+      !
+      !
+      ! if ((dist <= this%delw) .and. (dist>=0._wp)) then
+      !   Fev(osi+1) = Fev(osi+1) + (3*this%prf*(dist-this%delw)**2) * unit_beadsph(1)
+      !   Fev(osi+2) = Fev(osi+2) + (3*this%prf*(dist-this%delw)**2) * unit_beadsph(2)
+      !   Fev(osi+3) = Fev(osi+3) + (3*this%prf*(dist-this%delw)**2) * unit_beadsph(3)
+      !   Fev_sph(1) = Fev_sph(1) - (3*this%prf*(dist-this%delw)**2) * unit_beadsph(1)
+      !   Fev_sph(2) = Fev_sph(2) - (3*this%prf*(dist-this%delw)**2) * unit_beadsph(2)
+      !   Fev_sph(3) = Fev_sph(3) - (3*this%prf*(dist-this%delw)**2) * unit_beadsph(3)
+      ! elseif (dist < 0._wp) then
+      !   Fev(osi+1) = Fev(osi+1) + (3*this%prf*(0._wp-this%delw)**2) * unit_beadsph(1)
+      !   Fev(osi+2) = Fev(osi+2) + (3*this%prf*(0._wp-this%delw)**2) * unit_beadsph(2)
+      !   Fev(osi+3) = Fev(osi+3) + (3*this%prf*(0._wp-this%delw)**2) * unit_beadsph(3)
+      !   Fev_sph(1) = Fev_sph(1) - (3*this%prf*(0._wp-this%delw)**2) * unit_beadsph(1)
+      !   Fev_sph(2) = Fev_sph(2) - (3*this%prf*(0._wp-this%delw)**2) * unit_beadsph(2)
+      !   Fev_sph(3) = Fev_sph(3) - (3*this%prf*(0._wp-this%delw)**2) * unit_beadsph(3)
+      ! end if
+
+      ! call print_vector(Fev(osi+1:osi+3),'Fev after')
+      ! call print_vector(Fev_sph(1:3),'Fev_sph after')
+
     end if ! EV_bw
 
   end procedure calc_evbw
@@ -321,7 +362,7 @@ contains
 
 
 
-
+          
           dr_sph_rflc(1)=dr_sph_rflc(1) - 1._wp*((sqrtPI*this%hstar/corr)/(this%a_sph+sqrtPI*this%hstar/corr))*&
             shift*(Rx(ib)-r_sph(1))/r_mag_bs
           dr_sph_rflc(2)=dr_sph_rflc(2) - 1._wp*((sqrtPI*this%hstar/corr)/(this%a_sph+sqrtPI*this%hstar/corr))*&

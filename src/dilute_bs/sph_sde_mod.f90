@@ -33,7 +33,7 @@ contains
 
   end subroutine init_sph_sde
 
-  subroutine advance_sph_sde(this,r_sph,p_sph,q_sph,rf0,iPe,idt,ichain,Fseg,wbl_sph,wbl_sph_or,jcol)
+  subroutine advance_sph_sde(this,r_sph,p_sph,q_sph,rf0,iPe,idt,ichain,Fseg,wbl_sph,wbl_sph_or,jcol,Fev_sph)
 
     !variables from other places
     use :: inp_dlt, only: hstar,nchain_pp,dt,nseg_indx3
@@ -46,7 +46,7 @@ contains
     class(sph_sde_t),intent(inout) :: this
     real(wp), intent(inout) :: r_sph(:,:),p_sph(:,:),q_sph(:,:),rf0(:,:,:)
     integer, intent(in) :: ichain,jcol,iPe,idt
-    real(wp), intent(in) :: Fseg(:),wbl_sph(:,:),wbl_sph_or(:,:)
+    real(wp), intent(in) :: Fseg(:),wbl_sph(:,:),wbl_sph_or(:,:),Fev_sph(:)
 
     !variables used inside advance_sph_sde
     integer :: ichain_pp, offset
@@ -155,6 +155,11 @@ contains
       ! dr_sph(2) = dr_sph(2) - (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Ftet(offset+2)*dt(iPe,idt)
       ! dr_sph(3) = dr_sph(3) - (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Ftet(offset+3)*dt(iPe,idt)
     end do
+
+    !advance the coordinate of the sphere: bead-sphere EV force
+    ! dr_sph(1) = dr_sph(1) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fev_sph(1)*dt(iPe,idt)
+    ! dr_sph(2) = dr_sph(2) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fev_sph(2)*dt(iPe,idt)
+    ! dr_sph(3) = dr_sph(3) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fev_sph(3)*dt(iPe,idt)
 
     !advance the coordinate of the sphere: Brownian motion
     dr_sph(1) = dr_sph(1) + (1._wp/sqrt(2._wp))*sqrt(hstar*sqrtPI/this%a_sph)*wbl_sph(1,jcol)
