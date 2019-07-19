@@ -18,7 +18,7 @@ module sde_mod
     real(wp) :: a_sph,U_mag_sph
     real(wp),dimension(3,3) :: Kappareg
     real(wp),allocatable,dimension(:,:) :: Kappa
-    real(wp),allocatable,dimension(:,:) :: Amat, Bmat
+    real(wp),allocatable,dimension(:,:) :: Amat, Bmat, Amat_sph
     real(wp),allocatable,dimension(:,:) :: KappaBF, AmatBF
   contains
     procedure,pass(this) :: init => init_sde
@@ -30,7 +30,7 @@ contains
 
 
   !define parameters needed for the SDE
-  subroutine init_sde(this,Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF,nbead_bb,nseg_bb)
+  subroutine init_sde(this,Kappareg,Kappa,Amat,Amat_sph,Bmat,KappaBF,AmatBF,nbead_bb,nseg_bb)
 
     !variables used from other places
     use :: inp_dlt, only: iflow,nseg,nbead,nsegx3,nbeadx3,tplgy,Na,nseg_ar,Ia,sph_flow,nbead_ind,nseg_ind,nchain_pp,nseg_indx3,nbead_indx3,multet
@@ -39,7 +39,7 @@ contains
 
     !input and output arguments
     class(sde_t),intent(inout) :: this
-    real(wp), intent(inout) :: Kappareg(:,:),Kappa(:,:),Amat(:,:),Bmat(:,:),KappaBF(:,:),AmatBF(:,:)
+    real(wp), intent(inout) :: Kappareg(:,:),Kappa(:,:),Amat(:,:),Bmat(:,:),KappaBF(:,:),AmatBF(:,:),Amat_sph(:,:)
     integer, intent(inout) :: nbead_bb,nseg_bb
 
     !variables used inside init_sde
@@ -53,7 +53,7 @@ contains
     allocate(Amat_ind(nseg_indx3,nbead_indx3))
     allocate(Bmat_ind(nbead_indx3,nseg_indx3))
     allocate(this%Kappa(nsegx3,nsegx3))
-    allocate(this%Amat(nsegx3,nbeadx3),this%Bmat(nbeadx3,nsegx3))
+    allocate(this%Amat(nsegx3,nbeadx3),this%Bmat(nbeadx3,nsegx3),this%Amat_sph(nsegx3,nbeadx3+3))
     allocate(this%KappaBF(2,nsegx3))
     select case (tplgy)
     case ('Linear')
@@ -118,6 +118,7 @@ contains
     endif
 
     this%Amat=0.0_wp
+    this%Amat_sph = 0.0_wp
     Amat_ind = 0.0_wp
     select case (tplgy)
     case ('Linear')
@@ -138,6 +139,10 @@ contains
       do ichain=1,nchain_pp
         this%Amat(nseg_indx3*(ichain-1)+1:nseg_indx3*ichain,nbead_indx3*(ichain-1)+1:nbead_indx3*ichain) = Amat_ind
       end do
+
+      this%Amat_sph(:,1:nbead_indx3*nchain_pp) = this%Amat
+
+
 
     case ('Comb')
       nseg_bb=nseg-Na*nseg_ar
@@ -177,6 +182,7 @@ contains
     !print *, 'multiple tethered? ', multet
     !call print_matrix(Amat_ind,'Amat_ind')
     !call print_matrix(this%Amat,'this%Amat')
+    !call print_matrix(this%Amat_sph,'this%Amat_sph')
 
     ! Constructing banded form of Kappa
     this%KappaBF=0._wp
@@ -283,6 +289,7 @@ contains
    Kappareg = this%Kappareg
    Kappa = this%Kappa
    Amat = this%Amat
+   Amat_sph = this%Amat_sph
    Bmat = this%Bmat
    KappaBF = this%KappaBF
    AmatBF = this%AmatBF
@@ -306,7 +313,7 @@ contains
   !update the configurations of the chains with the SDE
   subroutine advance_sde(this,myintrn,id,iPe,idt,ichain,itime,Kdotq,qc,Fseg,Fbead,Fev,Fbnd,qstar,Fphi,&
     rvmrcP,rcm,DiffTensP,Ftet,rf0,AdotDP1,divD,FBr,RHS,rcmP,r_sphP,Fbarev,nbead_bb,Fbarbnd,Fbar,Fbartet,&
-    RHScnt,Fbarseg,Fbarbead,root_f,qbar,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE,r_sph)
+    RHScnt,Fbarseg,Fbarbead,root_f,qbar,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE,r_sph,F_sph,Fphi_all)
 
     !variables used from other places
     use :: inp_dlt, only: nseg,nbead,tplgy,dt,Pe,nsegx3,nbeadx3,applFext,Fext0,srf_tet,&
@@ -323,7 +330,7 @@ contains
     integer, intent(in) :: iPe,idt,ichain,itime
     real(wp), intent(inout) :: Kdotq(:),Fbead(:),qstar(:)
     real(wp), intent(inout), target :: qc(:),Fseg(:)
-    real(wp), intent(inout) :: Fphi(:,:),Fev(:),Fbnd(:)
+    real(wp), intent(inout) :: Fphi(:,:),Fev(:),Fbnd(:),Fphi_all(:)
     real(wp), intent(inout) :: rvmrcP(:)
     real(wp), intent(inout) :: rcm(:,:,:)
     real(wp), intent(inout) :: DiffTensP(:,:)
@@ -350,7 +357,7 @@ contains
     real(wp), intent(inout) :: qctemp(:)
     integer,intent(inout) :: mch(:),Lch(:)
     real(wp), intent(inout) :: lambdaBE(:)
-    real(wp), intent(in) :: r_sph(:,:)
+    real(wp), intent(in) :: r_sph(:,:),F_sph(:)
 
     !variables used inside advance_sde
     integer :: kl,is,os,offset,offset_bead,iseg,icount
@@ -387,25 +394,15 @@ contains
       !call print_vector(Kdotq(:),'Predictor Kdotq')
     endif
 
-    if (tplgy == 'Linear') then
-      !AmatBF is not right
-      !call gbmv(this%AmatBF,Fseg,Fbead,kl=0,m=nsegx3,alpha=-1.0_wp,trans='T')
-      call gemv(this%Amat,Fseg,Fbead,alpha=-1._wp,trans='T')
-      if (debug_TYL) then
-        call print_vector(Fbead(:),'Polymer SDE, Fbead:')
-      end if
-    else
-      call gemv(this%Amat,Fseg,Fbead,alpha=-1._wp,trans='T')
-    end if
+
     call copy(qc,qstar)
     call axpy(Kdotq,qstar)
-    Fphi(:,ichain)=Fbead+Fev+Fbnd
 
-    if (debug_TYL) then
-      call print_vector(Fev(:),'Polymer SDE, Fev:')
-      call print_vector(Fbnd(:),'Polymer SDE, Fbnd:')
-      call print_vector(Fphi(:,ichain),'Polymer SDE, Fphi:')
-    end if
+
+
+
+    call print_vector(Fphi(:,ichain),'Poly SDE, Fphi:')
+    call print_vector(Fphi_all(:),'Poly SDE, Fphi_all:')
 
     if (applFext) then !continue here!
       Fphi(1,ichain)=Fphi(1,ichain)-Fext0
@@ -416,12 +413,7 @@ contains
       do ichain_pp = 1,nchain_pp
         idx_pp_bead = (nbead_indx3) * (ichain_pp -1) + 1
 
-        if (debug_TYL) then
-          call print_vector(rvmrcP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),'rvmrcP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1)) (408)')
-          call print_vector(rcm(:,ichain,ichain_pp),'rcm(:,ichain,ichain_pp) (409)')
-          call print_vector(rf0(:,ichain,ichain_pp),'rf0(:,ichain,ichain_pp) (410)')
-          call print_matrix(DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),'DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1))')
-        end if
+        !call print_matrix(DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),'DiffTens tethered')
 
         call tetforce(rvmrcP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),rcm(:,ichain,ichain_pp),&
           DiffTensP(idx_pp_bead:idx_pp_bead+(nbead_indx3-1),idx_pp_bead:idx_pp_bead+(nbead_indx3-1)),&
@@ -438,7 +430,12 @@ contains
         !call print_vector(Ftet(3*(ichain_pp-1)+1:3*(ichain_pp)),'Ftet (predictor)')
       end do
     end if
-    call gemv(AdotDP1,Fphi(:,ichain),qstar,alpha=0.25*dt(iPe,idt),&
+    call print_vector(Fphi(:,ichain),'Poly SDE, Fphi after Ftet:')
+    Fphi_all(1:nbeadx3) = Fphi(:,ichain)
+    call print_vector(Fphi_all(:),'Poly SDE, Fphi_all after Ftet:')
+
+
+    call gemv(AdotDP1,Fphi_all(:),qstar,alpha=0.25*dt(iPe,idt),&
       beta=1._wp)
 
     if (debug_TYL) then

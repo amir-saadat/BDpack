@@ -222,7 +222,9 @@ contains
 
     nx = size(a,1)
     ny = size(a,2)
-    write(fmt,'("(",I3.3,"(f20.10,1x))")') ny
+    !write(fmt,'("(",I3.3,"(f20.10,1x))")') ny
+    write(fmt,'("(",I3.3,"(f8.5,1x))")') ny
+    !print *, fmt
     print *, myname
     do i=1,nx
        write(*,fmt) a(i,:)
@@ -285,6 +287,7 @@ contains
     print *, myname
     do i=1,nx
        write(*,'(f24.14)') a(i)
+       !write(*,'(f8.5)') a(i)
     end do
   end subroutine print_vector_dp
 

@@ -125,11 +125,12 @@ module dlt_mod
     real(wp),dimension(:),pointer :: rchrP,FphiP,DdotFPx,DdotFPy,DdotFPz,qP
     real(wp),dimension(:),pointer :: rvmrcP,rvmrcPx,rvmrcPy,rvmrcPz,qPx,qPy,qPz
     real(double),dimension(:),pointer :: wbltempP2,BdotwP,BdotwPx,BdotwPy,BdotwPz
-    real(wp),allocatable,dimension(:,:) :: Kappa,Amat,Bmat,wbl,aBlLan,WBlLan
+    real(wp),allocatable,dimension(:,:) :: Kappa,Amat,Bmat,wbl,aBlLan,WBlLan,Amat_sph
     real(wp),allocatable,dimension(:,:) :: VBlLan,VcntBlLan,Eye,Dsh
     real(wp),allocatable,dimension(:,:) :: KappaBF,AmatBF,WeightTenstmp!,rf0
     real(wp),allocatable,dimension(:,:),target :: q,rchr,Fphi,MobilTens,rvmrc!,rcm
     real(wp),allocatable,dimension(:,:),target :: r_sph
+    real(wp),allocatable,dimension(:),target :: F_sph,Fphi_all,Fphi_all_temp
     real(wp),allocatable,dimension(:,:),target :: p_sph, q_sph
     real(wp),allocatable,dimension(:,:),target :: WeightTens,qstart!,rcmstart
     real(wp),allocatable,dimension(:,:),target :: rchrstart
@@ -374,7 +375,7 @@ module dlt_mod
       !   end if
       ! end if
       ! allocation of total random number
-      allocate(rdnt(nbeadx3,ncols,nchain))
+      allocate(rdnt(nbeadx3+3,ncols,nchain))
       if (sph_move) then
         allocate(rdnt_sph(3,ncols,nchain))
         allocate(rdnt_sph_or(3,ncols,nchain))
@@ -400,7 +401,7 @@ module dlt_mod
     !----------------------------------------------------------
 
     ! Allocating the local random arrays
-    allocate(rdn(nbeadx3,ncols,npchain))
+    allocate(rdn(nbeadx3+3,ncols,npchain))
     if (sph_move) then
       allocate(rdn_sph(3,ncols,npchain))
       allocate(rdn_sph_or(3,ncols,npchain))
@@ -408,17 +409,18 @@ module dlt_mod
     allocate (r_sph(3,npchain))
     allocate (p_sph(3,npchain))
     allocate (q_sph(3,npchain))
+    allocate (F_sph(3))
     ! Note: the order nseg,nchain is selected because Fortran is column major.
-    allocate (DiffTens(nbeadx3,nbeadx3,npchain),CoeffTens(nbeadx3,nbeadx3,npchain))
-    allocate (qc(nsegx3),qstar(nsegx3),Fseg(nsegx3),wbl(nbeadx3,ncols),wbl_sph(3,ncols),wbl_sph_or(3,ncols))
-    allocate (wbltemp(nbeadx3,ncols,npchain),w(nbeadx3),Kappa(nsegx3,nsegx3))
-    allocate (Amat(nsegx3,nbeadx3),Kdotq(nsegx3),FBr(nsegx3))
-    allocate (FBrbl(nsegx3,ncols,npchain),AdotD(nsegx3,nbeadx3,npchain))
+    allocate (DiffTens(nbeadx3+3,nbeadx3+3,npchain),CoeffTens(nbeadx3+3,nbeadx3+3,npchain))
+    allocate (qc(nsegx3),qstar(nsegx3),Fseg(nsegx3),wbl(nbeadx3+3,ncols),wbl_sph(3,ncols),wbl_sph_or(3,ncols))
+    allocate (wbltemp(nbeadx3+3,ncols,npchain),w(nbeadx3+3),Kappa(nsegx3,nsegx3))
+    allocate (Amat(nsegx3,nbeadx3),Kdotq(nsegx3),FBr(nsegx3),Amat_sph(nsegx3,nbeadx3+3))
+    allocate (FBrbl(nsegx3,ncols,npchain),AdotD(nsegx3,nbeadx3+3,npchain))
     allocate (ADFev(nsegx3),Fev(nbeadx3),Fbead(nbeadx3),RHS(nsegx3),RHScnt(nsegx3),Fev_sph(3))
     allocate (RHSbase(nsegx3),Fbarseg(nsegx3),qbar(nsegx3),Fbarbead(nbeadx3))
-    allocate (q(nsegx3,npchain),qstart(nsegx3,npchain),Fphi(nbeadx3,npchain))
+    allocate (q(nsegx3,npchain),qstart(nsegx3,npchain),Fphi(nbeadx3,npchain),Fphi_all(nbeadx3+3),Fphi_all_temp(nbeadx3+3))
     allocate (Bmat(nbeadx3,nsegx3),Fbarev(nbeadx3),KappaBF(2,nsegx3),Fbar(nbeadx3))
-    allocate (qctemp(nsegx3),DdotF(nbeadx3),Fbnd(nbeadx3),Fbarbnd(nbeadx3))
+    allocate (qctemp(nsegx3),DdotF(nbeadx3+3),Fbnd(nbeadx3),Fbarbnd(nbeadx3))
     select case (tplgy)
     case ('Linear')
       allocate(AmatBF(4,nbeadx3))
@@ -545,9 +547,9 @@ module dlt_mod
     if (sph_move) then
       call mysphsde%init()
     end if
-    call mysde%init(Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF,nbead_bb,nseg_bb)
+    call mysde%init(Kappareg,Kappa,Amat,Amat_sph,Bmat,KappaBF,AmatBF,nbead_bb,nseg_bb)
 
-
+    call print_matrix(Amat_sph,'Amat_sph from dlt')
 
    if ((hstar == 0._wp) .or. (DecompMeth == 'Chebyshev')) then
     Eye=0._wp
@@ -824,7 +826,7 @@ module dlt_mod
                   rdnt_sph_or(3,icol,ichain)=rangls()
                 end if
 
-                do ibead=1, 3*nbead
+                do ibead=1, 3*nbead+3
                   rdnt(ibead,icol,ichain)=ranuls()-0.5
                 end do
               end do
@@ -833,8 +835,8 @@ module dlt_mod
         end if
         ! Scattering the generated random numbers from rank 0 the owner.
         if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
-          call MPI_Scatter(rdnt,3*nbead*ncols*npchain,MPI_REAL_WP,rdn,&
-           3*nbead*ncols*npchain,MPI_REAL_WP,0,MPI_COMM_WORLD,ierr)
+          call MPI_Scatter(rdnt,3*(nbead+1)*ncols*npchain,MPI_REAL_WP,rdn,&
+           3*(nbead+1)*ncols*npchain,MPI_REAL_WP,0,MPI_COMM_WORLD,ierr)
           if (sph_move) then
             call MPI_Scatter(rdnt_sph,3*ncols*npchain,MPI_REAL_WP,rdn_sph,&
              3*ncols*npchain,MPI_REAL_WP,0,MPI_COMM_WORLD,ierr)
@@ -888,6 +890,7 @@ module dlt_mod
           p_sph(1,:) = 1._wp
           q_sph=0
           q_sph(2,:) = 1._wp
+          F_sph=0
 
           if (sph_move) then
             Ftet=0
@@ -922,12 +925,16 @@ module dlt_mod
                   end if
                 end if
               end if
-              do ibead=1, nbead
+              do ibead=1, nbead+1
                 offset=3*(ibead-1)
                 wx=rdn(offset+1,kcol,ichain);wx=sqrtdt*wx*(c1*wx**2+c2)
                 wy=rdn(offset+2,kcol,ichain);wy=sqrtdt*wy*(c1*wy**2+c2)
                 wz=rdn(offset+3,kcol,ichain);wz=sqrtdt*wz*(c1*wz**2+c2)
-                wbl(offset+1,kcol)=wx;wbl(offset+2,kcol)=wy;wbl(offset+3,kcol)=wz
+                if ((MOD(ibead-1,nbead_ind)==0) .and. (ibead < nbead+1)) then !tethered beads have no brownian motion
+                  wbl(offset+1,kcol)=0._wp;wbl(offset+2,kcol)=0._wp;wbl(offset+3,kcol)=0._wp
+                else
+                  wbl(offset+1,kcol)=wx;wbl(offset+2,kcol)=wy;wbl(offset+3,kcol)=wz
+                end if
               end do
               if (sph_move) then
                 wbl_sph(1:3,kcol) = sqrtdt*rdn_sph(1:3,kcol,ichain)
@@ -1002,10 +1009,13 @@ module dlt_mod
   !   endif
   ! endif
               !print *, 'before first calc--------------------------------'
+
+              call print_matrix(DiffTensP,'DiffTensP before calc:')
+
               call myintrn%calc(id,itime,rvmrcP,rcmP,r_sphP,nseg,DiffTensP,divD,Fev,Fbarev,Fev_sph,&
                 calchi=.true.,calcdiv=.true.,calcevbb=.true.,calcevbw=.true.)
 
-              !call print_matrix(DiffTensP,'DiffTensP (966):')
+              call print_matrix(DiffTensP,'DiffTensP after calc:')
 
               if (debug_TYL) then
                 call print_vector(r_sphP,'r_sphP to calc D')
@@ -1031,18 +1041,11 @@ module dlt_mod
                 else
 
 
-                  if (debug_TYL) then
-                    call print_matrix(CoeffTensP,'CoeffTensP (987) before potrf (DiffTensP)')
-                  end if
 
-
+                  call print_matrix(CoeffTensP,'CoeffTensP before potrf (DiffTensP)')
                   call potrf(CoeffTensP,info=info)
+                  call print_matrix(CoeffTensP,'CoeffTensP after potrf')
 
-
-
-                  if (debug_TYL) then
-                    call print_matrix(CoeffTensP,'CoeffTensP (989) after potrf')
-                  end if
                 endif
                 !print *, 'after Cholesky'
                 if (info /= 0) then
@@ -1056,11 +1059,9 @@ module dlt_mod
                 if (HITens == 'Blake') then
                   call trmm(CoeffTensP,wbltempP1,transa='T')
                 else
+                  call print_matrix(wbltempP1,'wbltempP1 (dW)')
                   call trmm(CoeffTensP,wbltempP1,transa='T')
-
-                  if (debug_TYL) then
-                    call print_matrix(wbltempP1,'wbltempP1 (1003)')
-                  end if
+                  call print_matrix(wbltempP1,'wbltempP1 (C*dW)')
                 endif
 
               else
@@ -1123,7 +1124,9 @@ module dlt_mod
               if (tplgy == 'Linear') then
                 !AmatBF is not right
                 !call gbmv(AmatBF,real(wbltempP2,kind=wp),FBrblP,kl=0,m=nsegx3,alpha=coeff)
-                call gemv(Amat,real(wbltempP2,kind=wp),FBrblP,alpha=coeff)
+                call print_vector(wbltempP2,'wbltempP2 (C*dW)')
+                call gemv(Amat_sph,real(wbltempP2,kind=wp),FBrblP,alpha=coeff)
+                call print_vector(FBrblP,'FBrblP ((1/sqrt(2))*A*C*dW)')
 
                 ! !TYL: HI for tethered bead -------------------------------------
                 ! !print *, 'Brownian force calculaton------------'
@@ -1143,11 +1146,10 @@ module dlt_mod
             end do
             ! Calculation of AdotD=Amat.D, to be used in Predictor-Corrector
             if (hstar /= 0._wp) then
-              call symm(DiffTensP,Amat,AdotDP1,side='R')
-              if (debug_TYL) then
-                call print_matrix(Amat,'Amat (1079):')
-                call print_matrix(AdotDP1,'AdotDP1 (1080):')
-              end if
+              call symm(DiffTensP,Amat_sph,AdotDP1,side='R')
+
+              call print_matrix(AdotDP1,'AdotDP1 (A*D):')
+
             else
               AdotDP1=Amat
             end if
@@ -1166,7 +1168,8 @@ module dlt_mod
 
           !------------ advancing the configuration -------------------------!
           if (sph_move) then
-            call mysphsde%advance(r_sph,p_sph,q_sph,rf0,iPe,idt,ichain,Fseg,wbl_sph,wbl_sph_or,jcol,Fev_sph)
+            call mysphsde%advance(r_sph,p_sph,q_sph,rf0,iPe,idt,ichain,Fseg,Fbead,wbl_sph,wbl_sph_or,jcol,&
+            Fev_sph,F_sph,Fev,Fbnd,DiffTensP,Amat,Fphi,Fphi_all,Fphi_all_temp,wbltempP1,coeff)
 
             if (debug_TYL) then
               call print_vector(r_sph(:,1),'r_sph (1100) = ')
@@ -1181,7 +1184,7 @@ module dlt_mod
 
           call mysde%advance(myintrn,id,iPe,idt,ichain,itime,Kdotq,qc,Fseg,Fbead,Fev,Fbnd,qstar,Fphi,&
            rvmrcP,rcm,DiffTensP,Ftet,rf0,AdotDP1,divD,FBr,RHS,rcmP,r_sphP,Fbarev,nbead_bb,Fbarbnd,Fbar,Fbartet,&
-           RHScnt,Fbarseg,Fbarbead,root_f,qbar,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE,r_sph)
+           RHScnt,Fbarseg,Fbarbead,root_f,qbar,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE,r_sph,F_sph,Fphi_all)
           !------------ advancing the configuration -------------------------!
 
 
@@ -1198,12 +1201,13 @@ module dlt_mod
           call gemv(Bmat,qc,rvmrcP)
           ! Calculating center of mass and/or center of hydrodynamic resistance movement
           if (CoM) then
-            if (debug_TYL) then
-              print*, '----------------'
-              print*, 'calculation of CoM'
-              print*, '----------------'
-            end if
 
+            print*, '----------------'
+            print*, 'calculation of CoM'
+            print*, '----------------'
+
+            call print_vector(Fphi(:,ichain),'Fphi(:,ichain)')
+            call print_vector(Fphi_all(:),'Fphi_all(:)')
             FphiP => Fphi(:,ichain)
             rcmP => rcm(:,ichain,:) ! might be redundant
             ! BdotwPx => wbltemp(1:nbeadx3-2:3,jcol,ichain)
@@ -1214,13 +1218,13 @@ module dlt_mod
             ! sum(real(BdotwPz,kind=wp))]
 
             if (hstar.ne.0._wp) then
-              call symv(DiffTensP,FphiP,DdotF)
+              call symv(DiffTensP,Fphi_all(:),DdotF)
 
-              if (debug_TYL) then
-                call print_vector(DdotF,'DdotF')
-              end if
+
+              call print_vector(DdotF,'DdotF')
+
             else
-              DdotF=FphiP
+              DdotF=Fphi_all(:)
             end if
 
             do ichain_pp=1,nchain_pp
@@ -1252,9 +1256,9 @@ module dlt_mod
                 end if
                 !TYL: adding back self-mobility of first bead-------------------------
 
-                if (debug_TYL) then
-                  call print_vector(DdotF,'fixing DdotF')
-                end if
+
+                call print_vector(DdotF,'fixing DdotF')
+
               end if
               !TYL: HI for tethered bead ---------------------------------------
 
@@ -1312,14 +1316,14 @@ module dlt_mod
               end do
             end if
             !!-------------
-            if (debug_TYL) then
-              call print_vector(rvmrcP,'rvmrcP (1229)')
-              call print_matrix(rcmP,'rcmP (1230)')
-              call print_vector(rvmrcP(1:3)+rcmP(:,1),'Tether point 1')
-              call print_vector(rf0(:,1,1),'rf0 (1232)')
-              call print_vector(rvmrcP(10:12)+rcmP(:,2),'Tether point 2')
-              call print_vector(rf0(:,1,2),'rf0 (1234)')
-            end if
+
+            call print_vector(rvmrcP,'rvmrcP (1229)')
+            call print_matrix(rcmP,'rcmP (1230)')
+            call print_vector(rvmrcP(1:3)+rcmP(:,1),'Tether point 1')
+            call print_vector(rf0(:,1,1),'rf0 (1232)')
+            call print_vector(rvmrcP(10:12)+rcmP(:,2),'Tether point 2')
+            call print_vector(rf0(:,1,2),'rf0 (1234)')
+
           end if
 
           if (CoHR) then
@@ -1756,7 +1760,7 @@ module dlt_mod
     deallocate(rdn_sph)
     deallocate(rdn_sph_or)
   endif
-  deallocate(qc,qstar,Fseg,w,wbl,wbltemp,Kappa,Amat,FBr,FBrbl,Kdotq,AdotD)
+  deallocate(qc,qstar,Fseg,w,wbl,wbltemp,Kappa,Amat,FBr,FBrbl,Kdotq,AdotD,Amat_sph)
   if (sph_move) then
     deallocate(wbl_sph)
     deallocate(wbl_sph_or)

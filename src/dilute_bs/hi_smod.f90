@@ -47,8 +47,11 @@ submodule (intrn_mod) hi_smod
 contains
 
   module procedure init_hi
+    use :: cmn_io_mod, only: read_input
+
     call init_hibb(this%hibb)
     call init_hibw(this%hibw)
+    call read_input('Sph-rad',0,this%a_sph)
   end procedure init_hi
 
   ! module procedure hi_init
@@ -85,7 +88,9 @@ contains
   module procedure calc_hi
 
 
-    use :: inp_dlt, only: HITens
+    use :: inp_dlt, only: HITens,nbead,hstar
+    real(wp),parameter :: PI=3.1415926535897958648_wp
+    real(wp),parameter :: sqrtPI=sqrt(PI)
 
     integer :: osi,osj
 
@@ -121,7 +126,7 @@ contains
     endif
     !------------
     ! Oseen solid sphere
-    if (HITens == 'Osph') then
+    if ((HITens == 'Osph') .and. (i<nbead+1) .and. (j<nbead+1)) then
       if (i==j) then
         !4/16/19 TYL do we need the correction to self-mobility?
         call calc_hibw(this%hibw,i,j,rij,DiffTens)
@@ -130,6 +135,11 @@ contains
       endif
     endif
     !------------
+
+    if ((i == nbead+1) .and. (j == nbead+1)) then
+      print *, 'a_sph is',this%a_sph
+      DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3)*(sqrtPI*hstar/this%a_sph)
+    endif
 
 
   end procedure calc_hi

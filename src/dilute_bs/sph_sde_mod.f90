@@ -33,10 +33,10 @@ contains
 
   end subroutine init_sph_sde
 
-  subroutine advance_sph_sde(this,r_sph,p_sph,q_sph,rf0,iPe,idt,ichain,Fseg,wbl_sph,wbl_sph_or,jcol,Fev_sph)
+  subroutine advance_sph_sde(this,r_sph,p_sph,q_sph,rf0,iPe,idt,ichain,Fseg,Fbead,wbl_sph,wbl_sph_or,jcol,Fev_sph,F_sph,Fev,Fbnd,DiffTensP,Amat,Fphi,Fphi_all,Fphi_all_temp,wbltempP1,coeff)
 
     !variables from other places
-    use :: inp_dlt, only: hstar,nchain_pp,dt,nseg_indx3
+    use :: inp_dlt, only: hstar,nchain_pp,dt,nbead_indx3,nseg_indx3,tplgy,nbeadx3
     use :: arry_mod, only: print_vector, print_matrix
 
     real(wp),parameter :: PI=3.1415926535897958648_wp
@@ -47,6 +47,10 @@ contains
     real(wp), intent(inout) :: r_sph(:,:),p_sph(:,:),q_sph(:,:),rf0(:,:,:)
     integer, intent(in) :: ichain,jcol,iPe,idt
     real(wp), intent(in) :: Fseg(:),wbl_sph(:,:),wbl_sph_or(:,:),Fev_sph(:)
+    real(wp), intent(out) :: F_sph(:)
+    real(wp), intent(inout) :: Fphi(:,:),Fev(:),Fbnd(:),Fbead(:),Fphi_all(:),Fphi_all_temp(:)
+    real(wp), intent(in) :: DiffTensP(:,:),wbltempP1(:,:)
+    real(wp), intent(in) :: Amat(:,:)
 
     !variables used inside advance_sph_sde
     integer :: ichain_pp, offset
@@ -56,6 +60,8 @@ contains
     real(wp),dimension(3) :: rf0_rel,rf0_rel_unit, Tseg
     real(wp),dimension(3,3) :: R
     logical :: debug_TYL
+    real(wp) :: coeff
+
 
     debug_TYL = .false.
 
@@ -129,50 +135,100 @@ contains
       rf0(1:3,ichain,ichain_pp) = rf0_rel_new(1:3) + r_sph(1:3,ichain)
     end do
 
-    !TRANSLATION------------------------------------------------------
-    !advance the coordinate of the sphere: tether forces
+    !calculation of the total force on the sphere
+    F_sph = 0._wp
+    !call print_vector(F_sph(:),'F_sph before:')
+    !call print_vector(Fseg(:),'Fseg')
+
     do ichain_pp = 1,nchain_pp
-      !using Fseg
       offset = nseg_indx3*(ichain_pp-1)
-      dr_sph(1) = dr_sph(1) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fseg(offset+1)*dt(iPe,idt)
-      dr_sph(2) = dr_sph(2) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fseg(offset+2)*dt(iPe,idt)
-      dr_sph(3) = dr_sph(3) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fseg(offset+3)*dt(iPe,idt)
-
-      if (debug_TYL) then
-        call print_vector(Fseg(offset+1:offset+3),'Sphere SDE, spring force:')
-      end if
-
-      !using q vector
-      !offset = nseg_indx3*(ichain_pp-1)
-      !dr_sph(1) = dr_sph(1) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*5._wp*q_sph(1,ichain)*dt(iPe,idt)
-      !dr_sph(2) = dr_sph(2) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*5._wp*q_sph(2,ichain)*dt(iPe,idt)
-      !dr_sph(3) = dr_sph(3) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*5._wp*q_sph(3,ichain)*dt(iPe,idt)
-
-
-      !using Ftet
-      ! offset = 3*(ichain_pp-1)
-      ! dr_sph(1) = dr_sph(1) - (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Ftet(offset+1)*dt(iPe,idt)
-      ! dr_sph(2) = dr_sph(2) - (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Ftet(offset+2)*dt(iPe,idt)
-      ! dr_sph(3) = dr_sph(3) - (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Ftet(offset+3)*dt(iPe,idt)
+      F_sph(1) = F_sph(1) + Fseg(offset+1)
+      F_sph(2) = F_sph(2) + Fseg(offset+2)
+      F_sph(3) = F_sph(3) + Fseg(offset+3)
+      !call print_vector(F_sph(:),'F_sph during:')
     end do
 
-    !advance the coordinate of the sphere: bead-sphere EV force
-    ! dr_sph(1) = dr_sph(1) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fev_sph(1)*dt(iPe,idt)
-    ! dr_sph(2) = dr_sph(2) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fev_sph(2)*dt(iPe,idt)
-    ! dr_sph(3) = dr_sph(3) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fev_sph(3)*dt(iPe,idt)
 
-    !advance the coordinate of the sphere: Brownian motion
-    dr_sph(1) = dr_sph(1) + (1._wp/sqrt(2._wp))*sqrt(hstar*sqrtPI/this%a_sph)*wbl_sph(1,jcol)
-    dr_sph(2) = dr_sph(2) + (1._wp/sqrt(2._wp))*sqrt(hstar*sqrtPI/this%a_sph)*wbl_sph(2,jcol)
-    dr_sph(3) = dr_sph(3) + (1._wp/sqrt(2._wp))*sqrt(hstar*sqrtPI/this%a_sph)*wbl_sph(3,jcol)
+
+    if (tplgy == 'Linear') then
+      !call gbmv(this%AmatBF,Fseg,Fbead,kl=0,m=nsegx3,alpha=-1.0_wp,trans='T')
+      call gemv(Amat,Fseg,Fbead,alpha=-1._wp,trans='T')
+    else
+      call gemv(Amat,Fseg,Fbead,alpha=-1._wp,trans='T')
+    end if
+
+    Fphi(:,ichain)=Fbead+Fev+Fbnd
+    Fphi_all(1:nbeadx3) = Fphi(:,ichain)
+    Fphi_all(nbeadx3+1:nbeadx3+3) = F_sph(1:3)
+
+    Fphi_all_temp = Fphi_all
+    do ichain_pp = 1,nchain_pp
+      offset = nbead_indx3*(ichain_pp-1)
+      Fphi_all_temp(offset+1:offset+3) = 0._wp
+    end do
+
+
+    call print_vector(Fseg(:),'Sph SDE, Fseg:')
+    call print_vector(Fbead(:),'Sph SDE, Fbead:')
+    call print_vector(Fev(:),'Sph SDE, Fev:')
+    call print_vector(Fbnd(:),'Sph SDE, Fbnd:')
+    call print_vector(Fphi(:,ichain),'Sph SDE, Fphi:')
+    call print_vector(Fphi_all(:),'Sph SDE, Fphi_all:')
+    call print_vector(Fphi_all_temp(:),'Sph SDE, Fphi_all_temp:')
+
+
+    call print_vector(dr_sph,'Sph SDE, dr_sph before:')
+    call gemv(DiffTensP(nbeadx3+1:nbeadx3+3,:),Fphi_all_temp,dr_sph,alpha=0.25*dt(iPe,idt),beta=1._wp)
+
+    call print_vector(dr_sph,'Sph SDE, dr_sph after:')
+
+
+    call print_matrix(wbltempP1,'Sph SDE, wbltempP1')
+    call print_vector(wbltempP1(:,jcol),'Sph SDE, wbltempP1')
+
+    dr_sph(1:3) = dr_sph(1:3) + coeff*wbltempP1(nbeadx3+1:nbeadx3+3,jcol)
+
+    call print_vector(dr_sph,'Sph SDE, dr_sph after Brownian:')
+
     r_sph(:,ichain) = r_sph(:,ichain) + dr_sph(1:3)
-    !print *, (1._wp/sqrt(2._wp))*sqrt(hstar*sqrtPI/this%a_sph)
-
 
     !update the tether points on the surface of the sphere
     do ichain_pp = 1,nchain_pp
       rf0(:,ichain,ichain_pp) = rf0(:,ichain,ichain_pp) + dr_sph(1:3)
     end do
+
+    !call print_vector(F_sph(:),'F_sph after:')
+    !Translational motion of sphere moved to sde_mod
+    ! !TRANSLATION------------------------------------------------------
+    ! !advance the coordinate of the sphere: tether forces
+    ! do ichain_pp = 1,nchain_pp
+    !   !using Fseg
+    !   offset = nseg_indx3*(ichain_pp-1)
+    !   dr_sph(1) = dr_sph(1) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fseg(offset+1)*dt(iPe,idt)
+    !   dr_sph(2) = dr_sph(2) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fseg(offset+2)*dt(iPe,idt)
+    !   dr_sph(3) = dr_sph(3) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fseg(offset+3)*dt(iPe,idt)
+    !
+    !   if (debug_TYL) then
+    !     call print_vector(Fseg(offset+1:offset+3),'Sphere SDE, spring force:')
+    !   end if
+    !
+    ! end do
+    !
+    ! !advance the coordinate of the sphere: bead-sphere EV force
+    ! ! dr_sph(1) = dr_sph(1) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fev_sph(1)*dt(iPe,idt)
+    ! ! dr_sph(2) = dr_sph(2) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fev_sph(2)*dt(iPe,idt)
+    ! ! dr_sph(3) = dr_sph(3) + (1._wp/4)*(hstar*sqrtPI/this%a_sph)*Fev_sph(3)*dt(iPe,idt)
+    !
+    ! !advance the coordinate of the sphere: Brownian motion
+    ! dr_sph(1) = dr_sph(1) + (1._wp/sqrt(2._wp))*sqrt(hstar*sqrtPI/this%a_sph)*wbl_sph(1,jcol)
+    ! dr_sph(2) = dr_sph(2) + (1._wp/sqrt(2._wp))*sqrt(hstar*sqrtPI/this%a_sph)*wbl_sph(2,jcol)
+    ! dr_sph(3) = dr_sph(3) + (1._wp/sqrt(2._wp))*sqrt(hstar*sqrtPI/this%a_sph)*wbl_sph(3,jcol)
+    ! r_sph(:,ichain) = r_sph(:,ichain) + dr_sph(1:3)
+    !
+    ! !update the tether points on the surface of the sphere
+    ! do ichain_pp = 1,nchain_pp
+    !   rf0(:,ichain,ichain_pp) = rf0(:,ichain,ichain_pp) + dr_sph(1:3)
+    ! end do
 
   end subroutine advance_sph_sde
 

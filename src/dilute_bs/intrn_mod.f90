@@ -22,11 +22,13 @@ module intrn_mod
   type :: hibb_t
     ! RPY
     real(wp) :: A,B,C,D,E,F
+    real(wp) :: B_sph,C_sph,D_sph
     ! Oseen-Burgers
     real(wp) :: G
     ! regularized OB
     real(wp) :: O,P,R,S,T
     real(wp) :: rmagmin
+    real(wp) :: a_sph
   end type hibb_t
   type :: hibw_t
     real(wp) :: a_sph
@@ -34,6 +36,7 @@ module intrn_mod
   type :: hi_t
     type(hibb_t) :: hibb
     type(hibw_t) :: hibw
+    real(wp) :: a_sph
   end type hi_t
   !------------------------------------------
 
@@ -404,6 +407,39 @@ contains
       end if
 
     end do ! jbead
+
+    !Sphere self interaction
+    ibead = nbead+1
+    jbead = nbead+1
+    if (clhi) call calc_hi(this%hi,ibead,jbead,rij,DiffTens)
+
+    !Sphere bead interaction
+    ibead = nbead+1
+    do jbead=1,nbead
+      osj=3*(jbead-1)
+      rjmrc=rvmrc(osj+1:osj+3)
+      jchain_pp = (jbead-1) / nbead_ind + 1
+      rij%x=r_sph(1) - (rjmrc(1)+rcm(1,jchain_pp))
+      rij%y=r_sph(2) - (rjmrc(2)+rcm(2,jchain_pp))
+      rij%z=r_sph(3) - (rjmrc(3)+rcm(3,jchain_pp))
+      rij%mag2=rij%x**2+rij%y**2+rij%z**2
+      rij%mag=sqrt(rij%mag2)
+      if (clhi) call calc_hi(this%hi,ibead,jbead,rij,DiffTens)
+    end do
+    jbead = nbead+1
+    do ibead=1,nbead
+      osi=3*(ibead-1)
+      rimrc=rvmrc(osi+1:osi+3)
+      ichain_pp = (ibead-1) / nbead_ind + 1
+      rij%x= (rimrc(1)+rcm(1,ichain_pp)) - r_sph(1)
+      rij%y= (rimrc(2)+rcm(2,ichain_pp)) - r_sph(2)
+      rij%z= (rimrc(3)+rcm(3,ichain_pp)) - r_sph(3)
+      rij%mag2=rij%x**2+rij%y**2+rij%z**2
+      rij%mag=sqrt(rij%mag2)
+      if (clhi) call calc_hi(this%hi,ibead,jbead,rij,DiffTens)
+    end do
+
+
 
     !call print_matrix(DiffTens(:,:),'DiffTens')
     if ((upevbb).or.(upevbw)) then
