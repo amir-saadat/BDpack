@@ -395,14 +395,12 @@ contains
     endif
 
 
-    call copy(qc,qstar)
+    call copy(qc,qstar) !qstar = qc
     call axpy(Kdotq,qstar)
 
-
-
-
-    call print_vector(Fphi(:,ichain),'Poly SDE, Fphi:')
-    call print_vector(Fphi_all(:),'Poly SDE, Fphi_all:')
+    !call print_vector(Kdotq(:),'Poly SDE, Kdotq:')
+    !call print_vector(Fphi(:,ichain),'Poly SDE, Fphi:')
+    !call print_vector(Fphi_all(:),'Poly SDE, Fphi_all:')
 
     if (applFext) then !continue here!
       Fphi(1,ichain)=Fphi(1,ichain)-Fext0
@@ -430,9 +428,14 @@ contains
         !call print_vector(Ftet(3*(ichain_pp-1)+1:3*(ichain_pp)),'Ftet (predictor)')
       end do
     end if
-    call print_vector(Fphi(:,ichain),'Poly SDE, Fphi after Ftet:')
+
+    !call print_vector(Fphi(:,ichain),'Poly SDE, Fphi after Ftet:')
+
+    !updating the full Fphi_all vector
     Fphi_all(1:nbeadx3) = Fphi(:,ichain)
-    call print_vector(Fphi_all(:),'Poly SDE, Fphi_all after Ftet:')
+
+    !call print_vector(Fphi_all(:),'Poly SDE, Fphi_all after Ftet:')
+
 
 
     call gemv(AdotDP1,Fphi_all(:),qstar,alpha=0.25*dt(iPe,idt),&
@@ -478,7 +481,7 @@ contains
     !add brownian motion of the beads
     call axpy(FBr,qstar) ! line 1068
 
-    !TYL trying out just Euler scheme (3/11/19)
+    !Euler scheme: putting qstar back into qc
     qc(:)=qstar(:)
 
     if (debug_TYL) then

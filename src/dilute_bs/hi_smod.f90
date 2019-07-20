@@ -124,7 +124,7 @@ contains
     if (HITens == 'Blake') then
       call calc_hibw(this%hibw,i,j,rij,DiffTens)
     endif
-    !------------
+
     ! Oseen solid sphere
     if ((HITens == 'Osph') .and. (i<nbead+1) .and. (j<nbead+1)) then
       if (i==j) then
@@ -136,8 +136,8 @@ contains
     endif
     !------------
 
+    !Sphere self interaction is reduced by factor of (sqrt(pi)*hstar/a_sph)
     if ((i == nbead+1) .and. (j == nbead+1)) then
-      print *, 'a_sph is',this%a_sph
       DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3)*(sqrtPI*hstar/this%a_sph)
     endif
 

@@ -177,7 +177,9 @@ module dlt_mod
     integer :: idx_pp_seg,idx_pp_bead
     real(wp),allocatable,dimension(:) :: Ftet,Fbartet
     logical :: debug_TYL
-
+    real(wp),dimension(3) :: r_bead_sph
+    real(wp) :: r_bead_sph_mag
+    integer :: osi
     debug_TYL = .false.
 
     call prcs_inp(id,p)
@@ -549,7 +551,7 @@ module dlt_mod
     end if
     call mysde%init(Kappareg,Kappa,Amat,Amat_sph,Bmat,KappaBF,AmatBF,nbead_bb,nseg_bb)
 
-    call print_matrix(Amat_sph,'Amat_sph from dlt')
+
 
    if ((hstar == 0._wp) .or. (DecompMeth == 'Chebyshev')) then
     Eye=0._wp
@@ -806,12 +808,12 @@ module dlt_mod
         end if ! Adjust_dt
         ! Calculating time passed based on time step:
         time=time+dt(iPe,idt)
-        if (debug_TYL) then
-          print *, '----------------------------------'
-          print *, 'itime = ', itime
-          print *, 'time = ', time
-          print *, '----------------------------------'
-        end if
+
+        !print *, '----------------------------------'
+        !print *, 'itime = ', itime
+        !print *, 'time = ', time
+        !print *, '----------------------------------'
+
         if (id == 0) then
           ! Constructing a block of random numbers for ncols time steps by rank 0
           if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
@@ -970,10 +972,10 @@ module dlt_mod
 
           call sprforce(id,qc,nseg,ForceLaw,TruncMethod,Fseg)
 
-          if (debug_TYL) then
-            call print_vector(Fseg(:),'Fseg(922): ')
-            call print_vector(qc(:),'qc(923): ')
-          end if
+
+          !call print_vector(Fseg(:),'Fseg: ')
+          !call print_vector(qc(:),'qc: ')
+
           ! !TYL - correcting the force in the tethered springs---
           ! do ichain_pp=1,nchain_pp
           !   offset = nseg_indx3*(ichain_pp-1)
@@ -1001,21 +1003,14 @@ module dlt_mod
               !                  call HICalc(rvmrcP,nseg,HITens,DiffTensP,EV_bb,Fev)
               !call print_matrix(DiffTensP,'d2')
 
-  ! if (ichain==1) then
-  !   if (itime>4250 .and. mod(itime,5)==0) then
-  !     print*,'itime',itime
-  !     call print_vector(rvmrcP,'rvmrc')
-  !     read(*,*)
-  !   endif
-  ! endif
+
               !print *, 'before first calc--------------------------------'
 
-              call print_matrix(DiffTensP,'DiffTensP before calc:')
 
               call myintrn%calc(id,itime,rvmrcP,rcmP,r_sphP,nseg,DiffTensP,divD,Fev,Fbarev,Fev_sph,&
                 calchi=.true.,calcdiv=.true.,calcevbb=.true.,calcevbw=.true.)
 
-              call print_matrix(DiffTensP,'DiffTensP after calc:')
+              !call print_matrix(DiffTensP,'DiffTensP after calc:')
 
               if (debug_TYL) then
                 call print_vector(r_sphP,'r_sphP to calc D')
@@ -1039,16 +1034,30 @@ module dlt_mod
                 if (HITens == 'Blake') then
                   call potrf(CoeffTensP,info=info)
                 else
-
-
-
-                  call print_matrix(CoeffTensP,'CoeffTensP before potrf (DiffTensP)')
                   call potrf(CoeffTensP,info=info)
-                  call print_matrix(CoeffTensP,'CoeffTensP after potrf')
-
                 endif
                 !print *, 'after Cholesky'
                 if (info /= 0) then
+                  call print_matrix(DiffTensP,'DiffTens')
+
+                  do ibead=1,nbead
+                    osi=3*(ibead-1)
+                    ichain_pp = (ibead-1) / nbead_ind + 1
+
+                    r_bead_sph(:) = rvmrcP(osi+1:osi+3)+rcmP(:,ichain_pp) - r_sphP(:)
+                    r_bead_sph_mag = sqrt(r_bead_sph(1)**2 + r_bead_sph(2)**2 + r_bead_sph(3)**2)
+                    call print_vector(r_bead_sph(:),'r_bead_sph')
+                    print *, 'magnitude is: ', r_bead_sph_mag
+
+                    ! call print_vector(r_sphP,'r_sphP to calc D')
+                    ! call print_vector(rvmrcP(1:9),'rvmrcP 1 to calc D')
+                    ! call print_vector(rcmP(:,1),'rcmP 1 to calc D')
+                    ! call print_vector(rvmrcP(10:18),'rvmrcP 2 to calc D')
+                    ! call print_vector(rcmP(:,2),'rcmP 2 to calc D')
+                    ! call print_matrix(DiffTensP,'DiffTensP (966):')
+                  end do
+                  call print_vector(r_sphP,'r_sphP')
+
                   print '(" Unsuccessful Cholesky fact. of D in main.")'
                   print '(" info: ",i3)',info
                   stop
@@ -1059,9 +1068,9 @@ module dlt_mod
                 if (HITens == 'Blake') then
                   call trmm(CoeffTensP,wbltempP1,transa='T')
                 else
-                  call print_matrix(wbltempP1,'wbltempP1 (dW)')
+                  !call print_matrix(wbltempP1,'wbltempP1 (dW)')
                   call trmm(CoeffTensP,wbltempP1,transa='T')
-                  call print_matrix(wbltempP1,'wbltempP1 (C*dW)')
+                  !call print_matrix(wbltempP1,'wbltempP1 (C*dW)')
                 endif
 
               else
@@ -1124,9 +1133,11 @@ module dlt_mod
               if (tplgy == 'Linear') then
                 !AmatBF is not right
                 !call gbmv(AmatBF,real(wbltempP2,kind=wp),FBrblP,kl=0,m=nsegx3,alpha=coeff)
-                call print_vector(wbltempP2,'wbltempP2 (C*dW)')
+
+                !call print_vector(wbltempP2,'wbltempP2 (C*dW)')
+                !calculation of Brownian displacement for the springs
                 call gemv(Amat_sph,real(wbltempP2,kind=wp),FBrblP,alpha=coeff)
-                call print_vector(FBrblP,'FBrblP ((1/sqrt(2))*A*C*dW)')
+                !call print_vector(FBrblP,'FBrblP ((1/sqrt(2))*A*C*dW)')
 
                 ! !TYL: HI for tethered bead -------------------------------------
                 ! !print *, 'Brownian force calculaton------------'
@@ -1148,7 +1159,7 @@ module dlt_mod
             if (hstar /= 0._wp) then
               call symm(DiffTensP,Amat_sph,AdotDP1,side='R')
 
-              call print_matrix(AdotDP1,'AdotDP1 (A*D):')
+              !call print_matrix(AdotDP1,'AdotDP1 (A*D):')
 
             else
               AdotDP1=Amat
@@ -1202,12 +1213,13 @@ module dlt_mod
           ! Calculating center of mass and/or center of hydrodynamic resistance movement
           if (CoM) then
 
-            print*, '----------------'
-            print*, 'calculation of CoM'
-            print*, '----------------'
+            !print*, '----------------'
+            !print*, 'calculation of CoM'
+            !print*, '----------------'
 
-            call print_vector(Fphi(:,ichain),'Fphi(:,ichain)')
-            call print_vector(Fphi_all(:),'Fphi_all(:)')
+            !call print_vector(Fphi(:,ichain),'Fphi(:,ichain)')
+            !call print_vector(Fphi_all(:),'Fphi_all(:)')
+
             FphiP => Fphi(:,ichain)
             rcmP => rcm(:,ichain,:) ! might be redundant
             ! BdotwPx => wbltemp(1:nbeadx3-2:3,jcol,ichain)
@@ -1221,7 +1233,7 @@ module dlt_mod
               call symv(DiffTensP,Fphi_all(:),DdotF)
 
 
-              call print_vector(DdotF,'DdotF')
+              !call print_vector(DdotF,'DdotF')
 
             else
               DdotF=Fphi_all(:)
@@ -1257,7 +1269,7 @@ module dlt_mod
                 !TYL: adding back self-mobility of first bead-------------------------
 
 
-                call print_vector(DdotF,'fixing DdotF')
+                !call print_vector(DdotF,'fixing DdotF')
 
               end if
               !TYL: HI for tethered bead ---------------------------------------
@@ -1317,14 +1329,18 @@ module dlt_mod
             end if
             !!-------------
 
-            call print_vector(rvmrcP,'rvmrcP (1229)')
-            call print_matrix(rcmP,'rcmP (1230)')
-            call print_vector(rvmrcP(1:3)+rcmP(:,1),'Tether point 1')
-            call print_vector(rf0(:,1,1),'rf0 (1232)')
-            call print_vector(rvmrcP(10:12)+rcmP(:,2),'Tether point 2')
-            call print_vector(rf0(:,1,2),'rf0 (1234)')
+            !debug: seeing if the tether force put the first bead in the right place
+            !2 chains with 3 beads each
+            !call print_vector(rvmrcP,'rvmrcP (1229)')
+            !call print_matrix(rcmP,'rcmP (1230)')
+            !call print_vector(rvmrcP(1:3)+rcmP(:,1),'Tether point 1')
+            !call print_vector(rf0(:,1,1),'rf0 (1232)')
+            !call print_vector(rvmrcP(10:12)+rcmP(:,2),'Tether point 2')
+            !call print_vector(rf0(:,1,2),'rf0 (1234)')
 
           end if
+
+
 
           if (CoHR) then
             if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
@@ -1416,7 +1432,7 @@ module dlt_mod
 
 
 
-            !move the sphere
+            !move the sphere due to bead-sphere collisions
             r_sph(:,ichain) = r_sph(:,ichain) + dr_sph_rflc(:)
 
 
@@ -1476,6 +1492,8 @@ module dlt_mod
 
           end if
 
+
+          !call print_vector(q(:,ichain),' q(:,ichain) (1481): ')
           !call print_matrix(rcmP(:,:),'rcmP(:,:) after (1300)')
           !-----
 

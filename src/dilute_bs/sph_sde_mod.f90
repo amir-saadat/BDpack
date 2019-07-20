@@ -135,21 +135,19 @@ contains
       rf0(1:3,ichain,ichain_pp) = rf0_rel_new(1:3) + r_sph(1:3,ichain)
     end do
 
-    !calculation of the total force on the sphere
+
+    !TRANSLATION------------------------------------------------------
+    !calculation of the total force on the sphere: sum of the tethered spring forces
     F_sph = 0._wp
-    !call print_vector(F_sph(:),'F_sph before:')
-    !call print_vector(Fseg(:),'Fseg')
 
     do ichain_pp = 1,nchain_pp
       offset = nseg_indx3*(ichain_pp-1)
       F_sph(1) = F_sph(1) + Fseg(offset+1)
       F_sph(2) = F_sph(2) + Fseg(offset+2)
       F_sph(3) = F_sph(3) + Fseg(offset+3)
-      !call print_vector(F_sph(:),'F_sph during:')
     end do
 
-
-
+    !calculation of the spring forces on the beads
     if (tplgy == 'Linear') then
       !call gbmv(this%AmatBF,Fseg,Fbead,kl=0,m=nsegx3,alpha=-1.0_wp,trans='T')
       call gemv(Amat,Fseg,Fbead,alpha=-1._wp,trans='T')
@@ -157,39 +155,47 @@ contains
       call gemv(Amat,Fseg,Fbead,alpha=-1._wp,trans='T')
     end if
 
+    !Sum of the forces on the beads
     Fphi(:,ichain)=Fbead+Fev+Fbnd
+
+    !All forces on beads, and the force on the sphere at the end of the vector
     Fphi_all(1:nbeadx3) = Fphi(:,ichain)
     Fphi_all(nbeadx3+1:nbeadx3+3) = F_sph(1:3)
 
+    !A temporary vector also holding Fphi_all.
+    !In calculating the displacement of the sphere due to beads,
+    !the forces on the tethered beads should not be included.
     Fphi_all_temp = Fphi_all
     do ichain_pp = 1,nchain_pp
       offset = nbead_indx3*(ichain_pp-1)
       Fphi_all_temp(offset+1:offset+3) = 0._wp
     end do
 
+    !call print_vector(F_sph(:),'Sph SDE, F_sph:')
+    !call print_vector(Fseg(:),'Sph SDE, Fseg:')
+    !call print_vector(Fbead(:),'Sph SDE, Fbead:')
+    !call print_vector(Fev(:),'Sph SDE, Fev:')
+    !call print_vector(Fbnd(:),'Sph SDE, Fbnd:')
+    !call print_vector(Fphi(:,ichain),'Sph SDE, Fphi:')
+    !call print_vector(Fphi_all(:),'Sph SDE, Fphi_all:')
+    !call print_vector(Fphi_all_temp(:),'Sph SDE, Fphi_all_temp:')
+    !call print_vector(dr_sph,'Sph SDE, dr_sph before:')
 
-    call print_vector(Fseg(:),'Sph SDE, Fseg:')
-    call print_vector(Fbead(:),'Sph SDE, Fbead:')
-    call print_vector(Fev(:),'Sph SDE, Fev:')
-    call print_vector(Fbnd(:),'Sph SDE, Fbnd:')
-    call print_vector(Fphi(:,ichain),'Sph SDE, Fphi:')
-    call print_vector(Fphi_all(:),'Sph SDE, Fphi_all:')
-    call print_vector(Fphi_all_temp(:),'Sph SDE, Fphi_all_temp:')
-
-
-    call print_vector(dr_sph,'Sph SDE, dr_sph before:')
+    !!displacement of the sphere due to the force on the sphere and HI from beads
     call gemv(DiffTensP(nbeadx3+1:nbeadx3+3,:),Fphi_all_temp,dr_sph,alpha=0.25*dt(iPe,idt),beta=1._wp)
 
-    call print_vector(dr_sph,'Sph SDE, dr_sph after:')
+    !call print_vector(dr_sph,'Sph SDE, dr_sph after:')
+    !call print_matrix(wbltempP1,'Sph SDE, wbltempP1')
+    !call print_vector(wbltempP1(:,jcol),'Sph SDE, wbltempP1')
 
-
-    call print_matrix(wbltempP1,'Sph SDE, wbltempP1')
-    call print_vector(wbltempP1(:,jcol),'Sph SDE, wbltempP1')
-
+    !! displacement of the sphere due to Brownian motion 1/sqrt(2) * C*dW
+    !wbltempP1 is the vector (C*dW) for all beads and the sphere
+    !coeff is 1/sqrt(2)
     dr_sph(1:3) = dr_sph(1:3) + coeff*wbltempP1(nbeadx3+1:nbeadx3+3,jcol)
 
-    call print_vector(dr_sph,'Sph SDE, dr_sph after Brownian:')
+    !call print_vector(dr_sph,'Sph SDE, dr_sph after Brownian:')
 
+    !moving the sphere
     r_sph(:,ichain) = r_sph(:,ichain) + dr_sph(1:3)
 
     !update the tether points on the surface of the sphere

@@ -87,6 +87,7 @@ contains
             DiffTens(osi+2,osj+3)=Zeta23;DiffTens(osi+3,osj+2)=Zeta23
             DiffTens(osi+3,osj+3)=Alpha+Zeta*rij%z*rij%z
           else
+            print *, 'Bead-sphere overlap occured! Uh oh.'
             !bead sphere overlap
             !still need to add this from Zuk et al.
           end if

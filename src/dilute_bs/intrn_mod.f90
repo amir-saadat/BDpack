@@ -265,21 +265,13 @@ contains
       Fstarev=0._wp
     end if
 
+    !looping through all beads X all beads
     do jbead=1,nbead!nseg+1
       os=3*(jbead-2) !why is this here?
       osj=3*(jbead-1)
       rjmrc=rvmrc(osj+1:osj+3)
       jchain_pp = (jbead-1) / nbead_ind + 1
 
-      !print *, 'jbead = ', jbead
-      !print *, 'jchain_pp = ', jchain_pp
-
-      ! if ( (id==1 .and. itime==10000) .or. &
-      !      (id==1 .and. itime==20000) ) then
-      !   if (jbead<=3) then
-      !     print*,'rj-intrn',rjmrc+rcm
-      !   endif
-      ! endif
 
       !! Blake's part
       if (hstar /= 0._wp .and. HITens == 'Blake') then
@@ -292,70 +284,17 @@ contains
       endif
       !!-------------
 
-
-
       do ibead=1, ibead_ulim
 
         osi=3*(ibead-1)
         ichain_pp = (ibead-1) / nbead_ind + 1
 
-        ! if (ibead == jbead) then
-        !   if (clhi) then
-        !     DiffTens(osi+1,osj+1)=1._wp
-        !     DiffTens(osi+1,osj+2)=0._wp
-        !     DiffTens(osi+1,osj+3)=0._wp
-        !     DiffTens(osi+2,osj+2)=1._wp
-        !     DiffTens(osi+2,osj+3)=0._wp
-        !     DiffTens(osi+3,osj+3)=1._wp
-        !   end if
-        ! else
-        !   rimrc=rvmrc(osi+1:osi+3)
-        !   ! rij%x=rjmrc(1)-rimrc(1)
-        !   ! rij%y=rjmrc(2)-rimrc(2)
-        !   ! rij%z=rjmrc(3)-rimrc(3)
-        !   rij%x=rimrc(1)-rjmrc(1)
-        !   rij%y=rimrc(2)-rjmrc(2)
-        !   rij%z=rimrc(3)-rjmrc(3)
-        !   rij%mag2=rij%x**2+rij%y**2+rij%z**2
-        !   rij%mag=sqrt(rij%mag2)
-
-        !   if (HITens == 'Blake') then
-        !     rij%ry=rjmrc(2)+rcm(2)
-        !     rij%yim=rimrc(2)+rcm(2)+rij%ry
-        !     rij%mag2im=rij%x**2+rij%yim**2+rij%z**2
-        !     rij%magim=sqrt(rij%mag2im)
-        !   endif
-        !   if (clhi) call calc_hi(this%hi,ibead,jbead,rij,DiffTens)
-        !   if (clev) call evcalc3(ibead,jbead,rij,Fev)
-        !   if (upev) call evcalc3(ibead,jbead,rij,Fstarev)
-        ! end if ! ibead /= jbead
-
-
-
-        ! if (ibead /= jbead) then
-
-
-          ! if (clhi) then
-          !   DiffTens(osi+1,osj+1)=1._wp
-          !   DiffTens(osi+1,osj+2)=0._wp
-          !   DiffTens(osi+1,osj+3)=0._wp
-          !   DiffTens(osi+2,osj+2)=1._wp
-          !   DiffTens(osi+2,osj+3)=0._wp
-          !   DiffTens(osi+3,osj+3)=1._wp
-          ! end if
-
-
-        ! else
-
-          rimrc=rvmrc(osi+1:osi+3)
-          ! rij%x=rjmrc(1)-rimrc(1)
-          ! rij%y=rjmrc(2)-rimrc(2)
-          ! rij%z=rjmrc(3)-rimrc(3)
-          rij%x=(rimrc(1)-rjmrc(1)) + (rcm(1,ichain_pp)-rcm(1,jchain_pp))
-          rij%y=(rimrc(2)-rjmrc(2)) + (rcm(2,ichain_pp)-rcm(2,jchain_pp))
-          rij%z=(rimrc(3)-rjmrc(3)) + (rcm(3,ichain_pp)-rcm(3,jchain_pp))
-          rij%mag2=rij%x**2+rij%y**2+rij%z**2
-          rij%mag=sqrt(rij%mag2)
+        rimrc=rvmrc(osi+1:osi+3)
+        rij%x=(rimrc(1)-rjmrc(1)) + (rcm(1,ichain_pp)-rcm(1,jchain_pp))
+        rij%y=(rimrc(2)-rjmrc(2)) + (rcm(2,ichain_pp)-rcm(2,jchain_pp))
+        rij%z=(rimrc(3)-rjmrc(3)) + (rcm(3,ichain_pp)-rcm(3,jchain_pp))
+        rij%mag2=rij%x**2+rij%y**2+rij%z**2
+        rij%mag=sqrt(rij%mag2)
 
 
         if (ibead /= jbead) then
@@ -413,7 +352,7 @@ contains
     jbead = nbead+1
     if (clhi) call calc_hi(this%hi,ibead,jbead,rij,DiffTens)
 
-    !Sphere bead interaction
+    !Sphere bead interaction: need to fill in bottom row and right column of D
     ibead = nbead+1
     do jbead=1,nbead
       osj=3*(jbead-1)
@@ -438,8 +377,6 @@ contains
       rij%mag=sqrt(rij%mag2)
       if (clhi) call calc_hi(this%hi,ibead,jbead,rij,DiffTens)
     end do
-
-
 
     !call print_matrix(DiffTens(:,:),'DiffTens')
     if ((upevbb).or.(upevbw)) then

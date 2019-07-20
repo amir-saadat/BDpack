@@ -362,7 +362,7 @@ contains
 
 
 
-          
+
           dr_sph_rflc(1)=dr_sph_rflc(1) - 1._wp*((sqrtPI*this%hstar/corr)/(this%a_sph+sqrtPI*this%hstar/corr))*&
             shift*(Rx(ib)-r_sph(1))/r_mag_bs
           dr_sph_rflc(2)=dr_sph_rflc(2) - 1._wp*((sqrtPI*this%hstar/corr)/(this%a_sph+sqrtPI*this%hstar/corr))*&
