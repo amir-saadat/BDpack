@@ -144,7 +144,7 @@ contains
     errormin=real(1.e-2,kind=wp)
     upfactr=50
     EV_bb='NoEV';dstar=1._wp;dstarCalc='Kumar';minNonBond=1
-    EV_bw='NoEV';Aw=25._wp
+    EV_bw='NoEV';Aw=25._wp ! 25?
     initmode='st';infrx=0.7_wp;infry=0._wp;infrz=0._wp
     tend=10._wp;tss=5._wp;trst=0._wp
     ndt=1;dti=0.01_wp;dtf=0.01_wp;dtSpacing='Linear';dtCalc='Self';dtScale=.false.

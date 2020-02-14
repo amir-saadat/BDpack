@@ -88,7 +88,7 @@ contains
   module procedure calc_hi
 
 
-    use :: inp_dlt, only: HITens,nbead,hstar
+    use :: inp_dlt, only: HITens,nbead,hstar,nbead_ind
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp),parameter :: sqrtPI=sqrt(PI)
 
@@ -107,14 +107,17 @@ contains
       DiffTens(osi+2,osj+3)=0._wp
       DiffTens(osi+3,osj+3)=1._wp
 
-      !Tiras addition
+      !bottom left of matrix
       DiffTens(osi+2,osj+1)=0._wp
       DiffTens(osi+3,osj+1)=0._wp
       DiffTens(osi+3,osj+2)=0._wp
 
     else
-
-      call calc_hibb(this%hibb,i,j,rij,DiffTens)
+      if (((MOD(i-1,nbead_ind)==0).and.(i<nbead+1)) .or. ((MOD(j-1,nbead_ind)==0).and.(j<nbead+1))) then
+        DiffTens(osi+1:osi+3,osj+1:osj+3)=0._wp
+      else
+        call calc_hibb(this%hibb,i,j,rij,DiffTens)
+      endif
 
     endif
 
@@ -129,9 +132,19 @@ contains
     if ((HITens == 'Osph') .and. (i<nbead+1) .and. (j<nbead+1)) then
       if (i==j) then
         !4/16/19 TYL do we need the correction to self-mobility?
-        call calc_hibw(this%hibw,i,j,rij,DiffTens)
+        if (MOD(i-1,nbead_ind)==0) then !since i==j, only need one condition
+          !DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3)*(sqrtPI*hstar/this%a_sph)
+        else
+          call calc_hibw(this%hibw,i,j,rij,DiffTens)
+        endif
+
       else
-        call calc_hibw(this%hibw,i,j,rij,DiffTens)
+        if ((MOD(i-1,nbead_ind)==0) .or. (MOD(j-1,nbead_ind)==0)) then
+          DiffTens(osi+1:osi+3,osj+1:osj+3)=0._wp
+          !call calc_hibw(this%hibw,i,j,rij,DiffTens)
+        else
+          call calc_hibw(this%hibw,i,j,rij,DiffTens)
+        endif
       endif
     endif
     !------------

@@ -30,7 +30,7 @@ contains
     real(wp), dimension(3,3) :: Sij,Pij_D,Sij_D,Hij_PD,Hji_PD
     real(wp), dimension(3,3) :: Omega_PF,Omegaij_PD,Omegaji_PD,Omega_c, Omega_W
     real(wp), dimension(3,3) :: dpdx, G_sph
-
+    real(wp) :: D_norm
     osi=3*(i-1)
     osj=3*(j-1)
 
@@ -58,9 +58,29 @@ contains
 
     case('Osph')
 
-      call G_sph_Calc(G_sph,dpdx,this%a_sph,rij)
-      DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) + &
-        (3*sqrtPI*hstar/4) * G_sph
+      !D_norm = sqrt(DiffTens(osi+1,osj+1)**2+DiffTens(osi+1,osj+2)**2+DiffTens(osi+1,osj+3)**2+ &
+    !                DiffTens(osi+2,osj+1)**2+DiffTens(osi+2,osj+2)**2+DiffTens(osi+2,osj+3)**2+  &
+  !                  DiffTens(osi+3,osj+1)**2+DiffTens(osi+3,osj+2)**2+DiffTens(osi+3,osj+3)**2)
+
+      if ((sqrt(rij%rjx**2 + rij%rjy**2 + rij%rjz**2) < this%a_sph*1.25_wp) .or. (sqrt(rij%rix**2 + rij%riy**2 + rij%riz**2) < this%a_sph*1.25_wp)) then !this%a_sph*100_wp
+        !if (( D_norm < sqrt(3_wp*(.0586_wp**2)) ) .and. (i/=j)) then
+        if (i/=j) then
+          !print *, 'zeroing D'
+          DiffTens(osi+1:osi+3,osj+1:osj+3) = 0.0_wp
+        else
+          !DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) + &
+          !  (3*sqrtPI*hstar/4) * G_sph
+        endif
+      else
+
+        call G_sph_Calc(G_sph,dpdx,this%a_sph,rij)
+        DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) + &
+            (3*sqrtPI*hstar/4) * G_sph
+
+      endif
+
+      ! DiffTens(osi+1:osi+3,osj+1:osj+3) = DiffTens(osi+1:osi+3,osj+1:osj+3) + &
+      !   (3*sqrtPI*hstar/4) * G_sph
 
       ! if ((i==j) .and. &
       !   ( (sqrt(rij%rjx**2+rij%rjy**2+rij%rjz**2)-this%a_sph) < (1.5_wp * sqrtPI*hstar) ) ) then
@@ -94,6 +114,8 @@ contains
 
   !calculate the Green's function for point force outside of a sphere
   subroutine G_sph_Calc(G_sphTens,dpdxTens,a_sph,rij)
+
+    use :: inp_dlt, only: hstar
 
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp),parameter :: sqrtPI=sqrt(PI)
@@ -263,14 +285,31 @@ contains
                   (x_mag*(rr_star**2)*((x_mag*rr_star + x_dot_xx_star)**2))
         end if
 
-        !the point force Stokeslet is already accounted for in hibb
-        !(dij/r + x_hat_i*x_hat_j/r**3)
-        G_sphTens(i,j) =  0.0_wp - &
-            a_sph*dij/(rr*r_star) - &
-            ((a_sph**3)/rr**3)*(x_hat_star_i*x_hat_star_j / (r_star**3)) - &
-            ((rr**2-a_sph**2)/rr) * (xx_star_i*xx_star_j*(1/((a_sph**3) * r_star) + 2*(xx_star_x*x_hat_star_x + xx_star_y*x_hat_star_y + xx_star_z*x_hat_star_z)/((a_sph**3) * (r_star**3))) - &
-                (a_sph/(rr**2))* (xx_star_j*x_hat_star_i + xx_star_i*x_hat_star_j)/(r_star**3)) - &
-            ((x_mag**2 - a_sph**2)*(rr**2 - a_sph**2)/(2*(rr**3))*dpdxTens(i,j));
+
+
+
+        ! if (((sqrt(rij%rjx**2 + rij%rjy**2 + rij%rjz**2) < a_sph*1.25_wp) .or. (sqrt(rij%rix**2 + rij%riy**2 + rij%riz**2) < a_sph*1.25_wp)) .and. (rij%mag > a_sph*0.5_wp))then
+        !   ! G_sphTens(i,j) =  0.0_wp - &
+        !   !     dij/(r_star) - (hstar**2*PI)*dij/(3*r_star**3) - &
+        !   !     (x_hat_star_i*x_hat_star_j / (r_star**3)) + (hstar**2*PI)*(x_hat_star_i*x_hat_star_j / (r_star**5))
+        !
+        !   G_sphTens(i,j) =  0.0_wp! - &
+        !       !dij/(r_star) - &
+        !       !(x_hat_star_i*x_hat_star_j / (r_star**3))
+        !   !print *, 'hey there'
+        ! else
+
+
+          !the point force Stokeslet is already accounted for in hibb
+          !(dij/r + x_hat_i*x_hat_j/r**3)
+          G_sphTens(i,j) =  0.0_wp - &
+              a_sph*dij/(rr*r_star) - &
+              ((a_sph**3)/rr**3)*(x_hat_star_i*x_hat_star_j / (r_star**3)) - &
+              ((rr**2-a_sph**2)/rr) * (xx_star_i*xx_star_j*(1/((a_sph**3) * r_star) + 2*(xx_star_x*x_hat_star_x + xx_star_y*x_hat_star_y + xx_star_z*x_hat_star_z)/((a_sph**3) * (r_star**3))) - &
+                  (a_sph/(rr**2))* (xx_star_j*x_hat_star_i + xx_star_i*x_hat_star_j)/(r_star**3)) - &
+              ((x_mag**2 - a_sph**2)*(rr**2 - a_sph**2)/(2*(rr**3))*dpdxTens(i,j));
+
+        ! endif
 
       end do
     end do

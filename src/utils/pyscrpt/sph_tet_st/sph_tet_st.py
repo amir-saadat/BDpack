@@ -13,11 +13,11 @@ import math
 import sys
 
 #reading in user inputs
-mode = input("[1] Random (1 config) \n[2] Random (ensemble config) \n[3] Ideal \nYour selection: ")
+mode = input("[1] Random (1 config) \n[2] Random (ensemble config) \n[3] Random (ensemble config with min distance) \n[4] Ideal \nYour selection: ")
 
-if (mode == 1) or (mode == 2):
+if (mode == 1) or (mode == 2) or (mode == 3):
     nchain_pp = input("Number of chains per particle (nchain_pp): ")
-elif mode == 3:
+elif mode == 4:
     shape = input("Platonic solid (1-5): ")
     if shape == 1:
         nchain_pp = 4
@@ -35,6 +35,9 @@ elif mode == 3:
 else:
     print 'not an option :('
     sys.exit()
+
+if (mode == 3):
+    min_ang = input("Minimum angle: ")
 
 nchain = input("Number of particles (nchain): ")
 #nchain_pp = input("Number of chains per particle (nchain_pp): ")
@@ -107,6 +110,27 @@ elif mode == 2:
             np.savetxt(rfinst_file,rf_in[:,ichain,ichain_pp],delimiter=' ',newline=' ', fmt='%1.10f')
             rfinst_file.write('\n')
 elif mode == 3:
+    for ichain in xrange(0,nchain):
+        for ichain_pp in xrange(0,nchain_pp):
+            #print 'ichain_pp is ',ichain_pp
+
+            #to ensure that no divisions by a number that is v small will occur
+
+            accept = False
+            while accept == False:
+                accept = True
+                x = np.zeros((3))
+                while np.linalg.norm(x) < .0001:
+                    x = np.random.normal(0,1,3)
+                rf_in_unit[:,ichain,ichain_pp] = (x/np.linalg.norm(x))
+                for jchain_pp in xrange(0,ichain_pp):
+                    #print 'jchain_pp is ',jchain_pp
+                    if (math.acos(np.dot(rf_in_unit[:,ichain,ichain_pp],rf_in_unit[:,ichain,jchain_pp]))<min_ang):
+                        accept = False
+            rf_in[:,ichain,ichain_pp] = rf_in_unit[:,ichain,ichain_pp] * (a+a_sph)
+            np.savetxt(rfinst_file,rf_in[:,ichain,ichain_pp],delimiter=' ',newline=' ', fmt='%1.10f')
+            rfinst_file.write('\n')
+elif mode == 4:
     gr = (1+math.sqrt(5))/2
     for ichain in xrange(0,nchain):
         if shape == 1:

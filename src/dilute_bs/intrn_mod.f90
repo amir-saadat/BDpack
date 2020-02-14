@@ -299,11 +299,14 @@ contains
 
         if (ibead /= jbead) then
 
-          if (clevbb) call calc_evbb(this%evbb,ibead,jbead,rij,Fev)
-          if (upevbb) call calc_evbb(this%evbb,ibead,jbead,rij,Fstarev)
+          if ((MOD(ibead-1,nbead_ind)/=0) .and. (MOD(jbead-1,nbead_ind)/=0)) then
 
-          !print *, ibead
-          !print *, jbead
+            if (clevbb) call calc_evbb(this%evbb,ibead,jbead,rij,Fev)
+            if (upevbb) call calc_evbb(this%evbb,ibead,jbead,rij,Fstarev)
+          endif
+
+          !print *, 'ibead = ', ibead
+          !print *, 'jbead = ', jbead
           !call print_vector(Fev(:),'Constructing Fev:')
         end if ! ibead /= jbead
 
@@ -336,6 +339,7 @@ contains
         if (MOD(jbead-1,nbead_ind)/=0) then
           !print *, 'current bead is ',jbead
           call calc_evbw(this%evbw,jbead,ry,Fev,Fev_sph,r_sph,rjmrc,rcm(:,jchain_pp))
+          !(this,i,ry,Fev,Fev_sph,r_sph,rjmrc,rcmj)
         end if
       end if
       if (upevbw) then

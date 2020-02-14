@@ -139,6 +139,7 @@ contains
     !TRANSLATION------------------------------------------------------
     !calculation of the total force on the sphere: sum of the tethered spring forces
     F_sph = 0._wp
+    F_sph = Fev_sph
 
     do ichain_pp = 1,nchain_pp
       offset = nseg_indx3*(ichain_pp-1)
@@ -146,6 +147,10 @@ contains
       F_sph(2) = F_sph(2) + Fseg(offset+2)
       F_sph(3) = F_sph(3) + Fseg(offset+3)
     end do
+
+    !fake external force for debugging
+    !F_sph(2) = F_sph(2) + 400._wp
+
 
     !calculation of the spring forces on the beads
     if (tplgy == 'Linear') then
@@ -191,6 +196,7 @@ contains
     !! displacement of the sphere due to Brownian motion 1/sqrt(2) * C*dW
     !wbltempP1 is the vector (C*dW) for all beads and the sphere
     !coeff is 1/sqrt(2)
+    !print *,'coeff is ',coeff
     dr_sph(1:3) = dr_sph(1:3) + coeff*wbltempP1(nbeadx3+1:nbeadx3+3,jcol)
 
     !call print_vector(dr_sph,'Sph SDE, dr_sph after Brownian:')

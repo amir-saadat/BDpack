@@ -19,8 +19,10 @@ contains
         this%A=0.75*hstar*sqrtPI
         this%B=hstar**3*PI*sqrtPI/2
         this%B_sph=(1.0_wp/2)*hstar*sqrtPI*(1.0_wp/2)*(hstar**2*PI + this%a_sph**2)
+        !this%B_sph=(1.0_wp/2)*hstar*sqrtPI*(1.0_wp/2)*(this%a_sph**2)
         this%C=(3.0_wp/2)*hstar**3*PI*sqrtPI
         this%C_sph=(3.0_wp/2)*hstar*sqrtPI*(1.0_wp/2)*(hstar**2*PI + this%a_sph**2)
+        !this%C_sph=(3.0_wp/2)*hstar*sqrtPI*(1.0_wp/2)*(this%a_sph**2)
         this%D=2*sqrtPI*hstar
         this%D_sph=sqrtPI*hstar +this%a_sph
         this%E=9/(32*sqrtPI*hstar)
@@ -80,12 +82,17 @@ contains
             Gamm=this%C_sph/rijmag5
             Zeta=Beta-Gamm
             Zeta12=Zeta*rij%x*rij%y;Zeta13=Zeta*rij%x*rij%z;Zeta23=Zeta*rij%y*rij%z
-            DiffTens(osi+1,osj+1)=Alpha+Zeta*rij%x*rij%x
-            DiffTens(osi+1,osj+2)=Zeta12;DiffTens(osi+2,osj+1)=Zeta12
-            DiffTens(osi+1,osj+3)=Zeta13;DiffTens(osi+3,osj+1)=Zeta13
-            DiffTens(osi+2,osj+2)=Alpha+Zeta*rij%y*rij%y
-            DiffTens(osi+2,osj+3)=Zeta23;DiffTens(osi+3,osj+2)=Zeta23
-            DiffTens(osi+3,osj+3)=Alpha+Zeta*rij%z*rij%z
+
+            !if (rij%mag < this%a_sph*1.25_wp) then
+              DiffTens(osi+1,osj+1)=Alpha+Zeta*rij%x*rij%x
+              DiffTens(osi+1,osj+2)=Zeta12;DiffTens(osi+2,osj+1)=Zeta12
+              DiffTens(osi+1,osj+3)=Zeta13;DiffTens(osi+3,osj+1)=Zeta13
+              DiffTens(osi+2,osj+2)=Alpha+Zeta*rij%y*rij%y
+              DiffTens(osi+2,osj+3)=Zeta23;DiffTens(osi+3,osj+2)=Zeta23
+              DiffTens(osi+3,osj+3)=Alpha+Zeta*rij%z*rij%z
+            !else
+            !  DiffTens(osi+1:osi+3,osj+1:osj+3) = 0._wp
+            !endif
           else
             print *, 'Bead-sphere overlap occured! Uh oh.'
             !bead sphere overlap

@@ -809,10 +809,10 @@ module dlt_mod
         ! Calculating time passed based on time step:
         time=time+dt(iPe,idt)
 
-        !print *, '----------------------------------'
-        !print *, 'itime = ', itime
-        !print *, 'time = ', time
-        !print *, '----------------------------------'
+        ! print *, '----------------------------------'
+        ! print *, 'itime = ', itime
+        ! print *, 'time = ', time
+        ! print *, '----------------------------------'
 
         if (id == 0) then
           ! Constructing a block of random numbers for ncols time steps by rank 0
@@ -1010,6 +1010,8 @@ module dlt_mod
               call myintrn%calc(id,itime,rvmrcP,rcmP,r_sphP,nseg,DiffTensP,divD,Fev,Fbarev,Fev_sph,&
                 calchi=.true.,calcdiv=.true.,calcevbb=.true.,calcevbw=.true.)
 
+              !call print_vector(Fev,'Fev')
+              !call print_vector(Fev_sph,'Fev_sph')
               !call print_matrix(DiffTensP,'DiffTensP after calc:')
 
               if (debug_TYL) then
@@ -1035,6 +1037,7 @@ module dlt_mod
                   call potrf(CoeffTensP,info=info)
                 else
                   call potrf(CoeffTensP,info=info)
+                  !call print_matrix(CoeffTensP,'CoeffTensP')
                 endif
                 !print *, 'after Cholesky'
                 if (info /= 0) then
@@ -1047,7 +1050,10 @@ module dlt_mod
                     r_bead_sph(:) = rvmrcP(osi+1:osi+3)+rcmP(:,ichain_pp) - r_sphP(:)
                     r_bead_sph_mag = sqrt(r_bead_sph(1)**2 + r_bead_sph(2)**2 + r_bead_sph(3)**2)
                     call print_vector(r_bead_sph(:),'r_bead_sph')
-                    print *, 'magnitude is: ', r_bead_sph_mag
+
+                    if (r_bead_sph_mag<4_wp) then
+                       print *, 'magnitude is: ', r_bead_sph_mag
+                    end if
 
                     ! call print_vector(r_sphP,'r_sphP to calc D')
                     ! call print_vector(rvmrcP(1:9),'rvmrcP 1 to calc D')

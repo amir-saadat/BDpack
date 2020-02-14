@@ -1,7 +1,7 @@
 include make.inc
 
 DIRS	 = common dilute_bs semidilute_bs
-EXE	 = BDpack
+EXE	 = BDpack_debug
 OBJS	 = main.o
 OBJLIBS	 = libdlt_bs.a libsmdlt_bs.a
 LIBS	 = -L. -ldlt_bs -lsmdlt_bs
