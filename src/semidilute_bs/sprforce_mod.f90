@@ -63,6 +63,13 @@ module sprforce_mod
   
   !> The type of ev force
   character(len=10),save :: ForceLaw
+  integer,save :: ForceLaw_i
+  !> Different types of force law
+  integer,parameter :: Hookean=1     ,&
+                       FENE   =2     ,&
+                       ILCCP  =3     ,&
+                       WLC_MS =4     ,&
+                       WLC_UD =5
   !> The maximum dimensionless squared length of a spring
   real(wp),save :: b
   !> The maximum dimensionless length of a spring
@@ -78,12 +85,12 @@ contains
 
   !> Initialization of the sprforce module
   !! \param id The rank of the process
-  subroutine init_sprforce(id,nseg)
+  subroutine init_sprforce(id)
 
     use :: strg_mod
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
 
-    integer,intent(in) :: id,nseg
+    integer,intent(in) :: id
     integer :: il,j,ntokens,u1,stat,ios
     character(len=1024) :: line
     character(len=100) :: tokens(10)
@@ -123,6 +130,21 @@ ef: do
     close(u1)
 
     qmx=sqrt(b)
+
+    select case (ForceLaw)
+    case('Hookean')
+      ForceLaw_i=Hookean
+    case('FENE')
+      ForceLaw_i=FENE
+    case('ILCCP')
+      ForceLaw_i=ILCCP
+    case('WLC_MS')
+      ForceLaw_i=WLC_MS
+    case('WLC_UD')
+      ForceLaw_i=WLC_UD
+    case default
+      print('(" Force law not properly chosen.")')
+    end select
   
     select case (ForceLaw)
       case ('WLC_UD')
@@ -151,7 +173,7 @@ ef: do
   !! \param invbs the inverse of box dimensions
   !! \param F totoal force on particles
   subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nchain,nseg,nbead,&
-                          ntotseg,ntotsegx3,ntotbeadx3)
+                          ntotseg,ntotsegx3,ntotbead,ntotbeadx3,Qt)
 
     use :: arry_mod, only: print_vector
     use :: conv_mod, only: Bbar_vals,Bbar_cols,Bbar_rowInd
@@ -163,11 +185,13 @@ ef: do
     real(wp),intent(in) :: Rbx(:)
     real(wp),intent(in) :: Rby(:)
     real(wp),intent(in) :: Rbz(:)
-    real(wp),intent(in) :: bs(3),invbs(3) 
+    real(wp),intent(in) :: bs(3),invbs(3)
 !    real(wp),intent(inout) :: F(:)
-    integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3
+    integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3
+    real(wp),intent(in) :: Qt(:)
     integer :: its,ich,osb,oss,is
     real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
+
 
 !!$omp parallel default(private) &
 !!$omp shared(this,ntotseg,nchain,nbead,nseg,Rbx,Rby,Rbz,bs,invbs)  &
@@ -175,13 +199,17 @@ ef: do
 !!$omp shared(WLC_v,WLC_A,WLC_B) reduction(-:rFphi) 
 !!$omp do schedule(auto)
     do its=1, ntotseg
-      ich=(its-1)/nseg+1
-      oss=(ich-1)*nseg
-      osb=(ich-1)*nbead
-      is=its-oss
-      qx=Rbx(osb+is+1)-Rbx(osb+is)
-      qy=Rby(osb+is+1)-Rby(osb+is)
-      qz=Rbz(osb+is+1)-Rbz(osb+is)
+      ! ich=(its-1)/nseg+1
+      ! oss=(ich-1)*nseg
+      ! osb=(ich-1)*nbead
+      ! is=its-oss
+      ! qx=Rbx(osb+is+1)-Rbx(osb+is)
+      ! qy=Rby(osb+is+1)-Rby(osb+is)
+      ! qz=Rbz(osb+is+1)-Rbz(osb+is)
+      qx=Qt((its-1)*3+1)
+      qy=Qt((its-1)*3+2)
+      qz=Qt((its-1)*3+3)
+
       qx=qx-nint(qx*invbs(1))*bs(1)
       qy=qy-nint(qy*invbs(2))*bs(2)
       qz=qz-nint(qz*invbs(3))*bs(3)
@@ -216,9 +244,13 @@ ef: do
         case ('Hookean')
           Ftmp = 1._wp
       end select
-      this%Fs((oss+is-1)*3+1)=Ftmp*qx
-      this%Fs((oss+is-1)*3+2)=Ftmp*qy
-      this%Fs((oss+is-1)*3+3)=Ftmp*qz
+      ! this%Fs((oss+is-1)*3+1)=Ftmp*qx
+      ! this%Fs((oss+is-1)*3+2)=Ftmp*qy
+      ! this%Fs((oss+is-1)*3+3)=Ftmp*qz
+      this%Fs((its-1)*3+1)=Ftmp*qx
+      this%Fs((its-1)*3+2)=Ftmp*qy
+      this%Fs((its-1)*3+3)=Ftmp*qz
+
       rFphi(1)=rFphi(1)-qx*Ftmp*qx
       rFphi(2)=rFphi(2)-qx*Ftmp*qy
       rFphi(3)=rFphi(3)-qy*Ftmp*qy

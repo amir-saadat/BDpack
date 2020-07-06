@@ -70,14 +70,14 @@ module chain_mod
 
 contains
 
-  subroutine init_chain(this,id,nsegx3,nbead,nbeadx3,Rb,Rbx,Rby,Rbz,Q,R,&
-                        rcm,cmif,Rbtr,rcmtr,b_img,cm_img)
+  subroutine init_chain(this,id,nchain,nsegx3,nbead,nbeadx3,Rb,Rbx,Rby,Rbz,Q,R,rcm,cmif,Rbtr,rcmtr,&
+    b_img,cm_img,nseg_cmb)
 
     use :: flow_mod, only: FlowType
     use :: io_mod, only: CoMDiff
 
     class(chain),intent(inout) :: this
-    integer,intent(in) :: id,nsegx3,nbead,nbeadx3
+    integer,intent(in) :: id,nchain,nsegx3,nbead,nbeadx3
     real(wp),intent(in),target :: Rb(:)
     real(wp),intent(in),target :: Rbx(:),Rby(:),Rbz(:)
     real(wp),intent(in),target :: Q(:)
@@ -88,41 +88,100 @@ contains
     real(wp),intent(in),target :: rcmtr(:,:)
     integer,intent(in),target :: b_img(:,:)
     integer,intent(in),target :: cm_img(:,:)
+    integer,intent(in),optional :: nseg_cmb
 
-    this%chain_ID=id
-    this%chain_Q => Q((id-1)*nsegx3+1:(id-1)*nsegx3+nsegx3)
-    this%chain_R => R((id-1)*nbeadx3+1:(id-1)*nbeadx3+nbeadx3)
-    this%chain_rcm => rcm(this%chain_ID,:)
-    if ((FlowType == 'Equil').and.CoMDiff) then
-      this%chain_cmif => cmif(this%chain_ID,:)
-    end if
-    this%chain_Rb => Rb((id-1)*nbeadx3+1:(id-1)*nbeadx3+nbeadx3)
-    this%chain_Rbx => Rbx((id-1)*nbead+1:(id-1)*nbead+nbead)
-    this%chain_Rby => Rby((id-1)*nbead+1:(id-1)*nbead+nbead)
-    this%chain_Rbz => Rbz((id-1)*nbead+1:(id-1)*nbead+nbead)
-    if (FlowType == 'PEF') then
-      this%chain_Rbtrx => Rbtr((id-1)*nbead+1:(id-1)*nbead+nbead,1)
-      this%chain_Rbtry => Rbtr((id-1)*nbead+1:(id-1)*nbead+nbead,2)
-      this%chain_rcmtrx => rcmtr(id,1)
-      this%chain_rcmtry => rcmtr(id,2)
-    end if
-    this%chain_b_img => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,:)
-    this%chain_cm_img => cm_img(id,:)
+    integer :: offsetseg,offsetbead1,offsetbead2,nbead_cmb
+
+    ! this%chain_ID=id
+    ! this%chain_Q => Q((id-1)*nsegx3+1:(id-1)*nsegx3+nsegx3)
+    ! this%chain_R => R((id-1)*nbeadx3+1:(id-1)*nbeadx3+nbeadx3)
+    ! this%chain_rcm => rcm(this%chain_ID,:)
+    ! if ((FlowType == 'Equil').and.CoMDiff) then
+    !   this%chain_cmif => cmif(this%chain_ID,:)
+    ! end if
+    ! this%chain_Rb => Rb((id-1)*nbeadx3+1:(id-1)*nbeadx3+nbeadx3)
+    ! this%chain_Rbx => Rbx((id-1)*nbead+1:(id-1)*nbead+nbead)
+    ! this%chain_Rby => Rby((id-1)*nbead+1:(id-1)*nbead+nbead)
+    ! this%chain_Rbz => Rbz((id-1)*nbead+1:(id-1)*nbead+nbead)
+    ! if (FlowType == 'PEF') then
+    !   this%chain_Rbtrx => Rbtr((id-1)*nbead+1:(id-1)*nbead+nbead,1)
+    !   this%chain_Rbtry => Rbtr((id-1)*nbead+1:(id-1)*nbead+nbead,2)
+    !   this%chain_rcmtrx => rcmtr(id,1)
+    !   this%chain_rcmtry => rcmtr(id,2)
+    ! end if
+    ! this%chain_b_img => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,:)
+    ! this%chain_cm_img => cm_img(id,:)
+
+    if (present(nseg_cmb)) then ! comb chain
+
+      nbead_cmb=nseg_cmb+1
+      offsetseg=nchain*nsegx3
+      offsetbead1=nchain*nbead
+      offsetbead2=nchain*nbeadx3
+
+      this%chain_ID=nchain+id
+      this%chain_Q => Q(offsetseg+(id-1)*nseg_cmb*3+1:offsetseg+(id-1)*nseg_cmb*3+nseg_cmb*3)
+      this%chain_R => R(offsetbead2+(id-1)*nbead_cmb*3+1:offsetbead2+(id-1)*nbead_cmb*3+nbead_cmb*3)
+      this%chain_rcm => rcm(this%chain_ID,:)
+      if ((FlowType == 'Equil').and.CoMDiff) then
+        this%chain_cmif => cmif(this%chain_ID,:)
+      end if
+      this%chain_Rb => Rb(offsetbead2+(id-1)*nbead_cmb*3+1:offsetbead2+(id-1)*nbead_cmb*3+nbead_cmb*3)
+      this%chain_Rbx => Rbx(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb)
+      this%chain_Rby => Rby(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb)
+      this%chain_Rbz => Rbz(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb)
+      if (FlowType == 'PEF') then
+        this%chain_Rbtrx => Rbtr(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb,1)
+        this%chain_Rbtry => Rbtr(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb,2)
+        this%chain_rcmtrx => rcmtr(id,1)
+        this%chain_rcmtry => rcmtr(id,2)
+      end if
+      this%chain_b_img => b_img(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb,:)
+      this%chain_cm_img => cm_img(id,:)
+
+    else ! linear chain
+            
+      this%chain_ID=id
+      this%chain_Q => Q((id-1)*nsegx3+1:(id-1)*nsegx3+nsegx3)
+      this%chain_R => R((id-1)*nbeadx3+1:(id-1)*nbeadx3+nbeadx3)
+      this%chain_rcm => rcm(this%chain_ID,:)
+      if ((FlowType == 'Equil').and.CoMDiff) then
+        this%chain_cmif => cmif(this%chain_ID,:)
+      end if
+      this%chain_Rb => Rb((id-1)*nbeadx3+1:(id-1)*nbeadx3+nbeadx3)
+      this%chain_Rbx => Rbx((id-1)*nbead+1:(id-1)*nbead+nbead)
+      this%chain_Rby => Rby((id-1)*nbead+1:(id-1)*nbead+nbead)
+      this%chain_Rbz => Rbz((id-1)*nbead+1:(id-1)*nbead+nbead)
+      if (FlowType == 'PEF') then
+        this%chain_Rbtrx => Rbtr((id-1)*nbead+1:(id-1)*nbead+nbead,1)
+        this%chain_Rbtry => Rbtr((id-1)*nbead+1:(id-1)*nbead+nbead,2)
+        this%chain_rcmtrx => rcmtr(id,1)
+        this%chain_rcmtry => rcmtr(id,2)
+      end if
+      this%chain_b_img => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,:)
+      this%chain_cm_img => cm_img(id,:)
+
+    endif
+
 
   end subroutine init_chain
 
+
   !> Updating the properties of the chain
   !! \param invbs the inverse of box dimensions
-  subroutine update_chain(this,nbead,bs,invbs)
+  subroutine update_chain(this,bs,invbs)
 
     use :: flow_mod, only: FlowType
     use :: trsfm_mod, only: L1,L2
     use :: io_mod, only: CoMDiff
 
     class(chain),intent(inout) :: this
-    integer,intent(in) :: nbead
     real(wp),intent(in) :: bs(3),invbs(3)
+
+    integer :: nbead
     
+    nbead=size(this%chain_Rbx,1)
+
     this%chain_b_img(:,1)=this%chain_b_img(:,1)-this%chain_cm_img(1)
     this%chain_b_img(:,2)=this%chain_b_img(:,2)-this%chain_cm_img(2)
     this%chain_b_img(:,3)=this%chain_b_img(:,3)-this%chain_cm_img(3)

@@ -7,6 +7,7 @@ OBJLIBS	 = libdlt_bs.a libsmdlt_bs.a
 LIBS	 = -L. -ldlt_bs -lsmdlt_bs
 INCS	 = -I ./common/inc
 INCS	+= -I ./dilute_bs/inc
+INCS	+= -I ./dilute_bs/cuda/inc
 INCS	+= -I ./semidilute_bs/inc
 
 UTILSDIR = ./utils
@@ -14,9 +15,10 @@ UTILS    = pdf crrfcn cnfgen wallcollision
 
 all : $(EXE)
 
+#$(COMP) $(GLBFLGS) $(GLBINCS) $(INCS) $(OBJS) -o $(EXE) $(LIBS) $(GLBLIBS)
 $(EXE) : cmnobjs $(OBJLIBS) $(OBJS)
 	$(COMP) $(GLBFLGS) $(GLBINCS) $(INCS) $(OBJS) -o $(EXE) $(LIBS) $(GLBLIBS)
-	$(ECHO) ">>> BDpack compiled on `hostname -s` with $(COMP) <<<"
+	$(ECHO) ">>> BDpack compiled on `hostname -s` with $(CUCOMP) <<<"
 	if [ ! -d "../bin" ];then     \
                 mkdir ../bin;         \
         fi

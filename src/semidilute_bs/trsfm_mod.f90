@@ -53,13 +53,13 @@ module trsfm_mod
     private
 
     !> The x-component of transformed position of the beads
-    real(wp),pointer,contiguous,public :: Rbtrx(:) => null()
+    real(wp),pointer,public :: Rbtrx(:) => null()
     !> The y-component of transformed position of the beads
-    real(wp),pointer,contiguous,public :: Rbtry(:) => null()
+    real(wp),pointer,public :: Rbtry(:) => null()
     !> The x-component of transformed position of the center of mass
-    real(wp),pointer,contiguous,public :: rcmtrx(:) => null()
+    real(wp),pointer,public :: rcmtrx(:) => null()
     !> The y-component of transformed position of the center of mass
-    real(wp),pointer,contiguous,public :: rcmtry(:) => null()
+    real(wp),pointer,public :: rcmtry(:) => null()
 
   contains
 
@@ -198,12 +198,16 @@ contains
         eps_m=mod(eps,eps_p)
         eps_r=eps/eps_p
     end select
-    if (floor(eps_r) == ieps) then
-      ieps=ieps+1
-      reArng=.true.
-    else
-      reArng=.false.
-    end if
+
+    reArng=.false.
+    if (FlowType == 'PSF' .or. FlowType == 'PEF') then
+      if (floor(eps_r) == ieps) then
+        ieps=ieps+1
+        reArng=.true.
+      else
+        reArng=.false.
+      end if
+    endif
 
   end subroutine update_arng
 
@@ -243,17 +247,21 @@ contains
   !> Constructor for trsfm type
   !! \param ntotbead total number of beads inside the box
   !! \param nchain the number of chain inside the box
-  subroutine init_trsfm_t(this,nchain,ntotbead,Rbtr,rcmtr)
+  subroutine init_trsfm_t(this,Rbtr,rcmtr)
 
 !    use :: inp_smdlt, only: ntotbead,nchain
     use :: flow_mod, only: FlowType
 
     class(trsfm),intent(inout) :: this
-    integer,intent(in) :: ntotbead,nchain
-    real(wp),intent(in),target :: Rbtr(:,:)
-    real(wp),intent(in),target :: rcmtr(:,:)
+    ! integer,intent(in) :: ntotbead,nchain
+    real(wp),intent(in),target,contiguous :: Rbtr(:,:)
+    real(wp),intent(in),target,contiguous :: rcmtr(:,:)
 
     select case (FlowType)
+      case ('Equil')
+        ! Rbtr and rcmtr in this case are zero-sized
+        this%Rbtrx(1:size(Rbtr)) => Rbtr
+        this%rcmtrx(1:size(rcmtr)) => rcmtr
       case ('PSF')
         this%Rbtrx => Rbtr(:,1)
         this%rcmtrx => rcmtr(:,1)
@@ -275,12 +283,12 @@ contains
   !! \param str the modulo(strain,max(strain))
   !! \param b_img the image of the beads inside the primary box
   !! \param cm_img the image of the center of mass inside the primary box
-  subroutine applypbc_glob(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,nbead,itime)
+  subroutine applypbc_glob(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,itime)
 
     use :: flow_mod, only: FlowType
 
     class(trsfm),intent(inout) :: this
-    integer,intent(in) :: nbead,itime
+    integer,intent(in) :: itime
     real(wp),intent(in) :: bs(3),invbs(3)
     real(wp),intent(inout) :: Rbx(:)
     real(wp),intent(inout) :: Rby(:)
@@ -290,7 +298,7 @@ contains
     integer,intent(inout) :: cm_img(:,:)
 
     if (FlowType /= 'Equil') call map(this,Rbx,Rby,rcm,itime)
-    call applypbc_rec(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,nbead,itime)
+    call applypbc_rec(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,itime)
     if (FlowType /= 'Equil') call remap(this,bs,invbs,Rbx,Rby,rcm,b_img,cm_img,itime)
 
   end subroutine applypbc_glob
@@ -303,14 +311,14 @@ contains
   !! \param Rbz z-coordinate of the position vector
   !! \param b_img the image of the beads inside the primary box
   !! \param cm_img the image of the center of mass inside the primary box
-  subroutine applypbc_rec(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,nbead,itime)
+  subroutine applypbc_rec(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,itime)
 
     use :: flow_mod, only: FlowType
     use :: arry_mod, only: print_vector,print_matrix
 
     class(trsfm),intent(inout) :: this
     real(wp),intent(in) :: bs(3),invbs(3)
-    integer,intent(in) :: nbead,itime
+    integer,intent(in) :: itime
     real(wp),intent(inout) :: Rbx(:)
     real(wp),intent(inout) :: Rby(:)
     real(wp),intent(inout) :: Rbz(:)
@@ -332,7 +340,9 @@ contains
           Rby(igb)=Rby(igb)-nint(Rby(igb)*invbs(2)-0.5_wp)*bs(2)
           Rbz(igb)=Rbz(igb)-nint(Rbz(igb)*invbs(3)-0.5_wp)*bs(3)
         end do
-!$omp end do simd
+!!$omp end do simd
+
+! call print_matrix(rcm,'rcmtrsfm')
 !$omp do simd
         do ich=1, size(rcm,1)
           cm_img(ich,1)=-nint(rcm(ich,1)*invbs(1)-0.5_wp)
@@ -342,8 +352,10 @@ contains
           rcm(ich,2)=rcm(ich,2)-nint(rcm(ich,2)*invbs(2)-0.5_wp)*bs(2)
           rcm(ich,3)=rcm(ich,3)-nint(rcm(ich,3)*invbs(3)-0.5_wp)*bs(3)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp end parallel
+! call print_matrix(cm_img,'cm_imgtrsfm')
+! call print_matrix(rcm,'rcmtrsfmafter')
       case ('PSF')
 !$omp parallel default(private) shared(this,Rby,Rbz,b_img,bs,invbs,cm_img,rcm)
 !$omp do simd
@@ -356,7 +368,7 @@ contains
           Rby(igb)=Rby(igb)-nint(Rby(igb)*invbs(2)-0.5_wp)*bs(2)
           Rbz(igb)=Rbz(igb)-nint(Rbz(igb)*invbs(3)-0.5_wp)*bs(3)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp do simd
         do ich=1, size(rcm,1)
           cm_img(ich,1)=-nint(this%rcmtrx(ich)*invbs(1)-0.5_wp)
@@ -366,7 +378,7 @@ contains
           rcm(ich,2)=rcm(ich,2)-nint(rcm(ich,2)*invbs(2)-0.5_wp)*bs(2)
           rcm(ich,3)=rcm(ich,3)-nint(rcm(ich,3)*invbs(3)-0.5_wp)*bs(3)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp end parallel
       case ('PEF')
 !$omp parallel default(private) shared(this,Rbz,b_img,bs,invbs,bsx,invbsx,bsy,invbsy,reArng,cm_img,rcm)
@@ -379,7 +391,7 @@ contains
           this%Rbtry(igb)=this%Rbtry(igb)-nint(this%Rbtry(igb)*invbsy-0.5_wp)*bsy
           Rbz(igb)=Rbz(igb)-nint(Rbz(igb)*invbs(3)-0.5_wp)*bs(3)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp do simd
         do ich=1, size(rcm,1)
           cm_img(ich,1)=-nint(this%rcmtrx(ich)*invbsx-0.5_wp)
@@ -389,7 +401,7 @@ contains
           this%rcmtry(ich)=this%rcmtry(ich)-nint(this%rcmtry(ich)*invbsy-0.5_wp)*bsy
           rcm(ich,3)=rcm(ich,3)-nint(rcm(ich,3)*invbs(3)-0.5_wp)*bs(3)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp end parallel
 
     end select
@@ -418,12 +430,12 @@ contains
         do igb=1, size(Rbx,1)
           this%Rbtrx(igb)=Rbx(igb)-eps_m*Rby(igb)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp do simd
         do ich=1, size(rcm,1)
           this%rcmtrx(ich)=rcm(ich,1)-eps_m*rcm(ich,2)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp end parallel
       case ('PEF') 
 !$omp parallel default(private) shared(this,Rbx,Rby,sinth,costh,tanb,rcm)
@@ -432,13 +444,13 @@ contains
           this%Rbtry(igb)=-sinth*Rbx(igb)+costh*Rby(igb)
           this%Rbtrx(igb)= costh*Rbx(igb)+sinth*Rby(igb)-tanb*this%Rbtry(igb)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp do simd
         do ich=1, size(rcm,1)
           this%rcmtry(ich)=-sinth*rcm(ich,1)+costh*rcm(ich,2)
           this%rcmtrx(ich)= costh*rcm(ich,1)+sinth*rcm(ich,2)-tanb*this%rcmtry(ich)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp end parallel
     end select
 
@@ -473,12 +485,12 @@ contains
         do igb=1, size(Rbx,1)
           Rbx(igb)=this%Rbtrx(igb)+eps_m*Rby(igb)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp do simd
         do ich=1, size(rcm,1)
           rcm(ich,1)=this%rcmtrx(ich)+eps_m*rcm(ich,2)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp end parallel
       case ('PEF')
 !$omp parallel default(private) &
@@ -489,14 +501,14 @@ contains
           Rby(igb)=sinth*Rbx(igb)+costh*this%Rbtry(igb)
           Rbx(igb)=costh*Rbx(igb)-sinth*this%Rbtry(igb)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp do simd
         do ich=1, size(rcm,1)
           rcm(ich,1)=this%rcmtrx(ich)+tanb*this%rcmtry(ich)
           rcm(ich,2)=sinth*rcm(ich,1)+costh*this%rcmtry(ich)
           rcm(ich,1)=costh*rcm(ich,1)-sinth*this%rcmtry(ich)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp end parallel
     end select
 
@@ -528,7 +540,7 @@ contains
           ! remap
           Rbx(igb)=this%Rbtrx(igb)+eps_m*Rby(igb)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp end parallel
       case ('PEF')
 !$omp parallel default(private) &
@@ -547,7 +559,7 @@ contains
           Rby(igb)=sinth*Rbx(igb)+costh*this%Rbtry(igb)
           Rbx(igb)=costh*Rbx(igb)-sinth*this%Rbtry(igb)
         end do
-!$omp end do simd
+!!$omp end do simd
 !$omp end parallel
     end select
 
@@ -589,7 +601,7 @@ contains
       V(os+1)= cos(th)*Vx+sin(th)*Vy
       V(os+2)=-sin(th)*Vx+cos(th)*Vy
     end do
-!$omp end do
+!!$omp end do
 !$omp end parallel
 
   end subroutine zrotate

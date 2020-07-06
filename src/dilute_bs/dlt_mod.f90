@@ -22,8 +22,7 @@
 !%------------------------------------------------------------------------%
 module dlt_mod
 
-  use :: mpi
-  use :: iso_fortran_env
+  use,intrinsic :: iso_fortran_env
   use :: inp_dlt
   use :: prcn_mod
   use :: cmn_io_mod, only: read_input
@@ -31,14 +30,23 @@ module dlt_mod
   use :: force_mod, only: sprforce,sprupdate,bndforce,bndupdate,tetforce,tetupdate
   use :: dcmp_mod, only: Lanczos,BlockLanczos,MKLsyevr,BlockChebyshev
   use :: pp_mod, only: pp_init,pp_init_tm,data_prcs,conf_sort,del_pp
-  use :: intrn_mod, only: intrn_t,wall_rflc,print_wcll
-  !use :: rand_mod, only: ranils,ranuls,rangls
+  use :: intrn_mod, only: intrn_t
+  use :: evbw_smod, only: wall_rflc,print_wcll
+  use :: rand_mod, only: ranils,ranuls,rangls
+  use :: sde_mod, only: sde_t
+#ifdef USE_GPU
+  use :: gpu_cumod, only: gpu_cu_t,mmul_test
+#endif
+  use :: mpi
 
   implicit none
+
 
   contains
 
   subroutine dlt_bs(p,id)
+
+    !include 'mpif.h'
 
     integer,intent(in) :: p,id
     ! MPI variables
@@ -94,6 +102,7 @@ module dlt_mod
     real(wp),dimension(2) :: lambdaBE
     real(wp),dimension(3) :: SumBdotw,SumDdotF,LdotBdotw,Ftet,Fbartet,rf_in
     real(wp),dimension(3,3) :: kappareg,totMobilTens,invtotMobilTens
+    real(wp),dimension(3) :: U_unif
     ! Allocatable arrays:
     integer,allocatable,dimension(:) :: mch,Lch
     real(wp),allocatable,dimension(:) :: qstar,qbar,Fbead,Fbarseg
@@ -127,7 +136,14 @@ module dlt_mod
     integer :: u2,u3,u4,u21,u22,u23,u24,u25,u26,u27,u34,u39,u40,u41,u42
     ! objects
     type(intrn_t) :: myintrn
+    type(sde_t) :: mysde
 
+#ifdef USE_GPU
+    type(gpu_cu_t) :: mygpu
+#endif
+
+    real(wp),dimension(nsegx3) :: U_seg
+    real(wp),dimension(nbeadx3) :: U_bead
 
     call prcs_inp(id,p)
 
@@ -320,6 +336,11 @@ module dlt_mod
       call read_input('rf-in',1,rf_in(2),def=0._wp)
       call read_input('rf-in',2,rf_in(3),def=0._wp)
     endif
+    if (unif_flow) then
+      call read_input('U-Unif',0,U_unif(1),def=0._wp)
+      call read_input('U-Unif',1,U_unif(2),def=0._wp)
+      call read_input('U-Unif',2,U_unif(3),def=0._wp)
+    endif
     ! For making the output
     allocate (q_counts(p),q_disps(p))
     allocate (R_counts(p),R_disps(p))
@@ -381,185 +402,388 @@ module dlt_mod
     call sort(Ia)
 
     !----------------------------------------------------------------
-    !>>>>> Constant tensors in SDE:
+    !>>>>> Initializing objects:
     !----------------------------------------------------------------
 
-    ! Specifying kappa based on type of flow
-    if (iflow == 1) then ! Finding Equilibrium
-      xxkappa=0._wp
-      xykappa=0._wp
-      yykappa=0._wp
-      zzkappa=0._wp
-    else if (iflow == 2) then ! Shear Flow
-      xxkappa=0._wp
-      xykappa=1._wp
-      yykappa=0._wp
-      zzkappa=0._wp
-    else if (iflow == 3) then ! Uniaxial Extension
-      xxkappa=1._wp
-      xykappa=0._wp
-      yykappa=-0.5_wp
-      zzkappa=-0.5_wp
-    else if (iflow == 4) then ! biaxial Extension
-      xxkappa=1._wp
-      xykappa=0._wp
-      yykappa=1._wp
-      zzkappa=-2.0_wp
-    else if (iflow == 5) then ! Planar Extension
-      xxkappa=1._wp
-      xykappa=0._wp
-      yykappa=-1._wp
-      zzkappa=0._wp
-    end if
+    ! Initializing mygpu object
+#ifdef USE_GPU
+    call mygpu%init(0)
+    call mmul_test(0)
+#endif
 
-    ! To be used in Predictor-Corrector step
-    Kappa=0._wp
-    forall (iseg=1:3*(nseg-1)+1:3)
-      Kappa(iseg,iseg)=xxkappa
-      Kappa(iseg,iseg+1)=xykappa
-      Kappa(iseg+1,iseg+1)=yykappa
-      Kappa(iseg+2,iseg+2)=zzkappa
-    end forall
-    Kappareg(1,1:3)=(/xxkappa,xykappa,0.0_wp/)
-    Kappareg(2,1:3)=(/0.0_wp ,yykappa,0.0_wp/)
-    Kappareg(3,1:3)=(/0.0_wp ,0.0_wp ,zzkappa/)
-    ! Amat is Bbar and Bmat is B in "DPL" Bird et al.
-    Amat=0.0_wp
-    select case (tplgy)
-    case ('Linear')
-      nseg_bb=nseg
-      nbead_bb=nbead
-      do iseg=1, nseg
-        offseti=3*(iseg-1)
-        do jbead=1, nbead
-          offsetj=3*(jbead-1)
-          if (iseg == jbead) then
-            forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
-          elseif (iseg == jbead-1) then
-            forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
-          end if
-        end do
-      end do
-    case ('Comb')
-      nseg_bb=nseg-Na*nseg_ar
-      nbead_bb=nseg_bb+1
-      iarm=1
-      do iseg=1, nseg
-        offseti=3*(iseg-1)
-        do jbead=1, nbead
-          offsetj=3*(jbead-1)
-          if (iseg <= nseg_bb) then
-            if (jbead == iseg) then
-              forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
-            elseif (jbead == iseg+1) then
-              forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
-            end if
-          else ! iseg > nseg_bb
-            if (iseg-nseg_bb-(iarm-1)*nseg_ar == 1) then
-              if (jbead == Ia(iarm+1)) then
-                forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
-              elseif (jbead == iseg+1) then
-                forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
-              elseif (jbead == nbead) then
-                iarm=iarm+1
-              end if
-            else
-              if (jbead == iseg) then
-                forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
-              elseif (jbead == iseg+1) then
-                forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
-              end if
-            end if
-          end if
-        end do
-      end do
-    end select
-    ! Constructing banded form of Kappa
-    KappaBF=0._wp
-    ku=1;kl=0
-    do j=1, nsegx3
-      k=ku+1-j
-      do i=max(1,j-ku),min(nsegx3,j+kl)
-        KappaBF(k+i,j)=Kappa(i,j)
-      end do
-    end do
-    if (tplgy == 'Linear') then
-      AmatBF=0._wp
-      ! Constructing banded form of Amat
-      ku=3;kl=0
-      do j=1, nbeadx3
-        k=ku+1-j
-        do i=max(1,j-ku),min(nsegx3,j+kl)
-          AmatBF(k+i,j)=Amat(i,j)
-        end do
-      end do
-    end if
-    Bmat=0.0_wp
-    select case (tplgy)
-    case ('Linear')
-      do ibead=1, nbead
-        offseti=3*(ibead-1)
-        do jseg=1, nseg
-          offsetj=3*(jseg-1)
-          if (ibead > jseg) then
-            forall (i=1:3)
-              Bmat(offseti+i,offsetj+i)=jseg/real(nbead,kind=wp)
-            end forall
-          else
-            forall (i=1:3)
-              Bmat(offseti+i,offsetj+i)=-(1-jseg/real(nbead,kind=wp))
-            end forall
-          end if
-        end do
-      end do
-    case ('Comb')
-     ! Constructing the elements of the first row of B
-     do k=1, nseg_bb
-       forall (i=1:3) Bmat(i,3*(k-1)+i)=-(nseg_bb-k+1)/real(nbead,kind=wp)
-     end do
-     do iarm=1, Na
-       fctr=(Na-iarm+1)*nseg_ar/real(nbead,kind=wp)
-       do k=Ia(iarm), Ia(iarm+1)-1
-         forall (i=1:3)
-           Bmat(i,3*(k-1)+i)=Bmat(i,3*(k-1)+i)-fctr
-         end forall
-       end do ! k
-       do k=1, nseg_ar
-         idx=nseg_bb+(iarm-1)*nseg_ar+k
-         forall (i=1:3)
-           Bmat(i,3*(idx-1)+i)=Bmat(i,3*(idx-1)+i)-&
-           (nseg_ar-k+1)/real(nbead,kind=wp)
-         end forall
-       end do ! k
-     end do ! iarm
-     ! Constructing the rest of the rows in backbone
-     do nu=2, nseg_bb+1
-       forall (i=1:3) Bmat(3*(nu-1)+i,:)=Bmat(i,:)
-       do k=1, nu-1
-         forall (i=1:3)
-           Bmat(3*(nu-1)+i,3*(k-1)+i)=Bmat(3*(nu-1)+i,3*(k-1)+i)+1
-         end forall
-       end do ! k
-     end do ! nu
-     ! Constructing the rows for the arms
-     do iarm=1, Na
-       do mu=1, nseg_ar
-         nu=nseg_bb+1+(iarm-1)*nseg_ar+mu
-         forall (i=1:3) Bmat(3*(nu-1)+i,:)=Bmat(i,:)
-         do k=1, Ia(iarm+1)-1
-           forall (i=1:3)
-             Bmat(3*(nu-1)+i,3*(k-1)+i)=Bmat(3*(nu-1)+i,3*(k-1)+i)+1
-           end forall
-         end do ! k
-         do k=1, mu
-           idx=nseg_bb+(iarm-1)*nseg_ar+k
-           forall (i=1:3)
-             Bmat(3*(nu-1)+i,3*(idx-1)+i)=Bmat(3*(nu-1)+i,3*(idx-1)+i)+1
-           end forall
-         end do ! k
-       end do ! mu
-     end do ! iarm
-   end select
+    ! Initializing mysde object
+    ! call mysde%init()
+
+
+     !----------------------------------------------------------------
+     !>>>>> Constant tensors in SDE:
+     !----------------------------------------------------------------
+
+    !  ! Specifying kappa based on type of flow
+    !  if (iflow == 1) then ! Finding Equilibrium
+    !    xxkappa=0._wp
+    !    xykappa=0._wp
+    !    yykappa=0._wp
+    !    zzkappa=0._wp
+    !  else if (iflow == 2) then ! Shear Flow
+    !    xxkappa=0._wp
+    !    xykappa=1._wp
+    !    yykappa=0._wp
+    !    zzkappa=0._wp
+    !  else if (iflow == 3) then ! Uniaxial Extension
+    !    xxkappa=1._wp
+    !    xykappa=0._wp
+    !    yykappa=-0.5_wp
+    !    zzkappa=-0.5_wp
+    !  else if (iflow == 4) then ! biaxial Extension
+    !    xxkappa=1._wp
+    !    xykappa=0._wp
+    !    yykappa=1._wp
+    !    zzkappa=-2.0_wp
+    !  else if (iflow == 5) then ! Planar Extension
+    !    xxkappa=1._wp
+    !    xykappa=0._wp
+    !    yykappa=-1._wp
+    !    zzkappa=0._wp
+    !  end if
+
+    !  ! To be used in Predictor-Corrector step
+    !  Kappa=0._wp
+    !  forall (iseg=1:3*(nseg-1)+1:3)
+    !    Kappa(iseg,iseg)=xxkappa
+    !    Kappa(iseg,iseg+1)=xykappa
+    !    Kappa(iseg+1,iseg+1)=yykappa
+    !    Kappa(iseg+2,iseg+2)=zzkappa
+    !  end forall
+    !  Kappareg(1,1:3)=(/xxkappa,xykappa,0.0_wp/)
+    !  Kappareg(2,1:3)=(/0.0_wp ,yykappa,0.0_wp/)
+    !  Kappareg(3,1:3)=(/0.0_wp ,0.0_wp ,zzkappa/)
+    !  ! Amat is Bbar and Bmat is B in "DPL" Bird et al.
+    !  Amat=0.0_wp
+    !  select case (tplgy)
+    !  case ('Linear')
+    !    nseg_bb=nseg
+    !    nbead_bb=nbead
+    !    do iseg=1, nseg
+    !      offseti=3*(iseg-1)
+    !      do jbead=1, nbead
+    !        offsetj=3*(jbead-1)
+    !        if (iseg == jbead) then
+    !          forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
+    !        elseif (iseg == jbead-1) then
+    !          forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
+    !        end if
+    !      end do
+    !    end do
+    !  case ('Comb')
+    !    nseg_bb=nseg-Na*nseg_ar
+    !    nbead_bb=nseg_bb+1
+    !    iarm=1
+    !    do iseg=1, nseg
+    !      offseti=3*(iseg-1)
+    !      do jbead=1, nbead
+    !        offsetj=3*(jbead-1)
+    !        if (iseg <= nseg_bb) then
+    !          if (jbead == iseg) then
+    !            forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
+    !          elseif (jbead == iseg+1) then
+    !            forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
+    !          end if
+    !        else ! iseg > nseg_bb
+    !          if (iseg-nseg_bb-(iarm-1)*nseg_ar == 1) then
+    !            if (jbead == Ia(iarm+1)) then
+    !              forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
+    !            elseif (jbead == iseg+1) then
+    !              forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
+    !            elseif (jbead == nbead) then
+    !              iarm=iarm+1
+    !            end if
+    !          else
+    !            if (jbead == iseg) then
+    !              forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
+    !            elseif (jbead == iseg+1) then
+    !              forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
+    !            end if
+    !          end if
+    !        end if
+    !      end do
+    !    end do
+    !  end select
+    !  ! Constructing banded form of Kappa
+    !  KappaBF=0._wp
+    !  ku=1;kl=0
+    !  do j=1, nsegx3
+    !    k=ku+1-j
+    !    do i=max(1,j-ku),min(nsegx3,j+kl)
+    !      KappaBF(k+i,j)=Kappa(i,j)
+    !    end do
+    !  end do
+    !  if (tplgy == 'Linear') then
+    !    AmatBF=0._wp
+    !    ! Constructing banded form of Amat
+    !    ku=3;kl=0
+    !    do j=1, nbeadx3
+    !      k=ku+1-j
+    !      do i=max(1,j-ku),min(nsegx3,j+kl)
+    !        AmatBF(k+i,j)=Amat(i,j)
+    !      end do
+    !    end do
+    !  end if
+    !  Bmat=0.0_wp
+    !  select case (tplgy)
+    !  case ('Linear')
+    !    do ibead=1, nbead
+    !      offseti=3*(ibead-1)
+    !      do jseg=1, nseg
+    !        offsetj=3*(jseg-1)
+    !        if (ibead > jseg) then
+    !          forall (i=1:3)
+    !            Bmat(offseti+i,offsetj+i)=jseg/real(nbead,kind=wp)
+    !          end forall
+    !        else
+    !          forall (i=1:3)
+    !            Bmat(offseti+i,offsetj+i)=-(1-jseg/real(nbead,kind=wp))
+    !          end forall
+    !        end if
+    !      end do
+    !    end do
+    !  case ('Comb')
+    !   ! Constructing the elements of the first row of B
+    !   do k=1, nseg_bb
+    !     forall (i=1:3) Bmat(i,3*(k-1)+i)=-(nseg_bb-k+1)/real(nbead,kind=wp)
+    !   end do
+    !   do iarm=1, Na
+    !     fctr=(Na-iarm+1)*nseg_ar/real(nbead,kind=wp)
+    !     do k=Ia(iarm), Ia(iarm+1)-1
+    !       forall (i=1:3)
+    !         Bmat(i,3*(k-1)+i)=Bmat(i,3*(k-1)+i)-fctr
+    !       end forall
+    !     end do ! k
+    !     do k=1, nseg_ar
+    !       idx=nseg_bb+(iarm-1)*nseg_ar+k
+    !       forall (i=1:3)
+    !         Bmat(i,3*(idx-1)+i)=Bmat(i,3*(idx-1)+i)-&
+    !         (nseg_ar-k+1)/real(nbead,kind=wp)
+    !       end forall
+    !     end do ! k
+    !   end do ! iarm
+    !   ! Constructing the rest of the rows in backbone
+    !   do nu=2, nseg_bb+1
+    !     forall (i=1:3) Bmat(3*(nu-1)+i,:)=Bmat(i,:)
+    !     do k=1, nu-1
+    !       forall (i=1:3)
+    !         Bmat(3*(nu-1)+i,3*(k-1)+i)=Bmat(3*(nu-1)+i,3*(k-1)+i)+1
+    !       end forall
+    !     end do ! k
+    !   end do ! nu
+    !   ! Constructing the rows for the arms
+    !   do iarm=1, Na
+    !     do mu=1, nseg_ar
+    !       nu=nseg_bb+1+(iarm-1)*nseg_ar+mu
+    !       forall (i=1:3) Bmat(3*(nu-1)+i,:)=Bmat(i,:)
+    !       do k=1, Ia(iarm+1)-1
+    !         forall (i=1:3)
+    !           Bmat(3*(nu-1)+i,3*(k-1)+i)=Bmat(3*(nu-1)+i,3*(k-1)+i)+1
+    !         end forall
+    !       end do ! k
+    !       do k=1, mu
+    !         idx=nseg_bb+(iarm-1)*nseg_ar+k
+    !         forall (i=1:3)
+    !           Bmat(3*(nu-1)+i,3*(idx-1)+i)=Bmat(3*(nu-1)+i,3*(idx-1)+i)+1
+    !         end forall
+    !       end do ! k
+    !     end do ! mu
+    !   end do ! iarm
+    ! end select
+
+    call mysde%init(Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF,nbead_bb,nseg_bb)
+
+
+   !  !----------------------------------------------------------------
+   !  !>>>>> Constant tensors in SDE:
+   !  !----------------------------------------------------------------
+   !
+   !  ! Specifying kappa based on type of flow
+   !  if (iflow == 1) then ! Finding Equilibrium
+   !    xxkappa=0._wp
+   !    xykappa=0._wp
+   !    yykappa=0._wp
+   !    zzkappa=0._wp
+   !  else if (iflow == 2) then ! Shear Flow
+   !    xxkappa=0._wp
+   !    xykappa=1._wp
+   !    yykappa=0._wp
+   !    zzkappa=0._wp
+   !  else if (iflow == 3) then ! Uniaxial Extension
+   !    xxkappa=1._wp
+   !    xykappa=0._wp
+   !    yykappa=-0.5_wp
+   !    zzkappa=-0.5_wp
+   !  else if (iflow == 4) then ! biaxial Extension
+   !    xxkappa=1._wp
+   !    xykappa=0._wp
+   !    yykappa=1._wp
+   !    zzkappa=-2.0_wp
+   !  else if (iflow == 5) then ! Planar Extension
+   !    xxkappa=1._wp
+   !    xykappa=0._wp
+   !    yykappa=-1._wp
+   !    zzkappa=0._wp
+   !  end if
+   !
+   !  ! To be used in Predictor-Corrector step
+   !  Kappa=0._wp
+   !  forall (iseg=1:3*(nseg-1)+1:3)
+   !    Kappa(iseg,iseg)=xxkappa
+   !    Kappa(iseg,iseg+1)=xykappa
+   !    Kappa(iseg+1,iseg+1)=yykappa
+   !    Kappa(iseg+2,iseg+2)=zzkappa
+   !  end forall
+   !  Kappareg(1,1:3)=(/xxkappa,xykappa,0.0_wp/)
+   !  Kappareg(2,1:3)=(/0.0_wp ,yykappa,0.0_wp/)
+   !  Kappareg(3,1:3)=(/0.0_wp ,0.0_wp ,zzkappa/)
+   !  ! Amat is Bbar and Bmat is B in "DPL" Bird et al.
+   !  Amat=0.0_wp
+   !  select case (tplgy)
+   !  case ('Linear')
+   !    nseg_bb=nseg
+   !    nbead_bb=nbead
+   !    do iseg=1, nseg
+   !      offseti=3*(iseg-1)
+   !      do jbead=1, nbead
+   !        offsetj=3*(jbead-1)
+   !        if (iseg == jbead) then
+   !          forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
+   !        elseif (iseg == jbead-1) then
+   !          forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
+   !        end if
+   !      end do
+   !    end do
+   !  case ('Comb')
+   !    nseg_bb=nseg-Na*nseg_ar
+   !    nbead_bb=nseg_bb+1
+   !    iarm=1
+   !    do iseg=1, nseg
+   !      offseti=3*(iseg-1)
+   !      do jbead=1, nbead
+   !        offsetj=3*(jbead-1)
+   !        if (iseg <= nseg_bb) then
+   !          if (jbead == iseg) then
+   !            forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
+   !          elseif (jbead == iseg+1) then
+   !            forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
+   !          end if
+   !        else ! iseg > nseg_bb
+   !          if (iseg-nseg_bb-(iarm-1)*nseg_ar == 1) then
+   !            if (jbead == Ia(iarm+1)) then
+   !              forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
+   !            elseif (jbead == iseg+1) then
+   !              forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
+   !            elseif (jbead == nbead) then
+   !              iarm=iarm+1
+   !            end if
+   !          else
+   !            if (jbead == iseg) then
+   !              forall (i=1:3) Amat(offseti+i,offsetj+i)=-1._wp
+   !            elseif (jbead == iseg+1) then
+   !              forall (i=1:3) Amat(offseti+i,offsetj+i)= 1._wp
+   !            end if
+   !          end if
+   !        end if
+   !      end do
+   !    end do
+   !  end select
+   !  ! Constructing banded form of Kappa
+   !  KappaBF=0._wp
+   !  ku=1;kl=0
+   !  do j=1, nsegx3
+   !    k=ku+1-j
+   !    do i=max(1,j-ku),min(nsegx3,j+kl)
+   !      KappaBF(k+i,j)=Kappa(i,j)
+   !    end do
+   !  end do
+   !  if (tplgy == 'Linear') then
+   !    AmatBF=0._wp
+   !    ! Constructing banded form of Amat
+   !    ku=3;kl=0
+   !    do j=1, nbeadx3
+   !      k=ku+1-j
+   !      do i=max(1,j-ku),min(nsegx3,j+kl)
+   !        AmatBF(k+i,j)=Amat(i,j)
+   !      end do
+   !    end do
+   !  end if
+   !  Bmat=0.0_wp
+   !  select case (tplgy)
+   !  case ('Linear')
+   !    do ibead=1, nbead
+   !      offseti=3*(ibead-1)
+   !      do jseg=1, nseg
+   !        offsetj=3*(jseg-1)
+   !        if (ibead > jseg) then
+   !          forall (i=1:3)
+   !            Bmat(offseti+i,offsetj+i)=jseg/real(nbead,kind=wp)
+   !          end forall
+   !        else
+   !          forall (i=1:3)
+   !            Bmat(offseti+i,offsetj+i)=-(1-jseg/real(nbead,kind=wp))
+   !          end forall
+   !        end if
+   !      end do
+   !    end do
+   !  case ('Comb')
+   !   ! Constructing the elements of the first row of B
+   !   do k=1, nseg_bb
+   !     forall (i=1:3) Bmat(i,3*(k-1)+i)=-(nseg_bb-k+1)/real(nbead,kind=wp)
+   !   end do
+   !   do iarm=1, Na
+   !     fctr=(Na-iarm+1)*nseg_ar/real(nbead,kind=wp)
+   !     do k=Ia(iarm), Ia(iarm+1)-1
+   !       forall (i=1:3)
+   !         Bmat(i,3*(k-1)+i)=Bmat(i,3*(k-1)+i)-fctr
+   !       end forall
+   !     end do ! k
+   !     do k=1, nseg_ar
+   !       idx=nseg_bb+(iarm-1)*nseg_ar+k
+   !       forall (i=1:3)
+   !         Bmat(i,3*(idx-1)+i)=Bmat(i,3*(idx-1)+i)-&
+   !         (nseg_ar-k+1)/real(nbead,kind=wp)
+   !       end forall
+   !     end do ! k
+   !   end do ! iarm
+   !   ! Constructing the rest of the rows in backbone
+   !   do nu=2, nseg_bb+1
+   !     forall (i=1:3) Bmat(3*(nu-1)+i,:)=Bmat(i,:)
+   !     do k=1, nu-1
+   !       forall (i=1:3)
+   !         Bmat(3*(nu-1)+i,3*(k-1)+i)=Bmat(3*(nu-1)+i,3*(k-1)+i)+1
+   !       end forall
+   !     end do ! k
+   !   end do ! nu
+   !   ! Constructing the rows for the arms
+   !   do iarm=1, Na
+   !     do mu=1, nseg_ar
+   !       nu=nseg_bb+1+(iarm-1)*nseg_ar+mu
+   !       forall (i=1:3) Bmat(3*(nu-1)+i,:)=Bmat(i,:)
+   !       do k=1, Ia(iarm+1)-1
+   !         forall (i=1:3)
+   !           Bmat(3*(nu-1)+i,3*(k-1)+i)=Bmat(3*(nu-1)+i,3*(k-1)+i)+1
+   !         end forall
+   !       end do ! k
+   !       do k=1, mu
+   !         idx=nseg_bb+(iarm-1)*nseg_ar+k
+   !         forall (i=1:3)
+   !           Bmat(3*(nu-1)+i,3*(idx-1)+i)=Bmat(3*(nu-1)+i,3*(idx-1)+i)+1
+   !         end forall
+   !       end do ! k
+   !     end do ! mu
+   !   end do ! iarm
+   ! end select
+
+   !print *, 'Bmat dlt',Bmat(1,1)
+
+
+
    if ((hstar == 0._wp) .or. (DecompMeth == 'Chebyshev')) then
     Eye=0._wp
     forall (i=1:nbeadx3) Eye(i,i)=1._wp
@@ -640,6 +864,7 @@ module dlt_mod
         end if
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
       end do
+      close (u2);if (CoM) close (u3);if (CoHR) close(u4)
     end if ! initmode
   else ! iflow /= 1
     do ip=1, p
@@ -680,8 +905,9 @@ module dlt_mod
       end if
       call MPI_Barrier(MPI_COMM_WORLD,ierr)
     end do
+    close (u2);if (CoM) close (u3);if (CoHR) close(u4)
   end if
-  close (u2);if (CoM) close (u3);if (CoHR) close(u4)
+  ! close (u2);if (CoM) close (u3);if (CoHR) close(u4)
 
   allocate(root_f(PrScale*nroots))
 
@@ -870,7 +1096,6 @@ module dlt_mod
 
           call sprforce(id,qc,nseg,ForceLaw,TruncMethod,Fseg)
 
-
           if (ForceLaw == 'WLC_GEN') call bndforce(nbead_bb,qc,Fbnd,itime)
           ! Calculation of Diffusion Tensor and Excluded Volume Force
           !            EVcalcd=.false.
@@ -897,6 +1122,7 @@ module dlt_mod
             end if
             if (DecompMeth == 'Cholesky') then
               if (hstar /= 0._wp) then
+
                 CoeffTensP=real(DiffTensP,kind=double)
                 wbltempP1=real(wbl,kind=double)
 
@@ -914,7 +1140,6 @@ module dlt_mod
                   print '(" info: ",i3)',info
                   stop
                 end if
-
 
                 if (HITens == 'Blake') then
                   call trmm(CoeffTensP,wbltempP1,transa='T')
@@ -1017,234 +1242,465 @@ module dlt_mod
             !call evcalc2(rvmrcP,nseg,Fev)
           end if
 
-
-          !============ Predictor-Corrector =============!
-          !--------Predictor Algorithm----------!
-          ! Kdotq=dt*Pe*(Kappa.q)               !
-          ! Fbead=-A'.Fseg                      !
-          ! qstar=q                             !
-          ! qstar:=qstar+Kdotq                  !
-          ! Fphi=Fbead+Fev+Fbnd                 !
-          ! qstar:=qstar+(1/4)*dt*(AdotD.Fbead) !
-          ! qstar:=qstar+(1/4)*dt*(AdotD.Fev)   !
-          ! qstar:=qstar+(1/4)*dt*(AdotD.Fbnd)  !
-          ! qstar:=qstar+FBr                    !
-          !-------------------------------------!
-          call gbmv(KappaBF,qc,Kdotq,kl=0,alpha=Pe(iPe)*dt(iPe,idt))
-          if (tplgy == 'Linear') then
-            call gbmv(AmatBF,Fseg,Fbead,kl=0,m=nsegx3,alpha=-1.0_wp,trans='T')
-          else
-            call gemv(Amat,Fseg,Fbead,alpha=-1._wp,trans='T')
-          end if
-          call copy(qc,qstar)
-          call axpy(Kdotq,qstar)
-          Fphi(:,ichain)=Fbead+Fev+Fbnd
-          if (applFext) then
-            Fphi(1,ichain)=Fphi(1,ichain)-Fext0
-            Fphi(nbeadx3-2,ichain)=Fphi(nbeadx3-2,ichain)+Fext0
-          end if
-          if (srf_tet) then
-            call tetforce(rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),Ftet,&
-              rf0(:,ichain),itime)
-            Fphi(1:3,ichain)=Fphi(1:3,ichain)+Ftet(1:3)
-          end if
-          call gemv(AdotDP1,Fphi(:,ichain),qstar,alpha=0.25*dt(iPe,idt),&
-            beta=1._wp)
-
-          !TYL: HI for tethered bead -------------------------------------------
-          !print *, 'Predictor calculaton------------'
-          !call print_matrix(AdotDP1,'AdotDP1')
-          !call print_vector(Fphi(:,ichain),'Fphi(:,ichain)')
-          !call print_vector(qstar,'qstar BEFORE')
-          if (srf_tet) then
-            call gemv(AdotDP1(:,1:3),Fphi(1:3,ichain),qstar,&
-              alpha=-0.25*dt(iPe,idt),beta=1._wp)
-            !call print_vector(qstar,'qstar AFTER')
-          end if
-          !TYL: HI for tethered bead -------------------------------------------
-
-          !! Blake's part
-          if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
-            do is=1, nseg
-              os=(is-1)*3
-              ! qstar(os+2)=qstar(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
-            enddo
-          endif
-          !!-------------
+          ! call mysde%advance(myintrn,id,iPe,idt,ichain,itime,Kdotq,qc,Fseg,Fbead,Fev,Fbnd,qstar,Fphi,&
+          !  rvmrcP,rcm,DiffTensP,Ftet,rf0,AdotDP1,divD,FBr,RHS,rcmP,Fbarev,nbead_bb,Fbarbnd,Fbar,Fbartet,&
+          !  RHScnt,Fbarseg,Fbarbead,root_f,qbar,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE)
 
 
-          call axpy(FBr,qstar)
-          !-------First Corrector Algorithm-------!
-          ! RHS=q                                 !
-          ! RHS:=RHS+1/2*Kdotq (from Predictor)   !
-          ! Fbarev:=Fev+Fstarev                   !
-          ! RHS:=RHS+(1/4)dt*(AdotD.Fev)          !
-          ! RHS:=RHS+FBr (from Predictor)         !
-          ! RHScnt=RHS(part of it for 2ndCorr.)   !
-          ! RHS:=RHS+1/2*dt*(Pe*Kappa.qstar)      !
-          ! RHS:=RHS+(1/2)*dt*Fseg                !
-          ! Fbarseg=Fseg; Fbarbead=Fbead          !
-          ! Inside the loop:                      !
-          ! RHSP:=RHSP+(1/4)*dt*(AdotDP.Fbarbead) !
-          ! Fbarbead=-A'.Fbarseg                  !
-          !---------------------------------------!
-          call gemv(Bmat,qstar,rvmrcP)
-          call copy(qc,RHS)
-          call axpy(Kdotq,RHS,a=0.5_wp)
-!print*,'id',id
-!call print_vector(rvmrcP,'R-updt')
-          ! rflc doesn't need this
-          !            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
-          if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
-            !              call EVUpdate(Fev,rvmrcP,Fbarev)
-            call myintrn%calc(id,itime,rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
-              updtevbb=.true.,updtevbw=.true.)
-            !call print_vector(Fev,'fev3')
-            !call evupdate2(Fev,rvmrcP,nseg,Fbarev)
-            !call print_vector(Fev,'fev4')
-            !stop
-          end if
+          ! ! !============ Predictor-Corrector =============!
+          ! !--------Predictor Algorithm----------!
+          ! ! Kdotq=dt*Pe*(Kappa.q)               !
+          ! ! Fbead=-A'.Fseg                      !
+          ! ! qstar=q                             !
+          ! ! qstar:=qstar+Kdotq                  !
+          ! ! Fphi=Fbead+Fev+Fbnd                 !
+          ! ! qstar:=qstar+(1/4)*dt*(AdotD.Fbead) !
+          ! ! qstar:=qstar+(1/4)*dt*(AdotD.Fev)   !
+          ! ! qstar:=qstar+(1/4)*dt*(AdotD.Fbnd)  !
+          ! ! qstar:=qstar+FBr                    !
+          ! !-------------------------------------!
+          ! call gbmv(KappaBF,qc,Kdotq,kl=0,alpha=Pe(iPe)*dt(iPe,idt))
+          ! if (tplgy == 'Linear') then
+          !   call gbmv(AmatBF,Fseg,Fbead,kl=0,m=nsegx3,alpha=-1.0_wp,trans='T')
+          ! else
+          !   call gemv(Amat,Fseg,Fbead,alpha=-1._wp,trans='T')
+          ! end if
+          ! call copy(qc,qstar)
+          ! call axpy(Kdotq,qstar)
+          ! Fphi(:,ichain)=Fbead+Fev+Fbnd
+          ! if (applFext) then
+          !   Fphi(1,ichain)=Fphi(1,ichain)-Fext0
+          !   Fphi(nbeadx3-2,ichain)=Fphi(nbeadx3-2,ichain)+Fext0
+          ! end if
+          ! if (srf_tet) then
+          !   call tetforce(rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),Ftet,&
+          !     rf0(:,ichain),itime)
+          !   Fphi(1:3,ichain)=Fphi(1:3,ichain)+Ftet(1:3)
+          ! end if
+          ! call gemv(AdotDP1,Fphi(:,ichain),qstar,alpha=0.25*dt(iPe,idt),&
+          !   beta=1._wp)
+
+          ! !TYL: HI for tethered bead -------------------------------------------
+          ! !print *, 'Predictor calculaton------------'
+          ! !call print_matrix(AdotDP1,'AdotDP1')
+          ! !call print_vector(Fphi(:,ichain),'Fphi(:,ichain)')
+          ! !call print_vector(qstar,'qstar BEFORE')
+          ! if (srf_tet) then
+          !   call gemv(AdotDP1(:,1:3),Fphi(1:3,ichain),qstar,&
+          !     alpha=-0.25*dt(iPe,idt),beta=1._wp)
+          !   !call print_vector(qstar,'qstar AFTER')
+          ! end if
+          ! !TYL: HI for tethered bead -------------------------------------------
+
+          ! !! Blake's part
+          ! if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
+          !   do is=1, nseg
+          !     os=(is-1)*3
+          !     qstar(os+2)=qstar(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
+          !   enddo
+          ! endif
+          ! !!-------------
 
 
-          if (ForceLaw == 'WLC_GEN') then
-            call bndupdate(nbead_bb,Fbnd,qstar,Fbarbnd,itime)
-          end if
-          Fbar=Fbarev+Fbarbnd
-          if (applFext) then
-            Fbar(1)=Fbar(1)-Fext0
-            Fbar(nbeadx3-2)=Fbar(nbeadx3-2)+Fext0
-          end if
-          if (srf_tet) then
-            call tetupdate(Ftet,rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),&
-             Fbartet,rf0(:,ichain),itime)
-            Fbar(1:3)=Fbar(1:3)+Fbartet(1:3)
-            !call print_vector(Fbartet(1:3),'Tether force')
-          end if
-          call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
+          ! call axpy(FBr,qstar)
+          ! !-------First Corrector Algorithm-------!
+          ! ! RHS=q                                 !
+          ! ! RHS:=RHS+1/2*Kdotq (from Predictor)   !
+          ! ! Fbarev:=Fev+Fstarev                   !
+          ! ! RHS:=RHS+(1/4)dt*(AdotD.Fev)          !
+          ! ! RHS:=RHS+FBr (from Predictor)         !
+          ! ! RHScnt=RHS(part of it for 2ndCorr.)   !
+          ! ! RHS:=RHS+1/2*dt*(Pe*Kappa.qstar)      !
+          ! ! RHS:=RHS+(1/2)*dt*Fseg                !
+          ! ! Fbarseg=Fseg; Fbarbead=Fbead          !
+          ! ! Inside the loop:                      !
+          ! ! RHSP:=RHSP+(1/4)*dt*(AdotDP.Fbarbead) !
+          ! ! Fbarbead=-A'.Fbarseg                  !
+          ! !---------------------------------------!
+          ! call gemv(Bmat,qstar,rvmrcP)
+          ! call copy(qc,RHS)
+          ! call axpy(Kdotq,RHS,a=0.5_wp)
 
-          !TYL: HI for tethered bead -------------------------------------------
-          !print *, 'First corrector calculaton------------'
-          !call print_matrix(AdotDP1,'AdotDP1')
-          !call print_vector(Fbar,'Fbar')
-          !call print_vector(RHS,'RHS BEFORE')
-          if (srf_tet) then
-            call gemv(AdotDP1(:,1:3),Fbar(1:3),RHS,alpha=-0.25*dt(iPe,idt),&
-              beta=1._wp)
-            !call print_vector(RHS,'RHS AFTER')
-          end if
-          !TYL: HI for tethered bead -------------------------------------------
-
-
-          !! Blake's part
-          if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
-            do is=1, nseg
-              os=(is-1)*3
-              ! RHS(os+2)=RHS(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
-            enddo
-          endif
-          !!-------------
+          ! ! rflc doesn't need this
+          ! !            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
+          ! if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
+          !   !              call EVUpdate(Fev,rvmrcP,Fbarev)
+          !   call myintrn%calc(rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
+          !     updtevbb=.true.,updtevbw=.true.)
+          !   !call print_vector(Fev,'fev3')
+          !   !call evupdate2(Fev,rvmrcP,nseg,Fbarev)
+          !   !call print_vector(Fev,'fev4')
+          !   !stop
+          ! end if
 
 
-          call axpy(FBr,RHS)
-          call copy(RHS,RHScnt)
-          call gemv(Kappa,qstar,RHS,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1._wp)
-          call axpy(Fseg,RHS,a=0.5*dt(iPe,idt))
-          call copy(Fseg,Fbarseg)
-          call copy(Fbead,Fbarbead)
-          do iseg=1, nseg
-            offset=3*(iseg-1)
-            RHSP => RHS(offset+1:offset+3)
-            AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
-            call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
+          ! if (ForceLaw == 'WLC_GEN') then
+          !   call bndupdate(nbead_bb,Fbnd,qstar,Fbarbnd,itime)
+          ! end if
+          ! Fbar=Fbarev+Fbarbnd
+          ! if (applFext) then
+          !   Fbar(1)=Fbar(1)-Fext0
+          !   Fbar(nbeadx3-2)=Fbar(nbeadx3-2)+Fext0
+          ! end if
+          ! if (srf_tet) then
+          !   call tetupdate(Ftet,rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),&
+          !    Fbartet,rf0(:,ichain),itime)
+          !   Fbar(1:3)=Fbar(1:3)+Fbartet(1:3)
+          !   !call print_vector(Fbartet(1:3),'Tether force')
+          ! end if
+          ! call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
 
-            !TYL: HI for tethered bead -----------------------------------------
-            !print *, 'First corrector calculaton per segment------------'
-            !call print_matrix(AdotDP2,'AdotDP2')
-            !call print_vector(Fbarbead,'Fbarbead')
-            !call print_vector(RHSP,'RHSP BEFORE')
-            if (srf_tet) then
-              call gemv(AdotDP2(:,1:3),Fbarbead(1:3),RHSP,&
-              alpha=-0.25*dt(iPe,idt),beta=1._wp)
-              !call print_vector(RHSP,'RHSP AFTER')
-            end if
-            !TYL: HI for tethered bead -----------------------------------------
-
-            call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qstar,iseg,&
-              nseg,ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,Amat,nseg_bb,&
-              nseg_ar,Ia,Na,itime)
-          end do
-          !----------Second Corrector Algorithm----------!
-          ! q=qbar;Fseg=Fbarseg;Fbead=Fbarbead           !
-          ! RHSbase=RHScnt(from 1stCorr.)for while loop. !
-          ! While Loop,do loop:                          !
-          ! RHSP=RHSbaseP                                !
-          ! RHSP:=RHSP+(1/2)*dt*(Pe*Kappareg.qP)         !
-          ! RHSP:=RHSP+(1/2)*dt*FsegP                    !
-          ! RHSP:=RHSP+(1/4)dt*(AdotDP.Fbead)            !
-          ! Updating q based on Seg. Cubic Eq.           !
-          ! Fbead=-A'.Fseg                               !
-          !----------------------------------------------!
+          ! !TYL: HI for tethered bead -------------------------------------------
+          ! !print *, 'First corrector calculaton------------'
+          ! !call print_matrix(AdotDP1,'AdotDP1')
+          ! !call print_vector(Fbar,'Fbar')
+          ! !call print_vector(RHS,'RHS BEFORE')
+          ! if (srf_tet) then
+          !   call gemv(AdotDP1(:,1:3),Fbar(1:3),RHS,alpha=-0.25*dt(iPe,idt),&
+          !     beta=1._wp)
+          !   !call print_vector(RHS,'RHS AFTER')
+          ! end if
+          ! !TYL: HI for tethered bead -------------------------------------------
 
 
-          call copy(qbar,qc)
-          call copy(Fbarseg,Fseg)
-          call copy(Fbarbead,Fbead)
-          call copy(RHScnt,RHSbase)
-          icount=0;eps=1.0_wp
-          do while (eps >= tol)
-            eps=0.0_wp
-            qctemp=qc
-            do iseg=1, nseg
-              offset=3*(iseg-1)
-              RHSP => RHS(offset+1:offset+3);RHSbaseP => RHSbase(offset+1:offset+3)
-              call copy(RHSbaseP,RHSP)
-              qcP => qc(offset+1:offset+3);FsegP => Fseg(offset+1:offset+3)
-              AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
-              call gemv(Kappareg,qcP,RHSP,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1.0_wp)
-              call axpy(FsegP,RHSP,a=0.5*dt(iPe,idt))
-              call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
+          ! !! Blake's part
+          ! if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
+          !   do is=1, nseg
+          !     os=(is-1)*3
+          !     RHS(os+2)=RHS(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
+          !   enddo
+          ! endif
+          ! !!-------------
 
-              !TYL: HI for tethered bead ---------------------------------------
-              !print *, 'Second corrector calculaton perbead------------'
-              !call print_matrix(AdotDP2,'AdotDP2')
-              !call print_vector(Fbead,'Fbead')
-              !call print_vector(RHSP,'RHSP BEFORE')
-              if (srf_tet) then
-                call gemv(AdotDP2(:,1:3),Fbead(1:3),RHSP,&
-                alpha=-0.25*dt(iPe,idt),beta=1._wp)
-                !call print_vector(RHSP,'RHSP AFTER')
-              end if
-              !TYL: HI for tethered bead ---------------------------------------
 
-              call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qbar,iseg,&
-                nseg,ForceLaw,TruncMethod,qc,Fseg,Fbead,tplgy,Amat,nseg_bb,nseg_ar,&
-                Ia,Na,itime)
+          ! call axpy(FBr,RHS)
+          ! call copy(RHS,RHScnt)
+          ! call gemv(Kappa,qstar,RHS,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1._wp)
+          ! call axpy(Fseg,RHS,a=0.5*dt(iPe,idt))
+          ! call copy(Fseg,Fbarseg)
+          ! call copy(Fbead,Fbarbead)
+          ! do iseg=1, nseg
+          !   offset=3*(iseg-1)
+          !   RHSP => RHS(offset+1:offset+3)
+          !   AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
+          !   call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
 
-            end do
-            eps=nrm2(qc-qctemp)/nrm2(qctemp)
-            icount=icount+1
-            if (icount > 5000) then
-              print *
-              print '(" Convergance Problem in 2nd Corrector.")'
-              print '(" time index: ",i10)',itime
-              print '(" Total iterations: ",i10," Residual: ",f14.7)',icount,eps
-              if (hstar /= 0._wp) then
-                if (DecompMeth == 'Lanczos') then
-                  print '(" No. iterations in (block) Lanczos algorithm: ",i4)',&
-                  mch(ichain)
-                elseif (DecompMeth == 'Chebyshev') then
-                  print '(" Eigen value range for  diffusion tensor: ",2(f14.7))',&
-                  lambdaBE(:)
-                  print '(" No. iterations in Chebyshev algorithm: ",i4)',Lch(ichain)
-                end if
-              end if
-              stop
-            end if
-          end do ! while loop
+          !   !TYL: HI for tethered bead -----------------------------------------
+          !   !print *, 'First corrector calculaton per segment------------'
+          !   !call print_matrix(AdotDP2,'AdotDP2')
+          !   !call print_vector(Fbarbead,'Fbarbead')
+          !   !call print_vector(RHSP,'RHSP BEFORE')
+          !   if (srf_tet) then
+          !     call gemv(AdotDP2(:,1:3),Fbarbead(1:3),RHSP,&
+          !     alpha=-0.25*dt(iPe,idt),beta=1._wp)
+          !     !call print_vector(RHSP,'RHSP AFTER')
+          !   end if
+          !   !TYL: HI for tethered bead -----------------------------------------
 
-!print*,'id---',id
-!call print_vector(rvmrcP,'R-updt---')
-          !==================================================!
+          !   call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qstar,iseg,&
+          !     nseg,ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,Amat,nseg_bb,&
+          !     nseg_ar,Ia,Na,itime)
+          ! end do
+          ! !----------Second Corrector Algorithm----------!
+          ! ! q=qbar;Fseg=Fbarseg;Fbead=Fbarbead           !
+          ! ! RHSbase=RHScnt(from 1stCorr.)for while loop. !
+          ! ! While Loop,do loop:                          !
+          ! ! RHSP=RHSbaseP                                !
+          ! ! RHSP:=RHSP+(1/2)*dt*(Pe*Kappareg.qP)         !
+          ! ! RHSP:=RHSP+(1/2)*dt*FsegP                    !
+          ! ! RHSP:=RHSP+(1/4)dt*(AdotDP.Fbead)            !
+          ! ! Updating q based on Seg. Cubic Eq.           !
+          ! ! Fbead=-A'.Fseg                               !
+          ! !----------------------------------------------!
+          ! call copy(qbar,qc)
+          ! call copy(Fbarseg,Fseg)
+          ! call copy(Fbarbead,Fbead)
+          ! call copy(RHScnt,RHSbase)
+          ! icount=0;eps=1.0_wp
+          ! do while (eps >= tol)
+          !   eps=0.0_wp
+          !   qctemp=qc
+          !   do iseg=1, nseg
+          !     offset=3*(iseg-1)
+          !     RHSP => RHS(offset+1:offset+3);RHSbaseP => RHSbase(offset+1:offset+3)
+          !     call copy(RHSbaseP,RHSP)
+          !     qcP => qc(offset+1:offset+3);FsegP => Fseg(offset+1:offset+3)
+          !     AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
+          !     call gemv(Kappareg,qcP,RHSP,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1.0_wp)
+          !     call axpy(FsegP,RHSP,a=0.5*dt(iPe,idt))
+          !     call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
+
+          !     !TYL: HI for tethered bead ---------------------------------------
+          !     !print *, 'Second corrector calculaton perbead------------'
+          !     !call print_matrix(AdotDP2,'AdotDP2')
+          !     !call print_vector(Fbead,'Fbead')
+          !     !call print_vector(RHSP,'RHSP BEFORE')
+          !     if (srf_tet) then
+          !       call gemv(AdotDP2(:,1:3),Fbead(1:3),RHSP,&
+          !       alpha=-0.25*dt(iPe,idt),beta=1._wp)
+          !       !call print_vector(RHSP,'RHSP AFTER')
+          !     end if
+          !     !TYL: HI for tethered bead ---------------------------------------
+
+          !     call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qbar,iseg,&
+          !       nseg,ForceLaw,TruncMethod,qc,Fseg,Fbead,tplgy,Amat,nseg_bb,nseg_ar,&
+          !       Ia,Na,itime)
+
+          !   end do
+          !   eps=nrm2(qc-qctemp)/nrm2(qctemp)
+          !   icount=icount+1
+          !   if (icount > 5000) then
+          !     print *
+          !     print '(" Convergance Problem in 2nd Corrector.")'
+          !     print '(" time index: ",i10)',itime
+          !     print '(" Total iterations: ",i10," Residual: ",f14.7)',icount,eps
+          !     if (hstar /= 0._wp) then
+          !       if (DecompMeth == 'Lanczos') then
+          !         print '(" No. iterations in (block) Lanczos algorithm: ",i4)',&
+          !         mch(ichain)
+          !       elseif (DecompMeth == 'Chebyshev') then
+          !         print '(" Eigen value range for  diffusion tensor: ",2(f14.7))',&
+          !         lambdaBE(:)
+          !         print '(" No. iterations in Chebyshev algorithm: ",i4)',Lch(ichain)
+          !       end if
+          !     end if
+          !     stop
+          !   end if
+          ! end do ! while loop
+          ! !==================================================!
+
+          call mysde%advance(myintrn,id,iPe,idt,ichain,itime,Kdotq,qc,Fseg,Fbead,Fev,Fbnd,qstar,Fphi,&
+           rvmrcP,rcm,DiffTensP,Ftet,rf0,AdotDP1,divD,FBr,RHS,rcmP,Fbarev,nbead_bb,Fbarbnd,Fbar,Fbartet,&
+           RHScnt,Fbarseg,Fbarbead,root_f,qbar,nseg_bb,AdotD,RHSbase,qctemp,mch,Lch,lambdaBE)
+
+!           !============ Predictor-Corrector =============!
+!           !--------Predictor Algorithm----------!
+!           ! Kdotq=dt*Pe*(Kappa.q)               !
+!           ! Fbead=-A'.Fseg                      !
+!           ! qstar=q                             !
+!           ! qstar:=qstar+Kdotq                  !
+!           ! Fphi=Fbead+Fev+Fbnd                 !
+!           ! qstar:=qstar+(1/4)*dt*(AdotD.Fbead) !
+!           ! qstar:=qstar+(1/4)*dt*(AdotD.Fev)   !
+!           ! qstar:=qstar+(1/4)*dt*(AdotD.Fbnd)  !
+!           ! qstar:=qstar+FBr                    !
+!           !-------------------------------------!
+!           call gbmv(KappaBF,qc,Kdotq,kl=0,alpha=Pe(iPe)*dt(iPe,idt))
+!           if (tplgy == 'Linear') then
+!             call gbmv(AmatBF,Fseg,Fbead,kl=0,m=nsegx3,alpha=-1.0_wp,trans='T')
+!           else
+!             call gemv(Amat,Fseg,Fbead,alpha=-1._wp,trans='T')
+!           end if
+!           call copy(qc,qstar)
+!           call axpy(Kdotq,qstar)
+!           Fphi(:,ichain)=Fbead+Fev+Fbnd
+!           if (applFext) then
+!             Fphi(1,ichain)=Fphi(1,ichain)-Fext0
+!             Fphi(nbeadx3-2,ichain)=Fphi(nbeadx3-2,ichain)+Fext0
+!           end if
+!           if (srf_tet) then
+!             call tetforce(rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),Ftet,&
+!               rf0(:,ichain),itime)
+!             Fphi(1:3,ichain)=Fphi(1:3,ichain)+Ftet(1:3)
+!           end if
+!           call gemv(AdotDP1,Fphi(:,ichain),qstar,alpha=0.25*dt(iPe,idt),&
+!             beta=1._wp)
+!
+!           !TYL: HI for tethered bead -------------------------------------------
+!           !print *, 'Predictor calculaton------------'
+!           !call print_matrix(AdotDP1,'AdotDP1')
+!           !call print_vector(Fphi(:,ichain),'Fphi(:,ichain)')
+!           !call print_vector(qstar,'qstar BEFORE')
+!           if (srf_tet) then
+!             call gemv(AdotDP1(:,1:3),Fphi(1:3,ichain),qstar,&
+!               alpha=-0.25*dt(iPe,idt),beta=1._wp)
+!             !call print_vector(qstar,'qstar AFTER')
+!           end if
+!           !TYL: HI for tethered bead -------------------------------------------
+!
+!           !! Blake's part
+!           if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
+!             do is=1, nseg
+!               os=(is-1)*3
+!                qstar(os+2)=qstar(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
+!             enddo
+!           endif
+!           !!-------------
+!
+!
+!           call axpy(FBr,qstar)
+!           !-------First Corrector Algorithm-------!
+!           ! RHS=q                                 !
+!           ! RHS:=RHS+1/2*Kdotq (from Predictor)   !
+!           ! Fbarev:=Fev+Fstarev                   !
+!           ! RHS:=RHS+(1/4)dt*(AdotD.Fev)          !
+!           ! RHS:=RHS+FBr (from Predictor)         !
+!           ! RHScnt=RHS(part of it for 2ndCorr.)   !
+!           ! RHS:=RHS+1/2*dt*(Pe*Kappa.qstar)      !
+!           ! RHS:=RHS+(1/2)*dt*Fseg                !
+!           ! Fbarseg=Fseg; Fbarbead=Fbead          !
+!           ! Inside the loop:                      !
+!           ! RHSP:=RHSP+(1/4)*dt*(AdotDP.Fbarbead) !
+!           ! Fbarbead=-A'.Fbarseg                  !
+!           !---------------------------------------!
+!           call gemv(Bmat,qstar,rvmrcP)
+!           call copy(qc,RHS)
+!           call axpy(Kdotq,RHS,a=0.5_wp)
+! !print*,'id',id
+! !call print_vector(rvmrcP,'R-updt')
+!           ! rflc doesn't need this
+!           !            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
+!           if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
+!             !              call EVUpdate(Fev,rvmrcP,Fbarev)
+!             call myintrn%calc(id,itime,rvmrcP,rcmP,nseg,DiffTensP,divD,Fev,Fbarev,&
+!               updtevbb=.true.,updtevbw=.true.)
+!             !call print_vector(Fev,'fev3')
+!             !call evupdate2(Fev,rvmrcP,nseg,Fbarev)
+!             !call print_vector(Fev,'fev4')
+!             !stop
+!           end if
+!
+!
+!           if (ForceLaw == 'WLC_GEN') then
+!             call bndupdate(nbead_bb,Fbnd,qstar,Fbarbnd,itime)
+!           end if
+!           Fbar=Fbarev+Fbarbnd
+!           if (applFext) then
+!             Fbar(1)=Fbar(1)-Fext0
+!             Fbar(nbeadx3-2)=Fbar(nbeadx3-2)+Fext0
+!           end if
+!           if (srf_tet) then
+!             call tetupdate(Ftet,rvmrcP,rcm(:,ichain),DiffTensP,dt(iPe,idt),&
+!              Fbartet,rf0(:,ichain),itime)
+!             Fbar(1:3)=Fbar(1:3)+Fbartet(1:3)
+!             !call print_vector(Fbartet(1:3),'Tether force')
+!           end if
+!           call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
+!
+!           !TYL: HI for tethered bead -------------------------------------------
+!           !print *, 'First corrector calculaton------------'
+!           !call print_matrix(AdotDP1,'AdotDP1')
+!           !call print_vector(Fbar,'Fbar')
+!           !call print_vector(RHS,'RHS BEFORE')
+!           if (srf_tet) then
+!             call gemv(AdotDP1(:,1:3),Fbar(1:3),RHS,alpha=-0.25*dt(iPe,idt),&
+!               beta=1._wp)
+!             !call print_vector(RHS,'RHS AFTER')
+!           end if
+!           !TYL: HI for tethered bead -------------------------------------------
+!
+!
+!           !! Blake's part
+!           if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
+!             do is=1, nseg
+!               os=(is-1)*3
+!                RHS(os+2)=RHS(os+2)+(divD(is+1)-divD(is))*0.25*dt(iPe,idt)
+!             enddo
+!           endif
+!           !!-------------
+!
+!
+!           call axpy(FBr,RHS)
+!           call copy(RHS,RHScnt)
+!           call gemv(Kappa,qstar,RHS,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1._wp)
+!           call axpy(Fseg,RHS,a=0.5*dt(iPe,idt))
+!           call copy(Fseg,Fbarseg)
+!           call copy(Fbead,Fbarbead)
+!           do iseg=1, nseg
+!             offset=3*(iseg-1)
+!             RHSP => RHS(offset+1:offset+3)
+!             AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
+!             call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
+!
+!             !TYL: HI for tethered bead -----------------------------------------
+!             !print *, 'First corrector calculaton per segment------------'
+!             !call print_matrix(AdotDP2,'AdotDP2')
+!             !call print_vector(Fbarbead,'Fbarbead')
+!             !call print_vector(RHSP,'RHSP BEFORE')
+!             if (srf_tet) then
+!               call gemv(AdotDP2(:,1:3),Fbarbead(1:3),RHSP,&
+!               alpha=-0.25*dt(iPe,idt),beta=1._wp)
+!               !call print_vector(RHSP,'RHSP AFTER')
+!             end if
+!             !TYL: HI for tethered bead -----------------------------------------
+!
+!             call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qstar,iseg,&
+!               nseg,ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,Amat,nseg_bb,&
+!               nseg_ar,Ia,Na,itime)
+!           end do
+!           !----------Second Corrector Algorithm----------!
+!           ! q=qbar;Fseg=Fbarseg;Fbead=Fbarbead           !
+!           ! RHSbase=RHScnt(from 1stCorr.)for while loop. !
+!           ! While Loop,do loop:                          !
+!           ! RHSP=RHSbaseP                                !
+!           ! RHSP:=RHSP+(1/2)*dt*(Pe*Kappareg.qP)         !
+!           ! RHSP:=RHSP+(1/2)*dt*FsegP                    !
+!           ! RHSP:=RHSP+(1/4)dt*(AdotDP.Fbead)            !
+!           ! Updating q based on Seg. Cubic Eq.           !
+!           ! Fbead=-A'.Fseg                               !
+!           !----------------------------------------------!
+!
+!
+!           call copy(qbar,qc)
+!           call copy(Fbarseg,Fseg)
+!           call copy(Fbarbead,Fbead)
+!           call copy(RHScnt,RHSbase)
+!           icount=0;eps=1.0_wp
+!           do while (eps >= tol)
+!             eps=0.0_wp
+!             qctemp=qc
+!             do iseg=1, nseg
+!               offset=3*(iseg-1)
+!               RHSP => RHS(offset+1:offset+3);RHSbaseP => RHSbase(offset+1:offset+3)
+!               call copy(RHSbaseP,RHSP)
+!               qcP => qc(offset+1:offset+3);FsegP => Fseg(offset+1:offset+3)
+!               AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
+!               call gemv(Kappareg,qcP,RHSP,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1.0_wp)
+!               call axpy(FsegP,RHSP,a=0.5*dt(iPe,idt))
+!               call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
+!
+!               !TYL: HI for tethered bead ---------------------------------------
+!               !print *, 'Second corrector calculaton perbead------------'
+!               !call print_matrix(AdotDP2,'AdotDP2')
+!               !call print_vector(Fbead,'Fbead')
+!               !call print_vector(RHSP,'RHSP BEFORE')
+!               if (srf_tet) then
+!                 call gemv(AdotDP2(:,1:3),Fbead(1:3),RHSP,&
+!                 alpha=-0.25*dt(iPe,idt),beta=1._wp)
+!                 !call print_vector(RHSP,'RHSP AFTER')
+!               end if
+!               !TYL: HI for tethered bead ---------------------------------------
+!
+!               call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qbar,iseg,&
+!                 nseg,ForceLaw,TruncMethod,qc,Fseg,Fbead,tplgy,Amat,nseg_bb,nseg_ar,&
+!                 Ia,Na,itime)
+!
+!             end do
+!             eps=nrm2(qc-qctemp)/nrm2(qctemp)
+!             icount=icount+1
+!             if (icount > 5000) then
+!               print *
+!               print '(" Convergance Problem in 2nd Corrector.")'
+!               print '(" time index: ",i10)',itime
+!               print '(" Total iterations: ",i10," Residual: ",f14.7)',icount,eps
+!               if (hstar /= 0._wp) then
+!                 if (DecompMeth == 'Lanczos') then
+!                   print '(" No. iterations in (block) Lanczos algorithm: ",i4)',&
+!                   mch(ichain)
+!                 elseif (DecompMeth == 'Chebyshev') then
+!                   print '(" Eigen value range for  diffusion tensor: ",2(f14.7))',&
+!                   lambdaBE(:)
+!                   print '(" No. iterations in Chebyshev algorithm: ",i4)',Lch(ichain)
+!                 end if
+!               end if
+!               stop
+!             end if
+!           end do ! while loop
+!
+! !print*,'id---',id
+! !call print_vector(rvmrcP,'R-updt---')
+!           !==================================================!
+
 
           ! Inserting back the final result to original arrays
           q(:,ichain)=qc(:)
@@ -1277,9 +1733,16 @@ module dlt_mod
 
             !TYL: HI for tethered bead ---------------------------------------
             if (srf_tet) then
-              call gemv(DiffTensP(:,1:3),FphiP(1:3),DdotF,alpha=-1._wp,beta=1._wp)
-              ! call gemv(DiffTensP(1:3,:),FphiP(1:3),DdotF,alpha=-1._wp,&
-              !  beta=1._wp,trans='T')
+
+              !call gemv(DiffTensP(:,1:3),FphiP(1:3),DdotF,alpha=-1._wp,beta=1._wp)
+              call gemv(DiffTensP(1:3,:),FphiP(1:3),DdotF,alpha=-1._wp,&
+                beta=1._wp,trans='T')
+
+              !if ((ichain == 1) .and. (id == 1) .and. (mod(itime,1000) == 0)) then
+              !  print *, 'difference bewteen DiffTens and its transpose:'
+              !  print *, sum(abs(DiffTensP(:,:) - TRANSPOSE(DiffTensP(:,:))))
+              !end if
+
             end if
             !TYL: HI for tethered bead ---------------------------------------
 
@@ -1289,6 +1752,17 @@ module dlt_mod
             SumDdotF=(/sum(DdotFPx),sum(DdotFPy),sum(DdotFPz)/)
             rcmP=rcmP+(Pe(iPe)*matmul(Kappareg,rcmP)+1._wp/(4*nbead)*SumDdotF)*&
             dt(iPe,idt)+coeff/nbead*SumBdotw
+
+            if (unif_flow) then
+              rcmP=rcmP+U_unif*dt(iPe,idt)
+            endif
+
+            if (sph_flow) then
+              call mysde%U_sph(U_seg,U_bead,q(:,ichain),rcm(:,ichain))
+              rcmP(1) = rcmP(1) + (1._wp/nbead)*sum(U_bead(1:nbeadx3-2:3))*dt(iPe,idt)
+              rcmP(2) = rcmP(2) + (1._wp/nbead)*sum(U_bead(2:nbeadx3-1:3))*dt(iPe,idt)
+              rcmP(3) = rcmP(3) + (1._wp/nbead)*sum(U_bead(3:nbeadx3:3))*dt(iPe,idt)
+            endif
 
             !! Blake's part
             if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
@@ -1472,8 +1946,6 @@ module dlt_mod
             end if
           end if ! id == 0
         end if ! mod(itime,lambda/dt)==0
-
-
 
         ! if (time >= time_check2) then
         if ((time >= tss*lambda) .and. (mod(itime,tgap_dmp) == 0)) then
@@ -1661,96 +2133,96 @@ module dlt_mod
 
   end subroutine lookup_tab
 
-  ! Random numeber seeding (from H. C. Ottinger):
-  subroutine ranils(iseed)
-
-    integer,intent(in) :: iseed
-    integer,parameter :: in=2147483563,ik=40014,iq=53668,ir=12211,ntab=32
-    integer :: iv(ntab),idum,idum2,iy
-    integer :: k,j
-
-    common /ranbls/ idum,idum2,iy,iv
-
-    ! Initial seeds for two random number generators
-    idum=iseed+123456789
-    idum2=idum
-
-    ! Load the shuffle table (after 8 warm-ups)
-    do 10 j=ntab+8,1,-1
-     k=idum/iq
-     idum=ik*(idum-k*iq)-k*ir
-     if(idum < 0) idum=idum+in
-     if(j <= ntab) iv(j)=idum
-     10 continue
-     iy=iv(1)
-     return
-
-   end subroutine ranils
-
-   ! Uniform random number generator (from H. C. Ottinger):
-   real(wp) function ranuls()
-
-   integer,parameter :: in1=2147483563,ik1=40014,iq1=53668,ir1=12211,&
-   in2=2147483399,ik2=40692,iq2=52774,ir2=3791 ,&
-   ntab=32,inm1=in1-1,ndiv=1+inm1/ntab
-   real(wp),parameter :: an=1./in1
-   integer :: iv(ntab),idum,idum2,iy
-   integer :: k,j
-
-   common /ranbls/ idum,idum2,iy,iv
-
-   ! Linear congruential generator 1
-   k=idum/iq1
-   idum=ik1*(idum-k*iq1)-k*ir1
-   if(idum < 0._wp) idum=idum+in1
-
-   ! Linear congruential generator 2
-   k=idum2/iq2
-   idum2=ik2*(idum2-k*iq2)-k*ir2
-   if(idum2 < 0._wp) idum2=idum2+in2
-
-   !Shuffling and subtracting
-   j=1+iy/ndiv
-   iy=iv(j)-idum2
-   iv(j)=idum
-   if(iy < 1) iy=iy+inm1
-   ranuls=an*iy
-   return
-
- end function ranuls
-
- ! Gaussian random number generator (from H. C. Ottinger):
- real(wp) function rangls()
-
- integer :: iflag
- real(wp) :: gauss2,x1,x2,xsq,aux
-
- save iflag,gauss2
- data iflag/0/
-
- if(iflag == 0) then
-  10 continue
-
-  ! pair of uniform random numbers in [-1,1]x[-1,1]
-  x1=2*ranuls()-1
-  x2=2*ranuls()-1
-
-  ! if not in the unit circle, try again
-  xsq=x1*x1+x2*x2
-  if(xsq >= 1._wp .or. xsq == 0._wp) goto 10
-  ! pair of gaussian random numbers; return one and
-  ! save the other for next time
-  aux=sqrt(-2*log(xsq)/xsq)
-  rangls=x1*aux
-  gauss2=x2*aux
-  iflag=1
-else
-  rangls=gauss2
-  iflag=0
-endif
-return
-
-end function rangls
+!   ! Random numeber seeding (from H. C. Ottinger):
+!   subroutine ranils(iseed)
+!
+!     integer,intent(in) :: iseed
+!     integer,parameter :: in=2147483563,ik=40014,iq=53668,ir=12211,ntab=32
+!     integer :: iv(ntab),idum,idum2,iy
+!     integer :: k,j
+!
+!     common /ranbls/ idum,idum2,iy,iv
+!
+!     ! Initial seeds for two random number generators
+!     idum=iseed+123456789
+!     idum2=idum
+!
+!     ! Load the shuffle table (after 8 warm-ups)
+!     do 10 j=ntab+8,1,-1
+!      k=idum/iq
+!      idum=ik*(idum-k*iq)-k*ir
+!      if(idum < 0) idum=idum+in
+!      if(j <= ntab) iv(j)=idum
+!      10 continue
+!      iy=iv(1)
+!      return
+!
+!    end subroutine ranils
+!
+!    ! Uniform random number generator (from H. C. Ottinger):
+!    real(wp) function ranuls()
+!
+!    integer,parameter :: in1=2147483563,ik1=40014,iq1=53668,ir1=12211,&
+!    in2=2147483399,ik2=40692,iq2=52774,ir2=3791 ,&
+!    ntab=32,inm1=in1-1,ndiv=1+inm1/ntab
+!    real(wp),parameter :: an=1./in1
+!    integer :: iv(ntab),idum,idum2,iy
+!    integer :: k,j
+!
+!    common /ranbls/ idum,idum2,iy,iv
+!
+!    ! Linear congruential generator 1
+!    k=idum/iq1
+!    idum=ik1*(idum-k*iq1)-k*ir1
+!    if(idum < 0._wp) idum=idum+in1
+!
+!    ! Linear congruential generator 2
+!    k=idum2/iq2
+!    idum2=ik2*(idum2-k*iq2)-k*ir2
+!    if(idum2 < 0._wp) idum2=idum2+in2
+!
+!    !Shuffling and subtracting
+!    j=1+iy/ndiv
+!    iy=iv(j)-idum2
+!    iv(j)=idum
+!    if(iy < 1) iy=iy+inm1
+!    ranuls=an*iy
+!    return
+!
+!  end function ranuls
+!
+!  ! Gaussian random number generator (from H. C. Ottinger):
+!  real(wp) function rangls()
+!
+!  integer :: iflag
+!  real(wp) :: gauss2,x1,x2,xsq,aux
+!
+!  save iflag,gauss2
+!  data iflag/0/
+!
+!  if(iflag == 0) then
+!   10 continue
+!
+!   ! pair of uniform random numbers in [-1,1]x[-1,1]
+!   x1=2*ranuls()-1
+!   x2=2*ranuls()-1
+!
+!   ! if not in the unit circle, try again
+!   xsq=x1*x1+x2*x2
+!   if(xsq >= 1._wp .or. xsq == 0._wp) goto 10
+!   ! pair of gaussian random numbers; return one and
+!   ! save the other for next time
+!   aux=sqrt(-2*log(xsq)/xsq)
+!   rangls=x1*aux
+!   gauss2=x2*aux
+!   iflag=1
+! else
+!   rangls=gauss2
+!   iflag=0
+! endif
+! return
+!
+! end function rangls
 
 end subroutine dlt_bs
 

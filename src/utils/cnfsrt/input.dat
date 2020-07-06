@@ -1,0 +1,26 @@
+ RdmpFile       :       R.flow.dat
+ nchain         :       300
+ nseg           :       153
+ nseg_bb        :       153
+ qmax           :       1.73205080757
+ traj_idx       :       1
+ npixel         :       1.0
+ bin_sz         :       15.0
+ min_dmp_fr     :       0.1
+ max_dmp_fr     :       0.12
+ bead_overlap   :       FALSE
+
+#------- input data --------
+# RdmpFile : input file, the user just need to provide the x,y,z coordinates of
+#            the beads ordered from 1 - nseg+1 line by line
+# nchain : number of chains
+# nseg : number of segments
+# nseg_bb : number of segments in the backbone
+# qmax : the maximum extensibility of a segments (important if the beads have overlap)
+# traj_idx : index of the chain that is desired to keep track of
+# npixel: number of pixels (brightness resolution points) in a unit length
+# bin_sz: number of pixels in a bin, used for averaging brightness
+# min_dmp_fr: min and max fraction of total number of dumps
+#             to use for evaluating the average configuration
+# bead_overlap: if the beads have overlap, useful for bead-spring model
+#--------------------------

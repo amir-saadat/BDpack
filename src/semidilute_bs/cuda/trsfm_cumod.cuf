@@ -1,0 +1,262 @@
+!%------------------------------------------------------------------------%
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
+!|  University of Tennessee-Knoxville                                     |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
+!|                                                                        |
+!|  This file is part of BDpack.                                          |
+!|                                                                        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
+!|  it under the terms of the GNU General Public License as published by  |
+!|  the Free Software Foundation, either version 3 of the License, or     |
+!|  (at your option) any later version.                                   |
+!|                                                                        |
+!|  BDpack is distributed in the hope that it will be useful,             |
+!|  but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+!|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+!|  GNU General Public License for more details.                          |
+!|                                                                        |
+!|  You should have received a copy of the GNU General Public License     |
+!|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
+!%------------------------------------------------------------------------%
+!--------------------------------------------------------------------
+!
+! MODULE: 
+!
+!> @author
+!> Amir Saadat, Stanford University, May 2018
+!
+! DESCRIPTION: 
+!> contains tools for periodic transformation of the configuration
+!--------------------------------------------------------------------
+module trsfm_cumod
+
+  use :: prcn_mod
+
+  implicit none
+
+  ! Private module procedures:
+  private :: init_trsfm_t  ,&
+             applypbc_glob ,&
+             applypbc_rec
+
+  !> A public type for configurational transformation
+  type trsfm_cu_t
+
+    private
+
+  contains
+
+    procedure,pass(this) :: init => init_trsfm_t
+    procedure,pass(this) :: applypbc => applypbc_glob
+    ! final :: del_trsfm_t
+
+  end type trsfm_cu_t
+
+  ! ! Private module variables:
+  ! private :: ieps,eps_mx,L1_0,L2_0,L1p,L2p,sinth0,costh0,eps_p
+  ! ! Protected module variables:
+  ! protected :: theta_0,theta,bsx,bsy,invbsx,invbsy,sinth,costh,&
+  !              tanb,L1,L2,reArng
+
+  ! constants on device for elongational flow
+  !> modulo(strain,max(strain))
+  real(wp),constant :: eps_m_d
+  !> The sin(theta)
+  real(wp),constant :: sinth_d
+  !> The cos(theta)
+  real(wp),constant :: costh_d
+  !> The tan(beta), where beta is the angle of L2' with y-axis
+  real(wp),constant :: tanb_d
+
+
+
+contains
+
+  !> Initializes trsfm module variables when itime=1 on device
+  !! \param bs the initial dimension of the box
+  subroutine init_trsfm_tm_d()
+
+    use :: flow_mod, only: FlowType
+    use :: trsfm_mod, only: eps_m,sinth,costh,tanb
+
+    ! real(wp),intent(in) :: bs(3)
+
+    ! ieps=1
+    ! reArng=.false.
+    select case (FlowType)
+      case ('PSF')
+        eps_m_d=eps_m
+        ! delrx_L_d=0._wp
+        ! delrx_m_d=0._wp
+      case ('PEF')
+        ! theta=theta_0
+        sinth_d=sinth
+        costh_d=costh
+        tanb_d=tanb
+        ! ! Note that the initial box should be square in x-y plane
+        ! L1_0=bs(1)*[ costh0,sinth0]
+        ! L2_0=bs(1)*[-sinth0,costh0]
+    end select
+
+  end subroutine init_trsfm_tm_d
+
+  !> Updates rearrangement logical variable at each time step
+  !! \param eps applied strain
+  !! \param bs the dimension of the box
+  subroutine update_arng_d()
+
+    use :: flow_mod, only: FlowType
+    use :: trsfm_mod, only: eps_m
+
+    ! real(wp) :: M(2,2),eps,eps_r
+
+    select case (FlowType)
+      case ('PSF','PEF')
+        eps_m_d=eps_m
+        ! eps_r=eps_r
+      ! case ('PEF')
+      !   eps_m=mod(eps,eps_p)
+      !   eps_r=eps/eps_p
+    end select
+    ! if (floor(eps_r) == ieps) then
+    !   ieps=ieps+1
+    !   reArng=.true.
+    ! else
+    !   reArng=.false.
+    ! end if
+
+  end subroutine update_arng_d
+
+  !> Updates trsfm module variables at each time step
+  !! \param eps applied strain
+  !! \param bs the dimension of the box
+  subroutine update_trsfm_d()
+
+    use :: flow_mod, only: FlowType
+    use :: trsfm_mod, only: eps_m,sinth,costh,tanb
+
+    ! real(wp),intent(in) :: bs(3)
+    ! real(wp) :: M(2,2)
+
+    select case (FlowType)
+      case ('PSF')
+        ! delrx_L=eps_m*bs(2)
+        ! delrx_m=delrx_L/2
+      case ('PEF')
+        ! L1=[L1_0(1)*exp(eps_m),L1_0(2)*exp(-eps_m)]
+        ! L2=[L2_0(1)*exp(eps_m),L2_0(2)*exp(-eps_m)]
+        ! theta_d=theta
+        sinth_d=sinth
+        costh_d=costh
+        ! M(1,:)=[ costh,sinth]
+        ! M(2,:)=[-sinth,costh]
+        ! L1p=matmul(M,L1)
+        ! L2p=matmul(M,L2)
+        ! bsx=sqrt(L1(1)**2+L1(2)**2)
+        ! bsy=L2p(2)
+        ! invbsx=1/bsx
+        ! invbsy=1/bsy
+        tanb_d=tanb
+    end select
+
+  end subroutine update_trsfm_d
+
+  !> Constructor for trsfm type
+  !! \param ntotbead total number of beads inside the box
+  !! \param nchain the number of chain inside the box
+  subroutine init_trsfm_t(this)
+
+    class(trsfm_cu_t),intent(inout) :: this
+        
+  end subroutine init_trsfm_t
+
+
+  !> Applying periodic boundary condition, global call
+  !! \param bs the dimension of the box
+  !! \param invbs the inverse of box dimensions
+  !! \param Rbx x-coordinate of the position vector
+  !! \param Rby y-coordinate of the position vector
+  !! \param Rbz z-coordinate of the position vector
+  !! \param str the modulo(strain,max(strain))
+  !! \param b_img the image of the beads inside the primary box
+  !! \param cm_img the image of the center of mass inside the primary box
+  subroutine applypbc_glob(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,itime)
+
+    use :: flow_mod, only: FlowType
+
+    class(trsfm_cu_t),intent(inout) :: this
+    integer,intent(in) :: itime
+    real(wp),intent(in) :: bs(3),invbs(3)
+    real(wp),device,intent(inout) :: Rbx(:)
+    real(wp),device,intent(inout) :: Rby(:)
+    real(wp),device,intent(inout) :: Rbz(:)
+    real(wp),device,intent(inout) :: rcm(:,:)
+    integer,device,intent(inout) :: b_img(:,:)
+    integer,device,intent(inout) :: cm_img(:,:)
+
+    ! if (FlowType /= 'Equil') call map(this,Rbx,Rby,rcm,itime)
+    call applypbc_rec(this,bs(1),bs(2),bs(3),invbs(1),invbs(2),invbs(3),Rbx,Rby,Rbz,&
+      rcm,b_img,cm_img,itime)
+    ! if (FlowType /= 'Equil') call remap(this,bs,invbs,Rbx,Rby,rcm,b_img,cm_img,itime)
+
+  end subroutine applypbc_glob
+
+  !> Applying periodic boundary condition on a rectangular box
+  !! \param bs the dimension of the box
+  !! \param invbs the inverse of box dimensions
+  !! \param Rbx x-coordinate of the position vector
+  !! \param Rby y-coordinate of the position vector
+  !! \param Rbz z-coordinate of the position vector
+  !! \param b_img the image of the beads inside the primary box
+  !! \param cm_img the image of the center of mass inside the primary box
+  ! subroutine applypbc_rec(this,bsx,bsy,bsz,invbsx,invbsy,invbsz,&
+  !   Rbx,Rby,Rbz,rcm,b_img,cm_img,ntb,nch,itime)
+  subroutine applypbc_rec(this,bsx,bsy,bsz,invbsx,invbsy,invbsz,Rbx,Rby,Rbz,&
+    rcm,b_img,cm_img,itime)
+
+    use :: flow_mod, only: FlowType
+    use :: arry_mod, only: print_vector,print_matrix
+
+    class(trsfm_cu_t),intent(inout) :: this
+    real(wp),intent(in) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
+    integer,intent(in) :: itime
+    real(wp),device,intent(inout) :: Rbx(:)
+    real(wp),device,intent(inout) :: Rby(:)
+    real(wp),device,intent(inout) :: Rbz(:)
+    real(wp),device,intent(inout) :: rcm(:,:)
+    integer,device,intent(inout) :: b_img(:,:)
+    integer,device,intent(inout) :: cm_img(:,:)
+    integer :: igb,ich,ntb,nch
+
+    ntb=size(Rbx,1)
+    nch=size(rcm,1)
+
+    !$cuf kernel do <<< *,* >>>
+    do igb=1, ntb
+      ! calculating the image of the beads
+      b_img(igb,1)=b_img(igb,1)-nint(Rbx(igb)*invbsx-0.5_wp)
+      b_img(igb,2)=b_img(igb,2)-nint(Rby(igb)*invbsy-0.5_wp)
+      b_img(igb,3)=b_img(igb,3)-nint(Rbz(igb)*invbsz-0.5_wp)
+      Rbx(igb)=Rbx(igb)-nint(Rbx(igb)*invbsx-0.5_wp)*bsx
+      Rby(igb)=Rby(igb)-nint(Rby(igb)*invbsy-0.5_wp)*bsy
+      Rbz(igb)=Rbz(igb)-nint(Rbz(igb)*invbsz-0.5_wp)*bsz
+    end do
+
+    !$cuf kernel do <<< *,* >>>
+    do ich=1, nch
+      cm_img(ich,1)=-nint(rcm(ich,1)*invbsx-0.5_wp)
+      cm_img(ich,2)=-nint(rcm(ich,2)*invbsy-0.5_wp)
+      cm_img(ich,3)=-nint(rcm(ich,3)*invbsz-0.5_wp)
+      rcm(ich,1)=rcm(ich,1)-nint(rcm(ich,1)*invbsx-0.5_wp)*bsx
+      rcm(ich,2)=rcm(ich,2)-nint(rcm(ich,2)*invbsy-0.5_wp)*bsy
+      rcm(ich,3)=rcm(ich,3)-nint(rcm(ich,3)*invbsz-0.5_wp)*bsz
+    end do
+
+  end subroutine applypbc_rec
+
+end module trsfm_cumod

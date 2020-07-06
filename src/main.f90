@@ -22,16 +22,24 @@
 !%------------------------------------------------------------------------%
 program BDpack
 
-  use :: mpi
   use :: dlt_mod, only: dlt_bs
   use :: smdlt_mod, only: smdlt_bs
+  use :: mpi
+#ifdef USE_GPU
+  use :: dev_cumod, only: init_dev
+#ifdef USE_MAGMA
+  use :: magma_cumod, only: init_magma
+#endif
+#endif
 
   implicit none
 
+
   ! MPI variables
-  integer :: ierr,p,id,narg
+  integer :: ierr,p,id,narg,dev_id
   character(len=20) :: inpFile
   character(len=20) :: driver
+
 
   ! Initialize MPI
   call MPI_Init(ierr)
@@ -40,7 +48,14 @@ program BDpack
   ! Get the individual process ID
   call MPI_Comm_rank(MPI_COMM_WORLD,id,ierr)
 
-  
+#ifdef USE_GPU
+  ! Initialize GPU device
+  call init_dev(id,dev_id)
+#ifdef USE_MAGMA
+  call init_magma()
+#endif
+#endif
+
   narg=command_argument_count()
   if (narg /= 0) then
     call get_command_argument(1,inpFile)
@@ -52,7 +67,7 @@ program BDpack
 
   select case (driver)
     case ('dilute_bs')
-      call dlt_bs(p,id)            
+      call dlt_bs(p,id)
     case ('semidilute_bs')
       call smdlt_bs(p,id)
     case default
@@ -69,20 +84,20 @@ program BDpack
     select case (driver)
       case ('dilute_bs')
         print *
-        print '(" %---------------------------------------------------------------%")'
-        print '(" | ***Please cite the following article if BDpack was helpful*** |")'
-        print '(" |                                                               |")'
-        print '(" |  A. Saadat and B. Khomami, J. Chem. Phys., 2014, 140, 184903  |")'
-        print '(" |                                                               |")'
-        print '(" %---------------------------------------------------------------%")'
+        print '("%---------------------------------------------------------------%")'
+        print '(" | ***Please cite the following article if BDpack washelpful*** |")'
+        print '(" |                                                              |")'
+        print '(" |  A. Saadat and B. Khomami, J. Chem. Phys., 2014, 140, 184903 |")'
+        print '(" |                                                              |")'
+        print '("%---------------------------------------------------------------%")'
       case ('semidilute_bs')
         print *
-        print '(" %---------------------------------------------------------------%")'
-        print '(" | ***Please cite the following article if BDpack was helpful*** |")'
-        print '(" |                                                               |")'
-        print '(" |   A. Saadat and B. Khomami, Phys. Rev. E, 2015, 92, 033307    |")'
-        print '(" |                                                               |")'
-        print '(" %---------------------------------------------------------------%")'
+        print '("%---------------------------------------------------------------%")'
+        print '(" | ***Please cite the following article if BDpack washelpful*** |")'
+        print '(" |                                                              |")'
+        print '(" |   A. Saadat and B. Khomami, Phys. Rev. E, 2015, 92, 033307   |")'
+        print '(" |                                                              |")'
+        print '("%---------------------------------------------------------------%")'
     end select
   end if
 
@@ -91,7 +106,7 @@ contains
   subroutine read_inp()
 
     use :: prcn_mod
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
     use :: strg_mod, only: parse,value
     use :: inp_dlt, only: read_dlt
 !    use :: smdlt_inp, only: smdlt_read
@@ -125,7 +140,7 @@ ef: do
           if (trim(adjustl(tokens(j))) == 'driver') then
             driver=trim(adjustl(tokens(j+1)))
           end if
-        end do ! j       
+        end do ! j
       end if ! ntokens
     end do ef
 

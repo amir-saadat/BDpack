@@ -107,12 +107,13 @@ module inp_dlt
   real(wp),protected :: q_l,qr_lto2
   integer,protected :: npchain
   real(wp),protected :: RWS_C,RWS_D,WLC_A,WLC_B,WLC_C
-  
+  logical,protected :: unif_flow, sph_flow
+
 contains
 
   subroutine read_dlt(id,inpFile)
 
-    use :: iso_fortran_env
+    use,intrinsic :: iso_fortran_env
     use :: strg_mod, only: parse,value
     use :: arry_mod, only: sort
 
@@ -129,7 +130,9 @@ contains
     TruncMethod='Linear';qr_l=1._wp
     applFext=.false.
     srf_tet=.false.;arm_plc='Random'
-    iflow=1 
+    unif_flow=.false.
+    sph_flow=.false.
+    iflow=1
     nWi=1;Wii=0._wp;Wif=0._wp;WiSpacing='Linear'
     hstar=0._wp;HITens='RPY';DecompMeth='Cholesky';ncols=1
     mBlLan=3;mubBlLan=15;mset=.false.
@@ -153,7 +156,7 @@ contains
     TimerA=.false.
     RgCalc=.false.
     cosThCalc=.false.;cosmode='angle'
-    DumpstrCalc=.false.    
+    DumpstrCalc=.false.
 
     open (newunit=u1,action='read',file=inpFile,status='old')
     il=1
@@ -221,7 +224,7 @@ rndmlp:         do
                 end do rndmlp
                 deallocate(u)
               end if
-              call sort(Ia) 
+              call sort(Ia)
 !              print *,'id:',id,Ia
             case ('Rel-Model')
               LambdaMethod=trim(adjustl(tokens(j+1)))
@@ -257,6 +260,18 @@ rndmlp:         do
                 srf_tet=.true.
               elseif(tokens(j+1) == 'FALSE') then
                 srf_tet=.false.
+              end if
+            case ('Unif-Flow')
+              if(tokens(j+1) == 'TRUE') then
+                unif_flow=.true.
+              elseif(tokens(j+1) == 'FALSE') then
+                unif_flow=.false.
+              end if
+            case ('Sph-Flow')
+              if(tokens(j+1) == 'TRUE') then
+                sph_flow=.true.
+              elseif(tokens(j+1) == 'FALSE') then
+                sph_flow=.false.
               end if
             case ('Flow-Type')
               call value(tokens(j+1),iflow,ios)
@@ -453,7 +468,7 @@ rndmlp:         do
     real(wp),parameter :: PI=4*atan(1._wp)
     real(wp) :: factor,dttemp2,delAdjSeq
 
-    
+
     allocate(Wi(nWi),Pe(nWi),dttemp1(ndt),dt(nWi,ndt),dt_tmp(nWi,ndt))
     allocate(ntime(nWi,ndt),itime_AdjSeq(nWi,ndt,nAdjSeq))
     if (WiSpacing == 'Log') then
@@ -491,7 +506,7 @@ rndmlp:         do
         if (id == 0) print '(" Error: Incorrect Rel-Model.")'
         stop
     end select
-    
+
     if (id == 0) then
       print *
       print '(" Longest Relaxation Time:",f10.4)',lambda
@@ -514,7 +529,7 @@ rndmlp:         do
       elseif (dtSpacing == 'Linear') then
         call linspace(dti,dtf,dttemp1)
       end if
-    endif 
+    endif
     do iWi=1, nWi
       if (Wi(iWi) < 0.5_wp) then
         if (dtCalc == 'Hsieh') then

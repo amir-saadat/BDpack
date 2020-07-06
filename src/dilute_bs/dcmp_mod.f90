@@ -23,7 +23,7 @@
 module dcmp_mod
 
   use :: prcn_mod
-  
+
 contains
 
   subroutine Lanczos(D,Z,w,Ybar,nbeadx3,errormin,mub,minit,Y,msetinp)
@@ -86,7 +86,7 @@ mlp:do
           if (H(k+1,k) == 0) VP=1.0_double
         end if
       end do
-  
+
       sqrtHPt=HPt
       call syev(sqrtHPt,lambdaVPt,jobz='V',uplo='U',info=info)
       if (info /= 0) then
@@ -94,7 +94,8 @@ mlp:do
         write(*,'(a,1x,i3)') 'info:',info
         stop
       end if
-      if (minval(lambdaVPt,dim=m)<=0) then
+      ! if (minval(lambdaVPt,dim=m)<=0) then
+      if (minval(lambdaVPt)<=0) then
         write(*,*) 'Not a positive definite matrix in Lanczos'
         stop
       end if
@@ -239,15 +240,16 @@ mlp:do
           V(:,indexFkp1:indexLkp1)=a(:,:)
         end if
       end do
-  
-      sqrtHPt=HPt 
+
+      sqrtHPt=HPt
       call syev(sqrtHPt,lambdaVPt,jobz='V',uplo='U',info=info)
       if (info /= 0) then
         write(*,*) 'Unsuccessful eigenvalue computation in Block Lanczos'
         write(*,'(a,1x,i3)') 'info:',info
         stop
       end if
-      if (minval(lambdaVPt,dim=m)<=0) then
+      ! if (minval(lambdaVPt,dim=m)<=0) then
+      if (minval(lambdaVPt)<=0) then
         write(*,*) 'Not a positive definite matrix in Block Lanczos'
         stop
       end if
@@ -276,11 +278,11 @@ mlp:do
             deallocate(Vtemp,Htemp,Rtemp)
           end if
         end if
-      end if 
+      end if
       Ybar=Y(:,1)
       m=m+1;ms=m*s
       cycle mlp
-    end do mlp   
+    end do mlp
     deallocate(Wtemp,V,R,H,sqrtH,lambdaM,lambdaV)
 !    write(*,'(a,i4)') 'Nember of Lanczos Iteration=',m
     minit=m
@@ -312,7 +314,7 @@ mlp:do
         real(double),dimension(2) :: beEigVal
       end function BothEndEigVal
     end interface
- 
+
     if (Linit < 2) then
       write(*,'(a)') "Error: Linit can't be less than 2"
       stop
@@ -322,18 +324,18 @@ mlp:do
     else
       lambda=BothEndEigVal(D)
       lambda(1)=lambda(1)/2;lambda(2)=2*lambda(2)
-      if (lambda(2)/lambda(1) >= 10.0e5_double) then 
-        Lub=100 
+      if (lambda(2)/lambda(1) >= 10.0e5_double) then
+        Lub=100
       else
         Lub=nint(sqrt(lambda(2)/lambda(1))+10)
       end if
-    end if 
+    end if
     if (lambda(1)<=0) then
       write(*,*) 'Not a positive definite matrix in Chebyshev'
       stop
     end if
     if (Linit > Lub) Lub=Linit
-    allocate(c(0:Lub),dV(nbeadx3,Lub*s)) 
+    allocate(c(0:Lub),dV(nbeadx3,Lub*s))
     L=Linit-1
     k0=1
     am=(lambda(2)-lambda(1))/2;ap=(lambda(2)+lambda(1))/2
@@ -370,14 +372,14 @@ llp:do
             lambda=BothEndEigVal(D)
             lambda(1)=lambda(1)/2;lambda(2)=2*lambda(2)
             am=(lambda(2)-lambda(1))/2;ap=(lambda(2)+lambda(1))/2
-            if (lambda(2)/lambda(1) >= 10.0e5_double) then 
-              Lub=100 
+            if (lambda(2)/lambda(1) >= 10.0e5_double) then
+              Lub=100
             else
               Lub=nint(sqrt(lambda(2)/lambda(1))+10)
             end if
-            if (L >= Lub) Lub=L+10            
+            if (L >= Lub) Lub=L+10
             Dsh=1/am*D-ap/am*Eye
-            call symm(Dsh,dW,dV1)            
+            call symm(Dsh,dW,dV1)
             allocate(dVtemp(nbeadx3,L*s))
             dVtemp=dV
             deallocate(c,dV)
@@ -431,7 +433,7 @@ llp:do
     real(double),allocatable,dimension(:,:) :: Dtemp
     real(double),allocatable,dimension(:) :: w
     real(double),dimension(2) :: beEigVal
-    
+
     nbeadx3=size(D,1)
     allocate(Dtemp(nbeadx3,nbeadx3),w(nbeadx3))
     Dtemp=D

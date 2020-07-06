@@ -66,62 +66,412 @@ module conv_mod
   integer,allocatable,save :: Bbar_cols(:),Bbar_rowInd(:)
   !> @}
 
+  ! ! B for comb polymer
+  ! real(wp),allocatable :: B_vals_cmb(:)
+  ! integer,allocatable :: B_cols_cmb(:),B_rowInd_cmb(:)
+  ! ! Bbar for comb polymer
+  ! real(wp),allocatable :: Bbar_vals_cmb(:)
+  ! integer,allocatable :: Bbar_cols_cmb(:),Bbar_rowInd_cmb(:)
+
+  !> the max number of nonzero elements for B
+  integer,save :: maxnz_B
+  !> the max number of nonzero elements for Bbar
+  integer,save :: maxnz_Bbar
+
+
 contains
 
   !> Initialization of conversion module
-  subroutine init_conv(nchain,nseg,nbead,nsegx3,nbeadx3,ntotsegx3,ntotbeadx3)
+  subroutine init_conv(nchain,nseg,nbead,nsegx3,nbeadx3,ntotsegx3,ntotbeadx3,&
+    add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar,Na,Ia)
+
+    use :: arry_mod, only: print_vector,print_matrix
 
     integer,intent(in) :: nchain,nseg,nbead,nsegx3,nbeadx3,ntotsegx3,ntotbeadx3
-    integer :: jseg,ibead,maxnz_Bbar,ichain,offsetch1,offsetch2,offsetch3
-    integer :: offsetchx2,offsetseg,offsetseg1,offsetseg2,isegx3,offsetbead1
-    integer :: offsetbead2,maxnz_B,icoor,offsetcoor
 
-    ! Constructing Bbar_tilde and B_tilde based on Bbar and B in DPL of Bird et al.:
-    ! For making Bbar_tilde sparse (CSR):
-    maxnz_Bbar=nchain*nsegx3*2
-    allocate(Bbar_vals(maxnz_Bbar),Bbar_cols(maxnz_Bbar),Bbar_rowInd(ntotsegx3+1))
-    Bbar_rowInd(1)=1
-    do ichain=1, nchain
-      offsetch1=(ichain-1)*nsegx3
-      offsetch2=(ichain-1)*nbeadx3
-      offsetchx2=offsetch1*2
-      do isegx3=1, nsegx3
-        offsetseg=(isegx3-1)*2
-        Bbar_cols(offsetchx2+offsetseg+1)=offsetch2+isegx3
-        Bbar_vals(offsetchx2+offsetseg+1)=-1._wp
-        Bbar_cols(offsetchx2+offsetseg+2)=offsetch2+isegx3+3
-        Bbar_vals(offsetchx2+offsetseg+2)=1._wp
-        Bbar_rowInd(offsetch1+isegx3+1)=Bbar_rowInd(offsetch1+isegx3)+2
+    logical,intent(in) :: add_cmb
+    integer,intent(in) :: nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar,Na,Ia(:)
+
+    integer :: jseg,ibead,ichain,offsetch1,offsetch2,offsetch3
+    integer :: offsetchx2,offsetseg,offsetseg1,offsetseg2,isegx3,offsetbead1
+    integer :: offsetbead2,icoor,offsetcoor
+
+
+    integer :: nbead_cmb,ntotseg_cmb,iarm,kseg,kbead,ntotbead_cmb
+    real(wp) :: fctr
+
+    integer :: idx,k,mu,nu,i
+    real(wp),allocatable :: Bmattest(:,:)
+
+
+    if (add_cmb) then
+
+      ! nchain_cmb=1
+      ! nseg_cmb=4
+      ! nbead_cmb=5
+      ! nseg_cmbbb=2
+      ! nseg_cmbar=2
+      ! Na=1
+      ! Ia=[1,2]
+      ! ntotseg_cmb=4
+      ! ntotbead_cmb=5
+
+      ! nseg_cmbbb=nseg_cmb-Na*nseg_cmbar
+      nbead_cmb=nseg_cmb+1
+      ntotseg_cmb=nchain_cmb*nseg_cmb
+      ntotbead_cmb=ntotseg_cmb+1
+
+      !-------------------------------------
+      ! Constructing Bbar_tilde_cmb and B_tilde_cmb based on Bbar and B:
+      ! For making Bbar_tilde_cmb sparse (CSR):
+      !-------------------------------------
+      maxnz_Bbar=nchain*nseg*3*2 + nchain_cmb*nseg_cmb*3*2
+      allocate(Bbar_vals(maxnz_Bbar))
+      allocate(Bbar_cols(maxnz_Bbar))
+      allocate(Bbar_rowInd((nchain*nseg*3+nchain_cmb*nseg_cmb*3)+1))
+
+      Bbar_rowInd(1)=1
+      do ichain=1, nchain
+        offsetch1=(ichain-1)*nseg*3
+        offsetch2=(ichain-1)*nbead*3
+        offsetchx2=offsetch1*2
+        do isegx3=1, nseg*3
+          offsetseg=(isegx3-1)*2
+          Bbar_cols(offsetchx2+offsetseg+1)=offsetch2+isegx3
+          Bbar_vals(offsetchx2+offsetseg+1)=-1._wp
+          Bbar_cols(offsetchx2+offsetseg+2)=offsetch2+isegx3+3
+          Bbar_vals(offsetchx2+offsetseg+2)=1._wp
+
+          Bbar_rowInd(offsetch1+isegx3+1)=Bbar_rowInd(offsetch1+isegx3)+2
+        end do
       end do
-    end do
-    ! For making B_tilde sparse (CSR):
-    maxnz_B=nchain*nbeadx3*nseg
-    allocate(B_vals(maxnz_B),B_cols(maxnz_B),B_rowInd(ntotbeadx3+1))
-    B_rowInd(1)=1
-    do ichain=1, nchain
-      offsetch1=(ichain-1)*nbeadx3*nseg
-      offsetch2=(ichain-1)*nsegx3
-      offsetch3=(ichain-1)*nbeadx3
-      do ibead=1, nbead
-        offsetbead1=(ibead-1)*nseg*3
-        offsetbead2=(ibead-1)*3
+
+      do ichain=1, nchain_cmb
+        offsetch1=nchain*nseg*3 + (ichain-1)*nseg_cmb*3
+        offsetch2=nchain*nbead*3 + (ichain-1)*nbead_cmb*3
+        offsetchx2=offsetch1*2
+        
+        iarm=1
+        icoor=0
+        do isegx3=1, nseg_cmb*3
+
+          offsetseg=(isegx3-1)*2
+          
+          if (isegx3 <= nseg_cmbbb*3) then            
+            Bbar_cols(offsetchx2+offsetseg+1)=offsetch2+isegx3
+            Bbar_vals(offsetchx2+offsetseg+1)=-1._wp
+            Bbar_cols(offsetchx2+offsetseg+2)=offsetch2+isegx3+3
+            Bbar_vals(offsetchx2+offsetseg+2)=1._wp
+          else ! iseg > nseg_cmbbb
+
+            if ( (isegx3+2)/3 - nseg_cmbbb - (iarm-1)*nseg_cmbar == 1) then
+
+              Bbar_cols(offsetchx2+offsetseg+1)=offsetch2+(Ia(iarm+1)-1)*3+icoor+1
+              Bbar_vals(offsetchx2+offsetseg+1)=-1._wp
+              Bbar_cols(offsetchx2+offsetseg+2)=offsetch2+isegx3+3
+              Bbar_vals(offsetchx2+offsetseg+2)=1._wp
+
+              ! taking into account all 3 components associated with the first segment of the arm
+              icoor=icoor+1
+              if (icoor==3) then
+                iarm=iarm+1
+                icoor=0
+              endif
+
+            else
+
+              Bbar_cols(offsetchx2+offsetseg+1)=offsetch2+isegx3
+              Bbar_vals(offsetchx2+offsetseg+1)=-1._wp
+              Bbar_cols(offsetchx2+offsetseg+2)=offsetch2+isegx3+3
+              Bbar_vals(offsetchx2+offsetseg+2)=1._wp
+
+            end if
+          endif
+
+          Bbar_rowInd(offsetch1+isegx3+1)=Bbar_rowInd(offsetch1+isegx3)+2
+
+        end do
+
+        
+      end do
+
+      ! call print_vector(Bbar_vals,'vals')
+      ! call print_vector(Bbar_cols,'cols')
+      ! call print_vector(Bbar_rowInd,'rowind')
+
+
+      ! allocate(Bmattest(ntotbead_cmb*3,ntotseg_cmb*3))
+
+      !-------------------------------------
+      ! >>> For making B_tilde sparse (CSR):
+      !-------------------------------------
+
+      ! maxnz_B_cmb=nchain*nbeadx3*nseg+nchain_cmb*nbead_cmb*3*nseg_cmb
+      maxnz_B=nchain*nbeadx3*nseg+nchain_cmb*nbead_cmb*3*nseg_cmb
+      allocate(B_vals(maxnz_B),B_cols(maxnz_B))
+      allocate(B_rowInd(nchain*nbead*3+nchain_cmb*nbead_cmb*3+1))
+
+      ! for debugging
+      ! maxnz_B_cmb=nchain_cmb*nbead_cmb*3*nseg_cmb
+      ! allocate(B_vals_cmb(maxnz_B_cmb),B_cols_cmb(maxnz_B_cmb),B_rowInd_cmb(ntotbead_cmb*3+1))
+
+      B_rowInd(1)=1
+
+      do ichain=1, nchain
+        offsetch1=(ichain-1)*nbeadx3*nseg
+        offsetch2=(ichain-1)*nsegx3
+        offsetch3=(ichain-1)*nbeadx3
+        do ibead=1, nbead
+          offsetbead1=(ibead-1)*nseg*3
+          offsetbead2=(ibead-1)*3
+          do icoor=1, 3
+            offsetcoor=(icoor-1)*nseg
+            do jseg=1, nseg
+              offsetseg1=offsetcoor+(jseg-1)
+              offsetseg2=(jseg-1)*3
+              if (ibead > jseg) then
+                B_vals(offsetch1+offsetbead1+offsetseg1+1)=jseg/real(nbead,kind=wp)
+                B_cols(offsetch1+offsetbead1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
+              else
+                B_vals(offsetch1+offsetbead1+offsetseg1+1)=-(1-jseg/real(nbead,kind=wp))
+                B_cols(offsetch1+offsetbead1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
+              end if
+            end do ! jseg
+            B_rowInd(offsetch3+offsetbead2+icoor+1)=B_rowInd(offsetch3+offsetbead2+icoor)+nseg
+          end do ! icoor
+        end do ! ibead
+      end do ! ichain
+
+
+      do ichain=1, nchain_cmb
+
+        offsetch1=nchain*nbeadx3*nseg + (ichain-1)*nbead_cmb*3*nseg_cmb
+        offsetch2=nchain*nsegx3 + (ichain-1)*nseg_cmb*3
+        offsetch3=nchain*nbeadx3 + (ichain-1)*nbead_cmb*3
+
+        ! for debugging
+        ! offsetch1= (ichain-1)*nbead_cmb*3*nseg_cmb
+        ! offsetch2=(ichain-1)*nseg_cmb*3
+        ! offsetch3=(ichain-1)*nbead_cmb*3
+
+        ! Constructing the elements of the first row (first bead) of B
         do icoor=1, 3
-          offsetcoor=(icoor-1)*nseg
-          do jseg=1, nseg
+          offsetcoor=(icoor-1)*nseg_cmb
+          do jseg=1, nseg_cmbbb
             offsetseg1=offsetcoor+(jseg-1)
             offsetseg2=(jseg-1)*3
-            if (ibead > jseg) then
-              B_vals(offsetch1+offsetbead1+offsetseg1+1)=jseg/real(nbead,kind=wp)
-              B_cols(offsetch1+offsetbead1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
-            else
-              B_vals(offsetch1+offsetbead1+offsetseg1+1)=-(1-jseg/real(nbead,kind=wp))
-              B_cols(offsetch1+offsetbead1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
-            end if
+            B_vals(offsetch1+offsetseg1+1)=-(nseg_cmbbb-jseg+1)/real(nbead_cmb,kind=wp)
+            B_cols(offsetch1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
           end do ! jseg
-          B_rowInd(offsetch3+offsetbead2+icoor+1)=B_rowInd(offsetch3+offsetbead2+icoor)+nseg
-        end do ! icoor
-      end do ! ibead
-    end do ! ichain
+          B_rowInd(offsetch3+icoor+1)=B_rowInd(offsetch3+icoor)+nseg_cmb
+          
+          do iarm=1, Na
+
+            ! modifying the values of the first row, due to the segments between the arms  
+            fctr=(Na-iarm+1)*nseg_cmbar/real(nbead_cmb,kind=wp)
+            do jseg=Ia(iarm), Ia(iarm+1)-1
+              offsetseg1=offsetcoor+(jseg-1)
+              B_vals(offsetch1+offsetseg1+1)=B_vals(offsetch1+offsetseg1+1)-fctr
+
+            enddo
+
+            ! the elements of the first row corresponding to the arm segments
+            do kseg=1, nseg_cmbar
+              jseg=nseg_cmbbb+(iarm-1)*nseg_cmbar+kseg
+              offsetseg1=offsetcoor+(jseg-1)
+              offsetseg2=(jseg-1)*3
+              B_vals(offsetch1+offsetseg1+1)=-(nseg_cmbar-kseg+1)/real(nbead_cmb,kind=wp)
+              B_cols(offsetch1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
+            end do
+
+          enddo
+
+        enddo ! icoor
+
+        ! Constructing the rest of the rows in backbone
+        do ibead=2, nseg_cmbbb+1
+
+          offsetbead1=(ibead-1)*nseg_cmb*3
+          offsetbead2=(ibead-1)*3
+
+          do icoor=1, 3
+            offsetcoor=(icoor-1)*nseg_cmb
+
+            do jseg=1, nseg_cmb
+              offsetseg1=offsetcoor+(jseg-1)
+              offsetseg2=(jseg-1)*3
+              B_vals(offsetch1+offsetbead1+offsetseg1+1)=B_vals(offsetch1+offsetseg1+1)
+              B_cols(offsetch1+offsetbead1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
+            end do ! jseg
+
+            ! modifying the values 
+            do jseg=1, ibead-1
+              offsetseg1=offsetcoor+(jseg-1)
+              offsetseg2=(jseg-1)*3
+              B_vals(offsetch1+offsetbead1+offsetseg1+1)=B_vals(offsetch1+offsetbead1+offsetseg1+1)+1
+            end do ! jseg
+
+            B_rowInd(offsetch3+offsetbead2+icoor+1)=B_rowInd(offsetch3+offsetbead2+icoor)+nseg_cmb
+          
+          end do ! icoor
+        
+        end do ! ibead
+
+        ! Constructing the rows for the arms
+        do iarm=1, Na
+
+          ! Constructing the rest of the rows in backbone
+          do kbead=1, nseg_cmbar
+
+            ibead=nseg_cmbbb+1+(iarm-1)*nseg_cmbar+kbead
+            offsetbead1=(ibead-1)*nseg_cmb*3
+            offsetbead2=(ibead-1)*3
+
+            do icoor=1, 3
+              offsetcoor=(icoor-1)*nseg_cmb
+
+              do jseg=1, nseg_cmb
+                offsetseg1=offsetcoor+(jseg-1)
+                offsetseg2=(jseg-1)*3
+                B_vals(offsetch1+offsetbead1+offsetseg1+1)=B_vals(offsetch1+offsetseg1+1)
+                B_cols(offsetch1+offsetbead1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
+              end do ! jseg
+
+              ! modifying the values 
+              do jseg=1, Ia(iarm+1)-1
+                offsetseg1=offsetcoor+(jseg-1)
+                offsetseg2=(jseg-1)*3
+                B_vals(offsetch1+offsetbead1+offsetseg1+1)=B_vals(offsetch1+offsetbead1+offsetseg1+1)+1
+              end do ! jseg
+
+              ! modifying the values 
+              do kseg=1, kbead
+                jseg=nseg_cmbbb+(iarm-1)*nseg_cmbar+kseg
+                offsetseg1=offsetcoor+(jseg-1)
+                offsetseg2=(jseg-1)*3
+                B_vals(offsetch1+offsetbead1+offsetseg1+1)=B_vals(offsetch1+offsetbead1+offsetseg1+1)+1
+              end do ! jseg
+
+              B_rowInd(offsetch3+offsetbead2+icoor+1)=B_rowInd(offsetch3+offsetbead2+icoor)+nseg_cmb
+
+            end do ! icoor
+
+          end do ! ibead
+
+        enddo
+
+      end do ! ichain
+
+      ! call print_vector(B_vals(nchain*nbeadx3*nseg+1:maxnz_B),'vals')
+      ! call print_vector(B_cols(nchain*nbeadx3*nseg+1:maxnz_B),'cols')
+      ! call print_vector(B_rowInd(nchain*nbead*3:nchain*nbead*3+nchain_cmb*nbead_cmb*3+1),'rowind')
+
+      ! Bmattest=0.0_wp
+      ! ! Constructing the elements of the first row of B
+      ! do k=1, nseg_cmbbb
+      !  forall (i=1:3) Bmattest(i,3*(k-1)+i)=-(nseg_cmbbb-k+1)/real(nbead_cmb,kind=wp)
+      ! end do
+      ! do iarm=1, Na
+      !  fctr=(Na-iarm+1)*nseg_cmbar/real(nbead_cmb,kind=wp)
+      !  do k=Ia(iarm), Ia(iarm+1)-1
+      !    forall (i=1:3)
+      !      Bmattest(i,3*(k-1)+i)=Bmattest(i,3*(k-1)+i)-fctr
+      !    end forall
+      !  end do ! k
+      !  do k=1, nseg_cmbar
+      !    idx=nseg_cmbbb+(iarm-1)*nseg_cmbar+k
+      !    forall (i=1:3)
+      !      Bmattest(i,3*(idx-1)+i)=Bmattest(i,3*(idx-1)+i)-&
+      !      (nseg_cmbar-k+1)/real(nbead_cmb,kind=wp)
+      !    end forall
+      !  end do ! k
+      ! end do ! iarm
+      ! ! Constructing the rest of the rows in backbone
+      ! do nu=2, nseg_cmbbb+1
+      !  forall (i=1:3) Bmattest(3*(nu-1)+i,:)=Bmattest(i,:)
+      !  do k=1, nu-1
+      !    forall (i=1:3)
+      !      Bmattest(3*(nu-1)+i,3*(k-1)+i)=Bmattest(3*(nu-1)+i,3*(k-1)+i)+1
+      !    end forall
+      !  end do ! k
+      ! end do ! nu
+      ! ! Constructing the rows for the arms
+      ! do iarm=1, Na
+      !  do mu=1, nseg_cmbar
+      !    nu=nseg_cmbbb+1+(iarm-1)*nseg_cmbar+mu
+      !    forall (i=1:3) Bmattest(3*(nu-1)+i,:)=Bmattest(i,:)
+      !    do k=1, Ia(iarm+1)-1
+      !      forall (i=1:3)
+      !        Bmattest(3*(nu-1)+i,3*(k-1)+i)=Bmattest(3*(nu-1)+i,3*(k-1)+i)+1
+      !      end forall
+      !    end do ! k
+      !    do k=1, mu
+      !      idx=nseg_cmbbb+(iarm-1)*nseg_cmbar+k
+      !      forall (i=1:3)
+      !        Bmattest(3*(nu-1)+i,3*(idx-1)+i)=Bmattest(3*(nu-1)+i,3*(idx-1)+i)+1
+      !      end forall
+      !    end do ! k
+      !  end do ! mu
+      ! end do ! iarm
+
+      ! call print_matrix(Bmattest,'btest')
+
+    else
+
+      ! Constructing Bbar_tilde and B_tilde based on Bbar and B in DPL of Bird et al.:
+      ! For making Bbar_tilde sparse (CSR):
+      maxnz_Bbar=nchain*nsegx3*2
+      allocate(Bbar_vals(maxnz_Bbar),Bbar_cols(maxnz_Bbar),Bbar_rowInd(ntotsegx3+1))
+      Bbar_rowInd(1)=1
+      do ichain=1, nchain
+        offsetch1=(ichain-1)*nsegx3
+        offsetch2=(ichain-1)*nbeadx3
+        offsetchx2=offsetch1*2
+        do isegx3=1, nsegx3
+          offsetseg=(isegx3-1)*2
+          Bbar_cols(offsetchx2+offsetseg+1)=offsetch2+isegx3
+          Bbar_vals(offsetchx2+offsetseg+1)=-1._wp
+          Bbar_cols(offsetchx2+offsetseg+2)=offsetch2+isegx3+3
+          Bbar_vals(offsetchx2+offsetseg+2)=1._wp
+          Bbar_rowInd(offsetch1+isegx3+1)=Bbar_rowInd(offsetch1+isegx3)+2
+        end do
+      end do
+
+      ! call print_vector(Bbar_vals,'vals')
+      ! call print_vector(Bbar_cols,'cols')
+      ! call print_vector(Bbar_rowInd,'rowind')
+
+      ! For making B_tilde sparse (CSR):
+      maxnz_B=nchain*nbeadx3*nseg
+      allocate(B_vals(maxnz_B),B_cols(maxnz_B),B_rowInd(ntotbeadx3+1))
+      B_rowInd(1)=1
+      do ichain=1, nchain
+        offsetch1=(ichain-1)*nbeadx3*nseg
+        offsetch2=(ichain-1)*nsegx3
+        offsetch3=(ichain-1)*nbeadx3
+        do ibead=1, nbead
+          offsetbead1=(ibead-1)*nseg*3
+          offsetbead2=(ibead-1)*3
+          do icoor=1, 3
+            offsetcoor=(icoor-1)*nseg
+            do jseg=1, nseg
+              offsetseg1=offsetcoor+(jseg-1)
+              offsetseg2=(jseg-1)*3
+              if (ibead > jseg) then
+                B_vals(offsetch1+offsetbead1+offsetseg1+1)=jseg/real(nbead,kind=wp)
+                B_cols(offsetch1+offsetbead1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
+              else
+                B_vals(offsetch1+offsetbead1+offsetseg1+1)=-(1-jseg/real(nbead,kind=wp))
+                B_cols(offsetch1+offsetbead1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
+              end if
+            end do ! jseg
+            B_rowInd(offsetch3+offsetbead2+icoor+1)=B_rowInd(offsetch3+offsetbead2+icoor)+nseg
+          end do ! icoor
+        end do ! ibead
+      end do ! ichain
+
+    endif ! add_cmb
+
 
   end subroutine init_conv
 
@@ -136,13 +486,64 @@ contains
 
 #ifdef USE_DP
     call mkl_dcsrmv('N',ntotbeadx3,ntotsegx3,1._wp,'GIIF',B_vals,B_cols,&
-                    B_rowInd,B_rowInd(2),Q,0._wp,R)
+       B_rowInd,B_rowInd(2),Q,0._wp,R)
 #elif USE_SP
     call mkl_scsrmv('N',ntotbeadx3,ntotsegx3,1._wp,'GIIF',B_vals,B_cols,&
-                    B_rowInd,B_rowInd(2),Q,0._wp,R)
+      B_rowInd,B_rowInd(2),Q,0._wp,R)
 #endif
 
   end subroutine QtoR
+
+  !> Converting Rb to Q using sparse multiplication
+  !! \param Q connectivity vectors
+  !! \param R bead to center of mass vectors
+  subroutine RbtoQ(Rb,Q,ntotsegx3,ntotbeadx3,bs)
+
+    integer,intent(in) :: ntotsegx3,ntotbeadx3
+    real(wp),intent(in) :: Rb(:)
+    real(wp),intent(inout) :: Q(:)
+    real(wp),intent(in) :: bs(3)
+
+    real(wp) :: qx,qy,qz,bsx,bsy,bsz,invbsx,invbsy,invbsz
+    integer :: its
+
+    bsx=bs(1);bsy=bs(2);bsz=bs(3)
+    invbsx=1/bs(1);invbsy=1/bs(2);invbsz=1/bs(3)
+
+#ifdef USE_DP
+    call mkl_dcsrmv('N',ntotsegx3,ntotbeadx3,1._wp,'GIIF',Bbar_vals,Bbar_cols,&
+      Bbar_rowInd,Bbar_rowInd(2),Rb,0._wp,Q)
+#elif USE_SP
+    call mkl_scsrmv('N',ntotsegx3,ntotbeadx3,1._wp,'GIIF',Bbar_vals,Bbar_cols,&
+      Bbar_rowInd,Bbar_rowInd(2),Rb,0._wp,Q)
+#endif
+
+    do its=1, ntotsegx3/3
+
+      qx=Q((its-1)*3+1)
+      qy=Q((its-1)*3+2)
+      qz=Q((its-1)*3+3)
+
+      qx=qx-nint(qx*invbsx)*bsx
+      qy=qy-nint(qy*invbsy)*bsy
+      qz=qz-nint(qz*invbsz)*bsz
+      ! select case (FlowType)
+      !   case ('PSF')
+      !     qx=qx+eps_m*qy
+      !   case ('PEF')
+      !     qytmp=qy
+      !     qx=qx+tanb*qytmp
+      !     qy=sinth*qx+costh*qytmp
+      !     qx=costh*qx-sinth*qytmp
+      ! end select
+
+      Q((its-1)*3+1)=qx
+      Q((its-1)*3+2)=qy
+      Q((its-1)*3+3)=qz
+
+    enddo
+
+  end subroutine RbtoQ
 
   !> Converting {R,rc} to (Rbx,Rby,Rbz)
   !! \param R bead to center of mass distance for all chains
@@ -150,30 +551,49 @@ contains
   !! \param Rbx x-coordinate of the position vector
   !! \param Rby y-coordinate of the position vector
   !! \param Rbz z-coordinate of the position vector
-  subroutine RtoRbc(R,rcm,Rbx,Rby,Rbz,nchain,nbead,ntotbead,ntotbeadx3)
+  subroutine RtoRbc(R,rcm,Rbx,Rby,Rbz,nchain,nbead,ntotbead,ntotbeadx3,add_cmb,nchain_cmb,nseg_cmb)
 
 !$  use :: omp_lib
 
     integer,intent(in) :: nchain,nbead,ntotbead,ntotbeadx3
     real(wp),intent(in) :: R(:),rcm(:,:)
     real(wp),intent(inout) :: Rbx(ntotbead),Rby(ntotbead),Rbz(ntotbead)
-    integer :: igb,os,ich
+    logical,intent(in) :: add_cmb
+    integer,intent(in) :: nchain_cmb,nseg_cmb
+    integer :: igb,os,ich,os1,os2
 
-!$omp parallel default(private) shared(ntotbead,nbead,Rbx,Rby,Rbz,R,rcm)
+!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rbx,Rby,Rbz,R,rcm)
 !$omp do schedule(auto)
     do igb=1, ntotbead
       os=(igb-1)*3
       ich=(igb-1)/nbead+1
-      Rbx(igb)=R(os+1)+rcm(ich,1)
+      Rbx(igb)=R(os+1)+rcm(ich,1) 
       Rby(igb)=R(os+2)+rcm(ich,2)
       Rbz(igb)=R(os+3)+rcm(ich,3)
     end do
 !$omp end do
 !$omp end parallel
+
+    if (add_cmb) then
+!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rbx,Rby,Rbz,R,rcm,add_cmb,nchain_cmb,nseg_cmb)
+!$omp do schedule(auto)
+      do igb=1, nchain_cmb*(nseg_cmb+1)
+        os1=nchain*nbead+(igb-1)
+        os2=nchain*nbead*3+(igb-1)*3
+        ich=nchain+(igb-1)/(nseg_cmb+1)+1
+
+        Rbx(os1+1)=R(os2+1)+rcm(ich,1)
+        Rby(os1+1)=R(os2+2)+rcm(ich,2)
+        Rbz(os1+1)=R(os2+3)+rcm(ich,3)
+
+      end do
+!$omp end do
+!$omp end parallel
+    endif
     
   end subroutine RtoRbc
 
-  !> Converting Rbc to Q
+  !> Converting Rbc to Q (only for linear chains)
   !! \param Rb the position vector of the beads for all chains
   !! \param Q connectivity vectors
   subroutine RbctoQ(Rbx,Rby,Rbz,Q,bs,invbs,nseg,nbead,ntotseg)
@@ -225,7 +645,7 @@ contains
   !! \param R bead to center of mass distance for all chains
   !! \param rcm center of mass for all chains
   !! \param Rb the position vector of the beads for all chains
-  subroutine RtoRb(R,rcm,Rb,nchain,nbead,ntotbead,ntotbeadx3)
+  subroutine RtoRb(R,rcm,Rb,nchain,nbead,ntotbead,ntotbeadx3,add_cmb,nchain_cmb,nseg_cmb)
 
 !$  use :: omp_lib
 
@@ -233,9 +653,11 @@ contains
     real(wp),intent(in) :: R(:)
     real(wp),intent(in) :: rcm(:,:)
     real(wp),intent(inout) :: Rb(:)
+    logical,intent(in) :: add_cmb
+    integer,intent(in) :: nchain_cmb,nseg_cmb
     integer :: igb,os,ich
 
-!$omp parallel default(private) shared(ntotbead,nbead,Rb,R,rcm)
+!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rb,R,rcm)
 !$omp do schedule(auto)
     do igb=1, ntotbead
       os=(igb-1)*3
@@ -246,6 +668,20 @@ contains
     end do
 !$omp end do
 !$omp end parallel
+
+    if (add_cmb) then
+!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rb,R,rcm,add_cmb,nchain_cmb,nseg_cmb)
+!$omp do schedule(auto)
+      do igb=1, nchain_cmb*(nseg_cmb+1)
+        os=nchain*nbead*3+(igb-1)*3
+        ich=nchain+(igb-1)/(nseg_cmb+1)+1
+        Rb(os+1)=R(os+1)+rcm(ich,1)
+        Rb(os+2)=R(os+2)+rcm(ich,2)
+        Rb(os+3)=R(os+3)+rcm(ich,3)
+      end do
+!$omp end do
+!$omp end parallel
+    endif
 
   end subroutine RtoRb
 

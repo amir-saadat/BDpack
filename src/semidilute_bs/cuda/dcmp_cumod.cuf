@@ -1,0 +1,507 @@
+!%------------------------------------------------------------------------%
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
+!|  University of Tennessee-Knoxville                                     |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
+!|                                                                        |
+!|  This file is part of BDpack.                                          |
+!|                                                                        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
+!|  it under the terms of the GNU General Public License as published by  |
+!|  the Free Software Foundation, either version 3 of the License, or     |
+!|  (at your option) any later version.                                   |
+!|                                                                        |
+!|  BDpack is distributed in the hope that it will be useful,             |
+!|  but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+!|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+!|  GNU General Public License for more details.                          |
+!|                                                                        |
+!|  You should have received a copy of the GNU General Public License     |
+!|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
+!%------------------------------------------------------------------------%
+!--------------------------------------------------------------------
+!
+! MODULE:
+!
+!> @author
+!> Amir Saadat, Stanford University, May 2018
+!
+! DESCRIPTION:
+!>  on GPU
+!--------------------------------------------------------------------
+module dcmp_cumod
+
+  use :: prcn_mod
+
+  implicit none
+
+  type :: dcmp_cu_t
+
+  contains
+    ! procedure,pass(this) :: decomp => decomp_smdlt_diff
+  end type dcmp_cu_t
+
+  ! CUDA variables:
+  !>
+  real(wp),device,pointer,contiguous :: VPt_d(:,:)
+  ! !>
+  real(wp),device,pointer,contiguous :: VP_d(:)
+  real(wp),device,pointer,contiguous :: lamVPt(:)
+  real(wp),device,pointer,contiguous :: e1Pt_d(:)
+
+  ! real(wp),device,pointer :: VPt_d(:,:)
+  !>
+  ! real(wp),device,pointer :: VP_d(:)
+  ! real(wp),device,pointer :: lamVPt(:)
+  ! real(wp),device,pointer :: e1Pt_d(:)
+
+contains
+
+  ! subroutine decomp_smdlt_diff(this)
+
+  !   use :: cusolverdn
+
+  !   class(dcmp_smdlt_cu_t),intent(inout) :: this
+  !   integer, parameter :: n=3
+  !   real(8) :: a(n,n)
+  !   real(8), device :: a_d(n,n)
+  !   real(8), device, allocatable :: workspace_d(:)
+  !   integer, device :: devInfo_d
+  !   integer :: istat, Lwork
+  !   type(cusolverDnHandle) :: h
+
+  !   a(1,1) = 25.0;   a(1,2) = 15.0;   a(1,3) = -5.0
+  !   a(2,1) = a(1,2); a(2,2) = 18.0;   a(2,3) = 0.0
+  !   a(3,1) = a(1,3); a(3,2) = a(2,3); a(3,3) = 11.0
+  !   a_d = a
+
+  !   istat = cusolverDnCreate(h)
+  !   if (istat /= CUSOLVER_STATUS_SUCCESS) &
+  !        write(*,*) 'handle creation failed'
+  !   istat = cusolverDnDpotrf_bufferSize(h, &
+  !        CUBLAS_FILL_MODE_LOWER, n, a_d, n, Lwork)
+  !   if (istat /= CUSOLVER_STATUS_SUCCESS) &
+  !        write(*,*) 'cusolverDnZpotrf_buffersize failed'
+  !   allocate(workspace_d(Lwork))
+  !   istat = cusolverDnDpotrf(h, CUBLAS_FILL_MODE_LOWER, &
+  !        n, a_d, n, workspace_d, Lwork, devInfo_d)
+  !   if (istat /= CUSOLVER_STATUS_SUCCESS) &
+  !        write(*,*) 'cusolverDnZpotrf failed'
+  !   istat = devInfo_d
+  !   if (istat /= 0) write(*,*) 'Cholesky factorization failed'
+  !   istat = cusolverDnDestroy(h)
+  !   if (istat /= CUSOLVER_STATUS_SUCCESS) &
+  !        write(*,*) 'handle destruction failed'
+
+  !   a = a_d
+  !   write(*,"(3(f0.0,2x))") a(1,:)
+  !   write(*,"(3(f0.0,2x))") a(2,:)
+  !   write(*,"(3(f0.0,2x))") a(3,:)
+
+  ! end subroutine decomp_smdlt_diff
+
+  subroutine Lanczos_d(hi_d,Y_d,nbeadx3,errormin,mub,minit,decompRes,boxsizeinp,msetinp)
+
+    use :: types, only: decomp
+    use :: cublas
+    use :: cudafor
+    use :: cusolverdn
+    use :: hi_cumod, only: hi_cu_t
+    use :: diffcalc_cumod, only: PME_d
+
+    use :: arry_mod, only: print_vector,print_matrix
+
+    type(hi_cu_t),intent(inout) :: hi_d
+    integer :: nbeadx3,nbead
+    integer,intent(inout) :: minit,mub
+    real(wp),device,intent(inout) :: Y_d(:)
+    type(decomp),intent(inout) :: decompRes
+    real(wp),optional,intent(in) :: boxsizeinp(3)
+    logical,optional :: msetinp
+    ! real(wp),device,allocatable :: Y_d(:)
+    ! real(double),dimension(nbeadx3),intent(out) :: Y
+    ! real(double),allocatable,dimension(:,:),target :: V,H,sqrtH,lambdaM
+    ! real(double),allocatable,dimension(:,:) :: Vtemp,Htemp
+    ! real(double),dimension(:),pointer :: VP
+    ! real(double),dimension(:,:),pointer :: VPt,HPt,sqrtHPt,lambdaMPt
+    ! real(double),allocatable,dimension(:),target :: lambdaV,e1
+    ! real(double),allocatable,dimension(:) :: wtemp
+    ! real(double),dimension(:),pointer :: lambdaVPt,e1Pt
+    ! real(double),dimension(nbeadx3) :: w,Ybar
+    ! real(double),dimension(nbeadx3,nbeadx3),optional,intent(in) :: D
+
+    ! real(wp),allocatable,dimension(:) :: wtemp2
+
+
+    real(wp) :: errormin,error
+    integer :: m,k0,k,info,mp10,i
+
+
+
+    integer :: XYZ_dim
+    type(dim3) :: dimGrid, dimBlock
+
+
+    real(wp) :: H_tmp,z_nrm,lam_min,ybar_nrm
+    integer :: istat,Lwork,irow,jcol
+
+    integer,device :: devInfo_d
+
+    ! real(wp),device,allocatable :: Z_d(:)
+    real(wp),device,allocatable :: w_d(:)
+    real(wp),device,allocatable,target :: V_d(:,:)
+    real(wp),device,allocatable :: wtmp(:)
+    real(wp),device,allocatable :: workspace_d(:)
+
+
+    real(wp),device,allocatable,target :: H_d(:,:),sqrtH_d(:,:),lamM(:,:)
+    real(wp),device,allocatable,target :: lamV(:),e1_d(:)
+    real(wp),device,allocatable :: Ybar_d(:)
+    real(wp),device,allocatable :: sqrtH_tmp(:,:),Vtmp(:,:),Htmp(:,:)
+
+    real(wp),allocatable :: testr(:),testv(:,:)
+
+    ! XYZ_dim=64
+    ! dimGrid = dim3( (XYZ_dim+31)/32, 1, 1 )
+    ! dimBlock = dim3( 32, 1, 1 )
+    ! call printtest <<<dimGrid,dimBlock>>>
+    ! status = cudathreadsynchronize()
+
+
+    if (minit < 2) then
+      write(*,'(a)') "Error: minit can't be less than 2"
+      minit=2
+    end if
+
+    if (minit > mub) mub=minit
+    ! allocate(wtemp(nbeadx3),V(nbeadx3,mub),H(mub,mub),&
+    !   sqrtH(mub,mub),lambdaM(mub,mub),lambdaV(mub),e1(mub))
+
+    ! allocating device arrays
+    allocate(wtmp(nbeadx3),V_d(nbeadx3,mub),H_d(mub,mub),lamV(mub),e1_d(mub),Ybar_d(nbeadx3))
+    ! allocate(Z_d(nbeadx3))
+    allocate(w_d(nbeadx3))
+
+    allocate(testr(nbeadx3),testv(nbeadx3,mub))
+    ! allocate(Y_d(nbeadx3))
+    ! Z_d=Z
+
+    ! e1=0.0_wp;e1(1)=1.0_wp
+    ! H=0.0_wp
+    ! m=minit-1
+    ! k0=1
+    ! V(:,1)=Z/nrm2(Z)
+    e1_d=0._wp;e1_d(1)=1.0_wp
+    H_d=0.0_wp
+    m=minit-1
+    k0=1
+    call cublasDcopy(nbeadx3,Y_d,1,V_d,1)
+    z_nrm=dnrm2(nbeadx3,Y_d,1)
+    call cublasDscal(nbeadx3,1/z_nrm,V_d,1)
+
+mlp:do
+
+
+      ! VPt => V(:,1:m)
+      ! HPt => H(1:m,1:m)
+      ! e1Pt => e1(1:m)
+      ! sqrtHPt => sqrtH(1:m,1:m)
+      ! lambdaMPt => lambdaM(1:m,1:m)
+      ! lambdaVPt => lambdaV(1:m)
+
+
+      VPt_d => V_d(1:nbeadx3,1:m)
+      e1Pt_d => e1_d(1:m)
+      lamVPt => lamV(1:m)
+      do k=k0, m
+
+        if ((k /= k0) .or. (k0 == 1)) then
+
+
+          ! VP => V(:,k)
+
+          VP_d => V_d(1:nbeadx3,k)
+! print*,'k',k0,k,m
+! testv=V_d
+! call print_matrix(testv,'vd_0')
+          ! if (present(D)) then ! means Ewald calculation:
+            ! doesn't make sense now
+            ! call symv(D,VP,w)
+          ! else ! means PME:
+            nbead=nbeadx3/3
+! print*,'k,k0,m',k,k0,m
+! testr=VP_d
+! call print_vector(testr,'wbef')
+            call cublasDcopy(nbeadx3,VP_d(1:nbeadx3),1,w_d,1)
+! print*,'k',k0,k,m
+! testv=V_d
+! call print_matrix(testv,'vd_00')
+! print*,'why',k0,m
+! testr=w_d
+! call print_vector(testr,'wbef')
+            call PME_d(hi_d,w_d,nbead,nbeadx3,boxsizeinp)
+! print*,'k',k0,k,m
+! testv=V_d
+! call print_matrix(testv,'vd_000')
+! testr=w_d
+! print*,'k,m',k,m
+! call print_vector(testr(1:50),'waf')
+            ! w_d=w
+            ! call PME_cpu(VP,nbead,boxsizeinp,w)
+          ! end if
+
+          ! if (k == m) wtemp=w
+          if (k == m) wtmp=w_d
+
+        else ! k==k0 and k0/=1
+
+          ! w=wtemp
+          ! to avoid recalculating DF in iterations of mlp
+          w_d=wtmp
+
+        end if
+
+        ! if (k > 1) then
+        !   VP => V(:,k-1)
+        !   w=w-H(k-1,k)*VP
+        ! end if
+        if (k > 1) then
+          VP_d => V_d(1:nbeadx3,k-1)
+! print*,'k',k
+! testv=V_d
+! testr=VP_d(1:nbeadx3)
+! call print_matrix(testv,'vd_1bef')
+! call print_vector(testr,'vpd_1')
+! testr=V_d(:,k-1)
+! call print_vector(testr,'vppd_1')
+          H_tmp=-H_d(k-1,k)
+          call cublasDaxpy(nbeadx3,H_tmp,VP_d(1:nbeadx3),1,w_d,1)
+! call print_matrix(testv,'vd_1aft')
+        end if
+
+        ! VP => V(:,k)
+        ! if ((k /= k0) .or. (k0 == 1)) then
+        !   H(k,k)=dot(w,VP)
+        ! end if
+
+        VP_d => V_d(1:nbeadx3,k)
+        if ((k /= k0) .or. (k0 == 1)) then
+! print*,'k',k
+! testv=V_d
+! testr=VP_d(1:nbeadx3)
+! call print_matrix(testv,'vd_2bef')
+! call print_vector(testr,'vpd_2')
+          H_d(k,k)=ddot(nbeadx3,w_d,1,VP_d(1:nbeadx3),1)
+          H_tmp=H_d(k,k)
+! call print_matrix(testv,'vd_2aft')
+        end if
+
+
+!         if (k < m) then
+!           w=w-H(k,k)*VP
+!           H(k,k+1)=nrm2(w);H(k+1,k)=H(k,k+1)
+!           VP => V(:,k+1)
+!           VP=w/H(k+1,k)
+! !         In case of D=I, H(k+1,k)=0. Then we make the 0/0=1.
+!           if (H(k+1,k) == 0) VP=1.0_wp
+!         end if
+
+        if (k < m) then
+          H_tmp=-H_d(k,k)
+          call cublasDaxpy(nbeadx3,H_tmp,VP_d(1:nbeadx3),1,w_d,1)
+          H_tmp=dnrm2(nbeadx3,w_d,1)
+          H_d(k,k+1)=H_tmp
+          H_d(k+1,k)=H_tmp
+          VP_d => V_d(1:nbeadx3,k+1)
+! print*,'k',k
+! testv=V_d
+! testr=VP_d(1:nbeadx3)
+! call print_matrix(testv,'vd_3bef')
+! call print_vector(testr,'vpd_3')
+! testr=V_d(:,k+1)
+! call print_vector(testr,'vppd_3')
+          call cublasDcopy(nbeadx3,w_d,1,VP_d(1:nbeadx3),1)
+          call cublasDscal(nbeadx3,1/H_tmp,VP_d(1:nbeadx3),1)
+! testv=V_d
+! call print_matrix(testv,'vd_3aft')
+          ! In case of D=I, H(k+1,k)=0. Then we make the 0/0=1.
+          if (H_tmp == 0) VP_d(1:nbeadx3)=1.0_wp
+        end if
+
+      end do ! k
+
+      ! print*,'H',H
+      ! H=H_d
+      ! print*,'Hd',H
+      ! stop
+
+
+
+
+      ! sqrtHPt=HPt
+      ! call syev(sqrtHPt,lambdaVPt,jobz='V',uplo='U',info=info)
+      ! if (info /= 0) then
+      !   print *
+      !   print '(" Unsuccessful eigenvalue computation in Lanczos")'
+      !   print '(" info:",1x,i3)',info
+      !   stop
+      ! end if
+
+      allocate(sqrtH_d(m,m),sqrtH_tmp(m,m))
+      allocate(lamM(m,m))
+
+      !$cuf kernel do (2) <<< *,* >>>
+      do irow=1, m
+        do jcol=1, m
+          sqrtH_d(irow,jcol)=H_d(irow,jcol)
+        enddo
+      enddo
+
+      istat = cusolverDnDsyevd_bufferSize(hi_d%h_lam,CUSOLVER_EIG_MODE_VECTOR,&
+        CUBLAS_FILL_MODE_UPPER,m,sqrtH_d,m,lamVPt,Lwork)
+      if (istat /= CUSOLVER_STATUS_SUCCESS) print('(" cusolverDnDsyevd_bufferSize failed")')
+      allocate(workspace_d(Lwork))
+
+      istat = cusolverDnDsyevd(hi_d%h_lam,CUSOLVER_EIG_MODE_VECTOR,&
+        CUBLAS_FILL_MODE_UPPER,m,sqrtH_d,m,lamVPt,workspace_d,Lwork,devInfo_d)
+      if (istat /= CUSOLVER_STATUS_SUCCESS) print('(" cusolverDnDsyevd failed")')
+      istat = devInfo_d
+      if (istat /= 0) print('(" Unsuccessful eigenvalue computation in Lanczos_dev",i)'),istat
+
+!       ! if (minval(lambdaVPt,dim=m)<=0) then
+!       if (minval(lambdaVPt)<=0) then
+!         print *
+!         print '(" Not a positive definite matrix in Lanczos")'
+!         print '(" min(EigenValue) of D: ",f7.3)',minval(lambdaVPt)
+!         ! print '(" min(EigenValue) of D: ",f7.3)',minval(lambdaVPt,dim=m)
+! !        stop
+!         decompRes%Success=.false.
+!         exit mlp
+!       end if
+
+      ! print*,'minlam',minval(lambdaVPt)
+
+
+      lam_min=lamVPt(cublasIdamin(m,lamVPt,1))
+      if (lam_min<=0) then
+        print *
+        print '(" Not a positive definite matrix in Lanczos_dev")'
+        print '(" min(EigenValue) of D: ",f7.3)',lam_min
+        decompRes%Success=.false.
+        exit mlp
+      end if
+
+      ! print*,'lam_min',lam_min
+
+
+      ! lambdaMPt=0.0_wp
+      ! forall (i=1:m) lambdaMPt(i,i)=lambdaVPt(i)
+      ! sqrtHPt=matmul(sqrtHPt,matmul(sqrt(lambdaMPt),transpose(sqrtHPt)))
+      ! Y=nrm2(Z)*matmul(VPt,matmul(sqrtHPt,e1Pt))
+      ! if (present(msetinp)) then
+      !   if (msetinp) exit mlp
+      ! end if
+
+      ! print*,'Y',Y(1:10)
+
+
+      lamM=0._wp
+      !$cuf kernel do <<< *,* >>>
+      do irow=1, m
+        lamM(irow,irow)=sqrt(lamVPt(irow))
+      enddo
+      call cublasDgemm('N','T',m,m,m,1._wp,lamM,m,sqrtH_d,m,0._wp,sqrtH_tmp,m)
+      call cublasDgemm('N','N',m,m,m,1._wp,sqrtH_d,m,sqrtH_tmp,m,0._wp,lamM,m)
+      call cublasDgemv('N',m,m,1._wp,lamM,m,e1Pt_d,1,0._wp,lamVPt,1)
+      call cublasDgemv('N',nbeadx3,m,z_nrm,VPt_d,nbeadx3,lamVPt,1,0._wp,Y_d,1)
+      if (present(msetinp)) then
+        if (msetinp) exit mlp
+      end if
+      ! Y=Y_d
+      ! print*,'Y-2',Y(1:10)
+      ! stop
+
+      ! if (m >= minit) then
+      !   error=nrm2(Y-Ybar)/nrm2(Ybar)
+      !  ! write(*,'(a,f14.7)') 'error',error
+      !   if (error <= errormin) then
+      !     exit mlp
+      !   else
+      !     if (m == mub) then
+      !       allocate(Vtemp(nbeadx3,m),Htemp(m,m))
+      !       Vtemp=V;Htemp=H
+      !       deallocate(V,H,sqrtH,lambdaM,lambdaV,e1)
+      !       mp10=m+10;mub=mp10
+      !       allocate(V(nbeadx3,mub),H(mub,mub),sqrtH(mub,mub),&
+      !         lambdaM(mub,mub),lambdaV(mub),e1(mub))
+      !       e1=0.0_wp;e1(1)=1.0_wp
+      !       H=0.0_wp
+      !       V(:,1:m)=Vtemp;H(1:m,1:m)=Htemp
+      !       deallocate(Vtemp,Htemp)
+      !     end if
+      !   end if
+      ! end if
+      ! Ybar=Y
+
+! print*,'m',m,minit
+! testr=Y_d;call print_vector(testr,'y')
+
+
+      if (m >= minit) then
+        ybar_nrm=dnrm2(nbeadx3,Ybar_d,1)
+        !$cuf kernel do <<< *,* >>>
+        do irow=1, nbeadx3
+          Ybar_d(irow)=Y_d(irow)-Ybar_d(irow)
+        enddo
+        error=dnrm2(nbeadx3,Ybar_d,1)/ybar_nrm
+       ! write(*,'(a,f14.7)') 'error2',error
+        if (error <= errormin) then
+          exit mlp
+        else
+          if (m == mub) then
+            allocate(Vtmp(nbeadx3,m),Htmp(m,m))
+            Vtmp=V_d;Htmp=H_d
+            deallocate(V_d,H_d,sqrtH_d,lamM,lamV,e1_d)
+            mp10=m+10;mub=mp10
+            allocate(V_d(nbeadx3,mub),H_d(mub,mub),lamV(mub),e1_d(mub))
+            e1_d=0._wp;e1_d(1)=1._wp
+            H_d=0._wp
+            !$cuf kernel do (2) <<< *,* >>>
+            do jcol=1, m
+              do irow=1, nbeadx3
+                V_d(irow,jcol)=Vtmp(irow,jcol)
+              enddo
+            enddo
+            !$cuf kernel do (2) <<< *,* >>>
+            do jcol=1, m
+              do irow=1, m
+                H_d(irow,jcol)=Htmp(irow,jcol)
+              enddo
+            enddo
+            deallocate(Vtmp,Htmp)
+          end if
+        end if
+      end if
+      call cublasDcopy(nbeadx3,Y_d,1,Ybar_d,1)
+      deallocate(sqrtH_d,lamM,sqrtH_tmp)
+! testr=Y_d
+! print*,'testr',m,testr
+
+      k0=m
+      m=m+1
+      cycle mlp
+    end do mlp
+
+    ! deallocate(wtemp,V,H,sqrtH,lambdaM,lambdaV,e1)
+
+    deallocate(wtmp,V_d,H_d,lamV,e1_d,Ybar_d)
+
+    minit=m
+
+  end subroutine Lanczos_d
+
+end module dcmp_cumod

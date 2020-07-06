@@ -1,0 +1,59 @@
+module cusolver_wrap
+
+  use,intrinsic :: iso_c_binding
+
+  type cusolverDnHandle
+     type(c_ptr) :: handle
+  end type cusolverDnHandle
+
+  interface
+     integer(c_int) function cusolverDnCreate(handle) &
+          bind(C,name='cusolverDnCreate')
+       import cusolverDnHandle
+       type(cusolverDnHandle) :: handle
+     end function cusolverDnCreate
+  end interface
+
+  interface
+     integer(c_int) function cusolverDnDestroy(handle) &
+          bind(C,name='cusolverDnDestroy')
+       import cusolverDnHandle
+       type(cusolverDnHandle), value :: handle
+     end function cusolverDnDestroy
+  end interface
+
+  interface
+     integer(c_int) function cusolverDnZpotrf_bufferSize( &
+          handle, uplo, n, A, lda, Lwork) &
+          bind(C, name='cusolverDnZpotrf_bufferSize') 
+       use iso_c_binding
+       import cusolverDnHandle
+       type(cusolverDnHandle), value :: handle 
+       integer(c_int), value :: uplo 
+       integer(c_int), value :: n 
+       complex(8), device :: A(*) 
+       integer(c_int), value :: lda 
+       integer(c_int) :: Lwork
+     end function cusolverDnZpotrf_bufferSize
+  end interface
+
+  interface
+     integer(c_int) function cusolverDnZpotrf( &
+          handle, uplo, n, A, lda, Workspace, Lwork, devInfo) &
+          bind(C,name='cusolverDnZpotrf') 
+       use iso_c_binding
+       import cusolverDnHandle
+       type(cusolverDnHandle), value :: handle 
+       integer(c_int), value :: uplo 
+       integer(c_int), value :: n 
+       complex(8), device :: A(*) 
+       integer(c_int), value :: lda 
+       !pgi$ ignore_tkr (r) Workspace
+       complex(8), device :: Workspace(*)
+       integer(c_int), value :: Lwork
+       integer(c_int), device :: devInfo
+     end function cusolverDnZpotrf
+  end interface
+
+
+end module cusolver_wrap

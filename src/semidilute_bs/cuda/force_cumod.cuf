@@ -1,0 +1,98 @@
+!%------------------------------------------------------------------------%
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
+!|  University of Tennessee-Knoxville                                     |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
+!|                                                                        |
+!|  This file is part of BDpack.                                          |
+!|                                                                        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
+!|  it under the terms of the GNU General Public License as published by  |
+!|  the Free Software Foundation, either version 3 of the License, or     |
+!|  (at your option) any later version.                                   |
+!|                                                                        |
+!|  BDpack is distributed in the hope that it will be useful,             |
+!|  but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+!|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+!|  GNU General Public License for more details.                          |
+!|                                                                        |
+!|  You should have received a copy of the GNU General Public License     |
+!|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
+!%------------------------------------------------------------------------%
+!--------------------------------------------------------------------
+!
+! MODULE:
+!
+!> @author
+!> Amir Saadat, Stanford University, May 2018
+!
+! DESCRIPTION:
+!> force calculation on GPU
+!--------------------------------------------------------------------
+module force_cumod
+
+  use :: prcn_mod
+
+  implicit none
+
+!  private ::
+
+  type,abstract :: force_cu_t
+
+    private
+
+  contains
+
+    procedure(updateforce),deferred :: update
+
+  end type force_cu_t
+
+  abstract interface
+
+    subroutine updateforce(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3,Qt)
+      import :: force_cu_t
+      import :: wp
+      implicit none
+      class(force_cu_t),intent(inout) :: this
+      real(wp),device,intent(in) :: Rbx(:)
+      real(wp),device,intent(in) :: Rby(:)
+      real(wp),device,intent(in) :: Rbz(:)
+      real(wp),intent(in) :: bs(3),invbs(3)
+!      real(wp),intent(inout) :: F(:)
+      integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3
+      real(wp),device,intent(in) :: Qt(:)
+
+    end subroutine updateforce
+
+  end interface
+
+  save
+  !> Total force acting on the particles
+  real(wp),device,allocatable,target :: Fphi_d(:)
+  !> Interparticle distance times total force
+  real(wp),device,allocatable :: rFphi_d(:)
+
+contains
+
+  !> Initializes force_mod module variables
+  subroutine init_force_d(ntbx3)
+
+    integer,intent(in) :: ntbx3
+
+    allocate(Fphi_d(ntbx3),rFphi_d(4))
+
+  end subroutine init_force_d
+
+  !> Deletion of the force_mod module variables
+  subroutine del_force_d()
+
+    deallocate(Fphi_d)
+
+  end subroutine del_force_d
+
+
+end module force_cumod

@@ -1,0 +1,262 @@
+!%------------------------------------------------------------------------%
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
+!|  University of Tennessee-Knoxville                                     |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
+!|                                                                        |
+!|  This file is part of BDpack.                                          |
+!|                                                                        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
+!|  it under the terms of the GNU General Public License as published by  |
+!|  the Free Software Foundation, either version 3 of the License, or     |
+!|  (at your option) any later version.                                   |
+!|                                                                        |
+!|  BDpack is distributed in the hope that it will be useful,             |
+!|  but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+!|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+!|  GNU General Public License for more details.                          |
+!|                                                                        |
+!|  You should have received a copy of the GNU General Public License     |
+!|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
+!%------------------------------------------------------------------------%
+!--------------------------------------------------------------------
+!
+! MODULE:
+!
+!> @author
+!> Amir Saadat, Stanford University, May 2018
+!
+! DESCRIPTION:
+!> (1) Interchanging the configurational state Rb to its components
+!! (2) {R,rc} <--> position vector Rb
+!--------------------------------------------------------------------
+
+module conv_cumod
+
+  use :: prcn_mod
+  use :: cusparse
+
+  implicit none
+
+  !> A public type for configurational conversion
+  type conv_cu_t
+
+    private
+
+  contains
+
+    procedure,pass(this) :: init => init_conv_t
+    procedure,pass(this) :: RbtoRbc
+    procedure,pass(this) :: RbctoRb
+    procedure,pass(this) :: RbtoQ
+
+  end type conv_cu_t
+
+  ! Protected module variables:
+  protected :: h_B,descr_B,B_Val_d,B_ColInd_d,B_RowPtr_d, &
+               h_Bbar,descr_Bbar,Bbar_Val_d,Bbar_ColInd_d, &
+               Bbar_RowPtr_d
+
+  !> @name Group1
+  !! The parameters defined to construct sparse B
+  !> @{
+  type(cusparseHandle) :: h_B
+  type(cusparseMatDescr) :: descr_B
+  integer :: nnz_B
+  real(wp),device,allocatable :: B_Val_d(:)
+  integer,device,allocatable :: B_ColInd_d(:),B_RowPtr_d(:)
+  !> @}
+  !> @name Group2
+  !! The parameters defined to construct sparse Bbar
+  !> @{
+  type(cusparseHandle) :: h_Bbar
+  type(cusparseMatDescr) :: descr_Bbar
+  integer :: nnz_Bbar
+  real(wp),device,allocatable :: Bbar_Val_d(:),Bbar_Val_tr_d(:)
+  integer,device,allocatable :: Bbar_ColInd_d(:),Bbar_RowPtr_d(:)
+  integer,device,allocatable :: Bbar_RowInd_d(:),Bbar_ColPtr_d(:)
+  !> @}
+
+
+contains
+
+  !> Initialization of conversion module
+  subroutine init_conv_d(ntsx3,ntbx3)
+
+    use :: conv_mod, only: B_vals,B_cols,B_rowInd,Bbar_vals,Bbar_cols,Bbar_rowInd,maxnz_B,maxnz_Bbar
+
+    integer,intent(in) :: ntsx3,ntbx3
+    integer :: istat
+
+    ! nnz_B=ntbx3*ns
+    nnz_B=maxnz_B
+    allocate(B_Val_d(nnz_B))
+    allocate(B_ColInd_d(nnz_B))
+    allocate(B_RowPtr_d(ntbx3+1))
+
+    ! nnz_Bbar=ntsx3*2
+    nnz_Bbar=maxnz_Bbar
+    allocate(Bbar_Val_d(nnz_Bbar))
+    allocate(Bbar_ColInd_d(nnz_Bbar))
+    allocate(Bbar_RowPtr_d(ntsx3+1))
+    allocate(Bbar_Val_tr_d(nnz_Bbar))
+    allocate(Bbar_RowInd_d(nnz_Bbar))
+    allocate(Bbar_ColPtr_d(ntbx3+1))
+
+    B_Val_d=B_vals
+    B_ColInd_d=B_cols
+    B_RowPtr_d=B_rowInd
+    Bbar_Val_d=Bbar_vals
+    Bbar_ColInd_d=Bbar_cols
+    Bbar_RowPtr_d=Bbar_rowInd
+
+    istat = cusparseCreate(h_B)
+    istat = cusparseCreateMatDescr(descr_B)
+    istat = cusparseSetMatType(descr_B,CUSPARSE_MATRIX_TYPE_GENERAL)
+    istat = cusparseSetMatIndexBase(descr_B,CUSPARSE_INDEX_BASE_ONE)
+
+    istat = cusparseCreate(h_Bbar)
+    istat = cusparseCreateMatDescr(descr_Bbar)
+    istat = cusparseSetMatType(descr_Bbar,CUSPARSE_MATRIX_TYPE_GENERAL)
+    istat = cusparseSetMatIndexBase(descr_Bbar,CUSPARSE_INDEX_BASE_ONE)
+
+    istat = cusparseDcsr2csc(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
+      Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE)
+
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csr2csc Error in init_conv: ",i)',istat
+
+  end subroutine init_conv_d
+
+  !> Constructor for conv type
+  subroutine init_conv_t(this)
+
+    class(conv_cu_t),intent(inout) :: this
+
+  end subroutine init_conv_t
+
+  ! !> Converting {R,rc} to Rb
+  ! !! \param R bead to center of mass distance for all chains
+  ! !! \param rcm center of mass for all chains
+  ! !! \param Rb the position vector of the beads for all chains
+  ! subroutine RtoRb(this,R,rcm,Rb,nchain,nbead,ntotbead,ntotbeadx3)
+
+  !   type(conv_cu_t),intent(inout) :: this
+  !   integer,intent(in) :: nchain,nbead,ntotbead,ntotbeadx3
+  !   real(wp),intent(in) :: R(:)
+  !   real(wp),intent(in) :: rcm(:,:)
+  !   real(wp),intent(inout) :: Rb(:)
+  !   integer :: igb,os,ich
+
+  !   !$cuf kernel do <<< *,* >>>
+  !   do igb=1, ntotbead
+  !     os=(igb-1)*3
+  !     ich=(igb-1)/nbead+1
+  !     Rb(os+1)=R(os+1)+rcm(ich,1)
+  !     Rb(os+2)=R(os+2)+rcm(ich,2)
+  !     Rb(os+3)=R(os+3)+rcm(ich,3)
+  !   end do
+
+  ! end subroutine RtoRb
+
+  !> Converting (Rx,Ry,Rz) to Rb
+  !! \param Rbx x-coordinate of the position vector
+  !! \param Rby y-coordinate of the position vector
+  !! \param Rbz z-coordinate of the position vector
+  !! \param Rb the position vector of the beads for all chains
+  subroutine RbctoRb(this,Rbx,Rby,Rbz,Rb,ntb)
+
+    class(conv_cu_t),intent(inout) :: this
+    integer,intent(in) :: ntb
+    real(wp),device,intent(in) :: Rbx(:),Rby(:),Rbz(:)
+    real(wp),device,intent(inout) :: Rb(:)
+    integer :: igb,os
+
+    !$cuf kernel do <<< *,* >>>
+    do igb=1, ntb
+      os=(igb-1)*3
+      Rb(os+1)=Rbx(igb)
+      Rb(os+2)=Rby(igb)
+      Rb(os+3)=Rbz(igb)
+    end do
+
+  end subroutine RbctoRb
+
+  !> Converting Rb to (Rx,Ry,Rz)
+  !! \param Rb the position vector of the beads for all chains
+  !! \param Rbx x-coordinate of the position vector
+  !! \param Rby y-coordinate of the position vector
+  !! \param Rbz z-coordinate of the position vector
+  subroutine RbtoRbc(this,Rb,Rbx,Rby,Rbz,ntb)
+
+    class(conv_cu_t),intent(inout) :: this
+    integer,intent(in) :: ntb
+    real(wp),device,intent(in) :: Rb(:)
+    real(wp),device,intent(inout) :: Rbx(:),Rby(:),Rbz(:)
+    integer :: igb,os
+
+    !$cuf kernel do <<< *,* >>>
+    do igb=1, ntb
+      os=(igb-1)*3
+      Rbx(igb)=Rb(os+1)
+      Rby(igb)=Rb(os+2)
+      Rbz(igb)=Rb(os+3)
+    end do
+
+  end subroutine RbtoRbc
+
+  !> Converting Rb to Q using sparse multiplication
+  !! \param Q connectivity vectors
+  !! \param R bead to center of mass vectors
+  subroutine RbtoQ(this,Rb,Q,ntsx3,ntbx3,bs)
+
+    class(conv_cu_t),intent(inout) :: this
+    integer,intent(in) :: ntsx3,ntbx3
+    real(wp),device,intent(in) :: Rb(:)
+    real(wp),device,intent(inout) :: Q(:)
+    real(wp),intent(in) :: bs(3)
+
+    real(wp) :: qx,qy,qz,bsx,bsy,bsz
+    integer :: its,istat
+
+    istat = cusparseDcsrmv(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,ntsx3,ntbx3,nnz_Bbar,&
+      1._wp,descr_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,Rb,0._wp,Q)
+
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod: ",i)',istat
+
+    bsx=bs(1);bsy=bs(2);bsz=bs(3)
+
+    !$cuf kernel do <<< *,* >>>
+    do its=1, ntsx3/3
+
+      !!!! might become redundnt with the new RbtoQ
+      qx=Q((its-1)*3+1)
+      qy=Q((its-1)*3+2)
+      qz=Q((its-1)*3+3)
+
+      qx=qx-nint(qx*1/bsx)*bsx
+      qy=qy-nint(qy*1/bsy)*bsy
+      qz=qz-nint(qz*1/bsz)*bsz
+      ! select case (FlowType)
+      !   case ('PSF')
+      !     qx=qx+eps_m*qy
+      !   case ('PEF')
+      !     qytmp=qy
+      !     qx=qx+tanb*qytmp
+      !     qy=sinth*qx+costh*qytmp
+      !     qx=costh*qx-sinth*qytmp
+      ! end select
+
+      Q((its-1)*3+1)=qx
+      Q((its-1)*3+2)=qy
+      Q((its-1)*3+3)=qz
+
+    enddo
+
+  end subroutine RbtoQ
+
+
+end module conv_cumod

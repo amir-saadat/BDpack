@@ -1,18 +1,34 @@
-submodule (intrn_mod:hi_smod) hibb_smod
+! submodule (intrn_mod:hi_smod) hibb_smod
+module hibb_smod
+  
+  use :: prcn_mod
 
   implicit none
 
+
+  type :: hibb_t
+    ! RPY
+    real(wp) :: A,B,C,D,E,F
+    ! Oseen-Burgers
+    real(wp) :: G
+    ! regularized OB
+    real(wp) :: O,P,R,S,T
+    real(wp) :: rmagmin
+  end type hibb_t
+
 contains
 
-  module procedure init_hibb
+  ! module procedure init_hibb
+  subroutine init_hibb(this)
 
     use :: inp_dlt, only: HITens,hstar
 
+    class(hibb_t),intent(inout) :: this
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp),parameter :: sqrtPI=sqrt(PI)
 
     select case (HITens)
-      case ('RPY','Blake')
+      case ('RPY','Blake','Osph')
         ! For Rotne-Prager-Yamakawa Tensor:
         this%A=0.75*hstar*sqrtPI
         this%B=hstar**3*PI*sqrtPI/2
@@ -34,12 +50,19 @@ contains
     end select
     this%rmagmin=1.e-7_wp ! The Minimum value accepted as the |rij|
 
-  end procedure init_hibb
+  ! end procedure init_hibb
+  end subroutine init_hibb
 
-  module procedure calc_hibb
+  ! module procedure calc_hibb
+  subroutine calc_hibb(this,i,j,rij,DiffTens)
 
     use :: inp_dlt, only: HITens,hstar
+    use :: cmn_tp_mod, only: dis
 
+    class(hibb_t),intent(inout) :: this
+    integer,intent(in) :: i,j
+    type(dis),intent(in) :: rij
+    real(wp),intent(out) :: DiffTens(:,:)
     integer :: osi,osj
     real(wp) :: rijmag3,rijmag5
     real(wp) :: Alpha,Beta,Gamm,Zeta,Zeta12,Zeta13,Zeta23
@@ -63,7 +86,7 @@ contains
     rijmag5=rij%mag2*rijmag3
 
     select case (HITens)
-      case ('RPY','Blake')
+      case ('RPY','Blake','Osph')
         if (rij%mag >= this%D) then
           Alpha=this%A/rij%mag+this%B/rijmag3
           Beta=this%A/rijmag3
@@ -72,11 +95,11 @@ contains
           Zeta12=Zeta*rij%x*rij%y;Zeta13=Zeta*rij%x*rij%z;Zeta23=Zeta*rij%y*rij%z
           DiffTens(osi+1,osj+1)=Alpha+Zeta*rij%x*rij%x
           DiffTens(osi+1,osj+2)=Zeta12;DiffTens(osi+2,osj+1)=Zeta12
-          DiffTens(osi+1,osj+3)=Zeta13;DiffTens(osi+3,osj+1)=Zeta13        
+          DiffTens(osi+1,osj+3)=Zeta13;DiffTens(osi+3,osj+1)=Zeta13
           DiffTens(osi+2,osj+2)=Alpha+Zeta*rij%y*rij%y
           DiffTens(osi+2,osj+3)=Zeta23;DiffTens(osi+3,osj+2)=Zeta23
           DiffTens(osi+3,osj+3)=Alpha+Zeta*rij%z*rij%z
-        else    
+        else
           Theta=1-this%E*rij%mag;Xi=this%F/rij%mag
           DiffTens(osi+1,osj+1)=1-this%E*rij%mag+this%F*rij%x*rij%x/rij%mag
           Xi12=this%F*rij%x*rij%y/rij%mag
@@ -87,7 +110,7 @@ contains
           DiffTens(osi+2,osj+2)=1-this%E*rij%mag+this%F*rij%y*rij%y/rij%mag
           DiffTens(osi+2,osj+3)=Xi23;DiffTens(osi+3,osj+2)=Xi23
           DiffTens(osi+3,osj+3)=1-this%E*rij%mag+this%F*rij%z*rij%z/rij%mag
-        end if  
+        end if
       case ('Zimm')
         Rho=sqrt(2._wp)*hstar*sqrt(1/abs(real(i-j,kind=wp)))
         DiffTens(osi+1,osj+1)=Rho
@@ -118,7 +141,9 @@ contains
         DiffTens(osi+3,osj+3)=Upsilon+Omega*rij%z*rij%z
     end select
 
-  end procedure calc_hibb
+  ! end procedure calc_hibb
+  end subroutine calc_hibb
 
 
-end submodule hibb_smod
+! end submodule hibb_smod
+end module hibb_smod

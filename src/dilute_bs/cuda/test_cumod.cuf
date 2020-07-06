@@ -1,0 +1,20 @@
+module test_cumod
+
+  implicit none
+
+contains
+
+ attributes(global) &
+    subroutine test1( a )
+
+      integer, device :: a(*)
+      integer :: i
+
+      i = threadIdx%x
+      a(i) = i
+
+      return
+
+    end subroutine test1
+
+end module test_cumod

@@ -1,7 +1,29 @@
-submodule (intrn_mod) evbw_smod
+! submodule (intrn_mod) evbw_smod
+module evbw_smod
+  
+  use :: prcn_mod
 
   implicit none
 
+  type :: evbw_t
+    ! For Cubic
+    real(wp) :: delw
+    real(wp) :: prf
+    real(wp) :: rmagmin
+    ! For Reflc-bc
+    real(wp) :: a
+    real(wp) :: a_sph
+    integer :: iwall !the type of wall for the reflection BC: 1-plane, 2-sphere
+    integer :: u_wc
+    integer :: u_wc_all
+    integer :: u_ia
+    integer,allocatable :: w_coll(:,:)
+    integer,allocatable :: w_coll_all(:,:)
+    integer,allocatable :: ia_time(:,:,:)
+    integer,allocatable :: w_coll_t(:,:)
+    integer,allocatable :: w_coll_all_t(:,:)
+    integer,allocatable :: ia_time_t(:,:,:)
+  end type evbw_t
   ! type :: evbw
   !   ! For Cubic
   !   real(wp) :: delw
@@ -20,10 +42,14 @@ submodule (intrn_mod) evbw_smod
 
 contains
 
-  module procedure init_evbw
+  ! module procedure init_evbw
+  subroutine init_evbw(this,id)
 
     use :: inp_dlt, only: nseg,nbead,EV_bw,Aw,N_Ks,qmax,ntime,npchain,nchain
     use :: cmn_io_mod, only: read_input
+
+    class(evbw_t),intent(inout) :: this
+    integer,intent(in) :: id
 
     ! Bead-wall excluded volume interaction
     select case (EV_bw)
@@ -37,7 +63,7 @@ contains
     case ('Rflc_bc')
 
       call read_input('Bead-rad',0,this%a)
-
+      call read_input('Wall-type',0,this%iwall)
       allocate(this%w_coll(2:nbead,npchain))
       allocate(this%w_coll_all(2:nbead,npchain))
       allocate(this%ia_time(2:nbead,500,npchain))
@@ -47,7 +73,11 @@ contains
       this%w_coll=0
       this%w_coll_all=0
       this%ia_time=1
-
+      select case (this%iwall)
+      case (1) !plane located at y=0
+      case (2) !sphere
+        call read_input('Sph-rad',0,this%a_sph)
+      end select
 
       if (id == 0) then
         allocate(this%w_coll_t(2:nbead,npchain))
@@ -71,11 +101,18 @@ contains
       !      status='replace',position='append')
     end  select
 
-  end procedure init_evbw
+  ! end procedure init_evbw
+  end subroutine init_evbw
 
-  module procedure calc_evbw
+  ! module procedure calc_evbw
+  subroutine calc_evbw(this,i,ry,Fev)
 
     use :: inp_dlt, only: EV_bw
+
+    class(evbw_t),intent(inout) :: this
+    integer,intent(in) :: i
+    real(wp),intent(in) :: ry
+    real(wp),intent(inout) :: Fev(:)
 
     integer :: osi
 
@@ -90,16 +127,30 @@ contains
     elseif (EV_bw == 'Gaussian') then
     end if ! EV_bw
 
-  end procedure calc_evbw
+  ! end procedure calc_evbw
+  end subroutine calc_evbw
 
-  module procedure wall_rflc
+  ! module procedure wall_rflc
+  subroutine wall_rflc(this,dt,it,time,id,ich,qx,qy,qz,Rx,Ry,Rz,&
+    rcmx,rcmy,rcmz,rf_in)
 
-    use :: mpi
     use :: inp_dlt, only: nbead,qmax,tplgy,npchain,lambda,tss
     use :: arry_mod, only: print_vector
+    use :: mpi
+    !include 'mpif.h'
+
+    class(evbw_t),intent(inout) :: this
+    real(wp),intent(in),dimension(3) :: rf_in
+    real(wp),intent(in) :: dt,time
+    integer,intent(in) :: it,id,ich
+    real(wp),intent(inout) :: qx(:),qy(:),qz(:)
+    real(wp),intent(inout) :: Rx(:),Ry(:),Rz(:)
+    real(wp),intent(inout) :: rcmx,rcmy,rcmz
 
     integer :: ib,ierr,sz,sz_t
     integer,allocatable :: ia_tmp(:,:,:)
+    logical :: coll_detect
+    real(wp) :: shift,r_mag
 
 
     if ((it == 1)) then
@@ -150,15 +201,25 @@ contains
 
     do ib=2, nbead
 
-      if (Ry(ib) < this%a) then
+      select case (this%iwall)
+      case (1)
+        coll_detect = (Ry(ib) < this%a)
+        !print *, 'plane wall'
+      case (2)
+        r_mag = sqrt(Rx(ib)**2+Ry(ib)**2+Rz(ib)**2)
+        coll_detect = (r_mag < (this%a + this%a_sph))
+        !print *, 'sphere wall'
+      end select
+
+      if (coll_detect) then
 
         if (time>lambda*tss) then
           !all collisions are recorded here
           this%w_coll_all(ib,ich)=this%w_coll_all(ib,ich)+1
 
           !if ia time is less than some fraction of a relaxation time, record.
-          if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > int(lambda/dt/100._wp)) then
-          !if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > 0) then
+          !if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > int(lambda/dt/100._wp)) then !Macromol paper
+          if (this%ia_time(ib,this%w_coll(ib,ich)+1,ich) > int(lambda/dt/10._wp)) then
 
             this%w_coll(ib,ich)=this%w_coll(ib,ich)+1
 
@@ -169,8 +230,18 @@ contains
           endif
         endif
 
+        select case (this%iwall)
+        case (1)
+          Ry(ib)=2*this%a - Ry(ib)
+        case (2)
+          shift = this%a + this%a_sph - r_mag
+          Rx(ib)=Rx(ib) + 2*shift*Rx(ib)/r_mag
+          Ry(ib)=Ry(ib) + 2*shift*Ry(ib)/r_mag
+          Rz(ib)=Rz(ib) + 2*shift*Rz(ib)/r_mag
+        end select
 
-        Ry(ib)=2*this%a - Ry(ib)
+
+
         select case (tplgy)
           case ('Linear')
             qy(ib-1)=Ry(ib)-Ry(ib-1)
@@ -223,11 +294,16 @@ contains
     Ry=Ry-rcmy
     Rz=Rz-rcmz
 
-  end procedure wall_rflc
+  ! end procedure wall_rflc
+  end subroutine wall_rflc
 
-  module procedure del_evbw
+  ! module procedure del_evbw
+  subroutine del_evbw(this,id)
 
     use :: inp_dlt, only: EV_bw
+
+    class(evbw_t),intent(inout) :: this
+    integer,intent(in) :: id
 
     select case (EV_bw)
       case ('Cubic')
@@ -242,13 +318,21 @@ contains
         endif
     end  select
 
-  end procedure del_evbw
+  ! end procedure del_evbw
+  end subroutine del_evbw
 
-  module procedure print_wcll
+  ! module procedure print_wcll
+  subroutine print_wcll(this,id,nproc,MPI_REAL_WP,time)
 
-    use :: mpi
     use :: inp_dlt, only: nbead,npchain,ntime,tss,lambda
     use :: arry_mod, only: print_vector
+    use :: mpi
+    !include 'mpif.h'
+
+    class(evbw_t),intent(inout) :: this
+    integer,intent(in) :: id,nproc
+    integer,intent(in) :: MPI_REAL_WP
+    real(wp),intent(in) :: time
 
     integer :: ich,ib,iwc,osch,ierr,ncount_wc,ncount_ia,iproc,tag
 
@@ -339,7 +423,9 @@ contains
       ! call print_vector(this%w_coll_t,'total collisions')
     ! endif
 
-  end procedure print_wcll
+  ! end procedure print_wcll
+  end subroutine print_wcll
 
 
-end submodule
+! end submodule evbw_smod
+end module evbw_smod

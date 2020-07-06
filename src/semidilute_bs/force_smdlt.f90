@@ -44,14 +44,14 @@ module force_smdlt
 
   contains
     
-    procedure(update_force),deferred :: update
+    procedure(updateforce),deferred :: update
 
   end type force
 
   abstract interface
  
-    subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nchain,nseg,nbead,&
-                          ntotseg,ntotsegx3,ntotbeadx3)
+    subroutine updateforce(this,Rbx,Rby,Rbz,bs,invbs,itime,nchain,nseg,nbead,&
+                          ntotseg,ntotsegx3,ntotbead,ntotbeadx3,Qt)
       import :: force
       import :: wp
       implicit none
@@ -61,9 +61,10 @@ module force_smdlt
       real(wp),intent(in) :: Rbz(:)
       real(wp),intent(in) :: bs(3),invbs(3)
 !      real(wp),intent(inout) :: F(:)
-      integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3
+      integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3
+      real(wp),intent(in) :: Qt(:)
       
-    end subroutine update_force
+    end subroutine updateforce
 
   end interface
 
