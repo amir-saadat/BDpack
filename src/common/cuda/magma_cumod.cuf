@@ -1,0 +1,139 @@
+module magma_cumod
+
+  use :: cudafor
+  use,intrinsic :: iso_c_binding
+
+  !! =============================================================================
+  !! Parameter constants from magma_types.h
+  integer(c_int), parameter ::   &
+
+      MAGMA_SUCCESS      = 0,    &
+      
+      MagmaFalse         = 0,    &
+      MagmaTrue          = 1,    &
+
+      MagmaRowMajor      = 101,  &
+      MagmaColMajor      = 102,  &
+
+      MagmaNoTrans       = 111,  &
+      MagmaTrans         = 112,  &
+      MagmaConjTrans     = 113,  &
+
+      MagmaUpper         = 121,  &
+      MagmaLower         = 122,  &
+      MagmaGeneral       = 123,  &
+      MagmaFull          = 123,  &  !! deprecated, use MagmaGeneral
+
+      MagmaNonUnit       = 131,  &
+      MagmaUnit          = 132,  &
+
+      MagmaLeft          = 141,  &
+      MagmaRight         = 142,  &
+      MagmaBothSides     = 143
+
+  interface
+
+    ! initialize
+    subroutine magma_init() &
+    bind(C, name="magma_init")
+        use iso_c_binding
+    end subroutine
+    ! version
+    subroutine magma_version( major, minor, micro ) &
+    bind(C, name="magma_version")
+        use iso_c_binding
+        integer(c_int), target :: major, minor, micro
+    end subroutine
+
+    subroutine magma_print_environment() &
+    bind(C, name="magma_print_environment")
+        use iso_c_binding
+    end subroutine
+
+    subroutine magma_get_device( dev ) &
+    bind(C, name="magma_getdevice")
+        use iso_c_binding
+        integer(c_int), target :: dev
+    end subroutine
+
+    integer(c_int) function magma_queue_get_device( queue ) &
+    bind(C, name="magma_queue_get_device")
+        use iso_c_binding
+        type(c_ptr), value :: queue  !! queue_t
+    end function
+
+    ! queue support
+    subroutine magma_queue_create_internal( dev, queue_ptr, func, file, line ) &
+    bind(C, name="magma_queue_create_internal")
+        use iso_c_binding
+        integer(c_int), value :: dev
+        type(c_ptr), target :: queue_ptr  !! queue_t*
+        character(c_char) :: func, file
+        integer(c_int), value :: line
+    end subroutine
+
+    integer(kind=cuda_stream_kind) function magma_queue_get_cuda_stream	(	queue	)	&
+    bind(C, name="magma_queue_get_cuda_stream	")
+      use iso_c_binding
+      type(c_ptr), value :: queue  !! queue_t
+    end function
+
+
+  end interface
+
+  !> The queue used in magma calls
+  type(c_ptr) :: queue  !! magma_queue_t
+
+
+contains
+
+    ! queue support
+    subroutine magma_queue_create( dev, queue_ptr )
+        use iso_c_binding
+        integer(c_int), value :: dev
+        type(c_ptr), target :: queue_ptr  !! queue_t*
+
+        call magma_queue_create_internal( &
+                dev, queue_ptr, &
+                "magma_queue_create" // c_null_char, &
+                __FILE__ // c_null_char, &
+                __LINE__ )
+    end subroutine
+
+    subroutine init_magma()
+
+      use :: dev_cumod
+
+      integer :: dev,major,minor,micro,stream(cuda_stream_kind)
+
+      call magma_init()
+
+      print '(" >>> Pringting the properties of MAGMA")'
+
+      call magma_version( major, minor, micro )
+      print '("version: ",i3,i3,i3)', major, minor, micro
+
+      call magma_print_environment()
+      print *
+
+      call magma_get_device( dev )
+      print "(a,i2)", "get_device", dev
+
+      print '(" ... creating queue")'
+      call magma_queue_create( dev, queue )
+
+      ! print "(a)", "---------- queue support"
+      ! call magma_queue_sync( queue )
+      ! print "(a)", "queue sync"
+
+      dev = magma_queue_get_device( queue )
+      print "(a,i6)", "queue_get_device", dev
+      print *
+
+      ! stream = magma_queue_get_cuda_stream( queue )
+      ! print "(a,i6)", "queue_get_cuda_stream", stream
+      ! print *
+
+    end subroutine init_magma
+
+end module magma_cumod

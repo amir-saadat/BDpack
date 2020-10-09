@@ -31,12 +31,12 @@
 !> Amir Saadat, Stanford University, August 2018
 !
 ! DESCRIPTION: construction of verlet list
-!> 
+!>
 !
 !--------------------------------------------------------------------
 
 module hiverlet_cumod
-  
+
   use :: prcn_mod
   use :: cudafor
 
@@ -45,14 +45,17 @@ module hiverlet_cumod
   ! Private module procedures:
   private :: init_verlet_t,&
              init_clllst  ,&
-             get_ncps     ,&
+             print_ncps   ,&
+             print_mbpc   ,&
+             get_nct      ,&
+             get_mbpc     ,&
              cnstr_clllst ,&
              ! cnstr_nab_d  ,&
              del_verlet_t
 
   !> A public type for constructing verlet list
   type hiverlet_cu_t
-   
+
     private
     !> The number of the cells per side
     integer :: ncps(3)
@@ -64,6 +67,8 @@ module hiverlet_cumod
     real(wp) :: cll_vol
     !> Maximum number of beads per cell
     integer :: mbpc
+    !> Maximum number of beads for all neighboring cells
+    integer :: mbpct
     !> The array which contains the number of beads in cells
     integer,allocatable :: head(:)
     !> The array which contains the beads index in cells
@@ -72,24 +77,24 @@ module hiverlet_cumod
     integer,allocatable :: nclst(:,:)
     !> Maximum occupancy of the cells
     integer :: mocc
-    !> i index in all possible interactions
-    integer,allocatable :: iidx(:)
-    !> j index in all possible interactions
-    integer,allocatable :: jidx(:)
-    !> An array for keeping track of interactions of interest
-    logical,allocatable :: inside(:)
-    !> The x-component of vector between beads with indices i,j
-    real(wp),allocatable :: Rijx(:)
-    !> The y-component of vector between beads with indices i,j
-    real(wp),allocatable :: Rijy(:)
-    !> The temporary y-component of vector between beads with indices i,j
-    real(wp),allocatable :: Rijytmp(:)
-    !> The z-component of vector between beads with indices i,j
-    real(wp),allocatable :: Rijz(:)
-    !> The squared distance between beads with indices i,j
-    real(wp),allocatable :: Rijsq(:)
-    !> Total number of interactions possible
-    integer :: num_int
+    ! !> i index in all possible interactions
+    ! integer,allocatable :: iidx(:)
+    ! !> j index in all possible interactions
+    ! integer,allocatable :: jidx(:)
+    ! !> An array for keeping track of interactions of interest
+    ! logical,allocatable :: inside(:)
+    ! !> The x-component of vector between beads with indices i,j
+    ! real(wp),allocatable :: Rijx(:)
+    ! !> The y-component of vector between beads with indices i,j
+    ! real(wp),allocatable :: Rijy(:)
+    ! !> The temporary y-component of vector between beads with indices i,j
+    ! real(wp),allocatable :: Rijytmp(:)
+    ! !> The z-component of vector between beads with indices i,j
+    ! real(wp),allocatable :: Rijz(:)
+    ! !> The squared distance between beads with indices i,j
+    ! real(wp),allocatable :: Rijsq(:)
+    ! !> Total number of interactions possible
+    ! integer :: num_int
     !> The x-component of position vector on host
     real(wp),allocatable :: Rbx_h(:)
     !> The y-component of position vector on host
@@ -107,7 +112,9 @@ module hiverlet_cumod
     procedure,pass(this) :: init_cll => init_clllst
     procedure,pass(this) :: cnstr_nab => cnstr_nablst
     procedure,pass(this) :: cnstr_cll => cnstr_clllst
-    procedure,pass(this) :: get_ncps
+    procedure,pass(this) :: print_ncps
+    procedure,pass(this) :: print_mbpc
+    procedure,pass(this) :: get_nct
     procedure,pass(this) :: get_mbpc
     final :: del_verlet_t
 
@@ -117,7 +124,8 @@ module hiverlet_cumod
 
 
   ! Private module variables:
-  private :: cll_dns_hi,nnc,shifts,j_clx,j_cly,j_clz,j_cll
+  ! private :: cll_dns_hi,nnc,shifts,j_clx,j_cly,j_clz,j_cll
+  private :: cll_dns_hi,nnc,Rbx_tex,Rby_tex,Rbz_tex
   ! Protected module variables:
 !  protected ::
 
@@ -125,10 +133,10 @@ module hiverlet_cumod
   real(wp),save :: cll_dns_hi
   !> Number of neighbering cells
   integer,save :: nnc
-  !> The neighboring cells offset
-  integer,allocatable,save :: shifts(:,:)
-  !> The coordinates for neighboring cells
-  integer,allocatable :: j_clx(:),j_cly(:),j_clz(:),j_cll(:)
+  ! !> The neighboring cells offset
+  ! integer,allocatable,save :: shifts(:,:)
+  ! !> The coordinates for neighboring cells
+  ! integer,allocatable :: j_clx(:),j_cly(:),j_clz(:),j_cll(:)
 
 
   !> Texture memory pointers for x-direction coordinates
@@ -139,12 +147,12 @@ module hiverlet_cumod
   real(wp),texture,pointer :: Rbz_tex(:)
 
 
-integer,allocatable :: nn_test(:),nlst_test(:,:)
-real(wp),device,allocatable :: vallst_d(:,:)
-real,allocatable :: vallst_test(:,:)
+! integer,allocatable :: nn_test(:),nlst_test(:,:)
+! real(wp),device,allocatable :: vallst_d(:,:)
+! real,allocatable :: vallst_test(:,:)
 
 
-contains 
+contains
 
   !> Initializes the verlet module
   !! \param id The rank of the process
@@ -184,78 +192,78 @@ contains
 !     end do ef
 !     close(u1)
 
-    call read_input('cll_dns_hi',0,cll_dns_hi,0.1_wp)
+    call read_input('cll-dns-hi',0,cll_dns_hi,0.1_wp)
 
     select case (FlowType)
 
       case ('Equil','PSF')
         nnc=27
-        allocate(shifts(nnc,3))
-        shifts(1,:) =[ 0, 0,-1]
-        shifts(2,:) =[ 1, 0,-1]
-        shifts(3,:) =[ 1, 0, 0]
-        shifts(4,:) =[ 1, 0, 1]
-        shifts(5,:) =[-1, 1,-1]
-        shifts(6,:) =[ 0, 1,-1]
-        shifts(7,:) =[ 1, 1,-1]
-        shifts(8,:) =[-1, 1, 0]
-        shifts(9,:) =[ 0, 1, 0]
-        shifts(10,:)=[ 1, 1, 0]
-        shifts(11,:)=[-1, 1, 1]
-        shifts(12,:)=[ 0, 1, 1]
-        shifts(13,:)=[ 1, 1, 1]
+        ! allocate(shifts(nnc,3))
+        ! shifts(1,:) =[ 0, 0,-1]
+        ! shifts(2,:) =[ 1, 0,-1]
+        ! shifts(3,:) =[ 1, 0, 0]
+        ! shifts(4,:) =[ 1, 0, 1]
+        ! shifts(5,:) =[-1, 1,-1]
+        ! shifts(6,:) =[ 0, 1,-1]
+        ! shifts(7,:) =[ 1, 1,-1]
+        ! shifts(8,:) =[-1, 1, 0]
+        ! shifts(9,:) =[ 0, 1, 0]
+        ! shifts(10,:)=[ 1, 1, 0]
+        ! shifts(11,:)=[-1, 1, 1]
+        ! shifts(12,:)=[ 0, 1, 1]
+        ! shifts(13,:)=[ 1, 1, 1]
 
-        shifts(14,:)=[ 0, 0, 0]
+        ! shifts(14,:)=[ 0, 0, 0]
 
-        shifts(15:27,:) = - shifts(1:13,:)
+        ! shifts(15:27,:) = - shifts(1:13,:)
 
       case ('PEF')
         nnc=63
-        allocate(shifts(nnc,3))
-        shifts(1,:) =[ 0, 0,-1]
-        shifts(2,:) =[ 1, 0,-1]
-        shifts(3,:) =[ 2, 0,-1]
-        shifts(4,:) =[ 3, 0,-1]
-        shifts(5,:) =[ 1, 0, 0]
-        shifts(6,:) =[ 2, 0, 0]
-        shifts(7,:) =[ 3, 0, 0]
-        shifts(8,:) =[ 1, 0, 1]
-        shifts(9,:) =[ 2, 0, 1]
-        shifts(10,:)=[ 3, 0, 1]
-        shifts(11,:)=[-3, 1,-1]
-        shifts(12,:)=[-2, 1,-1]
-        shifts(13,:)=[-1, 1,-1]
-        shifts(14,:)=[ 0, 1,-1]
-        shifts(15,:)=[ 1, 1,-1]
-        shifts(16,:)=[ 2, 1,-1]
-        shifts(17,:)=[ 3, 1,-1]
-        shifts(18,:)=[-3, 1, 0]
-        shifts(19,:)=[-2, 1, 0]
-        shifts(20,:)=[-1, 1, 0]
-        shifts(21,:)=[ 0, 1, 0]
-        shifts(22,:)=[ 1, 1, 0]
-        shifts(23,:)=[ 2, 1, 0]
-        shifts(24,:)=[ 3, 1, 0]
-        shifts(25,:)=[-3, 1, 1]
-        shifts(26,:)=[-2, 1, 1]
-        shifts(27,:)=[-1, 1, 1]
-        shifts(28,:)=[ 0, 1, 1]
-        shifts(29,:)=[ 1, 1, 1]
-        shifts(30,:)=[ 2, 1, 1]
-        shifts(31,:)=[ 3, 1, 1]
+        ! allocate(shifts(nnc,3))
+        ! shifts(1,:) =[ 0, 0,-1]
+        ! shifts(2,:) =[ 1, 0,-1]
+        ! shifts(3,:) =[ 2, 0,-1]
+        ! shifts(4,:) =[ 3, 0,-1]
+        ! shifts(5,:) =[ 1, 0, 0]
+        ! shifts(6,:) =[ 2, 0, 0]
+        ! shifts(7,:) =[ 3, 0, 0]
+        ! shifts(8,:) =[ 1, 0, 1]
+        ! shifts(9,:) =[ 2, 0, 1]
+        ! shifts(10,:)=[ 3, 0, 1]
+        ! shifts(11,:)=[-3, 1,-1]
+        ! shifts(12,:)=[-2, 1,-1]
+        ! shifts(13,:)=[-1, 1,-1]
+        ! shifts(14,:)=[ 0, 1,-1]
+        ! shifts(15,:)=[ 1, 1,-1]
+        ! shifts(16,:)=[ 2, 1,-1]
+        ! shifts(17,:)=[ 3, 1,-1]
+        ! shifts(18,:)=[-3, 1, 0]
+        ! shifts(19,:)=[-2, 1, 0]
+        ! shifts(20,:)=[-1, 1, 0]
+        ! shifts(21,:)=[ 0, 1, 0]
+        ! shifts(22,:)=[ 1, 1, 0]
+        ! shifts(23,:)=[ 2, 1, 0]
+        ! shifts(24,:)=[ 3, 1, 0]
+        ! shifts(25,:)=[-3, 1, 1]
+        ! shifts(26,:)=[-2, 1, 1]
+        ! shifts(27,:)=[-1, 1, 1]
+        ! shifts(28,:)=[ 0, 1, 1]
+        ! shifts(29,:)=[ 1, 1, 1]
+        ! shifts(30,:)=[ 2, 1, 1]
+        ! shifts(31,:)=[ 3, 1, 1]
 
-        shifts(32,:)=[ 0, 0, 0]
+        ! shifts(32,:)=[ 0, 0, 0]
 
-        shifts(33:63,:) = - shifts(1:31,:)
+        ! shifts(33:63,:) = - shifts(1:31,:)
 
 !        this%ncps(1:2)=bs(1:2)/(sqrt(10._wp)*rc_F)
 !        this%ncps(3)=bs(3)/rc_F
     end select
 
-    allocate(j_clx(nnc))
-    allocate(j_cly(nnc))
-    allocate(j_clz(nnc))
-    allocate(j_cll(nnc))
+    ! allocate(j_clx(nnc))
+    ! allocate(j_cly(nnc))
+    ! allocate(j_clz(nnc))
+    ! allocate(j_cll(nnc))
 
   end subroutine init_hiverlet_d
 
@@ -263,7 +271,7 @@ contains
   !! \param rc The cutoff radius
   !! \param bs The dimension of the box
   subroutine init_verlet_t(this,rc,bs,ntotbead,nlst_d)
-  
+
     class(hiverlet_cu_t),intent(inout) :: this
     real(wp),intent(in) :: rc,bs(3)
     integer,intent(in) :: ntotbead
@@ -277,29 +285,44 @@ contains
 
   end subroutine init_verlet_t
 
-  subroutine get_ncps(this)
+  subroutine print_ncps(this)
 
     class(hiverlet_cu_t),intent(inout) :: this
     character(len=32) :: vlt_mode
 
     print *
-    print '(" Initial number of cells for HI real space calculations: ")'
+    print '(" Initial number of cells for HI verlet calculations on device: ")'
     print '(3(i10,1x))',this%ncps
 
-  end subroutine get_ncps
+  end subroutine print_ncps
+
+  subroutine print_mbpc(this)
+
+    class(hiverlet_cu_t),intent(inout) :: this
+    character(len=32) :: vlt_mode
+
+    print *
+    print '(" Maximum number of beads per cell for HI verlet on device: ")'
+    print '(i10,1x)',this%mbpc
+    print '(" Note that it has to be smaller than maxThreadsperBlock, see above. ")'
+    print '(" Note that I am choosing this number for the number of neighboring cells. ")'
+    print '(" This is a risky choice and the user needs to make sure that the results ")'
+    print '(" are not dependent on the value of cll-dns-hi. ")'
+
+  end subroutine print_mbpc
 
   integer function get_nct(this)
 
     class(hiverlet_cu_t),intent(inout) :: this
     get_nct=this%nct
-      
+
   end function get_nct
 
   integer function get_mbpc(this)
 
     class(hiverlet_cu_t),intent(inout) :: this
     get_mbpc=this%mbpc
-      
+
   end function get_mbpc
 
   !> Initializes the cell list
@@ -307,6 +330,7 @@ contains
   !! \param bs The dimension of the box
   subroutine init_clllst(this,rc,bs,ntotbead,nlst_d)
 
+    use :: verlet_mod, only: shifts,j_clx,j_cly,j_clz,j_cll
     use :: flow_mod, only: FlowType
 !    use :: inp_smdlt, only: ntotbead
     use :: arry_mod, only: print_vector,print_matrix
@@ -318,7 +342,7 @@ contains
     integer :: clx,cly,clz,cll,czNxNy,cyNx
     real(wp) :: ncpsl(3)
 
-    
+
     ncpsl=this%ncps
 
     select case (FlowType)
@@ -341,25 +365,24 @@ contains
 !print *,'size',this%cll_sz
 !!
 !print *,'cll_vol',this%cll_vol,'cll_vol',this%cll_sz(1)*this%cll_sz(2)*this%cll_sz(3)
-
     ! determined based on the number of warps
     this%mbpc=ceiling(this%cll_vol*cll_dns_hi/32)*32
+    this%mbpct=this%mbpc*nnc
 
     if (allocated(this%binc)) deallocate(this%binc)
     allocate(this%binc(this%nct,this%mbpc))
     if (allocated(this%binc_d)) deallocate(this%binc_d)
-    ! allocate(this%binc_d(this%nct,this%mbpc))
+    allocate(this%binc_d(this%nct,this%mbpc))
 
     if (any(this%ncps /= ncpsl)) then
 
       if (allocated(this%head)) deallocate(this%head)
       if (allocated(this%nclst)) deallocate(this%nclst)
       if (allocated(this%nclst_d)) deallocate(this%nclst_d)
-  
+
       allocate(this%head(this%nct))
       allocate(this%nclst(this%nct,nnc))
-      ! allocate(this%nclst_d(this%nct,nnc))
-
+      allocate(this%nclst_d(this%nct,nnc))
 
 
 ! print *,'ncps',this%ncps
@@ -401,7 +424,6 @@ contains
       this%nclst_d=this%nclst
 
     end if
-
     ! this%num_int=ntotbead*nnc*this%mbpc*0.5
     ! total number of interactions are included, since no symmetric option in cusparse bsr
     ! this%num_int=ntotbead*nnc*this%mbpc
@@ -431,9 +453,11 @@ contains
 
     ! this%num_int=nnc*this%mbpc
 
+
+    ! note that I am using a risky choice of this%mbpc instead of this%mbpct
+    ! the user needs to check if the results are dependent on the choice of cll-dns-hi
     if (allocated(nlst_d)) deallocate(nlst_d)
     allocate(nlst_d(this%mbpc,ntotbead))
-
 ! if(allocated(nlst_test)) deallocate(nlst_test)
 ! allocate(nlst_test(this%mbpc,ntotbead))
 
@@ -462,7 +486,7 @@ contains
     integer,intent(in) :: ntb,ntbx3,itime
     real(wp),intent(in) :: rc,bs(3)
     integer,device,intent(inout) :: nn_d(:)
-    integer,device,intent(inout) :: nlst_d(:,:)
+    integer,device,intent(inout),contiguous :: nlst_d(:,:)
     integer,allocatable :: nn_h(:)
     integer,allocatable :: nlst_h(:,:)
     real(wp) :: bsx,bsy,bsz
@@ -470,11 +494,13 @@ contains
 
     ! unfortunately we need to transfer the positions for now
     ! but fortunately it is only done every once a while ...
+
+    ! print*,'how ofter', itime
     this%Rbx_h=Rbx_d
     this%Rby_h=Rby_d
     this%Rbz_h=Rbz_d
     call this%cnstr_cll(this%Rbx_h,this%Rby_h,this%Rbz_h,itime,ntb,ntbx3)
-    
+
     this%binc_d=this%binc
     bsx=bs(1)
     bsy=bs(2)
@@ -484,12 +510,12 @@ contains
     Rbz_tex => Rbz_d
 
     ! print*,'nct',this%nct,this%mbpc,this%num_int
-    
+
     ! total number of bytes for shared memory usage in the next cuda kernel
     nbytes=(4+3*8)*this%mbpc
 
     call cnstr_nab_d <<< this%nct,this%mbpc,nbytes >>> (this%binc_d,this%nclst_d,nnc,rc,bsx,bsy,bsz,&
-      nn_d,nlst_d,ntb)
+      nn_d,nlst_d,ntb,this%mbpct,Rbx_d,Rby_d,Rbz_d)
     ! r = cudathreadsynchronize()
 
     ! allocate(nn_h(ntb),nlst_h(this%mbpc,ntb))
@@ -508,7 +534,9 @@ contains
     ierr = cudaGetLastError()
     if (ierr /= cudaSuccess) then
       print '(" cnstr neighbor for hi error: ",a)', cudaGetErrorString(ierr)
-      print '(" cll_dns_hi might be too small ")'
+      print '(" cll-dns-hi might be too small ")'
+      print '(" Maybe mbpc is greater than maxThreadsperBlock. ")'
+      print '(" If so, either increase box size or decrease rc. ")'
       stop
     endif
 
@@ -544,7 +572,7 @@ contains
     this%binc=0
 
     do i=1, ntotbead
-      
+
       clx=int(Rbx(i)/this%cll_sz(1))
       cly=int(Rby(i)/this%cll_sz(2))
       clz=int(Rbz(i)/this%cll_sz(3))
@@ -579,7 +607,7 @@ contains
   ! !! \param invbs the inverse of box dimensions
   ! !! \param nlst The neighbor list
   ! subroutine cnstr_nablst(this,Rbx,Rby,Rbz,rc,bs,invbs,nlst,itime,ntotbead,ntotbeadx3)
-     
+
   !   !    use :: inp_smdlt, only: ntotbead,ntotbeadx3
   !   use :: arry_mod, only: print_vector,print_matrix
   !   use :: flow_mod, only: FlowType
@@ -628,7 +656,7 @@ contains
   !   deallocate(beadi_tmp)
   !   deallocate(beadj_tmp)
   !   deallocate(pair)
-    
+
   !   ! Different-cell interactions:
   !   allocate(beadj(nnc*this%mbpc))
   !   allocate(beadj_tmp(nnc*this%mbpc))
@@ -652,11 +680,11 @@ contains
   !     end do ! i
   !   end do ! cll
   !   idx=idx-1
-    
+
   !   deallocate(beadj)
   !   deallocate(beadj_tmp)
   !   deallocate(pair)
-     
+
   !   !$omp parallel default(private) shared(this,Rbx,Rby,Rbz,eps_m,sinth,costh,tanb,rc) &
   !   !$omp shared(idx,bs,invbs)
   !   !$omp do simd
@@ -707,20 +735,25 @@ contains
   !! \param invbs the inverse of box dimensions
   !! \param nlst The neighbor list
   ! attributes(global) subroutine cnstr_nab_d(binc,nclst,nnc,rc,bsx,bsy,bsz,nn,nlst,ntb,vallst)
-  attributes(global) subroutine cnstr_nab_d(binc,nclst,nnc,rc,bsx,bsy,bsz,nn,nlst,ntb)
-     
+  attributes(global) subroutine cnstr_nab_d(binc,nclst,nnc,rc,bsx,bsy,bsz,nn,nlst,ntb,mbpct,&
+    Rbx,Rby,Rbz)
+
     !    use :: inp_smdlt, only: ntotbead,ntotbeadx3
     use :: flow_cumod, only: FlowType_d,PSF,PEF
     use :: trsfm_cumod, only: eps_m_d,tanb_d,sinth_d,costh_d
 
     integer,device :: binc(gridDim%x,blockDim%x)
     integer,device :: nclst(gridDim%x,nnc)
-    integer,value :: nnc,ntb
+    integer,value :: nnc,ntb,mbpct
+    real(wp),device :: Rbx(ntb),Rby(ntb),Rbz(ntb)
 
     real(wp),value :: rc,bsx,bsy,bsz
     integer,device :: nn(ntb)
+    ! note that i am using a risky choice of mbpc instead of mbpct
+    ! the user needs to check if the results are dependent on cll-dns-hi
     integer,device :: nlst(blockDim%x,ntb)
-    real(wp),device :: vallst(blockDim%x,ntb)
+    ! integer,device :: nlst(mbpct,ntb)
+    ! real(wp),device :: vallst(mbpct,ntb)
 
     integer,shared :: beadj_tmp(blockDim%x)
     real(wp),shared :: rjx_tmp(blockDim%x)
@@ -731,10 +764,19 @@ contains
 
 
     beadi=binc(blockIdx%x,threadIdx%x)
+
     nab=0
-    ri(1)=Rbx_tex(beadi)
-    ri(2)=Rby_tex(beadi)
-    ri(3)=Rbz_tex(beadi)
+    if (beadi /= 0) then
+      ri(1)=Rbx_tex(beadi)
+      ri(2)=Rby_tex(beadi)
+      ri(3)=Rbz_tex(beadi)
+    endif
+
+    ! if (beadi > ntb .or. beadi <= 0) print*,'woooow',blockIdx%x,threadIdx%x,beadi
+
+    ! ri(1)=Rbx(beadi)
+    ! ri(2)=Rby(beadi)
+    ! ri(3)=Rbz(beadi)
 
     ! print*,'tid',threadIdx%x,blockDim%x
 
@@ -744,18 +786,24 @@ contains
       nabcll=nclst(blockIdx%x,cll)
       ! print*,'nabcll',blockIdx%x,nabcll
 
-      ! populating the shared memory variables with all threads of this bloxk
+      ! populating the shared memory variables with all threads of this block
       beadj_tmp(threadIdx%x)=binc(nabcll,threadIdx%x)
-      rjx_tmp(threadIdx%x)=Rbx_tex(beadj_tmp(threadIdx%x))
-      rjy_tmp(threadIdx%x)=Rby_tex(beadj_tmp(threadIdx%x))
-      rjz_tmp(threadIdx%x)=Rbz_tex(beadj_tmp(threadIdx%x))
+
+      if (beadj_tmp(threadIdx%x) /= 0) then
+        rjx_tmp(threadIdx%x)=Rbx_tex(beadj_tmp(threadIdx%x))
+        rjy_tmp(threadIdx%x)=Rby_tex(beadj_tmp(threadIdx%x))
+        rjz_tmp(threadIdx%x)=Rbz_tex(beadj_tmp(threadIdx%x))
+      endif
+      ! rjx_tmp(threadIdx%x)=Rbx(beadj_tmp(threadIdx%x))
+      ! rjy_tmp(threadIdx%x)=Rby(beadj_tmp(threadIdx%x))
+      ! rjz_tmp(threadIdx%x)=Rbz(beadj_tmp(threadIdx%x))
 
       ! Wait until all elements of the shared arrays are filled
       call syncthreads()
 
 
       if (beadi /= 0) then
-        
+
         jblp: do jb=1, blockDim%x
 
           if (beadj_tmp(jb) == 0) then
@@ -785,6 +833,9 @@ contains
 
             ! print*,'beads',beadi,beadj_tmp(jb),threadIdx%x,blockIdx%x
             nab=nab+1
+            if (nab > blockDim%x) then
+              stop 'Error!!: nab is large in hi'
+            endif
             ! the nab's neighboring bead index for beadi
             nlst(nab,beadi)=beadj_tmp(jb)
             ! vallst(nab,beadi)=rijsq
@@ -794,19 +845,24 @@ contains
 
       endif
 
-      ! Synchronize to make sure all threads are done with the shared arrays before 
+      ! Synchronize to make sure all threads are done with the shared arrays before
       ! overwriting them in the next iteration of the cll loop
       call syncthreads()
 
     end do ! cll
 
     ! number of neighboring beads for beadi correspoding to threadIdx%x of blockIdx%x
-    nn(beadi)=nab
+    if (beadi /= 0) then
+      nn(beadi)=nab
+    endif
 
+    ! if (nab > blockDim%x) then
+    !   stop
+    ! endif
     ! print*,'beadi',blockIdx%x,threadIdx%x,beadi,nn(beadi)
 
   end subroutine cnstr_nab_d
-  
+
 
   !> Destructor for  verlet type
   subroutine del_verlet_t(this)
@@ -817,11 +873,10 @@ contains
 
   end subroutine del_verlet_t
 
-  subroutine del_verlet()
+  subroutine del_hiverlet_d()
 
-    deallocate(shifts)
-    deallocate(j_clx,j_cly,j_clz,j_cll)
+    nullify(Rbx_tex,Rby_tex,Rbz_tex)
 
-  end subroutine del_verlet
+  end subroutine del_hiverlet_d
 
 end module hiverlet_cumod

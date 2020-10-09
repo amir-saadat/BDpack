@@ -25,12 +25,12 @@
 !%------------------------------------------------------------------------%
 !--------------------------------------------------------------------
 !
-! MODULE: 
+! MODULE:
 !
 !> @author
 !> Amir Saadat, Stanford University, May 2018
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> (1) Interchanging the configurational state Rb to its components
 !! (2) {R,rc} <--> position vector Rb
 !--------------------------------------------------------------------
@@ -50,7 +50,7 @@ module conv_cumod
   contains
 
     procedure,pass(this) :: init => init_conv_t
-    procedure,pass(this) :: RbtoRbc 
+    procedure,pass(this) :: RbtoRbc
     procedure,pass(this) :: RbctoRb
     procedure,pass(this) :: RbtoQ
 
@@ -135,7 +135,7 @@ contains
   subroutine init_conv_t(this)
 
     class(conv_cu_t),intent(inout) :: this
-        
+
   end subroutine init_conv_t
 
   ! !> Converting {R,rc} to Rb
@@ -183,7 +183,7 @@ contains
       Rb(os+3)=Rbz(igb)
     end do
 
-  end subroutine RbctoRb 
+  end subroutine RbctoRb
 
   !> Converting Rb to (Rx,Ry,Rz)
   !! \param Rb the position vector of the beads for all chains
@@ -219,13 +219,15 @@ contains
     real(wp),device,intent(inout) :: Q(:)
     real(wp),intent(in) :: bs(3)
 
-    real(wp) :: qx,qy,qz,bsx,bsy,bsz,invbsx,invbsy,invbsz
+    real(wp) :: qx,qy,qz,bsx,bsy,bsz
     integer :: its,istat
 
     istat = cusparseDcsrmv(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,ntsx3,ntbx3,nnz_Bbar,&
       1._wp,descr_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,Rb,0._wp,Q)
 
     if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod: ",i)',istat
+
+    bsx=bs(1);bsy=bs(2);bsz=bs(3)
 
     !$cuf kernel do <<< *,* >>>
     do its=1, ntsx3/3
@@ -235,9 +237,9 @@ contains
       qy=Q((its-1)*3+2)
       qz=Q((its-1)*3+3)
 
-      qx=qx-nint(qx*invbsx)*bsx
-      qy=qy-nint(qy*invbsy)*bsy
-      qz=qz-nint(qz*invbsz)*bsz
+      qx=qx-nint(qx*1/bsx)*bsx
+      qy=qy-nint(qy*1/bsy)*bsy
+      qz=qz-nint(qz*1/bsz)*bsz
       ! select case (FlowType)
       !   case ('PSF')
       !     qx=qx+eps_m*qy
@@ -258,4 +260,3 @@ contains
 
 
 end module conv_cumod
-

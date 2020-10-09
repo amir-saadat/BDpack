@@ -27,7 +27,7 @@
 !> @author
 !> Amir Saadat, The University of Tennessee-Knoxville, Dec 2015
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> For reading and writing the configurational information
 !
 !--------------------------------------------------------------------
@@ -108,7 +108,7 @@ module io_mod
     integer :: oldu5
     !> The unit for CoM.dat
     integer :: oldu6
-    !> The unit for BoxConfig.dat 
+    !> The unit for BoxConfig.dat
     integer :: oldu7
     !> The unit for Rb.rst.dat
     integer :: oldu8
@@ -157,10 +157,10 @@ contains
     use,intrinsic :: iso_fortran_env
     use :: strg_mod
     use :: flow_mod, only: FlowType
-    
+
     integer,intent(in) :: id,nsegx3,nbeadx3,nchain,ntotchain,ntotsegx3,ntotbeadx3,nprun
     integer :: i,j,ntokens,u1,stat,ios,il
-    character(len=1024) :: line 
+    character(len=1024) :: line
     character(len=100) :: tokens(10)
 
     ! default values:
@@ -168,6 +168,7 @@ contains
     CoMDiff=.false.
 
     open (newunit=u1,action='read',file='input.dat',status='old')
+    il=1
 ef: do
       read(u1,'(A)',iostat=stat) line
       if (stat == iostat_end) then
@@ -193,7 +194,7 @@ ef: do
               else
                 print *,'Incorrect Type for DumpConf.'
                 stop
-              end if 
+              end if
             case ('CoM-diff')
               if(tokens(j+1) == 'TRUE') then
                 CoMDiff=.true.
@@ -203,7 +204,7 @@ ef: do
                 print '(" Inconsistent CoM-diff.")'
                 stop
               end if
-          end select 
+          end select
         end do ! j
       end if ! ntokens
     end do ef
@@ -236,7 +237,7 @@ ef: do
     use :: strg_mod
     use :: mpi
     !include 'mpif.h'
-    
+
     class(conf_io),intent(inout) :: this
     ! integer,intent(in) :: id,p,nchain,nsegx3,nbeadx3,MPI_REAL_WP
     integer,intent(in) :: id,p,ntotchain,ntotsegx3,ntotbeadx3,MPI_REAL_WP
@@ -247,7 +248,7 @@ ef: do
     integer :: rf_starts(2),rf_sizes(2),rf_subsizes(2)
     integer :: stat1,stat2,stat3,stat4,stat5,stat6
     integer :: u1,u2,u3,u4,u5,u6,i,j,ios,ntokens,stat,il
-    character(len=1024) :: line 
+    character(len=1024) :: line
     character(len=100) :: tokens(10)
 
 
@@ -257,8 +258,8 @@ ef: do
     this%qfctr_cmbar=[0.0_wp,0.7_wp,0._wp]
     this%initmode='st'
     this%MakeAnim=.false.
-
     open (newunit=u1,action='read',file='input.dat',status='old')
+    il=1
 ef: do
       read(u1,'(A)',iostat=stat) line
       if (stat == iostat_end) then
@@ -298,7 +299,7 @@ ef: do
               else
                 print '(" Inconsistent MakeAnim.")'
               end if
-          end select 
+          end select
         end do ! j
       end if ! ntokens
     end do ef
@@ -387,7 +388,7 @@ ef: do
     end if ! DumpConf
 
     if (id == 0) then
-  
+
       if (FlowType == 'Equil') then
         open(newunit=this%oldu3,file='data/rst/q.equil.dat',status='replace')
         open(newunit=this%oldu4,file='data/rst/CoM.equil.dat',status='replace')
@@ -397,11 +398,11 @@ ef: do
         open(newunit=this%oldu4,iostat=stat2,file='data/rst/CoM.final.dat',status='replace')
         open(newunit=this%oldu9,file='data/rst/Rb.final.dat',status='replace')
       end if ! FlowType == 'Equil'
-  
+
       open(newunit=this%oldu1,file='data/rst/q.rst.dat',status='replace')
       open(newunit=this%oldu2,file='data/rst/CoM.rst.dat',status='replace')
       open(newunit=this%oldu8,file='data/rst/Rb.rst.dat',status='replace')
-      
+
       if (this%MakeAnim) then
         open(newunit=this%oldu5,file='data/dump/Rb.dat',status='replace',position='append')
         open(newunit=this%oldu6,file='data/dump/CoM.dat',status='replace',position='append')
@@ -455,7 +456,7 @@ ef: do
 !           do irun=1, nprun
 !             do ichain=1, nchain
 !               do iseg=1, nseg
-!                 offset=3*(iseg-1) 
+!                 offset=3*(iseg-1)
 !                 Qst(offset+1:offset+3,ichain,irun)=[this%qfctr(1)*qmax,&
 !                                                     this%qfctr(2)*qmax,&
 !                                                     this%qfctr(3)*qmax]
@@ -488,7 +489,7 @@ ef: do
 
 
 
-          
+
 !           do irun=1, nprun
 !             offsetMPI=nchain*3*p*sizeof(realvar)*(irun-1)
 !             call MPI_File_set_view(this%fcinithandle,offsetMPI,MPI_REAL_WP,this%rc_recvsubarray,"native",&
@@ -528,24 +529,24 @@ ef: do
 !                                    "native",MPI_INFO_NULL,ierr)
 !             call MPI_File_read(this%fcifrsthandle,cmifstP,nchain*3,MPI_INTEGER,MPI_STATUS_IGNORE,ierr)
 !           end if
-!           ! q  
+!           ! q
 !           offsetMPI=ntotsegx3*p*runrst*sizeof(realvar)
 !           QstP => Qst(:,:,runrst+1)
 !           QstPP(1:size(QstP)) => QstP
 !           call MPI_File_set_view(this%fqrsthandle,offsetMPI,MPI_REAL_WP,this%q_recvsubarray,&
 !                                  "native",MPI_INFO_NULL,ierr)
 !           call MPI_File_read(this%fqrsthandle,QstPP,ntotsegx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
-!           ! Rb  
+!           ! Rb
 !           offsetMPI=ntotbeadx3*p*runrst*sizeof(realvar)
 !           RbstP => Rbst(:,runrst+1)
 !           call MPI_File_set_view(this%frbrsthandle,offsetMPI,MPI_REAL_WP,this%rb_recvsubarray,&
 !                                  "native",MPI_INFO_NULL,ierr)
 !           call MPI_File_read(this%frbrsthandle,RbstP,ntotbeadx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
-          
+
 !           do irun=runrst+2, nprun
 !             do ichain=1, nchain
 !               do iseg=1, nseg
-!                 offset=3*(iseg-1) 
+!                 offset=3*(iseg-1)
 !                 Qst(offset+1:offset+3,ichain,irun)=[this%qfctr(1)*qmax,&
 !                                                     this%qfctr(2)*qmax,&
 !                                                     this%qfctr(3)*qmax]
@@ -559,7 +560,7 @@ ef: do
 ! !          rcmst(1,1:3,2)=(/-4.517_wp,2.308_wp,-3.395_wp/)
 ! !          rcmst(2,1:3,2)=(/5-0.034_wp,5-3.173_wp,5-1.454_wp/) ! For 3
 ! !          rcmst(3,1:3,2)=(/1-0.034_wp,1-3.173_wp,1-1.454_wp/) ! For 3
-       
+
 !           if (runrst+1 < nprun) then
 
 !             if (CoMDiff) cmifst(:,:,runrst+2:nprun)=0
@@ -606,7 +607,7 @@ ef: do
 !             call MPI_File_set_view(this%fqrsthandle,offsetMPI,MPI_REAL_WP,this%q_recvsubarray,&
 !                                    "native",MPI_INFO_NULL,ierr)
 !             call MPI_File_read(this%fqrsthandle,QstPP,ntotsegx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
-!             ! Rb  
+!             ! Rb
 !             offsetMPI=ntotbeadx3*p*runrst*sizeof(realvar)
 !             RbstP => Rbst(:,runrst+1)
 !             call MPI_File_set_view(this%frbrsthandle,offsetMPI,MPI_REAL_WP,this%rb_recvsubarray,&
@@ -621,14 +622,14 @@ ef: do
 !       select case (this%initmode)
 
 !         case ('st')
-          
+
 !           do irun=1, nprun
 !             ! rc
 !             offsetMPI=nchain*3*p*(irun-1)*sizeof(realvar)
 !             rcmstP => rcmst(:,:,irun)
 !             call MPI_File_set_view(this%fcsthandle,offsetMPI,MPI_REAL_WP,this%rc_recvsubarray,&
 !                                    "native",MPI_INFO_NULL,ierr)
-!             call MPI_File_read(this%fcsthandle,rcmstP,nchain*3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr) 
+!             call MPI_File_read(this%fcsthandle,rcmstP,nchain*3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
 !             ! q
 !             offsetMPI=ntotsegx3*p*(irun-1)*sizeof(realvar)
 !             QstP => Qst(:,:,irun)
@@ -636,7 +637,7 @@ ef: do
 !             call MPI_File_set_view(this%fqsthandle,offsetMPI,MPI_REAL_WP,this%q_recvsubarray,&
 !                                    "native",MPI_INFO_NULL,ierr)
 !             call MPI_File_read(this%fqsthandle,QstPP,ntotsegx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
-!             ! Rb  
+!             ! Rb
 !             offsetMPI=ntotbeadx3*p*(irun-1)*sizeof(realvar)
 !             RbstP => Rbst(:,irun)
 !             call MPI_File_set_view(this%frbsthandle,offsetMPI,MPI_REAL_WP,this%rb_recvsubarray,&
@@ -660,7 +661,7 @@ ef: do
 !               call MPI_File_set_view(this%fqrsthandle,offsetMPI,MPI_REAL_WP,this%q_recvsubarray,&
 !                                      "native",MPI_INFO_NULL,ierr)
 !               call MPI_File_read(this%fqrsthandle,QstPP,ntotsegx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
-!               ! Rb  
+!               ! Rb
 !               offsetMPI=ntotbeadx3*p*(irun-1)*sizeof(realvar)
 !               RbstP => Rbst(:,irun)
 !               call MPI_File_set_view(this%frbrsthandle,offsetMPI,MPI_REAL_WP,this%rb_recvsubarray,&
@@ -672,7 +673,7 @@ ef: do
 !               rcmstP => rcmst(:,:,irun)
 !               call MPI_File_set_view(this%fcsthandle,offsetMPI,MPI_REAL_WP,this%rc_recvsubarray,&
 !                                      "native",MPI_INFO_NULL,ierr)
-!               call MPI_File_read(this%fcsthandle,rcmstP,nchain*3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr) 
+!               call MPI_File_read(this%fcsthandle,rcmstP,nchain*3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
 !               ! q
 !               offsetMPI=ntotsegx3*p*(irun-1)*sizeof(realvar)
 !               QstP => Qst(:,:,irun)
@@ -680,7 +681,7 @@ ef: do
 !               call MPI_File_set_view(this%fqsthandle,offsetMPI,MPI_REAL_WP,this%q_recvsubarray,&
 !                                      "native",MPI_INFO_NULL,ierr)
 !               call MPI_File_read(this%fqsthandle,QstPP,ntotsegx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
-!               ! Rb  
+!               ! Rb
 !               offsetMPI=ntotbeadx3*p*(irun-1)*sizeof(realvar)
 !               RbstP => Rbst(:,irun)
 !               call MPI_File_set_view(this%frbsthandle,offsetMPI,MPI_REAL_WP,this%rb_recvsubarray,&
@@ -689,7 +690,7 @@ ef: do
 !             end if
 !           end do ! irun
 
-!       end select ! this%initmode 
+!       end select ! this%initmode
 
 !     end if ! FlowType
 
@@ -745,7 +746,7 @@ ef: do
             do ichain=1, nchain
               offsetch=(ichain-1)*nseg*3
               do iseg=1, nseg
-                offset=offsetch+(iseg-1)*3 
+                offset=offsetch+(iseg-1)*3
                 Qst(offset+1:offset+3,irun)=[this%qfctr(1)*qmax,this%qfctr(2)*qmax,this%qfctr(3)*qmax]
               end do ! iseg
             end do ! ichain
@@ -754,7 +755,7 @@ ef: do
                 offsetch=nchain*nseg*3 + (ichain-1)*nseg_cmb*3
 
                 do iseg=1, nseg_cmb
-                  offset=offsetch+(iseg-1)*3 
+                  offset=offsetch+(iseg-1)*3
 
                   if (iseg <= nseg_cmbbb) then
                     Qst(offset+1:offset+3,irun)=[this%qfctr_cmbbb(1)*qmax,this%qfctr_cmbbb(2)*qmax,this%qfctr_cmbbb(3)*qmax]
@@ -773,10 +774,14 @@ ef: do
           end do ! irun
 
           ! For debugging:
-         ! rcmst(1,1:3,1)=(/-4.517_wp,2.308_wp,-3.395_wp/)
-         ! rcmst(2,1:3,1)=(/5-0.034_wp,5-3.173_wp,5-1.454_wp/) ! For 3
-         ! rcmst(3,1:3,1)=(/1-0.034_wp,1-3.173_wp,1-1.454_wp/) ! For 3
-         ! rcmst(4,1:3,1)=(/3-0.034_wp,-3-3.173_wp,-3-1.454_wp/) ! For 3
+        !  rcmst(1,1:3,1)=(/0.1_wp,1._wp,0.1_wp/)
+        !  do ichain=2,size(rcmst,1)
+        !    rcmst(ichain,1:3,1)=rcmst(1,1:3,1)+[0._wp,1._wp,0]
+        !  enddo
+        !  rcmst(1,1:3,1)=(/-4.517_wp,2.308_wp,-3.395_wp/)
+        !  rcmst(2,1:3,1)=(/5-0.034_wp,5-3.173_wp,5-1.454_wp/) ! For 3
+        !  rcmst(3,1:3,1)=(/1-0.034_wp,1-3.173_wp,1-1.454_wp/) ! For 3
+        !  rcmst(4,1:3,1)=(/3-0.034_wp,-3-3.173_wp,-3-1.454_wp/) ! For 3
          ! rcmst(4,1:3,1)=(/24.766_wp,21.627_wp,23.346_wp/) ! For 3
 !          rcmst(1,1:3,2)=(/-4.517_wp,2.308_wp,-3.395_wp/)
 !          rcmst(2,1:3,2)=(/5-0.034_wp,5-3.173_wp,5-1.454_wp/) ! For 3
@@ -792,7 +797,7 @@ ef: do
           rcmst(:,1,:)=rcmst(:,1,:)*boxsize(1)
           rcmst(:,2,:)=rcmst(:,2,:)*boxsize(2)
           rcmst(:,3,:)=rcmst(:,3,:)*boxsize(3)
-          
+
           do irun=1, nprun
             offsetMPI=ntotchain*3*p*sizeof(realvar)*(irun-1)
             call MPI_File_set_view(this%fcinithandle,offsetMPI,MPI_REAL_WP,this%rc_recvsubarray,"native",&
@@ -845,25 +850,25 @@ ef: do
                                    "native",MPI_INFO_NULL,ierr)
             call MPI_File_read(this%fcifrsthandle,cmifstP,ntotchain*3,MPI_INTEGER,MPI_STATUS_IGNORE,ierr)
           end if
-          ! q  
+          ! q
           offsetMPI=ntotsegx3*p*runrst*sizeof(realvar)
           QstPP => Qst(:,runrst+1)
           ! QstPP(1:size(QstP)) => QstP
           call MPI_File_set_view(this%fqrsthandle,offsetMPI,MPI_REAL_WP,this%q_recvsubarray,&
                                  "native",MPI_INFO_NULL,ierr)
           call MPI_File_read(this%fqrsthandle,QstPP,ntotsegx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
-          ! Rb  
+          ! Rb
           offsetMPI=ntotbeadx3*p*runrst*sizeof(realvar)
           RbstP => Rbst(:,runrst+1)
           call MPI_File_set_view(this%frbrsthandle,offsetMPI,MPI_REAL_WP,this%rb_recvsubarray,&
                                  "native",MPI_INFO_NULL,ierr)
           call MPI_File_read(this%frbrsthandle,RbstP,ntotbeadx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
-          
+
           do irun=runrst+2, nprun
             do ichain=1, nchain
               offsetch=(ichain-1)*nseg*3
               do iseg=1, nseg
-                offset=offsetch+(iseg-1)*3 
+                offset=offsetch+(iseg-1)*3
                 Qst(offset+1:offset+3,irun)=[this%qfctr(1)*qmax,this%qfctr(2)*qmax,this%qfctr(3)*qmax]
               end do ! iseg
             end do ! ichain
@@ -872,7 +877,7 @@ ef: do
                 offsetch=nchain*nseg*3+(ichain-1)*nseg_cmb*3
 
                 do iseg=1, nseg_cmb
-                  offset=offsetch+(iseg-1)*3 
+                  offset=offsetch+(iseg-1)*3
 
                   if (iseg <= nseg_cmbbb) then
                     Qst(offset+1:offset+3,irun)=[0.9_wp*qmax,0._wp,0._wp]
@@ -895,7 +900,7 @@ ef: do
 !          rcmst(1,1:3,2)=(/-4.517_wp,2.308_wp,-3.395_wp/)
 !          rcmst(2,1:3,2)=(/5-0.034_wp,5-3.173_wp,5-1.454_wp/) ! For 3
 !          rcmst(3,1:3,2)=(/1-0.034_wp,1-3.173_wp,1-1.454_wp/) ! For 3
-       
+
           if (runrst+1 < nprun) then
 
             if (CoMDiff) cmifst(:,:,runrst+2:nprun)=0
@@ -942,7 +947,7 @@ ef: do
             call MPI_File_set_view(this%fqrsthandle,offsetMPI,MPI_REAL_WP,this%q_recvsubarray,&
                                    "native",MPI_INFO_NULL,ierr)
             call MPI_File_read(this%fqrsthandle,QstPP,ntotsegx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
-            ! Rb  
+            ! Rb
             offsetMPI=ntotbeadx3*p*runrst*sizeof(realvar)
             RbstP => Rbst(:,runrst+1)
             call MPI_File_set_view(this%frbrsthandle,offsetMPI,MPI_REAL_WP,this%rb_recvsubarray,&
@@ -957,14 +962,14 @@ ef: do
       select case (this%initmode)
 
         case ('st')
-          
+
           do irun=1, nprun
             ! rc
             offsetMPI=ntotchain*3*p*(irun-1)*sizeof(realvar)
             rcmstP => rcmst(:,:,irun)
             call MPI_File_set_view(this%fcsthandle,offsetMPI,MPI_REAL_WP,this%rc_recvsubarray,&
                                    "native",MPI_INFO_NULL,ierr)
-            call MPI_File_read(this%fcsthandle,rcmstP,ntotchain*3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr) 
+            call MPI_File_read(this%fcsthandle,rcmstP,ntotchain*3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
             ! q
             offsetMPI=ntotsegx3*p*(irun-1)*sizeof(realvar)
             QstPP => Qst(:,irun)
@@ -972,7 +977,7 @@ ef: do
             call MPI_File_set_view(this%fqsthandle,offsetMPI,MPI_REAL_WP,this%q_recvsubarray,&
                                    "native",MPI_INFO_NULL,ierr)
             call MPI_File_read(this%fqsthandle,QstPP,ntotsegx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
-            ! Rb  
+            ! Rb
             offsetMPI=ntotbeadx3*p*(irun-1)*sizeof(realvar)
             RbstP => Rbst(:,irun)
             call MPI_File_set_view(this%frbsthandle,offsetMPI,MPI_REAL_WP,this%rb_recvsubarray,&
@@ -996,7 +1001,7 @@ ef: do
               call MPI_File_set_view(this%fqrsthandle,offsetMPI,MPI_REAL_WP,this%q_recvsubarray,&
                                      "native",MPI_INFO_NULL,ierr)
               call MPI_File_read(this%fqrsthandle,QstPP,ntotsegx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
-              ! Rb  
+              ! Rb
               offsetMPI=ntotbeadx3*p*(irun-1)*sizeof(realvar)
               RbstP => Rbst(:,irun)
               call MPI_File_set_view(this%frbrsthandle,offsetMPI,MPI_REAL_WP,this%rb_recvsubarray,&
@@ -1008,7 +1013,7 @@ ef: do
               rcmstP => rcmst(:,:,irun)
               call MPI_File_set_view(this%fcsthandle,offsetMPI,MPI_REAL_WP,this%rc_recvsubarray,&
                                      "native",MPI_INFO_NULL,ierr)
-              call MPI_File_read(this%fcsthandle,rcmstP,ntotchain*3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr) 
+              call MPI_File_read(this%fcsthandle,rcmstP,ntotchain*3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
               ! q
               offsetMPI=ntotsegx3*p*(irun-1)*sizeof(realvar)
               QstPP => Qst(:,irun)
@@ -1016,7 +1021,7 @@ ef: do
               call MPI_File_set_view(this%fqsthandle,offsetMPI,MPI_REAL_WP,this%q_recvsubarray,&
                                      "native",MPI_INFO_NULL,ierr)
               call MPI_File_read(this%fqsthandle,QstPP,ntotsegx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
-              ! Rb  
+              ! Rb
               offsetMPI=ntotbeadx3*p*(irun-1)*sizeof(realvar)
               RbstP => Rbst(:,irun)
               call MPI_File_set_view(this%frbsthandle,offsetMPI,MPI_REAL_WP,this%rb_recvsubarray,&
@@ -1025,7 +1030,7 @@ ef: do
             end if
           end do ! irun
 
-      end select ! this%initmode 
+      end select ! this%initmode
 
     end if ! FlowType
 
@@ -1055,9 +1060,9 @@ ef: do
                              &,"native",MPI_INFO_NULL,ierr)
       call MPI_File_read(this%fcinithandle,rcmst(:,:,irun),ntotchain*3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
     end if
-  
+
   end subroutine read_init_conf
-    
+
   !> Reades the dumped configurational information for all entities
   !! \param p The number of processes
   !! \param irun The run index
@@ -1198,9 +1203,9 @@ ef: do
 !     call MPI_File_write(this%frbrsthandle,Rb,ntotbeadx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
 !     call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
-!     ! Providing data files to clarify the status of bin files:   
+!     ! Providing data files to clarify the status of bin files:
 !     if (itime == ntime) then
-      
+
 !       if (id == 0) then
 
 !         rtpassed=time/lambda
@@ -1363,33 +1368,41 @@ ef: do
     call MPI_File_write(this%frbrsthandle,Rb,ntotbeadx3,MPI_REAL_WP,MPI_STATUS_IGNORE,ierr)
     call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
-    ! Providing data files to clarify the status of bin files:   
+    ! Providing data files to clarify the status of bin files:
     if (itime == ntime) then
-      
+
       if (id == 0) then
 
         rtpassed=time/lambda
-        write (this%oldu3,'(f8.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
-        write (this%oldu4,'(f8.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
-        write (this%oldu9,'(f8.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
+        write (this%oldu3,'(f14.7,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
+        write (this%oldu4,'(f14.7,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
+        write (this%oldu9,'(f14.7,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
         write(this%oldu3,'(2x,a)') 'AT:'
-        write(this%oldu3,'(2x,a,1x,f10.3)') 'Wi:',Wi
-        write(this%oldu3,'(2x,a,1x,f10.3)') 'dt:',dt
+        write(this%oldu3,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(this%oldu3,'(2x,a,1x,f14.7)') 'dt:',dt
         write(this%oldu3,'(2x,a,1x,i8)') 'run number:',irun
         write(this%oldu3,'(2x,a,1x,i8)') 'time index number:',itime
         if (DumpConf) write(this%oldu3,'(2x,a,1x,i8)') 'dump number:',idmp
         write(this%oldu4,'(2x,a)') 'AT:'
-        write(this%oldu4,'(2x,a,1x,f10.3)') 'Wi:',Wi
-        write(this%oldu4,'(2x,a,1x,f10.3)') 'dt:',dt
+        write(this%oldu4,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(this%oldu4,'(2x,a,1x,f14.7)') 'dt:',dt
         write(this%oldu4,'(2x,a,1x,i8)') 'run number:',irun
         write(this%oldu4,'(2x,a,1x,i8)') 'time index number:',itime
         if (DumpConf) write(this%oldu4,'(2x,a,1x,i8)') 'dump number:',idmp
         write(this%oldu9,'(2x,a)') 'AT:'
-        write(this%oldu9,'(2x,a,1x,f10.3)') 'Wi:',Wi
-        write(this%oldu9,'(2x,a,1x,f10.3)') 'dt:',dt
+        write(this%oldu9,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(this%oldu9,'(2x,a,1x,f14.7)') 'dt:',dt
         write(this%oldu9,'(2x,a,1x,i8)') 'run number:',irun
         write(this%oldu9,'(2x,a,1x,i8)') 'time index number:',itime
         if (DumpConf) write(this%oldu9,'(2x,a,1x,i8)') 'dump number:',idmp
+        write(*,'(2x,a)') 'You can restart using the following:'
+        write (*,'(a,f14.7)') " trst: ",rtpassed
+        write(*,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(*,'(2x,a,1x,f14.7)') 'dt:',dt
+        write(*,'(2x,a,1x,i8)') 'runrst:',irun-1
+        write(*,'(2x,a,1x,i8)') 'trst index (second entry):',itime
+        if (DumpConf) write(*,'(2x,a,1x,i8)') 'dmprst:',idmp
+        write (*,*)
 
       end if ! id
 
@@ -1399,27 +1412,35 @@ ef: do
 
         rewind(this%oldu1);rewind(this%oldu2);rewind(this%oldu8)
         rtpassed=time/lambda
-        write (this%oldu1,'(f8.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
-        write (this%oldu2,'(f8.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
-        write (this%oldu8,'(f8.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
+        write (this%oldu1,'(f14.7,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
+        write (this%oldu2,'(f14.7,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
+        write (this%oldu8,'(f14.7,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed"
         write(this%oldu1,'(2x,a)') 'AT:'
-        write(this%oldu1,'(2x,a,1x,f10.3)') 'Wi:',Wi
-        write(this%oldu1,'(2x,a,1x,f10.3)') 'dt:',dt
+        write(this%oldu1,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(this%oldu1,'(2x,a,1x,f14.7)') 'dt:',dt
         write(this%oldu1,'(2x,a,1x,i8)') 'run number:',irun
         write(this%oldu1,'(2x,a,1x,i8)') 'time index number:',itime
         if (DumpConf) write(this%oldu1,'(2x,a,1x,i8)') 'dump number:',idmp
         write(this%oldu2,'(2x,a)') 'AT:'
-        write(this%oldu2,'(2x,a,1x,f10.3)') 'Wi:',Wi
-        write(this%oldu2,'(2x,a,1x,f10.3)') 'dt:',dt
+        write(this%oldu2,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(this%oldu2,'(2x,a,1x,f14.7)') 'dt:',dt
         write(this%oldu2,'(2x,a,1x,i8)') 'run number:',irun
         write(this%oldu2,'(2x,a,1x,i8)') 'time index number:',itime
         if (DumpConf) write(this%oldu2,'(2x,a,1x,i8)') 'dump number:',idmp
         write(this%oldu8,'(2x,a)') 'AT:'
-        write(this%oldu8,'(2x,a,1x,f10.3)') 'Wi:',Wi
-        write(this%oldu8,'(2x,a,1x,f10.3)') 'dt:',dt
+        write(this%oldu8,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(this%oldu8,'(2x,a,1x,f14.7)') 'dt:',dt
         write(this%oldu8,'(2x,a,1x,i8)') 'run number:',irun
         write(this%oldu8,'(2x,a,1x,i8)') 'time index number:',itime
         if (DumpConf) write(this%oldu8,'(2x,a,1x,i8)') 'dump number:',idmp
+        write(*,'(2x,a)') 'You can restart using the following:'
+        write (*,'(a,f14.7)') " trst: ",rtpassed
+        write(*,'(2x,a,1x,f14.7)') 'Wi:',Wi
+        write(*,'(2x,a,1x,f14.7)') 'dt:',dt
+        write(*,'(2x,a,1x,i8)') 'runrst:',irun-1
+        write(*,'(2x,a,1x,i8)') 'trst index (second entry):',itime
+        if (DumpConf) write(*,'(2x,a,1x,i8)') 'dmprst:',idmp
+        write (*,*)
 
       end if ! id
 
@@ -1465,7 +1486,7 @@ ef: do
 
   !> Destructor for configurational io type
   subroutine del_io(this)
-  
+
     use :: flow_mod, only: FlowType
 
     type(conf_io) :: this
@@ -1490,7 +1511,7 @@ ef: do
     end if
     deallocate(Qst,rcmst,Rbst)
     if ((FlowType == 'Equil').and.CoMDiff) deallocate(cmifst)
-   
+
   end subroutine del_io
 
 end module io_mod

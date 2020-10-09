@@ -418,7 +418,7 @@ module dlt_mod
      !----------------------------------------------------------------
      !>>>>> Constant tensors in SDE:
      !----------------------------------------------------------------
-  
+
     !  ! Specifying kappa based on type of flow
     !  if (iflow == 1) then ! Finding Equilibrium
     !    xxkappa=0._wp
@@ -446,7 +446,7 @@ module dlt_mod
     !    yykappa=-1._wp
     !    zzkappa=0._wp
     !  end if
-  
+
     !  ! To be used in Predictor-Corrector step
     !  Kappa=0._wp
     !  forall (iseg=1:3*(nseg-1)+1:3)
@@ -864,6 +864,7 @@ module dlt_mod
         end if
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
       end do
+      close (u2);if (CoM) close (u3);if (CoHR) close(u4)
     end if ! initmode
   else ! iflow /= 1
     do ip=1, p
@@ -904,8 +905,9 @@ module dlt_mod
       end if
       call MPI_Barrier(MPI_COMM_WORLD,ierr)
     end do
+    close (u2);if (CoM) close (u3);if (CoHR) close(u4)
   end if
-  close (u2);if (CoM) close (u3);if (CoHR) close(u4)
+  ! close (u2);if (CoM) close (u3);if (CoHR) close(u4)
 
   allocate(root_f(PrScale*nroots))
 
@@ -1122,7 +1124,7 @@ module dlt_mod
               if (hstar /= 0._wp) then
 
                 CoeffTensP=real(DiffTensP,kind=double)
-                wbltempP1=real(wbl,kind=double)  
+                wbltempP1=real(wbl,kind=double)
 
                 !! I need to change the storage scheme for symmetric tensors
                 !! for dilute solutions in the absence of the wall
@@ -1277,7 +1279,7 @@ module dlt_mod
           ! end if
           ! call gemv(AdotDP1,Fphi(:,ichain),qstar,alpha=0.25*dt(iPe,idt),&
           !   beta=1._wp)
-         
+
           ! !TYL: HI for tethered bead -------------------------------------------
           ! !print *, 'Predictor calculaton------------'
           ! !call print_matrix(AdotDP1,'AdotDP1')
@@ -1289,7 +1291,7 @@ module dlt_mod
           !   !call print_vector(qstar,'qstar AFTER')
           ! end if
           ! !TYL: HI for tethered bead -------------------------------------------
-         
+
           ! !! Blake's part
           ! if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
           !   do is=1, nseg
@@ -1298,8 +1300,8 @@ module dlt_mod
           !   enddo
           ! endif
           ! !!-------------
-         
-         
+
+
           ! call axpy(FBr,qstar)
           ! !-------First Corrector Algorithm-------!
           ! ! RHS=q                                 !
@@ -1318,7 +1320,7 @@ module dlt_mod
           ! call gemv(Bmat,qstar,rvmrcP)
           ! call copy(qc,RHS)
           ! call axpy(Kdotq,RHS,a=0.5_wp)
-         
+
           ! ! rflc doesn't need this
           ! !            if ((EV_bb/='NoEV').or.(EV_bw/='NoEV') .and. EV_bw /= 'Rflc_bc') then
           ! if ((EV_bb/='NoEV').or.(EV_bw/='NoEV')) then
@@ -1330,8 +1332,8 @@ module dlt_mod
           !   !call print_vector(Fev,'fev4')
           !   !stop
           ! end if
-         
-         
+
+
           ! if (ForceLaw == 'WLC_GEN') then
           !   call bndupdate(nbead_bb,Fbnd,qstar,Fbarbnd,itime)
           ! end if
@@ -1347,7 +1349,7 @@ module dlt_mod
           !   !call print_vector(Fbartet(1:3),'Tether force')
           ! end if
           ! call gemv(AdotDP1,Fbar,RHS,alpha=0.25*dt(iPe,idt),beta=1._wp)
-         
+
           ! !TYL: HI for tethered bead -------------------------------------------
           ! !print *, 'First corrector calculaton------------'
           ! !call print_matrix(AdotDP1,'AdotDP1')
@@ -1359,8 +1361,8 @@ module dlt_mod
           !   !call print_vector(RHS,'RHS AFTER')
           ! end if
           ! !TYL: HI for tethered bead -------------------------------------------
-         
-         
+
+
           ! !! Blake's part
           ! if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
           !   do is=1, nseg
@@ -1369,8 +1371,8 @@ module dlt_mod
           !   enddo
           ! endif
           ! !!-------------
-         
-         
+
+
           ! call axpy(FBr,RHS)
           ! call copy(RHS,RHScnt)
           ! call gemv(Kappa,qstar,RHS,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1._wp)
@@ -1382,7 +1384,7 @@ module dlt_mod
           !   RHSP => RHS(offset+1:offset+3)
           !   AdotDP2 => AdotD(offset+1:offset+3,:,ichain)
           !   call gemv(AdotDP2,Fbarbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1._wp)
-         
+
           !   !TYL: HI for tethered bead -----------------------------------------
           !   !print *, 'First corrector calculaton per segment------------'
           !   !call print_matrix(AdotDP2,'AdotDP2')
@@ -1394,7 +1396,7 @@ module dlt_mod
           !     !call print_vector(RHSP,'RHSP AFTER')
           !   end if
           !   !TYL: HI for tethered bead -----------------------------------------
-         
+
           !   call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qstar,iseg,&
           !     nseg,ForceLaw,TruncMethod,qbar,Fbarseg,Fbarbead,tplgy,Amat,nseg_bb,&
           !     nseg_ar,Ia,Na,itime)
@@ -1427,7 +1429,7 @@ module dlt_mod
           !     call gemv(Kappareg,qcP,RHSP,alpha=0.5*Pe(iPe)*dt(iPe,idt),beta=1.0_wp)
           !     call axpy(FsegP,RHSP,a=0.5*dt(iPe,idt))
           !     call gemv(AdotDP2,Fbead,RHSP,alpha=0.25*dt(iPe,idt),beta=1.0_wp)
-         
+
           !     !TYL: HI for tethered bead ---------------------------------------
           !     !print *, 'Second corrector calculaton perbead------------'
           !     !call print_matrix(AdotDP2,'AdotDP2')
@@ -1439,11 +1441,11 @@ module dlt_mod
           !       !call print_vector(RHSP,'RHSP AFTER')
           !     end if
           !     !TYL: HI for tethered bead ---------------------------------------
-         
+
           !     call sprupdate(id,root_f,PrScale,nroots,dt(iPe,idt),RHSP,qbar,iseg,&
           !       nseg,ForceLaw,TruncMethod,qc,Fseg,Fbead,tplgy,Amat,nseg_bb,nseg_ar,&
           !       Ia,Na,itime)
-         
+
           !   end do
           !   eps=nrm2(qc-qctemp)/nrm2(qctemp)
           !   icount=icount+1
@@ -1764,7 +1766,7 @@ module dlt_mod
 
             !! Blake's part
             if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
-               rcmP(2)=rcmP(2)+1._wp/(4*nbead)*sum(divD)*dt(iPe,idt)
+              rcmP(2)=rcmP(2)+1._wp/(4*nbead)*sum(divD)*dt(iPe,idt)
             endif
             !!-------------
 
@@ -1944,8 +1946,6 @@ module dlt_mod
             end if
           end if ! id == 0
         end if ! mod(itime,lambda/dt)==0
-
-
 
         ! if (time >= time_check2) then
         if ((time >= tss*lambda) .and. (mod(itime,tgap_dmp) == 0)) then

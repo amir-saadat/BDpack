@@ -27,7 +27,7 @@
 !> @author
 !> Amir Saadat, The University of Tennessee-Knoxville, Dec 2015
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> definition and initialization of HI variables
 !--------------------------------------------------------------------
 module hi_mod
@@ -37,7 +37,7 @@ module hi_mod
   use,intrinsic :: iso_c_binding
   use :: mkl_dfti
   use :: mpi
- 
+
   implicit none
 
   save
@@ -179,7 +179,7 @@ module hi_mod
   integer,allocatable :: head_D(:),LkdLst_D(:),point_D(:)
   integer,pointer :: list_D(:),list_DP(:)
   !> @}
-  !> Max value of the displacement of the beads in the box 
+  !> Max value of the displacement of the beads in the box
   real(wp) :: dispmax
   !> Cell size in each direction
   real(wp) :: CellSize_D(3)
@@ -190,9 +190,9 @@ module hi_mod
 
 
 real(wp),allocatable :: valcpu_test(:)
- 
+
 contains
- 
+
   subroutine init_hi(myrank,ntotbead,ntotbeadx3,bs)
 
     use :: strg_mod
@@ -202,7 +202,7 @@ contains
     integer,intent(in) :: myrank,ntotbead,ntotbeadx3
     real(wp),intent(in) :: bs(3)
     integer :: u1,i,j,ios,ntokens,ierr,il,stat
-    character(len=1024) :: line 
+    character(len=1024) :: line
     character(len=100) :: tokens(10)
 
     ! default values:
@@ -253,7 +253,7 @@ ef: do
             case ('Mesh-size')
               call value(tokens(j+1),K_mesh(1),ios)
               call value(tokens(j+2),K_mesh(2),ios)
-              call value(tokens(j+3),K_mesh(3),ios)            
+              call value(tokens(j+3),K_mesh(3),ios)
               if(tokens(j+4) == 'TRUE') then
                 kmeshset=.true.
               elseif(tokens(j+4) == 'FALSE') then
@@ -307,7 +307,7 @@ ef: do
     if (HIcalc_mode == 'Ewald') then
       allocate(Diff_tens(ntotbeadx3,ntotbeadx3))
       allocate(Coeff_tens(ntotbeadx3,ntotbeadx3))
-    elseif (HIcalc_mode == 'PME') then     
+    elseif (HIcalc_mode == 'PME') then
       call setupPME(myrank,ntotbead)
 
       if (Dreal_sparse_mode) then
@@ -335,9 +335,9 @@ ef: do
       ! Arrays containing cell information:
       allocate(head_D(0:ntotcells_D-1),LkdLst_D(ntotbead))
       allocate(point_D(ntotbead),list_D(maxNb_list_D))
-allocate(valcpu_test(maxNb_list_D))
+      ! allocate(valcpu_test(maxNb_list_D))
       if (myrank == 0) then
-        print * 
+        print *
         print '(" No. cells for diffusion tensor in real space:")'
         print '(3(i10,1x))',ncells_D(:)
       end if
@@ -346,9 +346,8 @@ allocate(valcpu_test(maxNb_list_D))
 
     ! Allocation of arrays for Brownian noise:
     allocate(dw_bl(ntotbeadx3,ncols),dw_bltmp(ntotbeadx3,ncols))
-
+    print*,'heyhey',size(dw_bltmp)
     call setupKSPACE(myrank,bs,ntotbead)
-
     if (DecompMeth == 'Lanczos') then
       allocate(aBlLan(ntotbeadx3,ncols),WBlLan(ntotbeadx3,ncols))
       allocate(VBlLan(ntotbeadx3,mBlLan*ncols),Ybar(ntotbeadx3))
@@ -357,7 +356,7 @@ allocate(valcpu_test(maxNb_list_D))
       mst=mBlLan
     end if
     ! For cut off checking:
-    rc_Dto2=rc_D*rc_D 
+    rc_Dto2=rc_D**2
 
     unitDelta(1,1:3)=[1._wp,0._wp,0._wp]
     unitDelta(2,1:3)=[0._wp,1._wp,0._wp]
@@ -390,7 +389,7 @@ allocate(valcpu_test(maxNb_list_D))
     end if
 
   end subroutine update_lst
-  
+
   subroutine cnstrlst_D(Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo,add_cmb,nchain_cmb,nseg_cmb)
 
     use :: arry_mod, only: print_vector,ResizeArray
@@ -415,10 +414,10 @@ allocate(valcpu_test(maxNb_list_D))
     !-----------------------------
     ! Reset the array head
     head_D=EMPTY
-    ! Note!!: the loops are in reverse order to make them 
+    ! Note!!: the loops are in reverse order to make them
     ! sorted and appropriate for sparse operations.
 
-    ! The comb information is stored last, but it should be read first 
+    ! The comb information is stored last, but it should be read first
     ! for constructing head and linked list
     if (add_cmb) then
       do ichain=nchain_cmb, 1, -1
@@ -465,7 +464,7 @@ allocate(valcpu_test(maxNb_list_D))
         head_D(icell)=iglobbead
       end do
     end do
-    
+
     !------------------------------------------------------------
     ! Construction of Verlet neighbor-list, by using linked-list:
     !------------------------------------------------------------
@@ -475,7 +474,7 @@ allocate(valcpu_test(maxNb_list_D))
     rlist_Dto2=rlist_D*rlist_D
     nlist=0
     ! For the last bead, jglobbead<iglobbead, so it is not required!
-    do 20 iglobbead=1, ntotbead-1
+      iblp: do iglobbead=1, ntotbead-1
       point_D(iglobbead)=nlist+1
       offseti=(iglobbead-1)*3
       rbi=Rb(offseti+1:offseti+3)
@@ -487,12 +486,12 @@ allocate(valcpu_test(maxNb_list_D))
           cell_ind(2:3)=(rbi(2:3)-bo(2:3))/CellSize_D(2:3)
       end select
       ! Scan the neighbouring cells:
-ncix: do neigcell_indx=cell_ind(1)-1, cell_ind(1)+1
-nciy:   do neigcell_indy=cell_ind(2)-1, cell_ind(2)+1
-nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
+        ncix: do neigcell_indx=cell_ind(1)-1, cell_ind(1)+1
+          nciy: do neigcell_indy=cell_ind(2)-1, cell_ind(2)+1
+            nciz: do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
             ! Calculate the scalar neigbor cell index:
             ! Corresponding periodic cell for neighbor cell:
-            neigcell_ind_p(:)=mod(neigcell_ind(:)+ncells_D(:),ncells_D(:)) 
+            neigcell_ind_p(:)=mod(neigcell_ind(:)+ncells_D(:),ncells_D(:))
             neigcell_ID=neigcell_ind_p(1)*ncells_D(2)*ncells_D(3)+&
                         neigcell_ind_p(2)*ncells_D(3)+neigcell_ind_p(3)
             ! Get first bead in neighbour cell:
@@ -500,16 +499,16 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
 
 
 
-            do 10 while (jglobbead /= EMPTY)
+            jblp: do while (jglobbead /= EMPTY)
 
               offsetj=(jglobbead-1)*3
               ! Equal is important only if we have one cell.
               if ( (iglobbead < jglobbead) .or. &
                   ((iglobbead == jglobbead).and.(any(ncells_D == 1))) ) then
                 ! Calculate the distance:
-                ! The third term in the RHS takes into account the correction 
+                ! The third term in the RHS takes into account the correction
                 ! needed for boundary cells.
-                ! We could use minimum image convension, as for using Verlet 
+                ! We could use minimum image convension, as for using Verlet
                 ! list, we need the rc_F to be smaller than box dimension.
                 rbj=Rb(offsetj+1:offsetj+3)
                 select case (FlowType)
@@ -534,15 +533,15 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
                     call ResizeArray(list_D,maxNb_list_D)
                   end if
                   list_D(nlist)=jglobbead
-  valcpu_test(nlist)=rijmagto2
+                  ! valcpu_test(nlist)=rijmagto2
                 end if
               end if
               jglobbead=LkdLst_D(jglobbead)
-10          end do
+            end do jblp
           end do nciz
         end do nciy
       end do ncix
-20  end do
+    end do iblp
     point_D(ntotbead)=nlist+1
     list_DP => list_D(1:nlist)
     ! Resizing the Dreal related arrays:
@@ -562,22 +561,18 @@ nciz:     do neigcell_indz=cell_ind(3)-1, cell_ind(3)+1
     integer,intent(in) :: myrank
     real(wp),intent(in) :: bs(3)
 
-print*,'hi1'
     deallocate(dw_bl,dw_bltmp)
-print*,'hi2'
     if (HIcalc_mode == 'Ewald') then
       if (hstar /= 0._wp) deallocate(Diff_tens)
     elseif (HIcalc_mode == 'PME') then
       deallocate(P_vals,P_cols,P_rowInd)
-      deallocate(F_mesh) 
-print*,'hi3'
+      deallocate(F_mesh)
       if (Dreal_sparse_mode) then
         deallocate(Dreal_vals,Dreal_cols,Dreal_rowInd)
         deallocate(DF_tot,DF_self,DF_real,DF_recip)
       else
         deallocate(Diff_tens_real,DF_tot,DF_self,DF_real,DF_recip)
       end if
-print*,'hi4'
       ! Destroying FFT handles:
       FFTStatus=DftiFreeDescriptor(FFTfwDescHand)
       if (FFTStatus /= 0) then
@@ -592,12 +587,12 @@ print*,'hi4'
         print *,'Error!!: Problem in DftiFreeDescriptor, backward.'
         print '("  Error, status = ",i0)', FFTStatus
         stop
-      end if       
+      end if
     end if
     if (DecompMeth == 'Lanczos') then
       deallocate(aBlLan,WBlLan,VBlLan,Ybar,VcntBlLan)
     end if
-    
+
     if ((HIcalc_mode == 'Ewald') .and. (hstar /= 0._wp)) deallocate(Coeff_tens)
     if (HIcalc_mode == 'PME') deallocate(head_D,LkdLst_D,point_D,list_D,Rb0)
 
@@ -613,9 +608,9 @@ print*,'hi4'
 
   end subroutine del_hi
 
-! This routine initializes the constants that are going to be used in HI calculator 
+! This routine initializes the constants that are going to be used in HI calculator
   subroutine setHIPar(myrank,BoxDim)
-  
+
     use :: arry_mod, only: print_vector
 
     integer,intent(in) :: myrank
@@ -663,10 +658,10 @@ print*,'hi4'
     M2_c2=1/(4*HI_alphato2)
     M2_c3=1/(8*HI_alpha**4)
     M2_c4=6*PI/HI_Vol
-! 
+!
     Mstar_c1=9/(32*HI_a)
     Mstar_c2=Mstar_c1/3
-! 
+!
     HI_kmax=2*HI_M**2/rc_D ! From Jain et al.
     HI_kimax(1:3)=HI_kmax*BoxDim(1:3)/PIx2
     if (myrank == 0) then
@@ -685,7 +680,7 @@ print*,'hi4'
         end do
         kiylowr(0)=0
         kizlowr(0)=1
-      
+
        end if ! BoxDim ...
 !call print_vector(kiuppr,'ku')
 !call print_vector(kiylowr,'kyl')
@@ -737,7 +732,7 @@ print*,'hi4'
     M1_c11=16*HI_ato3*HI_alpha**5
     M1_c12=2*HI_ato3*HI_alphato3
     M1_c13=3*HI_ato3*HI_alpha
-! 
+!
     M2_c2=1/(4*HI_alphato2)
     M2_c3=1/(8*HI_alpha**4)
 !
@@ -763,7 +758,7 @@ print*,'hi4'
 !
     print *
     print '( "M has been updated to ",f10.4," in process ID: ",i0)',HI_M,myrank
-    if (HI_M > 15) then 
+    if (HI_M > 15) then
       print *
       print'(" M is too large, The program is terminated. Process ID: ",i0)',myrank
       stop
@@ -775,10 +770,10 @@ print*,'hi4'
         print "(1x,a,3(i4,1x),1x,i0)",'K_mesh, process ID:',K_mesh(1:3),myrank
       end if
     end if
- 
+
     if (HIcalc_mode == 'PME') call setupPME(myrank,ntotbead,reset=.true.)
-    call setupKSPACE(myrank,BoxDim,ntotbead,reset=.true.)    
- 
+    call setupKSPACE(myrank,BoxDim,ntotbead,reset=.true.)
+
   end subroutine updateHIpar
 
   subroutine restartHIpar(myrank,BoxDim,ntotbead)
@@ -804,7 +799,7 @@ print*,'hi4'
     M1_c11=16*HI_ato3*HI_alpha**5
     M1_c12=2*HI_ato3*HI_alphato3
     M1_c13=3*HI_ato3*HI_alpha
-! 
+!
     M2_c2=1/(4*HI_alphato2)
     M2_c3=1/(8*HI_alpha**4)
 !
@@ -839,7 +834,7 @@ print*,'hi4'
 
     if (HIcalc_mode == 'PME') call setupPME(myrank,ntotbead,reset=.true.)
     call setupKSPACE(myrank,BoxDim,ntotbead,reset=.true.)
- 
+
   end subroutine restartHIpar
 
   subroutine setupPME(myrank,ntotbead,reset)
@@ -902,7 +897,7 @@ print*,'hi4'
 !   >>>>>> For forward FFT:
 !   -----------------------
     FFTStatus=DftiCreateDescriptor(FFTfwDescHand,DFTI_DOUBLE,DFTI_REAL,3,[K_mesh(1),K_mesh(2),K_mesh(3)])
-    
+
     if (FFTStatus /= 0) then
       print '(" In process ID: ",i0)',myrank
       print '(" Error!!: Problem in DftiCreateDescriptor in init_pme, forward.")'
@@ -922,7 +917,7 @@ print*,'hi4'
       print '("Error!!: Problem in DftiSetValue-input-stride in init_pme, forward.")'
       print '("  Error, status = ",i0)', FFTStatus
       stop
-    end if 
+    end if
     FFTStatus=DftiSetValue(FFTfwDescHand,DFTI_OUTPUT_STRIDES,c_str)
     if (FFTStatus /= 0) then
       print '(" In process ID: ",i0)',myrank
@@ -948,7 +943,7 @@ print*,'hi4'
       print '(" Error!!: Problem in DftiCreateDescriptor in init_pme, backward.")'
       print '("  Error, status = ",i0)', FFTStatus
       stop
-    end if    
+    end if
     FFTStatus=DftiSetValue(FFTbwDescHand,DFTI_CONJUGATE_EVEN_STORAGE,DFTI_COMPLEX_COMPLEX)
     if (FFTStatus /= 0) then
       print '(" In process ID: ",i0)',myrank
@@ -962,14 +957,14 @@ print*,'hi4'
       print '(" Error!!: Problem in DftiSetValue-output-stride in init_pme, backward.")'
       print '("  Error, status = ",i0)', FFTStatus
       stop
-    end if 
+    end if
     FFTStatus=DftiSetValue(FFTbwDescHand,DFTI_OUTPUT_STRIDES,r_str)
     if (FFTStatus /= 0) then
       print '(" In process ID: ",i0)',myrank
       print '(" Error!!: Problem in DftiSetValue-output-stride in init_pme, backward.")'
       print '("  Error, status = ",i0)', FFTStatus
       stop
-    end if 
+    end if
     FFTStatus=DftiCommitDescriptor(FFTbwDescHand)
     if (FFTStatus /= 0) then
       print '(" In process ID: ",i0)',myrank
@@ -994,8 +989,8 @@ print*,'hi4'
     integer :: ktot,kix,kiy,kiz,kisqmax,kiymin,kizmin,mivecx,mivecy,mivecz
     integer :: mpivecx,mpivecy,mpivecz,mtot,kiydev,kikix,kiyy,kikixy,ierr
     real(wp) :: kvec(3),k,kto2,mpvec(3)
-    
-    if (HIcalc_mode == 'Ewald') then       
+
+    if (HIcalc_mode == 'Ewald') then
       if (present(reset)) then
         if (reset) then
           allocate(eikxtmp(0:HI_kimax(1),ntotbead),           &
@@ -1026,17 +1021,18 @@ print*,'hi4'
                            1*(HI_kimax(1) + HI_kimax(2) + HI_kimax(3)) ))
         end if
       else ! .not.present(reset)
-        allocate(kvecx(0:HI_kimax(1)),           &
-                 kvecy(-HI_kimax(2):HI_kimax(2)),&
-                 kvecz(-HI_kimax(3):HI_kimax(3)))
         allocate(eikx(0:HI_kimax(1),ntotbead),           &
                  eiky(-HI_kimax(2):HI_kimax(2),ntotbead),&
                  eikz(-HI_kimax(3):HI_kimax(3),ntotbead))
-        allocate(m2_vec( 4*HI_kimax(1)*HI_kimax(2)*HI_kimax(3) +                                           &
-                         2*(HI_kimax(1)*HI_kimax(2) + HI_kimax(2)*HI_kimax(3) + HI_kimax(1)*HI_kimax(3)) + &
-                         1*(HI_kimax(1) + HI_kimax(2) + HI_kimax(3)) ))
+        allocate(kvecx(0:HI_kimax(1)),           &
+                 kvecy(-HI_kimax(2):HI_kimax(2)),&
+                 kvecz(-HI_kimax(3):HI_kimax(3)))
+        allocate(m2_vec( 4*HI_kimax(1)*HI_kimax(2)*HI_kimax(3) + 2*(HI_kimax(1)*HI_kimax(2) + &
+          HI_kimax(2)*HI_kimax(3) + HI_kimax(1)*HI_kimax(3)) + 1*(HI_kimax(1) + HI_kimax(2) + &
+          HI_kimax(3)) ))
       end if
-!     kvecx~z will be used in Diffcalc_mod. 
+
+!     kvecx~z will be used in Diffcalc_mod.
 !     Note!!: that the formula is correct for equal or non-equal box length.
       do kix=0, HI_kimax(1)
         kvecx(kix)=PIx2/BoxDim(1)*kix
@@ -1080,14 +1076,14 @@ print*,'hi4'
           end do ! kix
         else ! Equal box length
           ktot=0
-kx:       do kix=0, kiuppr(0)
+          kx: do kix=0, kiuppr(0)
             kikix=kix*kix
             kvec(1)=kvecx(kix)
-ky:         do kiy=kiylowr(kikix), kiuppr(kikix)
+            ky: do kiy=kiylowr(kikix), kiuppr(kikix)
 !              kiy=kiyy+kiydev
               kikixy=kikix+kiy*kiy
               kvec(2)=kvecy(kiy)
-kz:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
+              kz: do kiz=kizlowr(kikixy), kiuppr(kikixy)
                 kvec(3)=kvecz(kiz)
 !                print *,'ki2',kix,kiy,kiz,kiydev
 !                kvec=[kvecx(kix),kvecy(kiyy)+kvecy(kiydev),kvecz(kiz)]
@@ -1098,9 +1094,17 @@ kz:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
           end do kx
         end if ! BoxDim ...
 
-        if (present(reset) .and. (reset)) then
-          print '(" Reciprocal space set up complete in Process ID: ",i0)',myrank
-          print '(" Number of reciprocal vectors: ",i8)',ktot
+        if (present(reset)) then
+          if (reset) then
+            print '(" Reciprocal space set up complete in Process ID: ",i0)',myrank
+            print '(" Number of reciprocal vectors: ",i8)',ktot
+          else
+            call MPI_Barrier(MPI_COMM_WORLD,ierr)
+            if (myrank == 0) then
+              print '(" Reciprocal space set up complete.")'
+              print '(" Number of reciprocal vectors: ",i8)',ktot
+            end if
+          endif
         else
           call MPI_Barrier(MPI_COMM_WORLD,ierr)
           if (myrank == 0) then
@@ -1113,11 +1117,11 @@ kz:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
 
     elseif (HIcalc_mode == 'PME') then
 
-!     Note!!!!!: This part should be changed in case K1,K2,K3 are different.
-!      if ((K_mesh(1) /= K_mesh(2)) .or. (K_mesh(2) /= K_mesh(3))) then
-!        print *,'(" Warning!!: For different K_mesh, a part in GlobalData.f90 should be changed.")'
-!        stop
-!      end if
+      !     Note!!!!!: This part should be changed in case K1,K2,K3 are different.
+      !      if ((K_mesh(1) /= K_mesh(2)) .or. (K_mesh(2) /= K_mesh(3))) then
+      !        print *,'(" Warning!!: For different K_mesh, a part in GlobalData.f90 should be changed.")'
+      !        stop
+      !      end if
 
       if (present(reset)) then
         if (reset) then
@@ -1142,7 +1146,7 @@ kz:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
         allocate(m2_vec((K_mesh(1)/2+1)*K_mesh(2)*K_mesh(3)))
       end if
       mtot=0
-mz:   do mivecz=0, K_mesh(3)-1
+      mz: do mivecz=0, K_mesh(3)-1
         if (mivecz <= K_mesh(3)/2) then
           mpivecz=mivecz
         else
@@ -1150,7 +1154,7 @@ mz:   do mivecz=0, K_mesh(3)-1
         end if
         mpvec(3)=PIx2/BoxDim(3)*mpivecz
         mpvecz(mivecz)=mpvec(3)
-my:     do mivecy=0, K_mesh(2)-1
+        my: do mivecy=0, K_mesh(2)-1
           if (mivecy <= K_mesh(2)/2) then
             mpivecy=mivecy
           else
@@ -1158,7 +1162,7 @@ my:     do mivecy=0, K_mesh(2)-1
           end if
           mpvec(2)=PIx2/BoxDim(2)*mpivecy
           if (FlowType == 'Equil') mpvecy(mivecy)=mpvec(2)
-mx:       do mivecx=0, K_mesh(1)/2
+          mx: do mivecx=0, K_mesh(1)/2
             mpivecx=mivecx
             mpvec(1)=PIx2/BoxDim(1)*mpivecx
             mpvecx(mivecx)=mpvec(1)
@@ -1178,6 +1182,12 @@ mx:       do mivecx=0, K_mesh(1)/2
         if (reset) then
           print '(" Reciprocal space set up complete in Process ID: ",i0)',myrank
           print '(" Number of reciprocal vectors: ",i8)',mtot
+        else
+          call MPI_Barrier(MPI_COMM_WORLD,ierr)
+          if (myrank == 0) then
+            print '(" Reciprocal space set up complete.")'
+            print '(" Number of reciprocal vectors: ",i8)',mtot
+          end if
         endif
       else
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
@@ -1188,16 +1198,17 @@ mx:       do mivecx=0, K_mesh(1)/2
       end if
 
     end if ! HIcalc_mode
- 
+
   end subroutine setupKSPACE
 
   function m2_alpha(kvec)
-    implicit none
+
     real(wp) :: m2_alpha,kvec(3),kto2
 
     kto2=dot_product(kvec,kvec)
 
     m2_alpha=(HI_a-M2_c1*kto2)*(1+M2_c2*kto2+M2_c3*kto2*kto2)*(M2_c4/kto2)*exp(-M2_c2*kto2)
+
   end function m2_alpha
 
   subroutine strupdateKSPACE(BoxDim)
@@ -1206,7 +1217,7 @@ mx:       do mivecx=0, K_mesh(1)/2
 
     integer :: ktot,kix,kiy,kiz,kiydev,kikix,kiyy,kikixy,kiymin,kizmin
     real(wp) :: BoxDim(3),kvec(3),kto2
-    
+
     if (HIcalc_mode == 'Ewald') then
 
       ! Unequal box length
@@ -1246,15 +1257,15 @@ mx:       do mivecx=0, K_mesh(1)/2
       else ! Equal box length
 
         ktot=0
-kx:     do kix=0, kiuppr(0)
+        kx: do kix=0, kiuppr(0)
           kiydev=nint(eps_m*kix)
           kikix=kix*kix
           kvec(1)=kvecx(kix)
-ky:       do kiyy=kiylowr(kikix), kiuppr(kikix)
+          ky: do kiyy=kiylowr(kikix), kiuppr(kikix)
 !            kiy=kiyy+kiydev
             kikixy=kikix+kiyy*kiyy
             kvec(2)=kvecy(kiyy)+kvecy(kiydev)
-kz:         do kiz=kizlowr(kikixy), kiuppr(kikixy)
+            kz: do kiz=kizlowr(kikixy), kiuppr(kikixy)
               kvec(3)=kvecz(kiz)
               ktot=ktot+1
               m2_vec(ktot)=m2_alpha(kvec)
@@ -1271,13 +1282,13 @@ kz:         do kiz=kizlowr(kikixy), kiuppr(kikixy)
   end subroutine strupdateKSPACE
 
   ! Calculatioan of Cardinal B-splines:
-  ! Note!!: writing complex variables in the form of cmplx(..,..) results in higher accuracy 
+  ! Note!!: writing complex variables in the form of cmplx(..,..) results in higher accuracy
   !  compared to exp(i..). Also having kind=wp is very important for having enough precision.
   complex(wp) function b_spl(m,p,K_mesh)
     implicit none
     integer ::m,p,K_mesh,i,k
     complex(wp) :: sum_spl
-    
+
     sum_spl=(0.0_wp,0.0_wp)
     do k=0, p-2
       sum_spl=sum_spl+M_spl(real(k+1,kind=wp),p)*cmplx( cos(PIx2*m*k/K_mesh),sin(PIx2*m*k/K_mesh),kind=wp )
@@ -1323,7 +1334,7 @@ kz:         do kiz=kizlowr(kikixy), kiuppr(kikixy)
           case(2)
             W_res=0.5*(1+2*x)
         end select ! MP
-    
+
       case(3)
 
         select case (MP)
@@ -1334,9 +1345,9 @@ kz:         do kiz=kizlowr(kikixy), kiuppr(kikixy)
           case(3)
             W_res=(x*x+x)/2
         end select ! MP
-      
-      case(4) 
-   
+
+      case(4)
+
         select case (MP)
           case(1)
             W_res=(-8*x*x*x+12*x*x+2*x-3)/48
@@ -1349,12 +1360,12 @@ kz:         do kiz=kizlowr(kikixy), kiuppr(kikixy)
         end select ! MP
 
       case default
- 
+
         print *,'Warning!!: Unsupported degree of Lagrange-polynomial.'
         stop
 
     end select
-         
+
   end function W_Lag
 
 end module hi_mod

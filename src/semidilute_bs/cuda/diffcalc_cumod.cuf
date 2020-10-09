@@ -1,9 +1,12 @@
 !%------------------------------------------------------------------------%
-!|  Copyright (C) 2013 - 2016:                                            |
-!|  Material Research and Innovation Laboratory (MRAIL)                   |
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
 !|  University of Tennessee-Knoxville                                     |
-!|  Author:    Amir Saadat   <asaadat@vols.utk.edu>                       |
-!|  Advisor:   Bamin Khomami <bkhomami@utk.edu>                           |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
 !|                                                                        |
 !|  This file is part of BDpack.                                          |
 !|                                                                        |
@@ -27,7 +30,7 @@
 !> @author
 !> Amir Saadat, Stanford University, Jan 2018
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> Calculates the diffusion tensor on GPU
 !--------------------------------------------------------------------
 module diffcalc_cumod
@@ -43,6 +46,12 @@ module diffcalc_cumod
   real(wp),device,pointer :: Fx_d(:)
   real(wp),device,pointer :: Fy_d(:)
   real(wp),device,pointer :: Fz_d(:)
+
+  integer,device,pointer :: P_ColInd_d_ptr(:)
+  integer,device,pointer :: P_ColPtr_d_ptr(:)
+  integer,device,pointer :: P_RowInd_d_ptr(:)
+  real(wp),device,pointer :: P_Val_d_ptr(:)
+  real(wp),device,pointer :: P_Val_tr_d_ptr(:)
 
 contains
 
@@ -109,7 +118,7 @@ contains
       Infl(4)=(1._wp-mpmphat(4))*m2vec_tmp
       Infl(5)=-mpmphat(5)*m2vec_tmp
       Infl(6)=(1._wp-mpmphat(6))*m2vec_tmp
-      
+
       Cx(m_ind)=Infl(1)*C(1)+Infl(2)*C(2)+Infl(3)*C(3)
       Cy(m_ind)=Infl(2)*C(1)+Infl(4)*C(2)+Infl(5)*C(3)
       Cz(m_ind)=Infl(3)*C(1)+Infl(5)*C(2)+Infl(6)*C(3)
@@ -156,7 +165,7 @@ contains
     rto3=r*rto2
     mstar_1=(1-Mstar_c1_d*r-M1_c1_d/r-M1_c2_d/rto3)
     mstar_2=(Mstar_c2_d*r-M1_c1_d/r+M1_c9_d/rto3)
-  
+
     Mstar_1d(1)=mstar_1+mstar_2*rrhat(1)
     Mstar_1d(2)=mstar_2*rrhat(2);Mstar_1d(4)=Mstar_1d(2)
     Mstar_1d(3)=mstar_2*rrhat(3);Mstar_1d(7)=Mstar_1d(3)
@@ -284,7 +293,7 @@ contains
   !       do jneig=jbeg, jend
 
   !         ! jgb=lst(jneig)
-          
+
   !         jgb=nlst_d(jneig-jbeg+1,igb)
 
   !         jg=(jgb-1)*3
@@ -299,7 +308,7 @@ contains
 
   !         if (r <= rc_D_d) then
   !           ! offset_nc=offset_nc+1
-  !           rijhat=rij/r 
+  !           rijhat=rij/r
   !           rrhat(1)=rijhat(1)*rijhat(1)
   !           rrhat(2)=rijhat(1)*rijhat(2)
   !           rrhat(3)=rijhat(1)*rijhat(3)
@@ -311,7 +320,7 @@ contains
   !           ! print*,'entered1',igb,jgb,m2(2)
   !           ! The correction due to overlap:
   !           if (r < (HI_ax2_d)) then ! Ovelaps in Primary box (or maybe in general!)
-              
+
   !             Val_d(offset_D+1:offset_D+9)=Val_d(offset_D+1:offset_D+9) + Mstar_1d(r,r2,rrhat)
   !             m2=Mstar_1d(r,r2,rrhat)
   !             ! print*,'entered2',igb,jgb,m2(2)
@@ -354,7 +363,7 @@ contains
     real(wp),device,intent(in) :: Rb(ntb)
     integer,value :: ntb,mnn
     real(wp),value :: bsx,bsy,bsz
-    integer,device,intent(out) :: neig_count(ntb)
+    integer,device,intent(inout) :: neig_count(ntb)
     real(wp) :: r2,ri(3),rj(3),rij(3)
     integer :: igb,ig,jgb,jg,jbeg,jend,jneig
 
@@ -420,7 +429,6 @@ contains
 
     if (igb > ntb ) return
 
-
     if (Dreal_sparse_mode_d) then
 
       offset_nc=0
@@ -468,7 +476,7 @@ contains
 
           if (r <= rc_D_d) then
             ! offset_nc=offset_nc+1
-            rijhat=rij/r 
+            rijhat=rij/r
             rrhat(1)=rijhat(1)*rijhat(1)
             rrhat(2)=rijhat(1)*rijhat(2)
             rrhat(3)=rijhat(1)*rijhat(3)
@@ -480,7 +488,7 @@ contains
             ! print*,'entered1',igb,jgb,m2(2)
             ! The correction due to overlap:
             if (r < (HI_ax2_d)) then ! Ovelaps in Primary box (or maybe in general!)
-              
+
               Val_d(offset_D+1:offset_D+9)=Val_d(offset_D+1:offset_D+9) + Mstar_1d(r,r2,rrhat)
               m2=Mstar_1d(r,r2,rrhat)
               ! print*,'entered2',igb,jgb,m2(2)
@@ -521,7 +529,7 @@ contains
         idx=ix+1 ! idx of the main M
 
         if (ip == 2) then
-          
+
           idx=ix+1
 
           if ((x_tmp < 0) .or. (x_tmp > 2)) then
@@ -545,24 +553,30 @@ contains
 
 
   !> calculating the reciprocal part inofrmation of diffusion tensor
-  attributes(global) subroutine calcDiff_recip_d(Rb,ntb,bsx,bsy,bsz,box,boy,boz,&
-    Kx,Ky,Kz,P_Val_d,P_ColInd_d,P_RowPtr_d)
+  attributes(global) subroutine calcDiff_recip_d_part1(Rb,ntb,bsx,bsy,bsz,box,boy,boz,&
+    Kx,Ky,Kz,K_dim,P_Val_d,P_ColInd_d,P_RowPtr_d,P_ColPtr_d,pval_tmp,pcolind_tmp)!,P_d)
 
     use :: hi_cumod, only: p_PME_d,p_PME_dto3
     use :: cusparse
 
-
     real(wp),device,intent(in) :: Rb(ntb)
-    integer,value :: ntb,Kx,Ky,Kz
+    integer,value :: ntb,Kx,Ky,Kz,K_dim
     real(wp),value :: bsx,bsy,bsz,box,boy,boz
     integer :: grid(p_PME_d,3),nearestMesh(3),r_str_c(0:3)
-    integer :: igb,ig,igrid,icoor,jgrid,kgrid,k_ind,k1,k2,k3,Km
-    integer :: k1KzKy,k2Kz,elem_count_c,elem_counttmp_c,K_dim
+    integer :: igb,ig,igrid,icoor,jgrid,kgrid,k_ind,k1,k2,k3,Km,ik,sum_k
+    integer :: k1KzKy,k2Kz,elem_count_c,elem_counttmp_c,elem_count_c2
     real(wp) :: Mx,My,Mz,xi(3)
+    ! real(wp),device :: P_d(ntb,K_dim)
     real(wp),device :: P_Val_d(ntb*p_PME_dto3)
     integer,device :: P_ColInd_d(ntb*p_PME_dto3)
     integer,device :: P_RowPtr_d(ntb+1)
+    integer,device :: P_ColPtr_d(K_dim+1)
 
+    integer :: irow,krow,jrow
+    real(wp),device :: pval_tmp(ntb*p_PME_dto3)
+    integer,device :: pcolind_tmp(ntb*p_PME_dto3)
+    real(wp) :: pval_buf
+    integer :: pcolind_buf
 
 
     igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
@@ -576,7 +590,7 @@ contains
       P_RowPtr_d(1)=0
 
     endif
-      
+
     ig=(igb-1)*3
 
     ! Finding the closest mesh points in Fourier space
@@ -586,7 +600,7 @@ contains
     xi(3)=Kz/bsz*(Rb(ig+3)-boz)
 
     do icoor=1, 3 ! The sweeping direction
-      ! The nearest mesh which is less than fractional coordinate: 
+      ! The nearest mesh which is less than fractional coordinate:
       nearestMesh(icoor)=floor(xi(icoor))
       grid(1,icoor)=nearestMesh(icoor) ! The nearest mesh point.
       do igrid=1, p_PME_d-1
@@ -614,6 +628,8 @@ contains
     elem_count_c=(igb-1)*p_PME_dto3
     elem_counttmp_c=elem_count_c
 
+    elem_count_c2=(igb-1)*p_PME_dto3
+
     ig_c: do igrid=1, p_PME_d
       k1=grid(igrid,1)
       Mx=M_spl(xi(1)-(nearestMesh(1)-igrid+1),p_PME_d)
@@ -630,8 +646,23 @@ contains
           ! Calculate the scalar k-index for grid points:
           ! k_ind=k1+k2Kx+k3KxKy
           k_ind=k3+k2Kz+k1KzKy
-          P_Val_d(elem_counttmp_c+p_PME_dto3-mod(elem_count_c,p_PME_dto3))=Mx*My*Mz
-          P_ColInd_d(elem_counttmp_c+p_PME_dto3-mod(elem_count_c,p_PME_dto3))=k_ind
+          ! P_Val_d(elem_counttmp_c+p_PME_dto3-mod(elem_count_c,p_PME_dto3))=Mx*My*Mz
+          ! P_ColInd_d(elem_counttmp_c+p_PME_dto3-mod(elem_count_c,p_PME_dto3))=k_ind
+
+          elem_count_c2=elem_count_c2+1
+          pval_tmp(elem_count_c2)=Mx*My*Mz
+          pcolind_tmp(elem_count_c2)=k_ind
+
+          ! P_Val_d(elem_counttmp_c+elem_count_c2)=Mx*My*Mz
+          ! P_ColInd_d(elem_counttmp_c+elem_count_c2)=k_ind
+          ! P_d(igb,k_ind+1) = Mx*My*Mz
+
+
+          ! sum_k=0
+          ! do ik=1, k_ind+1
+          !   sum_k=sum_k+P_ColPtr_d(ik+1)
+          ! enddo
+          ! P_ColPtr_d(k_ind+1)=P_ColPtr_d(k_ind+1)+1
 
           elem_count_c=elem_count_c+1
 
@@ -639,13 +670,109 @@ contains
       end do jg_c
     end do ig_c
 
-  end subroutine calcDiff_recip_d
+    ! sorting of pval_tmp and pcolind_tmp
+    do irow = elem_counttmp_c+1, elem_counttmp_c+p_PME_dto3
+      ! check this behavier: the minloc is given for pcolind_tmp not pcolind_tmp(irow:)
+      krow = minloc(pcolind_tmp(irow:elem_counttmp_c+p_PME_dto3),1) ! + irow - 1
+      pcolind_buf = pcolind_tmp( irow )
+      pcolind_tmp( irow ) = pcolind_tmp( krow )
+      pcolind_tmp( krow ) = pcolind_buf
+      pval_buf = pval_tmp( irow )
+      pval_tmp( irow ) = pval_tmp( krow )
+      pval_tmp( krow ) = pval_buf
+    enddo
 
+    P_Val_d(elem_counttmp_c+1:elem_counttmp_c+p_PME_dto3)=pval_tmp(elem_counttmp_c+1:elem_counttmp_c+p_PME_dto3)
+    P_ColInd_d(elem_counttmp_c+1:elem_counttmp_c+p_PME_dto3)=pcolind_tmp(elem_counttmp_c+1:elem_counttmp_c+p_PME_dto3)
+
+  end subroutine calcDiff_recip_d_part1
+
+  !> calculating the reciprocal part inofrmation of diffusion tensor
+  attributes(global) subroutine calcDiff_recip_d_part2(P_ColInd_d,P_ColPtr_d,nnz,K_dim)
+
+    use :: hi_cumod, only: p_PME_dto3
+
+    integer,device :: P_ColInd_d(nnz)
+    integer,device :: P_ColPtr_d(K_dim+1)
+    integer,value :: nnz,K_dim
+    integer :: ik,innz
+
+    ik = blockDim%x*(blockIdx%x-1) + threadIdx%x
+    if (ik > K_dim ) return
+
+    P_ColPtr_d(ik+1)=0
+    do innz=1, nnz
+      if (P_ColInd_d(innz) <= ik-1) then
+        P_ColPtr_d(ik+1)=P_ColPtr_d(ik+1)+1
+      endif
+    enddo
+
+  end subroutine calcDiff_recip_d_part2
+
+  !> calculating the reciprocal part inofrmation of diffusion tensor
+  attributes(global) subroutine calcDiff_recip_d_part3(P_Val_d,P_ColInd_d,P_Val_tr_d,&
+    P_RowInd_d,P_ColPtr_d,nnz,K_dim)
+
+    use :: hi_cumod, only: p_PME_dto3
+
+    real(wp),device :: P_Val_d(nnz)
+    integer,device :: P_ColInd_d(nnz)
+    real(wp),device :: P_Val_tr_d(nnz)
+    integer,device :: P_RowInd_d(nnz)
+    integer,device :: P_ColPtr_d(K_dim+1)
+    integer,value :: nnz,K_dim
+    integer :: ik,innz,nnz_k,prev_count,curr_count
+
+    ik = blockDim%x*(blockIdx%x-1) + threadIdx%x
+    if (ik > K_dim ) return
+
+    nnz_k=P_ColPtr_d(ik+1)-P_ColPtr_d(ik) ! nnz at each k
+
+    prev_count=P_ColPtr_d(ik) ! count of the previous ik elements
+    curr_count=0
+    do innz=1, nnz
+      if (P_ColInd_d(innz) == ik-1) then
+        curr_count=curr_count+1
+        P_Val_tr_d(prev_count+curr_count)=P_Val_d(innz)
+        P_RowInd_d(prev_count+curr_count)=(innz-1)/p_PME_dto3
+      endif
+    enddo
+
+  end subroutine calcDiff_recip_d_part3
+
+  ! not needed just kept it as edjucational
+  ! !> calculating the reciprocal part inofrmation of diffusion tensor
+  ! attributes(global) subroutine calcDiff_recip_d_part3(P_ColInd_d,P_ColPtr_d,nnz,K_dim)
+  !
+  !   integer,device :: P_ColInd_d(nnz)
+  !   integer,device :: P_ColPtr_d(K_dim+1)
+  !   integer,value :: nnz,K_dim
+  !   integer :: ik,innz
+  !   integer,shared :: nk1(blockDim%x)
+  !   integer,shared :: nk2(blockDim%x)
+  !
+  !   ik = blockDim%x*(blockIdx%x-1) + threadIdx%x
+  !   if (ik > K_dim ) return
+  !
+  !   ! reading my element to shared memory
+  !   nk1(threadIdx%x) = P_ColPtr_d(ik)
+  !
+  !   ! reading the element before me to shared memory except 1
+  !   if ( ik == 1 ) return
+  !   nk2(threadIdx%x) = P_ColPtr_d(ik-1)
+  !
+  !   ! Wait until all elements of the shared arrays are filled
+  !   call syncthreads()
+  !
+  !   P_ColPtr_d(ik) = nk1(ik) + nk2(ik)
+  !
+  ! end subroutine calcDiff_recip_d_part3
 
   !> calculating the diffusion tensor on device
   subroutine calcDiffTens_d(this,Rb,ntb,boxsize,boxorigin)
 
     use :: hi_mod, only: HIcalc_mode,maxNb_list_D,M_spl,p_PME,p_PMEto3,K_mesh
+    use :: tmng_mod, only: tick,tock,et_DCR,et_DCK,doTiming
     use :: hi_cumod, only: hi_cu_t
     use :: cusparse
 
@@ -657,10 +784,12 @@ contains
     real(wp),intent(in) :: boxsize(3),boxorigin(3)
     integer,device,allocatable :: neig_count(:)
     real(wp) :: bsx,bsy,bsz,box,boy,boz
-    integer :: nlst,K_dim,istat,ierr,r
+    integer :: nlst,K_dim,istat,ierr,r,ik,innz,nbytes,nnz,prev_count,curr_count,nnz_k
+    integer(long) :: count0
+
     ! integer :: K_dim,istat
-    integer,allocatable :: testi(:),nc_tmp1(:),nc_tmp2(:)
-    real(wp),allocatable :: testr(:)
+    integer,allocatable :: testi(:),nc_tmp1(:),nc_tmp2(:),testcolptr1(:),testrowind1(:),testcolptr(:),testrowind(:)
+    real(wp),allocatable :: testr(:),testvaltr1(:),testvaltr(:)
 
     integer :: nc_test
 
@@ -675,8 +804,8 @@ contains
 
     if (HIcalc_mode == 'PME') then
 
+      if (doTiming) call tick(count0)
       ! real part
-
       ! retained for debugging
       ! allocate(neig_count(ntb))
       ! neig_count=0
@@ -688,8 +817,9 @@ contains
       ! call calcDiff_real_d_part2 <<<(ntb+255)/256,256>>> (this%point_D_d,this%list_D_d,Rb,ntb,nlst,&
       !   bsx,bsy,bsz,neig_count,this%Val_d,this%ColInd_d,this%RowPtr_d,this%nn_d,this%nlst_d,this%mnnt/ntb)
       ! deallocate(neig_count)
-
       ! First count the neighbors
+      ! each thread in a block needs to know this to write into the proper location
+
       allocate(neig_count(ntb))
       neig_count=0
       call calcDiff_real_d_part1 <<<(ntb+255)/256,256>>> (this%nn_d,this%nlst_d,Rb,ntb,this%mnnt/ntb,&
@@ -698,7 +828,7 @@ contains
       ! Second populate the arrays
       call calcDiff_real_d_part2 <<<(ntb+255)/256,256>>> (this%nn_d,this%nlst_d,Rb,ntb,this%mnnt/ntb,&
         this%mnnt,bsx,bsy,bsz,this%Val_d,this%ColInd_d,this%RowPtr_d,neig_count)
-      r = cudathreadsynchronize()
+      ! r = cudathreadsynchronize()
       deallocate(neig_count)
 
       ! nc_test=this%RowPtr_h(ntb+1)-1
@@ -716,26 +846,109 @@ contains
         stop
       endif
 
-
-      ! reciprocal part
-      call calcDiff_recip_d <<<(ntb+255)/256,256>>> (Rb,ntb,bsx,bsy,bsz,box,boy,boz,K_mesh(1),&
-        K_mesh(2),K_mesh(3),this%P_Val_d,this%P_ColInd_d,this%P_RowPtr_d)
-      ! r = cudathreadsynchronize()
-
-      ierr = cudaGetLastError()
-      if (ierr /= cudaSuccess) then
-        print '(" calcdiff error in recip space: ",a)', cudaGetErrorString(ierr)
-        stop
-      endif
+      if (doTiming) then
+        et_DCR=et_DCR+tock(count0)
+        call tick(count0)
+      end if
 
       K_dim=K_mesh(1)*K_mesh(2)*K_mesh(3)
       this%nnz=ntb*p_PMEto3
+      nnz=this%nnz
 
-      istat = cusparseDcsr2csc(this%h_P,ntb,K_dim,this%nnz,this%P_Val_d,&
-        this%P_RowPtr_d,this%P_ColInd_d,this%P_Val_tr_d,this%P_RowInd_d,&
-        this%P_ColPtr_d,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ZERO)
+      ! reciprocal part 1: determining P_Val_d and P_ColInd_d
+      this%P_ColPtr_d=0
 
-      if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csr2csc Error: ",i)',istat
+      call calcDiff_recip_d_part1 <<<(ntb+255)/256,256>>> (Rb,ntb,bsx,bsy,bsz,box,boy,boz,&
+        K_mesh(1),K_mesh(2),K_mesh(3),K_dim,this%P_Val_d,this%P_ColInd_d,this%P_RowPtr_d,&
+        this%P_ColPtr_d,this%pval_tmp,this%pcolind_tmp)!,this%P_d)
+
+      ierr = cudaGetLastError()
+      if (ierr /= cudaSuccess) then
+        print '(" calcdiff error in recip space 1: ",a)', cudaGetErrorString(ierr)
+        stop
+      endif
+
+      ! reciprocal part 2,3 : determining P_Val_tr_d, P_RowInd_d, and P_ColPtr_d based on P_ColInd_d
+
+      ! this%P_ColPtr_d(1)=0
+      ! call calcDiff_recip_d_part2 <<<(K_dim+255)/256,256>>> (this%P_ColInd_d,this%P_ColPtr_d,this%nnz,K_dim)
+      ! ierr = cudaGetLastError()
+      ! if (ierr /= cudaSuccess) then
+      !   print '(" calcdiff error in recip space 2: ",a)', cudaGetErrorString(ierr)
+      !   stop
+      ! endif
+      ! call calcDiff_recip_d_part3 <<<(K_dim+255)/256,256>>> (this%P_Val_d,this%P_ColInd_d,this%P_Val_tr_d,&
+      !     this%P_RowInd_d,this%P_ColPtr_d,this%nnz,K_dim)
+      ! ierr = cudaGetLastError()
+      ! if (ierr /= cudaSuccess) then
+      !   print '(" calcdiff error in recip space 3: ",a)', cudaGetErrorString(ierr)
+      !   stop
+      ! endif
+
+      ! P_ColInd_d_ptr => this%P_ColInd_d
+      ! P_ColPtr_d_ptr => this%P_ColPtr_d
+      ! P_RowInd_d_ptr => this%P_RowInd_d
+      ! P_Val_d_ptr => this%P_Val_d
+      ! P_Val_tr_d_ptr => this%P_Val_tr_d
+
+      ! !$cuf kernel do <<< * , * >>>
+      ! do ik=1, K_dim
+      !   ! P_ColPtr_d_ptr(ik+1)=0
+      !   ! do innz=1, nnz
+      !   !   if (P_ColInd_d_ptr(innz) <= ik-1) then
+      !   !     P_ColPtr_d_ptr(ik+1)=P_ColPtr_d_ptr(ik+1)+1
+      !   !   endif
+      !   ! enddo
+      !   sum_k=0
+      !   do ik=1, k_ind+1
+      !     sum_k=sum_k+P_ColPtr_d(ik+1)
+      !   enddo
+      !   P_ColPtr_d(k_ind+1)=P_ColPtr_d(k_ind+1)+1
+      ! enddo
+      !
+      ! !$cuf kernel do <<< * , * >>>
+      ! do ik=1, K_dim
+      !   nnz_k=P_ColPtr_d_ptr(ik+1)-P_ColPtr_d_ptr(ik) ! nnz at each k
+      !   prev_count=P_ColPtr_d_ptr(ik) ! count of the previous ik elements
+      !   curr_count=0
+      !   do innz=1, nnz
+      !     if (P_ColInd_d_ptr(innz) == ik-1) then
+      !       curr_count=curr_count+1
+      !       P_Val_tr_d_ptr(prev_count+curr_count)=P_Val_d_ptr(innz)
+      !       P_RowInd_d_ptr(prev_count+curr_count)=(innz-1)/p_PMEto3
+      !     endif
+      !   enddo
+      ! enddo
+
+      ! allocate(testcolptr1(K_dim+1),testrowind1(this%nnz),testvaltr1(this%nnz))
+      ! allocate(testcolptr(K_dim+1),testrowind(this%nnz),testvaltr(this%nnz))
+      ! testcolptr1=this%P_ColPtr_d
+      ! testrowind1=this%P_RowInd_d
+      ! testvaltr1=this%P_Val_tr_d
+      ! call print_vector(testcolptr1,'colptr1')
+      ! call print_vector(testrowind1,'rowind1')
+      ! call print_vector(testvaltr1,'valtr1')
+
+
+      ! ! cusparse has problem handeling non transpose operations
+      ! ! and therefore I had to use magma
+      ! istat = cusparseDcsr2csc(this%h_P,ntb,K_dim,this%nnz,this%P_Val_d,&
+      !   this%P_RowPtr_d,this%P_ColInd_d,this%P_Val_tr_d,this%P_RowInd_d,&
+      !   this%P_ColPtr_d,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ZERO)
+      ! if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csr2csc Error: ",i)',istat
+
+      ! testcolptr=this%P_ColPtr_d
+      ! testrowind=this%P_RowInd_d
+      ! testvaltr=this%P_Val_tr_d
+      ! testcolptr=testcolptr-testcolptr1
+      ! testrowind=testrowind-testrowind1
+      ! testvaltr=testvaltr-testvaltr1
+      ! print*,sum(testvaltr),sum(testrowind),sum(testvaltr)
+      ! call print_vector(testcolptr,'colptr2')
+      ! call print_vector(testrowind,'rowind2')
+      ! call print_vector(testvaltr,'valtr2')
+! stop
+      if (doTiming) et_DCK=et_DCK+tock(count0)
 
       ! allocate(testi(ntb*p_PMEto3),testr(ntb*p_PMEto3))
       ! testi=this%ColInd_d(1:this%nnzb)-this%ColInd_h(1:this%nnzb)
@@ -756,7 +969,8 @@ contains
   !! \param F_d the total force in and DF out
   subroutine PME_d(this,F_d,ntb,ntbx3,boxsize)
 
-    use :: tmng_mod, only: PMEcount,et_PME,et_FFT,et_IFFT,et_SPR,et_INT,et_INF,et_R,et_K,doTiming,tick,tock
+    use :: tmng_mod, only: PMEcount,et_PME,et_FFT,et_IFFT,et_SPR,et_INT,et_INF,&
+      et_R,et_K,doTiming,tick,tock
     use :: arry_mod, only: print_vector,print_matrix,print_spmatrix
     use :: hi_mod, only: HI_c0
     use :: hi_cumod, only: hi_cu_t,Fmx,Fmy,Fmz,mpx_p,mpy_p,mpz_p,m2vec_p,K_d
@@ -804,11 +1018,11 @@ contains
     if (doTiming) call tick(count1)
     call calcDF_recip() ! Calculation of reciprocal part of D.F.
     if (doTiming) et_K=et_K+tock(count1)
-    
+
 
     ! Tot DF calculation:
     ! DF_tot=DF_self+DF_real+DF_recip
-    
+
     if (doTiming) et_PME=et_PME+tock(count0)
 
 
@@ -837,6 +1051,7 @@ contains
     ! call print_vector(ftest,'df_self')
 
     call cublasDaxpy(ntbx3,1._wp,this%DF_real_d,1,F_d,1)
+
     ! ftest=this%DF_real_d
     ! call print_vector(ftest,'df_real')
 
@@ -883,7 +1098,7 @@ contains
       ! real(wp) :: et_cusparse,et_mklsparse
       integer :: c1,c2,c3,c4
       real(wp) :: alpha,beta,flops,ctime_dev,ctime_mkl,mflops_dev,mflops_mkl
-  
+
       if (Dreal_sparse_mode) then
 
         ! actual sparse mv multiplication
@@ -897,7 +1112,7 @@ contains
         if (status /= CUSPARSE_STATUS_SUCCESS) print'(" bsrmv Error: ",i)',status
 
         ! et_cusparse = et_cusparse + tock( cusparse_count )
-      
+
       end if
 
     end subroutine calcDF_real
@@ -905,12 +1120,14 @@ contains
     subroutine calcDF_recip()
 
       use :: mkl_dfti
-      use :: hi_mod, only: K_mesh
+      use :: hi_mod, only: K_mesh,p_PMEto3
       use :: cufft
       use :: cudafor
       use :: cusparse
       use :: cublas
-      
+      ! use :: magma_cumod
+      ! use :: magma_smdlt
+
 !      complex(wp) :: Infl(3,3),C_mat(3),D_mat(3)
       integer :: i,j,k,ic
       integer :: k1,k2,k3,myStatus,mtot,mtmp,ir
@@ -924,13 +1141,13 @@ contains
       ! integer(long) :: cufft_count,mklfft_count,cuinfl_count
       ! real(wp) :: et_cufft,et_mklfft
 
-      integer :: status,XYZ_dim,XY_dim,Z_dim,K_dim_CCE,K_dim
+      integer :: status,r,XYZ_dim,XY_dim,Z_dim,K_dim_CCE,K_dim
       type(dim3) :: dimGrid, dimBlock
       ! integer,device :: K_d(3)
       ! device variables
       ! real(wp),device :: Infl(6),mpmphat(6)
       ! complex(wp),device :: C_mat(3)
-      
+
       real(wp) :: infl1,infl2,infl3,infl4,infl5,infl6
       real(wp) :: mpmphat1,mpmphat2,mpmphat3,mpmphat4,mpmphat5,mpmphat6
       complex(wp) :: C_mat1,C_mat2,C_mat3
@@ -938,27 +1155,124 @@ contains
       integer :: mivecx,mivecy,m_ind
       integer :: mivecz,mivecxy
 
+      real(wp),allocatable :: fmeshtest1(:),fmeshtest2(:)
+
+
+      integer :: ib
+      real(wp),allocatable :: ptest_h(:,:)
+      real(wp),device,allocatable :: ptest(:,:)
+      type(cusparseHandle) :: htest
+      type(cusparseMatDescr) :: descrtest
+      real(wp),device,allocatable :: Valtest(:)
+      integer,device,allocatable :: nnztest(:)
+      integer,device,allocatable :: RowPtrtest(:)
+      integer,device,allocatable :: ColIndtest(:)
+      real(wp),device,allocatable :: fmeshtest(:),ftest(:)
+      real(wp),allocatable :: valtest1(:),valtest2(:)
+      integer,allocatable :: rowptrtest1(:),rowptrtest2(:)
+      integer,allocatable :: colindtest1(:),colindtest2(:)
+
+
+      integer(kind=cuda_count_kind) :: free,total
+
       K_dim = K_mesh(1)*K_mesh(2)*K_mesh(3)
       K_dim_CCE = K_mesh(1)*K_mesh(2)*(K_mesh(3)/2+1)
+
+
 
       !-------------------------------------------
       !>>> Spreading the forces onto regular mesh:
       !-------------------------------------------
-
       if (doTiming) call tick(count2)
 
-      status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,K_dim,ntb,&
-        this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fx_d,&
-        0._wp,this%F_meshPx_di)
+      ! status = cudaMemGetInfo( free, total )
+      ! print*,'free',free,'total',total
+
+      ! ! Operation with CSC layout and NON_TRANSPOSE
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,K_dim,ntb,&
+      !   this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fx_d,&
+      !   0._wp,this%F_meshPx_di(1:K_dim))
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv x-component Error: ",i)',status
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,K_dim,ntb,&
+      !   this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fy_d,&
+      !   0._wp,this%F_meshPy_di(1:K_dim))
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv y-component Error: ",i)',status
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,K_dim,ntb,&
+      !   this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fz_d,&
+      !   0._wp,this%F_meshPz_di(1:K_dim))
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv z-component Error: ",i)',status
+
+      ! Operation with CSR layout and TRANSPOSE
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,this%nnz,&
+      !   1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fx_d,0._wp,&
+      !   this%F_meshPx_di(1:K_dim))
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv x-component Error: ",i)',status
+      !
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,this%nnz,&
+      !   1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fy_d,0._wp,&
+      !   this%F_meshPy_di(1:K_dim))
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv y-component Error: ",i)',status
+      !
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,this%nnz,&
+      !   1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fz_d,0._wp,&
+      !   this%F_meshPz_di(1:K_dim))
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv z-component Error: ",i)',status
+
+      ! allocate(ptest_h(ntb,K_dim),colindtest1(ntb*p_PMEto3),colindtest2(ntb*p_PMEto3))
+      ! allocate(rowptrtest1(ntb+1),rowptrtest2(ntb+1))
+      ! allocate(valtest1(ntb*p_PMEto3),valtest2(ntb*p_PMEto3))
+      ! allocate(nnztest(ntb))
+      ! allocate(ptest(ntb,K_dim),Valtest(ntb*p_PMEto3),RowPtrtest(ntb+1),ColIndtest(ntb*p_PMEto3))
+      ! ptest_h=0._wp
+      ! do ib=1, ntb
+      !   nnztest(ib)=p_PMEto3
+      !   ptest_h(ib,1:p_PMEto3)=1._wp
+      ! enddo
+      ! ptest=ptest_h
+      ! status = cusparseCreate(htest)
+      ! status = cusparseCreateMatDescr(descrtest)
+      ! status = cusparseSetMatType(descrtest,CUSPARSE_MATRIX_TYPE_GENERAL)
+      ! status = cusparseSetMatIndexBase(descrtest, CUSPARSE_INDEX_BASE_ZERO)
+      ! !
+      ! ! allocate(fmeshtest1(K_dim),fmeshtest2(K_dim))
+      ! ! allocate(fmeshtest(K_dim),ftest(ntb))
+      ! ! ftest=1._wp
+      ! !
+      ! status = cusparseDdense2csr(htest,ntb,K_dim,descrtest,this%P_d,ntb,nnztest,&
+      !   Valtest,RowPtrtest,ColIndtest)
+      !
+      !
+      !
+      ! colindtest1=this%P_ColInd_d
+      ! colindtest2=ColIndtest
+      ! print*,'error:',sum(abs(colindtest1-colindtest2))
+      ! call print_vector(colindtest1,'colself')
+      ! call print_vector(colindtest2,'cusparse')
+      ! valtest1=this%P_Val_d
+      ! valtest2=Valtest
+      ! print*,'valerror:',sum(abs(valtest1-valtest2))
+      ! rowptrtest1=this%P_RowPtr_d
+      ! rowptrtest2=RowPtrtest
+      ! print*,'rowerror:',sum(abs(rowptrtest1-rowptrtest2))
+      ! stop
+
+      ! debugging
+      status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,ntb*p_PMEto3,&
+        1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fx_d,0._wp,&
+        this%F_meshPx_di(1:K_dim))
       if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv x-component Error: ",i)',status
-      status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,K_dim,ntb,&
-        this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fy_d,&
-        0._wp,this%F_meshPy_di)
+
+      status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,ntb*p_PMEto3,&
+        1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fy_d,0._wp,&
+        this%F_meshPy_di(1:K_dim))
       if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv y-component Error: ",i)',status
-      status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,K_dim,ntb,&
-        this%nnz,1._wp,this%descr_P,this%P_Val_tr_d,this%P_ColPtr_d,this%P_RowInd_d,this%Fz_d,&
-        0._wp,this%F_meshPz_di)
+
+      status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,ntb*p_PMEto3,&
+        1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fz_d,0._wp,&
+        this%F_meshPz_di(1:K_dim))
       if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv z-component Error: ",i)',status
+
+! stop
 
       if (doTiming) et_SPR=et_SPR+tock(count2)
 
@@ -1039,7 +1353,7 @@ contains
             Fmx(m_ind)=Infl1*C_mat1+Infl2*C_mat2+Infl3*C_mat3
             Fmy(m_ind)=Infl2*C_mat1+Infl4*C_mat2+Infl5*C_mat3
             Fmz(m_ind)=Infl3*C_mat1+Infl5*C_mat2+Infl6*C_mat3
-          end if ! m2.eq.0         
+          end if ! m2.eq.0
 
         enddo
       enddo
@@ -1066,22 +1380,35 @@ contains
       if (doTiming) call tick(count2)
 
       status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,ntb,K_dim,this%nnz,&
-        1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%F_meshPx_di,0._wp,&
-        this%DFx_d)
+        1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%F_meshPx_di(1:K_dim),&
+        0._wp,this%DFx_d)
       if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv x-component Error: ",i)',status
       status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,ntb,K_dim,this%nnz,&
-        1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%F_meshPy_di,0._wp,&
-        this%DFy_d)
+        1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%F_meshPy_di(1:K_dim),&
+        0._wp,this%DFy_d)
       if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv y-component Error: ",i)',status
       status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,ntb,K_dim,this%nnz,&
-        1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%F_meshPz_di,0._wp,&
-        this%DFz_d)
+        1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%F_meshPz_di(1:K_dim),&
+        0._wp,this%DFz_d)
       if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv z-component Error: ",i)',status
+
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,ntb,K_dim,this%nnz,&
+      !   1._wp,this%descr_P,Valtest,this%P_RowPtr_d,ColIndtest,this%F_meshPx_di,0._wp,&
+      !   this%DFx_d)
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv x-component Error: ",i)',status
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,ntb,K_dim,this%nnz,&
+      !   1._wp,this%descr_P,Valtest,this%P_RowPtr_d,ColIndtest,this%F_meshPy_di,0._wp,&
+      !   this%DFy_d)
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv y-component Error: ",i)',status
+      ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,ntb,K_dim,this%nnz,&
+      !   1._wp,this%descr_P,Valtest,this%P_RowPtr_d,ColIndtest,this%F_meshPz_di,0._wp,&
+      !   this%DFz_d)
+      ! if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv z-component Error: ",i)',status
 
       if (doTiming) et_INT=et_INT+tock(count2)
 
     end subroutine calcDF_recip
- 
+
   end subroutine PME_d
 
 

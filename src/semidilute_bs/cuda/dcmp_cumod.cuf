@@ -5,7 +5,6 @@
 !|  Material Research and Innovation Laboratory                           |
 !|  University of Tennessee-Knoxville                                     |
 !|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
-!|             Tiras Y. Lin       <tlin@stanford.edu>                     |
 !|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
 !|             Bamin Khomami      <bkhomami@utk.edu>                      |
 !|                                                                        |
@@ -26,12 +25,12 @@
 !%------------------------------------------------------------------------%
 !--------------------------------------------------------------------
 !
-! MODULE: 
+! MODULE:
 !
 !> @author
 !> Amir Saadat, Stanford University, May 2018
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !>  on GPU
 !--------------------------------------------------------------------
 module dcmp_cumod
@@ -48,11 +47,17 @@ module dcmp_cumod
 
   ! CUDA variables:
   !>
-  real(wp),device,pointer :: VPt_d(:,:)
+  real(wp),device,pointer,contiguous :: VPt_d(:,:)
+  ! !>
+  real(wp),device,pointer,contiguous :: VP_d(:)
+  real(wp),device,pointer,contiguous :: lamVPt(:)
+  real(wp),device,pointer,contiguous :: e1Pt_d(:)
+
+  ! real(wp),device,pointer :: VPt_d(:,:)
   !>
-  real(wp),device,pointer :: VP_d(:)
-  real(wp),device,pointer :: lamVPt(:)
-  real(wp),device,pointer :: e1Pt_d(:)
+  ! real(wp),device,pointer :: VP_d(:)
+  ! real(wp),device,pointer :: lamVPt(:)
+  ! real(wp),device,pointer :: e1Pt_d(:)
 
 contains
 
@@ -81,7 +86,7 @@ contains
   !        CUBLAS_FILL_MODE_LOWER, n, a_d, n, Lwork)
   !   if (istat /= CUSOLVER_STATUS_SUCCESS) &
   !        write(*,*) 'cusolverDnZpotrf_buffersize failed'
-  !   allocate(workspace_d(Lwork)) 
+  !   allocate(workspace_d(Lwork))
   !   istat = cusolverDnDpotrf(h, CUBLAS_FILL_MODE_LOWER, &
   !        n, a_d, n, workspace_d, Lwork, devInfo_d)
   !   if (istat /= CUSOLVER_STATUS_SUCCESS) &
@@ -96,7 +101,7 @@ contains
   !   write(*,"(3(f0.0,2x))") a(1,:)
   !   write(*,"(3(f0.0,2x))") a(2,:)
   !   write(*,"(3(f0.0,2x))") a(3,:)
-      
+
   ! end subroutine decomp_smdlt_diff
 
   subroutine Lanczos_d(hi_d,Y_d,nbeadx3,errormin,mub,minit,decompRes,boxsizeinp,msetinp)
@@ -108,7 +113,7 @@ contains
     use :: hi_cumod, only: hi_cu_t
     use :: diffcalc_cumod, only: PME_d
 
-    use :: arry_mod, only: print_vector
+    use :: arry_mod, only: print_vector,print_matrix
 
     type(hi_cu_t),intent(inout) :: hi_d
     integer :: nbeadx3,nbead
@@ -158,7 +163,7 @@ contains
     real(wp),device,allocatable :: Ybar_d(:)
     real(wp),device,allocatable :: sqrtH_tmp(:,:),Vtmp(:,:),Htmp(:,:)
 
-    real(wp),allocatable :: testr(:)
+    real(wp),allocatable :: testr(:),testv(:,:)
 
     ! XYZ_dim=64
     ! dimGrid = dim3( (XYZ_dim+31)/32, 1, 1 )
@@ -181,7 +186,7 @@ contains
     ! allocate(Z_d(nbeadx3))
     allocate(w_d(nbeadx3))
 
-    allocate(testr(nbeadx3))
+    allocate(testr(nbeadx3),testv(nbeadx3,mub))
     ! allocate(Y_d(nbeadx3))
     ! Z_d=Z
 
@@ -190,7 +195,6 @@ contains
     ! m=minit-1
     ! k0=1
     ! V(:,1)=Z/nrm2(Z)
-
     e1_d=0._wp;e1_d(1)=1.0_wp
     H_d=0.0_wp
     m=minit-1
@@ -210,20 +214,20 @@ mlp:do
       ! lambdaVPt => lambdaV(1:m)
 
 
-
-      VPt_d => V_d(:,1:m)
+      VPt_d => V_d(1:nbeadx3,1:m)
       e1Pt_d => e1_d(1:m)
       lamVPt => lamV(1:m)
-
       do k=k0, m
 
         if ((k /= k0) .or. (k0 == 1)) then
 
 
           ! VP => V(:,k)
-          
-          VP_d => V_d(:,k)
 
+          VP_d => V_d(1:nbeadx3,k)
+! print*,'k',k0,k,m
+! testv=V_d
+! call print_matrix(testv,'vd_0')
           ! if (present(D)) then ! means Ewald calculation:
             ! doesn't make sense now
             ! call symv(D,VP,w)
@@ -232,11 +236,20 @@ mlp:do
 ! print*,'k,k0,m',k,k0,m
 ! testr=VP_d
 ! call print_vector(testr,'wbef')
-            call cublasDcopy(nbeadx3,VP_d,1,w_d,1)
-            call PME_d(hi_d,w_d,nbead,nbeadx3,boxsizeinp)
+            call cublasDcopy(nbeadx3,VP_d(1:nbeadx3),1,w_d,1)
+! print*,'k',k0,k,m
+! testv=V_d
+! call print_matrix(testv,'vd_00')
+! print*,'why',k0,m
 ! testr=w_d
-! call print_vector(testr,'waf')
-
+! call print_vector(testr,'wbef')
+            call PME_d(hi_d,w_d,nbead,nbeadx3,boxsizeinp)
+! print*,'k',k0,k,m
+! testv=V_d
+! call print_matrix(testv,'vd_000')
+! testr=w_d
+! print*,'k,m',k,m
+! call print_vector(testr(1:50),'waf')
             ! w_d=w
             ! call PME_cpu(VP,nbead,boxsizeinp,w)
           ! end if
@@ -256,11 +269,18 @@ mlp:do
         !   VP => V(:,k-1)
         !   w=w-H(k-1,k)*VP
         ! end if
-
         if (k > 1) then
-          VP_d => V_d(:,k-1)
+          VP_d => V_d(1:nbeadx3,k-1)
+! print*,'k',k
+! testv=V_d
+! testr=VP_d(1:nbeadx3)
+! call print_matrix(testv,'vd_1bef')
+! call print_vector(testr,'vpd_1')
+! testr=V_d(:,k-1)
+! call print_vector(testr,'vppd_1')
           H_tmp=-H_d(k-1,k)
-          call cublasDaxpy(nbeadx3,H_tmp,VP_d,1,w_d,1)
+          call cublasDaxpy(nbeadx3,H_tmp,VP_d(1:nbeadx3),1,w_d,1)
+! call print_matrix(testv,'vd_1aft')
         end if
 
         ! VP => V(:,k)
@@ -268,10 +288,16 @@ mlp:do
         !   H(k,k)=dot(w,VP)
         ! end if
 
-        VP_d => V_d(:,k)
+        VP_d => V_d(1:nbeadx3,k)
         if ((k /= k0) .or. (k0 == 1)) then
-          H_d(k,k)=ddot(nbeadx3,w_d,1,VP_d,1)
+! print*,'k',k
+! testv=V_d
+! testr=VP_d(1:nbeadx3)
+! call print_matrix(testv,'vd_2bef')
+! call print_vector(testr,'vpd_2')
+          H_d(k,k)=ddot(nbeadx3,w_d,1,VP_d(1:nbeadx3),1)
           H_tmp=H_d(k,k)
+! call print_matrix(testv,'vd_2aft')
         end if
 
 
@@ -286,15 +312,24 @@ mlp:do
 
         if (k < m) then
           H_tmp=-H_d(k,k)
-          call cublasDaxpy(nbeadx3,H_tmp,VP_d,1,w_d,1)
+          call cublasDaxpy(nbeadx3,H_tmp,VP_d(1:nbeadx3),1,w_d,1)
           H_tmp=dnrm2(nbeadx3,w_d,1)
           H_d(k,k+1)=H_tmp
           H_d(k+1,k)=H_tmp
-          VP_d => V_d(:,k+1)
-          call cublasDcopy(nbeadx3,w_d,1,VP_d,1)
-          call cublasDscal(nbeadx3,1/H_tmp,VP_d,1)
+          VP_d => V_d(1:nbeadx3,k+1)
+! print*,'k',k
+! testv=V_d
+! testr=VP_d(1:nbeadx3)
+! call print_matrix(testv,'vd_3bef')
+! call print_vector(testr,'vpd_3')
+! testr=V_d(:,k+1)
+! call print_vector(testr,'vppd_3')
+          call cublasDcopy(nbeadx3,w_d,1,VP_d(1:nbeadx3),1)
+          call cublasDscal(nbeadx3,1/H_tmp,VP_d(1:nbeadx3),1)
+! testv=V_d
+! call print_matrix(testv,'vd_3aft')
           ! In case of D=I, H(k+1,k)=0. Then we make the 0/0=1.
-          if (H_tmp == 0) VP_d=1.0_wp
+          if (H_tmp == 0) VP_d(1:nbeadx3)=1.0_wp
         end if
 
       end do ! k
@@ -305,7 +340,7 @@ mlp:do
       ! stop
 
 
-  
+
 
       ! sqrtHPt=HPt
       ! call syev(sqrtHPt,lambdaVPt,jobz='V',uplo='U',info=info)
@@ -336,8 +371,6 @@ mlp:do
       if (istat /= CUSOLVER_STATUS_SUCCESS) print('(" cusolverDnDsyevd failed")')
       istat = devInfo_d
       if (istat /= 0) print('(" Unsuccessful eigenvalue computation in Lanczos_dev",i)'),istat
-  
-
 
 !       ! if (minval(lambdaVPt,dim=m)<=0) then
 !       if (minval(lambdaVPt)<=0) then
@@ -392,7 +425,6 @@ mlp:do
       ! print*,'Y-2',Y(1:10)
       ! stop
 
-
       ! if (m >= minit) then
       !   error=nrm2(Y-Ybar)/nrm2(Ybar)
       !  ! write(*,'(a,f14.7)') 'error',error
@@ -440,13 +472,13 @@ mlp:do
             H_d=0._wp
             !$cuf kernel do (2) <<< *,* >>>
             do jcol=1, m
-              do irow=1, nbeadx3             
+              do irow=1, nbeadx3
                 V_d(irow,jcol)=Vtmp(irow,jcol)
               enddo
             enddo
             !$cuf kernel do (2) <<< *,* >>>
             do jcol=1, m
-              do irow=1, m            
+              do irow=1, m
                 H_d(irow,jcol)=Htmp(irow,jcol)
               enddo
             enddo
@@ -456,15 +488,13 @@ mlp:do
       end if
       call cublasDcopy(nbeadx3,Y_d,1,Ybar_d,1)
       deallocate(sqrtH_d,lamM,sqrtH_tmp)
-
 ! testr=Y_d
 ! print*,'testr',m,testr
 
       k0=m
-      m=m+1      
+      m=m+1
       cycle mlp
     end do mlp
-
 
     ! deallocate(wtemp,V,H,sqrtH,lambdaM,lambdaV,e1)
 
@@ -473,5 +503,5 @@ mlp:do
     minit=m
 
   end subroutine Lanczos_d
-    
+
 end module dcmp_cumod

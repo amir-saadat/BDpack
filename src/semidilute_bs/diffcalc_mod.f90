@@ -27,7 +27,7 @@
 !> @author
 !> Amir Saadat, The University of Tennessee-Knoxville, June 2014
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> Calculates the diffusion tensor on CPU
 !--------------------------------------------------------------------
 module diffcalc_mod
@@ -123,7 +123,7 @@ contains
       do jglobbead=1, ntotbead
         jglob=(jglobbead-1)*3
         do iglobbead=1, jglobbead
-          iglob=(iglobbead-1)*3            
+          iglob=(iglobbead-1)*3
           ! Calculation of the pair particle distance:
           rin0(1:3)=Rb(iglob+1:iglob+3)
           rjn0(1:3)=Rb(jglob+1:jglob+3)
@@ -172,7 +172,7 @@ n3lp:         do n3=-nmax(3),nmax(3)
                   r=sqrt(r2)
                   ! Adding the M1 contribution:
                   Diff_tensP=Diff_tensP+M1(r,r2,rrhat)
-                  ! Overlaps in Primary box:           
+                  ! Overlaps in Primary box:
                   if (r < (HI_ax2)) Diff_tensP=Diff_tensP+Mstar(r,r2,rrhat)
                 end if
               end do n3lp
@@ -317,7 +317,6 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
       if (doTiming) et_EW=et_EW+tock(count0)
 
     elseif (HIcalc_mode == 'PME') then
-
       if (doTiming) call tick(count0)
       call calcDiff_real(Rb,ntotbead,boxsize,boxorigin) ! Calculation of real part of D.
       if (doTiming) then
@@ -416,7 +415,7 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
       do jglobbead=1, ntotbead
         jglob=(jglobbead-1)*3
         do iglobbead=1, jglobbead
-          iglob=(iglobbead-1)*3            
+          iglob=(iglobbead-1)*3
           ! Calculation of the pair particle distance:
           rin0(1:3)=Rb(iglob+1:iglob+3)
           rjn0(1:3)=Rb(jglob+1:jglob+3)
@@ -465,7 +464,7 @@ n3lp:         do n3=-nmax(3),nmax(3)
                   r=sqrt(r2)
                   ! Adding the M1 contribution:
                   Diff_tensP=Diff_tensP+M1(r,r2,rrhat)
-                  ! Overlaps in Primary box:           
+                  ! Overlaps in Primary box:
                   if (r < (HI_ax2)) Diff_tensP=Diff_tensP+Mstar(r,r2,rrhat)
                 end if
               end do n3lp
@@ -691,7 +690,7 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
     rto3=r*rto2
     mstar_1=(1-Mstar_c1*r-M1_c1/r-M1_c2/rto3)
     mstar_2=(Mstar_c2*r-M1_c1/r+M1_c9/rto3)
-  
+
     Mstar(1,1)=mstar_1+mstar_2*rrhat(1)
     Mstar(1,2)=mstar_2*rrhat(2);Mstar(2,1)=Mstar(1,2)
     Mstar(1,3)=mstar_2*rrhat(3);Mstar(3,1)=Mstar(1,3)
@@ -710,7 +709,7 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
     rto3=r*rto2
     mstar_1=(1-Mstar_c1*r-M1_c1/r-M1_c2/rto3)
     mstar_2=(Mstar_c2*r-M1_c1/r+M1_c9/rto3)
-  
+
     Mstar_1d(1)=mstar_1+mstar_2*rrhat(1)
     Mstar_1d(2)=mstar_2*rrhat(2);Mstar_1d(4)=Mstar_1d(2)
     Mstar_1d(3)=mstar_2*rrhat(3);Mstar_1d(7)=Mstar_1d(3)
@@ -770,7 +769,7 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
             r2=dot_product(rij,rij);r=sqrt(r2)
             if (r <= rc_D) then
               neig_count=neig_count+1
-              rijhat=rij/r 
+              rijhat=rij/r
               rrhat(1)=rijhat(1)*rijhat(1)
               rrhat(2)=rijhat(1)*rijhat(2)
               rrhat(3)=rijhat(1)*rijhat(3)
@@ -783,9 +782,9 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
                 Dreal_vals(offsetD+1:offsetD+9)=Dreal_vals(offsetD+1:offsetD+9) + &
                                                 reshape(Mstar(r,r2,rrhat),shape=[9])
               end if
-              Dreal_cols(neig_count)=jglobbead 
+              Dreal_cols(neig_count)=jglobbead
               offsetD=offsetD+9
-            end if            
+            end if
           end do ! jneig
         end if ! jbeg.le.jend
         Dreal_rowInd(iglobbead+1)=neig_count+1
@@ -801,14 +800,14 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
       do jglobbead=1, ntotbead
         jglob=(jglobbead-1)*3
         do iglobbead=1, jglobbead
-          iglob=(iglobbead-1)*3            
+          iglob=(iglobbead-1)*3
           ! Calculation of the pair particle distance:
           rin0(1:3)=Rb(iglob+1:iglob+3)
           rjn0(1:3)=Rb(jglob+1:jglob+3)
           rijn0=rin0-rjn0
           ! Calculating Dij,PBC:
           Diff_tens_realP => Diff_tens_real(iglob+1:iglob+3,jglob+1:jglob+3)
-          Diff_tens_realP=0._wp                
+          Diff_tens_realP=0._wp
           ! The summation over real space (loop over primary and all periodic image boxes):
           nmax=ceiling(rc_D/boxsize)
           n1 => nvec(1)
@@ -837,7 +836,7 @@ n3lp:         do n3=-nmax(3),nmax(3)
                   r=sqrt(r2)
                   ! Adding the M1 contribution:
                   Diff_tens_realP=Diff_tens_realP+M1(r,r2,rrhat)
-                  ! Overlaps in Primary box:           
+                  ! Overlaps in Primary box:
                   if (r < (HI_ax2)) Diff_tens_realP=Diff_tens_realP+Mstar(r,r2,rrhat)
                 end if
               end do n3lp
@@ -849,7 +848,7 @@ n3lp:         do n3=-nmax(3),nmax(3)
 !$omp end do
 !$omp end parallel
 
-    end if ! Dreal_sparse_mode          
+    end if ! Dreal_sparse_mode
 
   end subroutine calcDiff_real
 
@@ -866,14 +865,15 @@ n3lp:         do n3=-nmax(3),nmax(3)
     integer :: k_ind,k1,k2,k3,elem_count,elem_counttmp,k2Kx,k3KxKy
     integer,allocatable,dimension(:,:),save :: grid
 
-!$omp threadprivate (grid)
+!!$omp threadprivate (grid)
 
-!$omp parallel default(private) copyin(grid) &
-!$omp shared(ntotbead,Rb,boxsize,boxorigin,K_mesh,InterpMethod,p_PME,p_PMEto3,r_str,P_vals) &
-!$omp shared(P_cols,eps_m,FlowType)
+!!$omp parallel default(private) copyin(grid) &
+!!$omp shared(ntotbead,Rb,boxsize,boxorigin,K_mesh,InterpMethod,p_PME,p_PMEto3,r_str,P_vals) &
+!!$omp shared(P_cols,eps_m,FlowType)
+
     allocate(grid(p_PME,3))
 !   elem_count=0 ! used for sparse P.
-!$omp do schedule(auto)
+!!$omp do schedule(auto)
     do iglobbead=1, ntotbead
       iglob=(iglobbead-1)*3
       select case (FlowType)
@@ -888,7 +888,7 @@ n3lp:         do n3=-nmax(3),nmax(3)
       select case (InterpMethod)
         case('BSpline')
           do icoor=1, 3 ! The sweeping direction
-            ! The nearest mesh which is less than fractional coordinate: 
+            ! The nearest mesh which is less than fractional coordinate:
             nearestMesh(icoor)=floor(xi(icoor))
             grid(1,icoor)=nearestMesh(icoor) ! The nearest mesh point.
             do igrid=1, p_PME-1
@@ -908,7 +908,7 @@ n3lp:         do n3=-nmax(3),nmax(3)
 !      elem_counttmp=elem_count
       elem_count=(iglobbead-1)*p_PMEto3
       elem_counttmp=elem_count
-kg:   do kgrid=1, p_PME
+      kg: do kgrid=1, p_PME
         k3=grid(kgrid,3)
         select case(InterpMethod)
           case('BSpline')
@@ -917,7 +917,7 @@ kg:   do kgrid=1, p_PME
             ! Not implemented yet!
         end select
         k3KxKy=k3*r_str(3)
-jg:     do jgrid=1, p_PME
+        jg: do jgrid=1, p_PME
           k2=grid(jgrid,2)
           select case(InterpMethod)
             case('BSpline')
@@ -926,7 +926,7 @@ jg:     do jgrid=1, p_PME
               ! Not implemented yet!
           end select
           k2Kx=k2*r_str(2)
-ig:       do igrid=1, p_PME
+          ig: do igrid=1, p_PME
             k1=grid(igrid,1)
             select case(InterpMethod)
               case('BSpline')
@@ -945,17 +945,11 @@ ig:       do igrid=1, p_PME
 
     end do ! iglobbead
 
-!$omp end do
+!!$omp end do
     deallocate(grid)
-!$omp end parallel
+!!$omp end parallel
 
   end subroutine calcDiff_recip
-
-
-
-
-
-
 
 #ifdef USE_GPU
 
@@ -1014,7 +1008,7 @@ ig:       do igrid=1, p_PME
             r2=dot_product(rij,rij);r=sqrt(r2)
             if (r <= rc_D) then
               neig_count=neig_count+1
-              rijhat=rij/r 
+              rijhat=rij/r
               rrhat(1)=rijhat(1)*rijhat(1)
               rrhat(2)=rijhat(1)*rijhat(2)
               rrhat(3)=rijhat(1)*rijhat(3)
@@ -1027,9 +1021,9 @@ ig:       do igrid=1, p_PME
                 Dreal_vals(offsetD+1:offsetD+9)=Dreal_vals(offsetD+1:offsetD+9) + &
                                                 reshape(Mstar(r,r2,rrhat),shape=[9])
               end if
-              Dreal_cols(neig_count)=jglobbead 
+              Dreal_cols(neig_count)=jglobbead
               offsetD=offsetD+9
-            end if            
+            end if
           end do ! jneig
         end if ! jbeg.le.jend
         Dreal_rowInd(iglobbead+1)=neig_count+1
@@ -1084,7 +1078,7 @@ ig:       do igrid=1, p_PME
 
             if (r <= rc_D) then
               neig_count=neig_count+1
-              rijhat=rij/r 
+              rijhat=rij/r
               rrhat(1)=rijhat(1)*rijhat(1)
               rrhat(2)=rijhat(1)*rijhat(2)
               rrhat(3)=rijhat(1)*rijhat(3)
@@ -1106,11 +1100,11 @@ ig:       do igrid=1, p_PME
                 this%Val_h(offsetD+1:offsetD+9)=this%Val_h(offsetD+1:offsetD+9) + Mstar_1d
                 ! print*,'hello2',iglobbead,jglobbead,Mstar_1d(2)
               end if
-              this%ColInd_h(neig_count)=jglobbead 
+              this%ColInd_h(neig_count)=jglobbead
               offsetD=offsetD+9
             end if
           end do ! jneig
-        end if ! jbeg.le.jend      
+        end if ! jbeg.le.jend
         this%RowPtr_h(iglobbead+1)=neig_count+1
       end do ! iglobbead
       this%RowPtr_h(ntotbead+1)=neig_count+1
@@ -1138,14 +1132,14 @@ ig:       do igrid=1, p_PME
 !       do jglobbead=1, ntotbead
 !         jglob=(jglobbead-1)*3
 !         do iglobbead=1, jglobbead
-!           iglob=(iglobbead-1)*3            
+!           iglob=(iglobbead-1)*3
 !           ! Calculation of the pair particle distance:
 !           rin0(1:3)=Rb(iglob+1:iglob+3)
 !           rjn0(1:3)=Rb(jglob+1:jglob+3)
 !           rijn0=rin0-rjn0
 !           ! Calculating Dij,PBC:
 !           Diff_tens_realP => Diff_tens_real(iglob+1:iglob+3,jglob+1:jglob+3)
-!           Diff_tens_realP=0._wp                
+!           Diff_tens_realP=0._wp
 !           ! The summation over real space (loop over primary and all periodic image boxes):
 !           nmax=ceiling(rc_D/boxsize)
 !           n1 => nvec(1)
@@ -1174,7 +1168,7 @@ ig:       do igrid=1, p_PME
 !                   r=sqrt(r2)
 !                   ! Adding the M1 contribution:
 !                   Diff_tens_realP=Diff_tens_realP+M1(r,r2,rrhat)
-!                   ! Overlaps in Primary box:           
+!                   ! Overlaps in Primary box:
 !                   if (r < (HI_ax2)) Diff_tens_realP=Diff_tens_realP+Mstar(r,r2,rrhat)
 !                 end if
 !               end do n3lp
@@ -1186,7 +1180,7 @@ ig:       do igrid=1, p_PME
 ! !$omp end do
 ! !$omp end parallel
 
-    end if ! Dreal_sparse_mode          
+    end if ! Dreal_sparse_mode
 
   end subroutine calcDiff_real_dev
 
@@ -1210,7 +1204,7 @@ ig:       do igrid=1, p_PME
 
 !$omp threadprivate (grid)
 
-    
+
     ! print*,'before',size(this%P_cols)
 
 !$omp parallel default(private) copyin(grid) &
@@ -1238,7 +1232,7 @@ ig:       do igrid=1, p_PME
       select case (InterpMethod)
         case('BSpline')
           do icoor=1, 3 ! The sweeping direction
-            ! The nearest mesh which is less than fractional coordinate: 
+            ! The nearest mesh which is less than fractional coordinate:
             nearestMesh(icoor)=floor(xi(icoor))
             grid(1,icoor)=nearestMesh(icoor) ! The nearest mesh point.
             do igrid=1, p_PME-1
@@ -1410,7 +1404,7 @@ kg_c:     do kgrid=1, p_PME
     real(wp),dimension(:),intent(inout) :: DF_tot
     real(wp) :: boxsize(3)
     integer(long) :: count0,count1
-    
+
     if (doTiming) then
       PMEcount=PMEcount+1
       call tick(count0)
@@ -1425,17 +1419,15 @@ kg_c:     do kgrid=1, p_PME
     if (doTiming) call tick(count1)
     call calcDF_recip() ! Calculation of reciprocal part of D.F.
     if (doTiming) et_K=et_K+tock(count1)
-    
+
     if (doTiming) et_PME=et_PME+tock(count0)
-    
+
     ! Tot DF calculation:
     DF_tot=DF_self+DF_real+DF_recip
-    
 
     ! call print_vector(DF_recip,'df_recip')
     ! call print_vector(DF_self,'df_self')
     ! call print_vector(DF_real,'df_real')
-    ! stop
 
   contains
 
@@ -1446,7 +1438,7 @@ kg_c:     do kgrid=1, p_PME
     end subroutine calcDF_self
 
     subroutine calcDF_real()
-  
+
       if (Dreal_sparse_mode) then
 #ifdef USE_DP
           call mkl_dbsrsymv('U',ntotbead,3,Dreal_vals,Dreal_rowInd,Dreal_cols,F,DF_real)
@@ -1454,7 +1446,7 @@ kg_c:     do kgrid=1, p_PME
           call mkl_sbsrsymv('U',ntotbead,3,Dreal_vals,Dreal_rowInd,Dreal_cols,F,DF_real)
 #endif
       else
-        call symv(Diff_tens_real,F,DF_real)        
+        call symv(Diff_tens_real,F,DF_real)
       end if
 
     end subroutine calcDF_real
@@ -1462,7 +1454,7 @@ kg_c:     do kgrid=1, p_PME
     subroutine calcDF_recip()
 
       use :: mkl_dfti
-      
+
      ! complex(wp) :: Infl(3,3),C_mat(3),D_mat(3)
       integer :: i,j,k,ic,mivecx,mivecy,mivecz,miveczy,mpivecx,mpivecy,mpivecz
       integer :: k1,k2,k3,myStatus,m_ind,mtot,mtmp
@@ -1566,7 +1558,7 @@ kg_c:     do kgrid=1, p_PME
             end select
             Cx_mat(m_ind)=Infl(1)*C_mat(1)+Infl(2)*C_mat(2)+Infl(3)*C_mat(3)
             Cy_mat(m_ind)=Infl(2)*C_mat(1)+Infl(4)*C_mat(2)+Infl(5)*C_mat(3)
-            Cz_mat(m_ind)=Infl(3)*C_mat(1)+Infl(5)*C_mat(2)+Infl(6)*C_mat(3)            
+            Cz_mat(m_ind)=Infl(3)*C_mat(1)+Infl(5)*C_mat(2)+Infl(6)*C_mat(3)
            ! print *,'id:',omp_get_thread_num()
            ! print *,'mp:',mpx,mpy,mpz
            ! call print_vector(Infl,'infl')
@@ -1619,7 +1611,6 @@ kg_c:     do kgrid=1, p_PME
         enddo
       end if
       if (doTiming) et_INF=et_INF+tock(count2)
-
       !-----------------------------------
       !>>> BWD in-place Fourier Transform:
       !-----------------------------------
@@ -1660,9 +1651,10 @@ kg_c:     do kgrid=1, p_PME
         call mkl_scsrmv('N',ntotbead,Kcto3,1._wp,'GIIC',P_vals,P_cols,P_rowInd,P_rowInd(2),F_meshPz,0._wp,DFPz)
 #endif
       if (doTiming) et_INT=et_INT+tock(count2)
-  
+
     end subroutine calcDF_recip
- 
+
+
   end subroutine PME_cpu
 
 ! %=========================== These Routines are for the case of PME ======================%
@@ -1711,11 +1703,11 @@ kg_c:     do kgrid=1, p_PME
     if (doTiming) call tick(count1)
     call calcDF_recip() ! Calculation of reciprocal part of D.F.
     if (doTiming) et_K=et_K+tock(count1)
-    
+
 
     ! Tot DF calculation:
     ! DF_tot=DF_self+DF_real+DF_recip
-    
+
     if (doTiming) et_PME=et_PME+tock(count0)
 
 
@@ -1776,7 +1768,7 @@ kg_c:     do kgrid=1, p_PME
       ! integer,device,allocatable :: bsrRowPtr_d(:),bsrColInd_d(:)
       ! real(wp),device,allocatable :: bsrVal_d(:)
       ! real(wp),device,allocatable :: F_d(:),DF_d(:)
-  
+
       if (Dreal_sparse_mode) then
 
         ! actual sparse mv multiplication
@@ -1801,7 +1793,7 @@ kg_c:     do kgrid=1, p_PME
 !         call mkl_sbsrsymv('U',ntotbead,3,Dreal_vals,Dreal_rowInd,Dreal_cols,F,DF_real)
 ! #endif
 !       else
-!         call symv(Diff_tens_real,F,DF_real)        
+!         call symv(Diff_tens_real,F,DF_real)
       end if
 
       ! flops = (ntotbead*3)**2
@@ -1833,7 +1825,7 @@ kg_c:     do kgrid=1, p_PME
       use :: cusparse
       use :: cublas
       use :: diffcalc_cumod, only: apply_infl_kernel,ILP
-      
+
 !      complex(wp) :: Infl(3,3),C_mat(3),D_mat(3)
       integer :: i,j,k,ic
       integer :: k1,k2,k3,myStatus,mtot,mtmp,ir
@@ -1853,7 +1845,7 @@ kg_c:     do kgrid=1, p_PME
       ! device variables
       ! real(wp),device :: Infl(6),mpmphat(6)
       ! complex(wp),device :: C_mat(3)
-      
+
       real(wp) :: infl1,infl2,infl3,infl4,infl5,infl6
       real(wp) :: mpmphat1,mpmphat2,mpmphat3,mpmphat4,mpmphat5,mpmphat6
       complex(wp) :: C_mat1,C_mat2,C_mat3
@@ -2106,7 +2098,7 @@ kg_c:     do kgrid=1, p_PME
 !             Cy_mat(m_ind)=Infl(2)*C_mat(1)+Infl(4)*C_mat(2)+Infl(5)*C_mat(3)
 !             Cz_mat(m_ind)=Infl(3)*C_mat(1)+Infl(5)*C_mat(2)+Infl(6)*C_mat(3)
 
-! ! print*,'C 2',Cx_mat(m_ind)          
+! ! print*,'C 2',Cx_mat(m_ind)
 ! !            print *,'id:',omp_get_thread_num()
 ! !            print *,'mp:',mpx,mpy,mpz
 ! !            call print_vector(Infl,'infl')
@@ -2244,7 +2236,7 @@ kg_c:     do kgrid=1, p_PME
             Fmx(m_ind)=Infl1*C_mat1+Infl2*C_mat2+Infl3*C_mat3
             Fmy(m_ind)=Infl2*C_mat1+Infl4*C_mat2+Infl5*C_mat3
             Fmz(m_ind)=Infl3*C_mat1+Infl5*C_mat2+Infl6*C_mat3
-          end if ! m2.eq.0         
+          end if ! m2.eq.0
 
         enddo
       enddo
@@ -2292,7 +2284,7 @@ kg_c:     do kgrid=1, p_PME
       !   print '("  Error, status = ",i0)', FFTStatus
       !   stop
       ! end if
-      
+
 
 
 
@@ -2416,9 +2408,9 @@ kg_c:     do kgrid=1, p_PME
 
 
 
-  
+
     end subroutine calcDF_recip
- 
+
   end subroutine PME_dev
 
 #endif

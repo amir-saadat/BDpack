@@ -34,7 +34,7 @@ module evforce_mod
 
   use :: prcn_mod
   use :: force_smdlt, only: force
-  use :: verlet_mod, only: verlet
+  use :: evverlet_mod, only: evverlet
 
   implicit none
 
@@ -49,9 +49,10 @@ module evforce_mod
     private
     
     !> An object for construcing neighbor list for ev force
-    type(verlet) :: evvlt
+    type(evverlet) :: evvlt
     !> The position vector in the previous list update iteration
-    real(wp),allocatable :: Rb0(:) 
+    real(wp),allocatable :: Rb0(:)
+    real(wp),allocatable :: Q0(:)
     !> The neighbor list
     integer,allocatable :: nlst(:,:)
     !> Gaussian ev force parameters
@@ -139,7 +140,7 @@ ef: do
     end do ef
     close(u1)
 
-    rs_F=rc_F+s_F*rc_F
+    rs_F=rc_F*(1+s_F)
 
     ! The parameters used for EV potentials
     select case (EVForceLaw)
@@ -173,10 +174,10 @@ ef: do
   end subroutine init_evforce
 
   !> Constructor for evforce type
-  subroutine init_evforce_t(this,id,bs,ntotbead,ntotbeadx3)
+  subroutine init_evforce_t(this,id,bs,ntotsegx3,ntotbead,ntotbeadx3)
 
     class(evforce),intent(inout) :: this
-    integer,intent(in) :: id,ntotbead,ntotbeadx3
+    integer,intent(in) :: id,ntotsegx3,ntotbead,ntotbeadx3
     real(wp),intent(in) :: bs(3)
 
     ! The parameters used for EV potentials
@@ -185,6 +186,7 @@ ef: do
         this%fctr=zstar/dstar**5
         this%efctr=1/(2*dstar**2)
         allocate(this%Rb0(ntotbeadx3))
+        allocate(this%Q0(ntotsegx3))
       case ('LJ')
       case ('NoEV')
     end select
@@ -201,15 +203,16 @@ ef: do
   !! \param bs the dimension of the box
   !! \param invbs the inverse of box dimensions
 !  subroutine update_vlt_lst(this,Rbx,Rby,Rbz,bs,invbs,itime,itrst,ntotbead,ntotbeadx3)
-  subroutine update_vlt_lst(this,Rbx,Rby,Rbz,Rb,bs,invbs,itime,itrst,ntotbead,ntotbeadx3)
+  subroutine update_vlt_lst(this,Rbx,Rby,Rbz,Rb,Q,bs,invbs,itime,itrst,ntotsegx3,ntotbead,ntotbeadx3)
 
     use :: flow_mod, only: FlowType
 
     class(evforce),intent(inout) :: this
     real(wp),intent(in) :: Rbx(:),Rby(:),Rbz(:)
     real(wp),intent(in) :: Rb(:)
+    real(wp),intent(in) :: Q(:)
     real(wp),intent(in) :: bs(3),invbs(3)
-    integer,intent(in) :: itime,itrst,ntotbead,ntotbeadx3
+    integer,intent(in) :: itime,itrst,ntotsegx3,ntotbead,ntotbeadx3
     real(wp) :: dispmax
     logical :: update
 
@@ -217,20 +220,21 @@ ef: do
       update=.true.
     else
       ! Calculate maximum displacement since last update:
-      dispmax=maxval(abs(Rb-this%Rb0))
+      ! dispmax=maxval(abs(Rb-this%Rb0))
+      dispmax=maxval(abs(Q-this%Q0))
       ! A conservative testing of the list skin crossing:
-      dispmax=2*sqrt(3*dispmax*dispmax)
+      ! dispmax=2*sqrt(3*dispmax*dispmax)
       update=dispmax > (rs_F-rc_F)
     end if
     if (update) then
       ! Save positions for next evaluations:
-      this%Rb0=Rb
+      ! this%Rb0=Rb
+      this%Q0=Q
       if ((FlowType == 'PEF').and.(itime /= itrst+1)) then
         call this%evvlt%init_cll(rs_F,bs,ntotbead)
       end if
       call this%evvlt%cnstr_cll(Rbx,Rby,Rbz,itime,ntotbead,ntotbeadx3)
-      call this%evvlt%cnstr_nab(Rbx,Rby,Rbz,rs_F,bs,invbs,this%nlst,itime,&
-                                ntotbead,ntotbeadx3)
+      call this%evvlt%cnstr_nab(Rbx,Rby,Rbz,rs_F,bs,invbs,this%nlst,itime,ntotbead,ntotbeadx3)
     end if
 
   end subroutine update_vlt_lst
@@ -242,7 +246,7 @@ ef: do
   !! \param bs the dimension of the box
   !! \param invbs the inverse of box dimensions
   subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nchain,nseg,nbead,&
-                          ntotseg,ntotsegx3,ntotbeadx3,Qt)
+                          ntotseg,ntotsegx3,ntotbead,ntotbeadx3,Qt)
 
     use :: arry_mod, only: print_vector
     use :: trsfm_mod, only: eps_m,tanb,sinth,costh
@@ -255,15 +259,20 @@ ef: do
     real(wp),intent(in) :: Rbz(:)
     real(wp),intent(in) :: bs(3),invbs(3) 
 !    real(wp),intent(inout) :: F(:)
-    integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbeadx3
+    integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3
     real(wp),intent(in) :: Qt(:)
     integer :: iint,i,j
     real(wp) :: rijx,rijy,rijz,rijsq,rijytmp,Fevij(3)
+    ! real(wp),allocatable :: ftest(:)
+
+! allocate(ftest(ntotbeadx3))
 
 !    this%Fev=0._wp
     do iint=1, size(this%nlst,1)
       i=this%nlst(iint,1)
       j=this%nlst(iint,2)
+
+
       rijx=Rbx(i)-Rbx(j)
       rijy=Rby(i)-Rby(j)
       rijz=Rbz(i)-Rbz(j)
@@ -280,6 +289,10 @@ ef: do
           rijx=costh*rijx-sinth*rijytmp
       end select
       rijsq=rijx*rijx+rijy*rijy+rijz*rijz
+
+      ! print*,'i,j',i,j,rijsq
+
+
       if (rijsq <= rc_F**2) then
         Fevij=this%fctr*[rijx,rijy,rijz]*exp(-rijsq*this%efctr)
         Fx(i)=Fx(i)+Fevij(1)
@@ -288,6 +301,14 @@ ef: do
         Fx(j)=Fx(j)-Fevij(1)
         Fy(j)=Fy(j)-Fevij(2)
         Fz(j)=Fz(j)-Fevij(3)
+
+        ! ftest((i-1)*3+1)=Fevij(1)
+        ! ftest((i-1)*3+2)=Fevij(2)
+        ! ftest((i-1)*3+3)=Fevij(3)        
+        ! ftest((j-1)*3+1)=-Fevij(1)
+        ! ftest((j-1)*3+2)=-Fevij(2)
+        ! ftest((j-1)*3+3)=-Fevij(3)
+        
 !        this%Fevx(i)=this%Fevx(i)+this%fctr*rijx*exp(-rijsq*this%efctr)
 !        this%Fevy(i)=this%Fevy(i)+this%fctr*rijy*exp(-rijsq*this%efctr)
 !        this%Fevz(i)=this%Fevz(i)+this%fctr*rijz*exp(-rijsq*this%efctr)
@@ -302,6 +323,7 @@ ef: do
       end if
     end do
 
+! call print_vector(ftest,'f_h')
 !    F=F+this%Fev
 
   end subroutine update_force

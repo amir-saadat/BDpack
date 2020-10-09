@@ -27,13 +27,16 @@ program BDpack
   use :: mpi
 #ifdef USE_GPU
   use :: dev_cumod, only: init_dev
+#ifdef USE_MAGMA
+  use :: magma_cumod, only: init_magma
+#endif
 #endif
 
   implicit none
 
 
   ! MPI variables
-  integer :: ierr,p,id,narg
+  integer :: ierr,p,id,narg,dev_id
   character(len=20) :: inpFile
   character(len=20) :: driver
 
@@ -46,10 +49,12 @@ program BDpack
   call MPI_Comm_rank(MPI_COMM_WORLD,id,ierr)
 
 #ifdef USE_GPU
-  ! Initialize GPU devices
-  call init_dev()
+  ! Initialize GPU device
+  call init_dev(id,dev_id)
+#ifdef USE_MAGMA
+  call init_magma()
 #endif
-
+#endif
 
   narg=command_argument_count()
   if (narg /= 0) then
@@ -135,7 +140,7 @@ ef: do
           if (trim(adjustl(tokens(j))) == 'driver') then
             driver=trim(adjustl(tokens(j+1)))
           end if
-        end do ! j       
+        end do ! j
       end if ! ntokens
     end do ef
 

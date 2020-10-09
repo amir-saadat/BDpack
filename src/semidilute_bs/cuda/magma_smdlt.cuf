@@ -1,0 +1,64 @@
+module magma_smdlt
+
+  use :: cudafor
+  use,intrinsic :: iso_c_binding
+
+  implicit none
+
+  ! Interfaces to magma routines
+  interface
+
+    real(c_double) function magma_dasum	(	n,dx,incx,queue ) &
+    bind(C, name="magma_dasum")
+        use iso_c_binding
+        import c_ptr
+        !dir$ ignore_tkr(tr) dx
+        double precision,device :: dx(*)
+        integer(c_int), value :: n,incx
+        type(c_ptr), value :: queue  !! queue_t
+    end function
+
+    subroutine magma_daxpy ( n,alpha,dx,incx,dy,incy,queue ) &
+    bind(C, name="magma_saxpy")
+      use iso_c_binding
+      import c_ptr
+      real(c_double), value :: alpha
+      !dir$ ignore_tkr(tr) dx, (tr) dy
+      double precision,device :: dx(*),dy(*)
+      integer(c_int), value :: n,incx,incy
+      type(c_ptr), value :: queue  !! queue_t
+    end subroutine
+
+    subroutine magma_dgemm ( transA,transB,m,n,k,alpha,dA,ldda,dB,lddb,beta,dC,lddc,queue ) &
+    bind(C, name="magma_dgemm")
+      use iso_c_binding
+      import c_ptr
+      integer(c_int), value :: transA,transB
+      real(c_double), value :: alpha,beta
+      !dir$ ignore_tkr(tr) dA, (tr) dB, (tr) dC
+      double precision,device :: dA(*),dB(*),dC(*)
+      integer(c_int), value :: m,n,k,ldda,lddb,lddc
+      type(c_ptr), value :: queue  !! queue_t
+    end subroutine
+
+    integer(c_int) function magma_dgecsrmv ( transA,m,n,alpha,dval,drowptr,&
+      dcolind,dx,beta,dy,queue ) &
+    bind(C, name="magma_dgecsrmv")
+      use iso_c_binding
+      import c_ptr
+      integer(c_int), value :: transA
+      real(c_double), value :: alpha,beta
+      !dir$ ignore_tkr(tr) dval
+      double precision,device :: dval(*)
+      !dir$ ignore_tkr(tr) drowptr, (tr) dcolind
+      integer,device :: drowptr(*),dcolind(*)
+      !dir$ ignore_tkr(tr) dx, (tr) dy
+      double precision,device :: dx(*),dy(*)
+      integer(c_int), value :: m,n
+      type(c_ptr), value :: queue  !! queue_t
+    end function
+
+  end interface
+
+
+end module magma_smdlt

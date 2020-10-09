@@ -739,7 +739,7 @@ contains
 
   end subroutine RbtoRbc
 
-  !> Converting Q to Fseg (only for linear chains)
+  !> Converting Q to Fseg
   !! \param Q connectivity vectors
   !! \param Fseg spring forces
   subroutine QtoFseg(Q,Fseg,ForceLaw,qmax,ntotseg)
