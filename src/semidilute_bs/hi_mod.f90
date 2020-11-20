@@ -213,7 +213,7 @@ contains
     rc_D=20._wp;skin_D=0.2_wp
     InterpMethod='BSpline';p_PME=4
     K_mesh=65;kmeshset=.false.
-    maxNb_list_D=min(5000000,ntotbead**2)
+    maxNb_list_D=5000000000!max(5000000000,ntotbead**2)
     DecompMeth='Cholesky'
     ncols=1
     mBlLan=3;mubBlLan=15;mset=.false.
@@ -270,8 +270,6 @@ ef: do
               call value(tokens(j+2),skin_D,ios)
             case ('Nblist-size')
               call value(tokens(j+1),maxNb_list_D,ios)
-            case ('Decomp-method')
-              DecompMeth=trim(adjustl(tokens(j+1)))
             case ('ncols')
               call value(tokens(j+1),ncols,ios)
             case ('m')
@@ -346,7 +344,6 @@ ef: do
 
     ! Allocation of arrays for Brownian noise:
     allocate(dw_bl(ntotbeadx3,ncols),dw_bltmp(ntotbeadx3,ncols))
-    print*,'heyhey',size(dw_bltmp)
     call setupKSPACE(myrank,bs,ntotbead)
     if (DecompMeth == 'Lanczos') then
       allocate(aBlLan(ntotbeadx3,ncols),WBlLan(ntotbeadx3,ncols))
