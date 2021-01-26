@@ -114,7 +114,7 @@ contains
     integer :: il,j,ntokens,u1,stat,ios
     real(wp),allocatable :: u(:)
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
 
     ! Default values
     driver='dilute_bs'
