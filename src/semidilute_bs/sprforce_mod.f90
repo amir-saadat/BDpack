@@ -93,7 +93,7 @@ contains
     integer,intent(in) :: id
     integer :: il,j,ntokens,u1,stat,ios
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
 
     ! default values:
     ForceLaw='Hookean'

@@ -105,7 +105,7 @@ contains
 
     integer,intent(in) :: id
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
     integer :: i,j,ntokens,u1,il,stat
 
     ! Default values:

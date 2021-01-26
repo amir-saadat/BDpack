@@ -161,7 +161,7 @@ contains
     integer,intent(in) :: id,nsegx3,nbeadx3,nchain,ntotchain,ntotsegx3,ntotbeadx3,nprun
     integer :: i,j,ntokens,u1,stat,ios,il
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
 
     ! default values:
     DumpConf=.false.
@@ -249,7 +249,7 @@ ef: do
     integer :: stat1,stat2,stat3,stat4,stat5,stat6
     integer :: u1,u2,u3,u4,u5,u6,i,j,ios,ntokens,stat,il
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
 
 
     ! default values:

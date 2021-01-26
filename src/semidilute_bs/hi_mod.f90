@@ -203,7 +203,7 @@ contains
     real(wp),intent(in) :: bs(3)
     integer :: u1,i,j,ios,ntokens,ierr,il,stat
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
 
     ! default values:
     hstar=0._wp
@@ -213,7 +213,7 @@ contains
     rc_D=20._wp;skin_D=0.2_wp
     InterpMethod='BSpline';p_PME=4
     K_mesh=65;kmeshset=.false.
-    maxNb_list_D=5000000000!max(5000000000,ntotbead**2)
+    maxNb_list_D=50000000!max(5000000000,ntotbead**2)
     DecompMeth='Cholesky'
     ncols=1
     mBlLan=3;mubBlLan=15;mset=.false.
@@ -245,6 +245,10 @@ ef: do
               call value(tokens(j+1),hstar,ios)
             case ('HITens')
               HITens=trim(adjustl(tokens(j+1)))
+            case ('DecompMeth')
+              DecompMeth=trim(adjustl(tokens(j+1)))
+            case ('Decomp-method')      
+              DecompMeth=trim(adjustl(tokens(j+1)))
             case ('HIcalc-mode')
               HIcalc_mode=trim(adjustl(tokens(j+1)))
             case ('Interp-method')
@@ -586,6 +590,7 @@ ef: do
         stop
       end if
     end if
+    write(*,*) DecompMeth
     if (DecompMeth == 'Lanczos') then
       deallocate(aBlLan,WBlLan,VBlLan,Ybar,VcntBlLan)
     end if

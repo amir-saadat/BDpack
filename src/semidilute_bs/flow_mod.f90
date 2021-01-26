@@ -75,7 +75,7 @@ contains
     integer,intent(in) :: id
     integer :: i,j,ntokens,u1,il,stat
     character(len=1024) :: line 
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
 
     open (newunit=u1,action='read',file='input.dat',status='old')
     il=1
@@ -107,17 +107,19 @@ ef: do
 
   !> Constructor for flow type
   !! \param
-  subroutine init_flow_t(this,nchain,nbead)
-
+  !subroutine init_flow_t(this,nchain,nbead)
+  subroutine init_flow_t(this,ntotbeadx3)  
+  !MB
     use :: arry_mod, only: print_vector
 
     class(flow),intent(inout) :: this
-    integer,intent(in) :: nchain,nbead
-    integer :: maxnz,ich,os,ibx3,nbeadx3,ntotbeadx3
+    !integer,intent(in) :: nchain,nbead  !MB
+	integer,intent(in) :: ntotbeadx3 !MB
+    integer :: maxnz,ich,os,ibx3,nbeadx3,ntotbead
 
-    nbeadx3=nbead*3
-    ntotbeadx3=nchain*nbead*3
-
+    !nbeadx3=nbead*3  !MB
+    !ntotbead=nbead*nchain
+	!ntotbeadx3=ntotbead*3
 
     !!!!!! should be fixed for comb polymer
 
@@ -125,53 +127,100 @@ ef: do
     ! Specifying kappa based on type of flow
     select case (FlowType)
       case ('PSF')
-        !    | 0  1  0 |
+!        !    | 0  1  0 |
+!        !  k=| 0  0  0 |
+!        !    | 0  0  0 |
+!        maxnz=nchain*nbead
+!        allocate(this%K_vals(maxnz))
+!        allocate(this%K_cols(maxnz))
+!        allocate(this%K_rowIdx(ntotbeadx3+1))
+!        this%K_rowIdx(1)=1
+!        do ich=1, nchain
+!          os=(ich-1)*nbead
+!          do ibx3=1, nbeadx3
+!            if (mod(ibx3,3) == 1) then ! Only first row of 3x3 matrix k matters.
+!              this%K_cols(os+ibx3/3+1)=os*3+ibx3+1
+!             this%K_vals(os+ibx3/3+1)=1._wp
+!              this%K_rowIdx(os*3+ibx3+1)=this%K_rowIdx(os*3+ibx3)+1
+!            else
+!              this%K_rowIdx(os*3+ibx3+1)=this%K_rowIdx(os*3+ibx3)
+!            end if
+!          end do
+!        end do
+		!    | 0  1  0 |
         !  k=| 0  0  0 |
         !    | 0  0  0 |
-        maxnz=nchain*nbead
+        maxnz=ntotbeadx3/3
         allocate(this%K_vals(maxnz))
         allocate(this%K_cols(maxnz))
         allocate(this%K_rowIdx(ntotbeadx3+1))
         this%K_rowIdx(1)=1
-        do ich=1, nchain
-          os=(ich-1)*nbead
-          do ibx3=1, nbeadx3
+!        do ich=1, nchain
+!          os=(ich-1)*nbead
+!          do ibx3=1, nbeadx3
+          do ibx3=1, ntotbeadx3
             if (mod(ibx3,3) == 1) then ! Only first row of 3x3 matrix k matters.
-              this%K_cols(os+ibx3/3+1)=os*3+ibx3+1
-              this%K_vals(os+ibx3/3+1)=1._wp
-              this%K_rowIdx(os*3+ibx3+1)=this%K_rowIdx(os*3+ibx3)+1
+              this%K_cols(ibx3/3+1)=ibx3+1
+              this%K_vals(ibx3/3+1)=1._wp
+              this%K_rowIdx(ibx3+1)=this%K_rowIdx(ibx3)+1
             else
-              this%K_rowIdx(os*3+ibx3+1)=this%K_rowIdx(os*3+ibx3)
+              this%K_rowIdx(ibx3+1)=this%K_rowIdx(ibx3)
             end if
           end do
-        end do
+!        end do
       ! For planar extensional flow:
       case ('PEF')
-        !    | 1  0  0 |
+!        !    | 1  0  0 |
+!        !  k=| 0 -1  0 |
+!        !    | 0  0  0 |
+!        maxnz=nchain*2*nbead
+!        allocate(this%K_vals(maxnz))
+!        allocate(this%K_cols(maxnz))
+!        allocate(this%K_rowIdx(ntotbeadx3+1))
+!        this%K_rowIdx(1)=1
+!        do ich=1, nchain
+!          os=(ich-1)*nbead
+!          do ibx3=1, nbeadx3
+!            select case (mod(ibx3,3))
+!              case (1) ! First row of kappa
+!                this%K_cols((os+ibx3/3)*2+1)=os*3+ibx3
+!                this%K_vals((os+ibx3/3)*2+1)=1._wp
+!                this%K_rowIdx(os*3+ibx3+1)=this%K_rowIdx(os*3+ibx3)+1
+!              case (2) ! Second row of kappa
+!                this%K_cols((os+ibx3/3)*2+2)=os*3+ibx3
+!                this%K_vals((os+ibx3/3)*2+2)=-1._wp
+!                this%K_rowIdx(os*3+ibx3+1)=this%K_rowIdx(os*3+ibx3)+1
+!              case (0) ! Third row of kappa
+!                this%K_rowIdx(os*3+ibx3+1)=this%K_rowIdx(os*3+ibx3)
+!            end select
+!          end do
+!        end do
+		!    | 1  0  0 |
         !  k=| 0 -1  0 |
         !    | 0  0  0 |
-        maxnz=nchain*2*nbead
+        maxnz=2*ntotbeadx3/3
         allocate(this%K_vals(maxnz))
         allocate(this%K_cols(maxnz))
         allocate(this%K_rowIdx(ntotbeadx3+1))
         this%K_rowIdx(1)=1
-        do ich=1, nchain
-          os=(ich-1)*nbead
-          do ibx3=1, nbeadx3
+!        do ich=1, nchain
+!          os=(ich-1)*nbead
+!          do ibx3=1, nbeadx3
+           do ibx3=1, ntotbeadx3
             select case (mod(ibx3,3))
               case (1) ! First row of kappa
-                this%K_cols((os+ibx3/3)*2+1)=os*3+ibx3
-                this%K_vals((os+ibx3/3)*2+1)=1._wp
-                this%K_rowIdx(os*3+ibx3+1)=this%K_rowIdx(os*3+ibx3)+1
+                this%K_cols((ibx3/3)*2+1)=ibx3
+                this%K_vals((ibx3/3)*2+1)=1._wp
+                this%K_rowIdx(ibx3+1)=this%K_rowIdx(ibx3)+1
               case (2) ! Second row of kappa
-                this%K_cols((os+ibx3/3)*2+2)=os*3+ibx3
-                this%K_vals((os+ibx3/3)*2+2)=-1._wp
-                this%K_rowIdx(os*3+ibx3+1)=this%K_rowIdx(os*3+ibx3)+1
+                this%K_cols((ibx3/3)*2+2)=ibx3
+                this%K_vals((ibx3/3)*2+2)=-1._wp
+                this%K_rowIdx(ibx3+1)=this%K_rowIdx(ibx3)+1
               case (0) ! Third row of kappa
-                this%K_rowIdx(os*3+ibx3+1)=this%K_rowIdx(os*3+ibx3)
+                this%K_rowIdx(ibx3+1)=this%K_rowIdx(ibx3)
             end select
           end do
-        end do
+!        end do
        ! For uniaxial extensional flow:
        case ('UEF')
 

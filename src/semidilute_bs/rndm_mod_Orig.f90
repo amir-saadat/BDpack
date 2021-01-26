@@ -26,7 +26,7 @@
 !
 !> @author
 !> Amir Saadat, The University of Tennessee-Knoxville, Dec 2015
-!!Modified by MB
+!
 ! DESCRIPTION: 
 !> Constructs a Brownian noise using random number generator
 !--------------------------------------------------------------------
@@ -49,26 +49,6 @@ module rndm_mod
   !> The type of flow applied to the entities inside the box
   character(len=10) :: FlowType
   
-  !Modified by MB
-  integer  function seedG()
-
-    real(wp) :: seedtmp
-    integer :: s,i,msec,n,time_info(8)
-    integer(long), allocatable :: seed(:)
-    
-    call date_and_time(values=time_info)
-    msec=(60000*time_info(6)+1000*time_info(7)+time_info(8))  !*((myrank-83)*359) ! a random integer
-    call random_seed(size=n) ! get the number of integers used for the seed
-    ! This is because we want different order of random numbers in each call
-    allocate(seed(n))
-    do i=1,n
-      seed(i)=i*msec
-    end do
-    call random_seed(put=seed) ! give a proper seed
-    call random_number(seedtmp) ! generate a sequence of nchain pseudo
-    seedG=floor(300000000*seedtmp)
-    deallocate(seed)
-  end function seedG
 
   function seedgen(myrank)
 
@@ -83,7 +63,7 @@ module rndm_mod
      ! This is because we want different order of random numbers in each call
      call random_seed(put=(/(i*msec,i=1,n)/)) ! give a proper seed
      call random_number(seedtmp) ! generate a sequence of nchain pseudo
-     seedgen=floor(3000000000*seedtmp)
+     seedgen=floor(2000000000*seedtmp)
 
   end function seedgen
 
@@ -98,8 +78,7 @@ module rndm_mod
     common /ranbls/ idum,idum2,iy,iv
 
     ! Initial seeds for two random number generators
-    !idum=iseed+123456789
-	idum = 500000000+seedG()+123456789  !MB
+    idum=iseed+123456789
     idum2=idum
 
     ! Load the shuffle table (after 8 warm-ups)

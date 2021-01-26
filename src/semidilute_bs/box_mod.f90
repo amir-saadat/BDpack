@@ -246,7 +246,7 @@ contains
     integer,intent(in) :: myrank,nprun
     integer :: j,ntokens,u1,il,stat,size_sp,size_dp,ierr,ios
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
     real(wp),parameter :: PI=3.1415926535897958648_wp
     real(wp) :: b,hstar
     character(len=10) :: LambdaMethod
@@ -471,7 +471,8 @@ contains
     this%origin=0._wp
 
     ! Instantiation of Boxflow:
-    call this%Boxflow%init(nchain,nbead) !!!! should be fixed for comb
+    !call this%Boxflow%init(nchain,nbead) !!!! should be fixed for comb
+	call this%Boxflow%init(ntotbeadx3) !!! MB also fixed on flow_mod.f90 init_flow_t(...)
     ! zero-size allocation is for avoiding passing a null-array to a subroutine
     select case (FlowType)
       case ('Equil')

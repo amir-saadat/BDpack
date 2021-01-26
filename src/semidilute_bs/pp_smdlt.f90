@@ -157,7 +157,7 @@ contains
     character(len=1024) :: file1,file2,file3,file4,file5,file6,file7,file8,file9
     character(len=1024) :: file10,file11,file12,file13,file14,file15,file16,file17,file18
     character(len=1024) :: format_str,line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
     integer :: i,j,ntokens,u0,il,stat,ierr
 
     ! Default values:

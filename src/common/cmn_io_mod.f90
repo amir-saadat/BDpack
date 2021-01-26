@@ -64,7 +64,7 @@ contains
     character(len=*),intent(in),optional :: def
     integer :: i,j,ntokens,u1,il,stat
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
     character(len=20) :: inpFile
 
     narg=command_argument_count()
@@ -127,7 +127,7 @@ ef: do
     integer,intent(in),optional :: def
     integer :: i,j,ntokens,u1,il,stat
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
     character(len=20) :: inpFile
 
     narg=command_argument_count()
@@ -191,7 +191,7 @@ ef: do
     logical,intent(in),optional :: def
     integer :: i,j,ntokens,u1,il,stat
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
     character(len=20) :: inpFile
 
     narg=command_argument_count()
@@ -266,7 +266,7 @@ ef: do
     real(wp),intent(in),optional :: def
     integer :: i,j,ntokens,u1,il,stat
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
     character(len=20) :: inpFile
 
     narg=command_argument_count()
