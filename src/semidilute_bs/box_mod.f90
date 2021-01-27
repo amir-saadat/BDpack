@@ -1105,8 +1105,8 @@ contains
     integer,intent(in) :: id,irun,itime,tgap,ntime,nrun,nprun
     real(wp),intent(in) :: time,Wi,Pe,dt,tss,trst,tend
 
-    call material_func(id,irun,itime,time,Wi,Pe,dt,tgap,ntime,nchain,nseg,nbead,nsegx3,nbeadx3,&
-              lambda,tss,trst,MPI_REAL_WP,nrun,nprun,tend,this%size,this%BoxChains,this%R_tilde)
+    call material_func(id,irun,itime,time,Wi,Pe,dt,tgap,ntime,nchain,nseg,nbead,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,nseg_cmbbb,&
+              add_cmb,ntotchain,lambda,tss,trst,MPI_REAL_WP,nrun,nprun,tend,this%size,this%BoxChains,this%R_tilde)
 
   end subroutine calc_mat_fcn
 

@@ -115,10 +115,12 @@ module pp_smdlt
             del_pp
 
   public :: StrCalc,StrPr_mode,RgCalc,CoMDiff,AveIterCalc,&
-               CorFun,CF_mode,cf_ree,cf_rg,kchk
+               CorFun,CF_mode,cf_ree,cf_rg,kchk,add_cmb
 !  protected :: StrCalc,StrPr_mode,RgCalc,CoMDiff,AveIterCalc,&
 !               CorFun,CF_mode
 
+  !> If the Comb chains exist
+  logical,protected :: add_cmb
   !> If the stress calculation is desired
   logical,protected :: StrCalc
   !> If the timing report is intended
@@ -684,7 +686,7 @@ ef: do
       select case (CF_mode)
         case ('Ree')
           if (allocated(cf_ree)) deallocate(cf_ree)
-          allocate(cf_ree(3,ntime/tgap,nchain,nprun))
+          allocate(cf_ree(3,ntime/tgap,ntotchain,nprun))
         case ('Rg')
           if (allocated(cf_rg)) deallocate(cf_rg)
           allocate(cf_rg(ntotbeadx3,ntime/tgap,nprun))
@@ -694,9 +696,12 @@ ef: do
   end subroutine data_run_init
 
 
-  subroutine material_func(myrank,irun,itime,time,Wi,Pe,dt,tgap,ntime,nchain,nseg,nbead,&
-                  nsegx3,nbeadx3,lambda,tss,trst,MPI_REAL_WP,nrun,nprun,tend,bs,chains,R)
 
+  !!> material_func 
+  subroutine material_func(myrank,irun,itime,time,Wi,Pe,dt,tgap,ntime,nchain,nseg,nbead,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,nseg_cmbbb,&
+               add_cmb,ntotchain,lambda,tss,trst,MPI_REAL_WP,nrun,nprun,tend,bs       ,chains        ,R)
+ !      call material_func(id,irun,itime,time,Wi,Pe,dt,tgap,ntime,nchain,nseg,nbead,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,&
+ !             add_cmb,ntotchain,lambda,tss,trst,MPI_REAL_WP,nrun,nprun,tend,this%size,this%BoxChains,this%R_tilde)
     use :: hi_mod, only: DecompMeth,mst
     use :: chain_mod, only: chain
     use :: arry_mod, only: print_vector,print_matrix
@@ -707,8 +712,11 @@ ef: do
     !include 'mpif.h'
 
     integer,intent(in) :: myrank,irun,itime,ntime,tgap,nchain,nseg,nbead,nsegx3,nbeadx3
+	integer,intent(in) :: nchain_cmb,nseg_cmb,ntotchain,nseg_cmbbb
+	integer            :: nbead_cmb,nbead_cmbx3
+	logical,intent(in) :: add_cmb
     integer,intent(in) :: MPI_REAL_WP,nrun,nprun
-    type(chain),intent(in) :: chains(:)
+    type(chain),intent(in) :: chains(:) ! this%BoxChains
     real(wp),intent(in) :: Wi,Pe,dt,time,R(:),lambda,tss,trst,tend,bs(3)
     integer :: jchain,ierr,i,j,info,icount
     real(wp) :: rcmtmp(3),rcmExcess(3),rcmTot(3),RgSqTensEV(3),RgSqEVdiff(3)
@@ -724,10 +732,15 @@ ef: do
     character(len=99),parameter :: fmtife3f="(i4,1x,f14.7,1x,e11.3,1x,3(f14.7,2x))"
     character(len=99),parameter :: fmtae3f="(a,1x,e11.3,1x,3(f14.7,2x))"
     character(len=99),parameter :: fmtie2f="(i4,1x,e11.3,1x,2(f14.7,2x))"
-
+    
+	if (add_cmb) then
+    nbead_cmb=nseg_cmb+1
+	nbead_cmbx3=nbead_cmb*3
+	end if
+	
     lcount=lcount+1
     if (StrCalc) then
-      call StressCalc(itime,time,ntime,irun,myrank,nchain,nseg,nsegx3,nbeadx3,tss,lambda,&
+      call StressCalc(itime,time,ntime,irun,myrank,nchain,nseg,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,nseg_cmbbb,ntotchain,add_cmb,tss,lambda,&
                         nrun,tend,chains,R)
     end if ! StrCalc
 
@@ -740,9 +753,18 @@ ef: do
         rcmtot=rcmtmp+rcmExcess-rcmst(jchain,:,irun)
         DcmAve=DcmAve+dot_product(rcmtot,rcmtot)             
         sdDcmAve=sdDcmAve+dot_product(rcmtot,rcmtot)*dot_product(rcmtot,rcmtot)
-        
       end do
+	  if (add_cmb) then
+        do jchain=1, nchain_cmb
+            rcmtmp=chains(jchain+nchain)%chain_rcm(:)!rcm(:,jchain)
+            rcmExcess(:)=bs(:)*chains(jchain+nchain)%chain_cmif(:)
+            rcmtot=rcmtmp+rcmExcess-rcmst(jchain+nchain,:,irun)
+            DcmAve=DcmAve+dot_product(rcmtot,rcmtot)             
+            sdDcmAve=sdDcmAve+dot_product(rcmtot,rcmtot)*dot_product(rcmtot,rcmtot)
+        end do
+	  end if !add_cmb
     end if ! CoMDiff
+	
     ! Radius of gyration:
     if (RgCalc) then
       ! R=rv-rcm
@@ -773,12 +795,42 @@ ef: do
         AspherAve=AspherAve+Aspher
         sdAspherAve=sdAspherAve+Aspher*Aspher
       end do
+	  
+	  if (add_cmb) then
+	  do jchain=1, nchain_cmb
+        do j=1, 3
+          RPj => chains(jchain+nchain)%chain_R(j:nbead_cmbx3-(3-j):3)
+          do i=1, 3
+            RPi => chains(jchain+nchain)%chain_R(i:nbead_cmbx3-(3-i):3)
+            RgSqTens(i,j)=1._wp/nbead_cmb*dot(RPi,RPj)
+          end do
+        end do
+        traceRgSqTens=0._wp
+        do i=1, 3
+          traceRgSqTens=traceRgSqTens+RgSqTens(i,i)
+        end do
+        RgSqTensEVbar=traceRgSqTens/3
+        call syev(RgSqTens,RgSqTensEV,jobz='N',info=info)
+        if (info /= 0) then
+          write(*,*) 'Unsuccessful eigenvalue computation For Rg^2 Tensor in main'
+          write(*,'(a,1x,i3)') 'info:',info
+          stop
+        end if
+        RgSqEVdiff(:)=RgSqTensEV(:)-RgSqTensEVbar
+        Aspher=1._wp/6/RgSqTensEVbar**2*dot_product(RgSqEVdiff,RgSqEVdiff)
+        RgSqAve=RgSqAve+traceRgSqTens
+        sdRgSqAve=sdRgSqAve+traceRgSqTens*traceRgSqTens
+        AspherAve=AspherAve+Aspher
+        sdAspherAve=sdAspherAve+Aspher*Aspher
+      end do !
+	  end if !add_cmb
+	  
     end if ! RgCalc
 
     ! Evaluations as a function of time:
     if (StrCalc) then
-      sdsqqetoeAve=sqrt(abs(sdsqqetoeAve-sqqetoeAve*sqqetoeAve)/(nchain-1))
-      sdqetoeAve=sqrt(abs(sdqetoeAve-qetoeAve*qetoeAve)/(nchain-1))
+      sdsqqetoeAve=sqrt(abs(sdsqqetoeAve-sqqetoeAve*sqqetoeAve)/(ntotchain-1))
+      sdqetoeAve=sqrt(abs(sdqetoeAve-qetoeAve*qetoeAve)/(ntotchain-1))
       ! For run average:
       if (nrun > 1) then
         rAvesqqetoe(lcount)=rAvesqqetoe(lcount)+sqqetoeAve
@@ -814,9 +866,11 @@ ef: do
                 write(u25,fmtfeff) Wi,dt,time,-tauxxyy/Pe**2
                 write(u26,fmtfeff) Wi,dt,time,-tauyyzz/Pe**2
               end if ! nrun
-            else
+            !else
+			end if
+			if (FlowType == 'PEF') then
 !             Not implemented yet!
-!              write(u9,fmtfef) Pe*time,dt,-tauxxyy/Pe
+              write(u9,fmtfef) Pe*time,dt,-tauxxyy/Pe
             end if
           end if
         case ('Stress')
@@ -846,12 +900,12 @@ ef: do
       end if
     end if ! AveIterCalc
     if ((FlowType == 'Equil').and.CoMDiff) then
-      MSDAve=DcmAve/nchain
-      sdMSDAve=sdDcmAve/nchain
-      sdMSDAve=sqrt(abs(sdMSDAve-MSDAve**2)/(nchain-1))
-      DcmAve=DcmAve/(6*time*nchain)
-      sdDcmAve=sdDcmAve/(36*time*time*nchain)
-      sdDcmAve=sqrt(abs(sdDcmAve-DcmAve**2)/(nchain-1))
+      MSDAve=DcmAve/ntotchain
+      sdMSDAve=sdDcmAve/ntotchain
+      sdMSDAve=sqrt(abs(sdMSDAve-MSDAve**2)/(ntotchain-1))
+      DcmAve=DcmAve/(6*time*ntotchain)
+      sdDcmAve=sdDcmAve/(36*time*time*ntotchain)
+      sdDcmAve=sqrt(abs(sdDcmAve-DcmAve**2)/(ntotchain-1))
       ! For run averages:
       if (nrun > 1) then
         rAveMSD(lcount)=rAveMSD(lcount)+MSDAve
@@ -864,13 +918,14 @@ ef: do
         write(u19,fmtfefff) Wi,dt,time,DcmAve,sdDcmAve
       end if ! nrun
     end if
+	
     if (RgCalc) then
-      RgSqAve=RgSqAve/nchain
-      AspherAve=AspherAve/nchain
-      sdRgSqAve=sdRgSqAve/nchain
-      sdAspherAve=sdAspherAve/nchain
-      sdRgSqAve=sqrt(abs(sdRgSqAve-RgSqAve**2)/(nchain-1))
-      sdAspherAve=sqrt(abs(sdAspherAve-AspherAve**2)/(nchain-1))
+      RgSqAve=RgSqAve/ntotchain
+      AspherAve=AspherAve/ntotchain
+      sdRgSqAve=sdRgSqAve/ntotchain
+      sdAspherAve=sdAspherAve/ntotchain
+      sdRgSqAve=sqrt(abs(sdRgSqAve-RgSqAve**2)/(ntotchain-1))
+      sdAspherAve=sqrt(abs(sdAspherAve-AspherAve**2)/(ntotchain-1))
 !     For run average:
       if (nrun > 1) then
         rAveRgSq(lcount)=rAveRgSq(lcount)+RgSqAve
@@ -878,7 +933,7 @@ ef: do
 !       Comment out if you want in detail information of each process.
 !        write(u18,fmtfefff) Wi,dt,time,RgSqAve,sdRgSqAve
       else ! nrun=1
-        write(u18,fmtfefff) Wi,dt,time,RgSqAve,sdRgSqAve
+        write(u18,fmtfefff) Wi,dt,time,RgSqAve,sdRgSqAve  !Rg
       end if
     end if
 
@@ -1024,7 +1079,7 @@ ef: do
             sdrAvetAvetauxxyy=sdrAvetAvetauxxyy+tauxxyy*tauxxyy
             sdrAvetAvetauyyzz=sdrAvetAvetauyyzz+tauyyzz*tauyyzz
           end if
-          write(u4,fmtfe2f) Wi,dt,qetoeAve/(qmx*nseg),sdqetoeAve/(qmx*nseg)
+          write(u4,fmtfe2f) Wi,dt,qetoeAve/(qmx*nseg),sdqetoeAve/(qmx*nseg)  !normalised based on linear chainsegment
           select case (StrPr_mode)
             case ('Visc')
               if (FlowType /= 'Equil') then
@@ -1286,7 +1341,9 @@ ef: do
 
   end subroutine material_func
 
-  subroutine StressCalc(itime,time,ntime,irun,myrank,nchain,nseg,nsegx3,nbeadx3,tss,lambda,&
+
+  !!> StressCalc
+  subroutine StressCalc(itime,time,ntime,irun,myrank,nchain,nseg,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,nseg_cmbbb,ntotchain,add_cmbtss,lambda,&
                         nrun,tend,chains,R)
 
     use :: chain_mod, only: chain
@@ -1304,7 +1361,15 @@ ef: do
     real(wp) :: txx,txy,tyy,tzz,txxyy,tyyzz,qetoex,qetoey,qetoez,sqqetoe,qetoe
     real(wp) :: txz,tyx,tyz,tzx,tzy,tauxz,tauyx,tauyz,tauzx,tauzy,rFev(4)
     integer :: ichain,offsetb,offsets
-
+    integer,intent(in) :: nchain_cmb,nseg_cmb,ntotchain,nseg_cmbbb  !,add_cmb
+	integer            :: nbead_cmb,nbead_cmbx3
+	logical,intent(in) :: add_cmb
+	
+	if (add_cmb) then
+    nbead_cmb=nseg_cmb+1
+	nbead_cmbx3=nbead_cmb*3
+	end if
+	
 !   !-------------------------------------------------------------------------!
 !   ! Stress is calculated for each chain by summing up the contribution      !
 !   !   of all segments. Then all chain stresses in each process will be      !
@@ -1327,6 +1392,7 @@ ef: do
       end if
       kchk=kchk+1
     end if
+	!linear chians firts
     do ichain=1, nchain
       offsetb=(chains(ichain)%chain_ID-1)*nbeadx3
       offsets=(chains(ichain)%chain_ID-1)*nsegx3
@@ -1348,39 +1414,66 @@ ef: do
       sdsqqetoeAve=sdsqqetoeAve+sqqetoe*sqqetoe
       sdqetoeAve=sdqetoeAve+qetoe*qetoe
     end do! chain loop
-  
-    sqqetoeAve=sqqetoeAve/nchain
-    qetoeAve=qetoeAve/nchain
-    sdsqqetoeAve=sdsqqetoeAve/nchain
-    sdqetoeAve=sdqetoeAve/nchain
+    if (add_cmb) then
+      do ichain=1, nchain_cmb
+        offsetb=(chains(nchain)%chain_ID-1)*nbeadx3+(chains(ichain+nchain)%chain_ID-chains(nchain)%chain_ID-1)*nbead_cmbx3
+        offsets=(chains(ichain)%chain_ID-1)*nsegx3+(chains(ichain+nchain)%chain_ID-chains(ichain)%chain_ID-1)*(nseg_cmb*3)
+        qP => chains(ichain+nchain)%chain_Q(:)
+		
+        qPx => chains(ichain+nchain)%chain_Q(1:(nseg_cmbbb*3)-2:3)
+        qPy => chains(ichain+nchain)%chain_Q(2:(nseg_cmbbb*3)-1:3) 
+        qPz => chains(ichain+nchain)%chain_Q(3:(nseg_cmbbb*3):3)
 
-    tauxx = rFphi(1)/nchain
-    tauxy = rFphi(2)/nchain 
-    tauyy = rFphi(3)/nchain
-    tauzz = rFphi(4)/nchain
+        qetoex=sum(qPx);qetoey=sum(qPy);qetoez=sum(qPz)
+        sqqetoe=qetoex*qetoex+qetoey*qetoey+qetoez*qetoez
+        qetoe=sqrt(sqqetoe)
+      ! This data is stored for correlation function calculation.
+        if ((CorFun) .and. (CF_mode == 'Ree') .and. (itime /= ntime)) then
+          cf_ree(1:3,kchk,ichain+nchain,irun)=[qetoex,qetoey,qetoez]
+        end if
+        qetoeAve=qetoeAve+qetoe
+        sqqetoeAve=sqqetoeAve+sqqetoe
+        sdsqqetoeAve=sdsqqetoeAve+sqqetoe*sqqetoe
+        sdqetoeAve=sdqetoeAve+qetoe*qetoe
+      end do! chain_cmb loop
+	end if !add_cmb
+	
+    sqqetoeAve=sqqetoeAve/ntotchain
+    qetoeAve=qetoeAve/ntotchain
+    sdsqqetoeAve=sdsqqetoeAve/ntotchain
+    sdqetoeAve=sdqetoeAve/ntotchain
+
+    tauxx = rFphi(1)/ntotchain
+    tauxy = rFphi(2)/ntotchain 
+    tauyy = rFphi(3)/ntotchain
+    tauzz = rFphi(4)/ntotchain
 
     if ((CorFun) .and. (CF_mode == 'Rg') .and. (itime /= ntime)) then
       cf_rg(:,kchk,irun)=R
     end if
 
-    tauxxyy = (rFphi(1)-rFphi(3))/nchain
-    tauyyzz = (rFphi(3)-rFphi(4))/nchain
+    tauxxyy = (rFphi(1)-rFphi(3))/ntotchain
+    tauyyzz = (rFphi(3)-rFphi(4))/ntotchain
   
   end subroutine StressCalc
 
-  subroutine CorrFcn(dt,Wi,tgap,myrank,p,nchain,nbead,tend,lambda,nprun,MPI_REAL_WP)
+
+  !!> CorrFcn
+  subroutine CorrFcn(dt,Wi,tgap,myrank,p,nchain,nchain_cmb,nbead,tend,lambda,nprun,MPI_REAL_WP)
 
     use :: arry_mod, only: print_vector,print_matrix
     use :: mpi
     !include 'mpif.h'
 
-    integer,intent(in) :: tgap,myrank,p,nchain,nbead,nprun,MPI_REAL_WP
+    integer,intent(in) :: tgap,myrank,p,nchain,nchain_cmb,nbead,nprun,MPI_REAL_WP
     real(wp),intent(in) :: dt,Wi,tend,lambda
     real(wp) :: CF0(3),term,term1,term2
+	real(wp) :: CF0_cmb(3),term_cmb,term1_cmb,term2_cmb
     integer :: irun,ichain,t0,t0tmp,tt0tmp,ttmp,tcor,trun,tt0max,tt0,t,ierr,ttmpmx
     real(wp),allocatable :: CF(:),CF0t(:),CF00(:),CF0tTot(:),CF00Tot(:),sdCF(:)
-    integer,allocatable :: norm(:)
-    real(wp),pointer :: rCFT(:),rCF0(:)
+    real(wp),allocatable :: CF_cmb(:),CF0t_cmb(:),CF00_cmb(:),CF0tTot_cmb(:),CF00Tot_cmb(:),sdCF_cmb(:)
+    integer,allocatable :: norm(:), norm_cmb(:)
+    real(wp),pointer :: rCFT(:),rCF0(:) ,rCFT_cmb(:),rCF0_cmb(:)
     character(len=99),parameter :: fmtfe2f="(f8.2,1x,e11.3,1x,2(f20.7,2x))"
     character(len=99),parameter :: fmtfe3f="(f8.2,1x,e11.3,1x,3(f14.7,2x))"
 
@@ -1404,7 +1497,15 @@ ef: do
     if (myrank == 0) allocate(CF0tTot(0:ttmpmx/tgap),CF00Tot(0:ttmpmx/tgap))
     CF=0._wp;sdCF=0._wp;norm=0
     CF0t=0._wp;CF00=0._wp
-
+	
+    if (add_cmb) then
+	    allocate(CF_cmb(0:ttmpmx/tgap),sdCF_cmb(0:ttmpmx/tgap),norm_cmb(0:ttmpmx/tgap))
+		allocate(CF0t_cmb(0:ttmpmx/tgap),CF00_cmb(0:ttmpmx/tgap))
+		if (myrank == 0) allocate(CF0tTot_cmb(0:ttmpmx/tgap),CF00Tot_cmb(0:ttmpmx/tgap))
+		CF_cmb=0._wp;sdCF_cmb=0._wp;norm_cmb=0
+		CF0t_cmb=0._wp;CF00_cmb=0._wp
+	end if
+	
     select case (CF_mode)
 
       case ('Ree')
@@ -1431,6 +1532,31 @@ ef: do
             end do ! t0tmp
 
           end do ! ichain
+		  
+		  if (add_cmb) then
+         do ichain=1, nchain_cmb
+
+            do t0tmp=1, kchk
+              t0_cmb=t0tmp*tgap ! TAU0
+              CF0_cmb(:)=cf_ree(:,t0tmp,ichain+nchain,irun) ! cf(TAU0)
+              tt0max=min(trun,t0+tcor) ! ( TAU+TAU0 )max
+
+              do tt0=t0, tt0max, tgap ! TAU+TAU0
+                tt0tmp=tt0/tgap
+                t=tt0-t0
+                ttmp=t/tgap
+                term1_cmb=dot_product(CF0_cmb(:),cf_ree(:,tt0tmp,ichain+nchain,irun))
+                term2_cmb=dot_product(CF0_cmb(:),CF0_cmb(:))
+                CF0t_cmb(ttmp)=CF0t_cmb(ttmp)+term1_cmb
+                CF00_cmb(ttmp)=CF00_cmb(ttmp)+term2_cmb
+                norm_cmb(ttmp)=norm_cmb(ttmp)+1
+              end do ! tt0
+
+            end do ! t0tmp
+
+          end do ! ichain_cmb
+		  
+		  end if !add_comb
         end do ! irun
 
       case ('Rg')
@@ -1464,10 +1590,22 @@ ef: do
           case ('Ree')
             CF0tTot(ttmp)=CF0tTot(ttmp)/(p*norm(ttmp))
             CF00Tot(ttmp)=CF00Tot(ttmp)/(p*norm(ttmp))
-            write(u39,fmtfe2f) Wi,dt,ttmp*tgap*dt,CF0tTot(ttmp)/CF00Tot(ttmp)
+			if (add_cmb) then
+            CF0tTot_cmb(ttmp)=CF0tTot_cmb(ttmp)/(p*norm_cmb(ttmp))
+            CF00Tot_cmb(ttmp)=CF00Tot_cmb(ttmp)/(p*norm_cmb(ttmp))
+			write(u39,fmtfe2f) Wi,dt,ttmp*tgap*dt,CF0tTot(ttmp)/CF00Tot(ttmp),CF0tTot_cmb(ttmp)/CF00Tot_cmb(ttmp)
+			else
+			write(u39,fmtfe2f) Wi,dt,ttmp*tgap*dt,CF0tTot(ttmp)/CF00Tot(ttmp)
+			end if
+
           case ('Rg')
             CF0tTot(ttmp)=CF0tTot(ttmp)/(p*norm(ttmp))
+			if (add_cmb) then
+			CF0tTot_cmb(ttmp)=CF0tTot_cmb(ttmp)/(p*norm_cmb(ttmp))
+			write(u39,fmtfe2f) Wi,dt,ttmp*tgap*dt,CF0tTot(ttmp)/CF0tTot(0),CF0tTot_cmb(ttmp)/CF0tTot_cmb(0)
+			else
             write(u39,fmtfe2f) Wi,dt,ttmp*tgap*dt,CF0tTot(ttmp)/CF0tTot(0)
+			end if
         end select
       end do
 
@@ -1478,8 +1616,14 @@ ef: do
     kchk=0
     deallocate(CF,sdCF,norm)
     deallocate(CF0t,CF00)
+	if (add_cmb) then
+	deallocate(CF_cmb,sdCF_cmb,norm_cmb)
+    deallocate(CF0t_cmb,CF00_cmb)
+	end if
 
   end subroutine CorrFcn
+
+
 
   subroutine del_pp(myrank)
 
