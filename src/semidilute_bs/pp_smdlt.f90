@@ -603,12 +603,12 @@ ef: do
 
   !> Initializes the processing of the data for material functions at initial run
   !! \myrank the rank of the process
-  subroutine data_run_init(myrank,ntime,tgap,ndmp,nprun,nchain,ntotbeadx3)
+  subroutine data_run_init(myrank,ntime,tgap,ndmp,nprun,ntotchain,ntotbeadx3)
  
     use :: hi_mod, only: DecompMeth
     use :: flow_mod, only: FlowType
 
-    integer,intent(in) :: myrank,ntime,tgap,ndmp,nprun,nchain,ntotbeadx3
+    integer,intent(in) :: myrank,ntime,tgap,ndmp,nprun,ntotchain,ntotbeadx3
 !    integer :: ntime,tgap
    
     ! Variables for run averaging:
@@ -1343,7 +1343,7 @@ ef: do
 
 
   !!> StressCalc
-  subroutine StressCalc(itime,time,ntime,irun,myrank,nchain,nseg,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,nseg_cmbbb,ntotchain,add_cmbtss,lambda,&
+  subroutine StressCalc(itime,time,ntime,irun,myrank,nchain,nseg,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,nseg_cmbbb,ntotchain,add_cmb,tss,lambda,&
                         nrun,tend,chains,R)
 
     use :: chain_mod, only: chain
@@ -1537,7 +1537,7 @@ ef: do
          do ichain=1, nchain_cmb
 
             do t0tmp=1, kchk
-              t0_cmb=t0tmp*tgap ! TAU0
+              t0=t0tmp*tgap ! TAU0
               CF0_cmb(:)=cf_ree(:,t0tmp,ichain+nchain,irun) ! cf(TAU0)
               tt0max=min(trun,t0+tcor) ! ( TAU+TAU0 )max
 

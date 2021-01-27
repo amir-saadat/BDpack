@@ -123,7 +123,7 @@ contains
       end if
 
       ! Initializing for run averaging:
-      call data_run_init(id,ntime(idt),tgap,ndmp,nprun,nchain,ntotbeadx3)
+      call data_run_init(id,ntime(idt),tgap,ndmp,nprun,ntotchain,ntotbeadx3)
       ! Loop over run:
       do irun=runrst+1, nprun
 
@@ -293,8 +293,9 @@ contains
           ! resetting kchk
           if (irun /= nprun) kchk=0
         end do ! irun
-        if (CorFun) call CorrFcn(dt(idt),Wi(iPe),tgap,id,p,nchain,nbead,tend,&
+        if (CorFun) call CorrFcn(dt(idt),Wi(iPe),tgap,id,p,nchain,nchain_cmb,nbead,tend,&
                                  lambda,nprun,MPI_REAL_WP)
+!                        CorrFcn(dt,    Wi,    tgap,myrank,p,nchain,nchain_cmb,nbead,tend,lambda,nprun,MPI_REAL_WP)
       end if ! DumpConf
     end do ! dt loop
   end do ! Pe loop
