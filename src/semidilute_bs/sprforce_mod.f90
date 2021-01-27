@@ -59,7 +59,7 @@ module sprforce_mod
   ! Private module variables:
 !  private ::
   ! Protected module variables:
-  protected :: ForceLaw,b,qmx,WLC_v,WLC_A,WLC_B
+  protected :: ForceLaw,b,qmx,WLC_v,WLC_A,WLC_B, RWS_v,RWS_C,RWS_D
   
   !> The type of ev force
   character(len=10),save :: ForceLaw
@@ -69,7 +69,8 @@ module sprforce_mod
                        FENE   =2     ,&
                        ILCCP  =3     ,&
                        WLC_MS =4     ,&
-                       WLC_UD =5
+                       WLC_UD =5     ,&
+					   RWS    =6
   !> The maximum dimensionless squared length of a spring
   real(wp),save :: b
   !> The maximum dimensionless length of a spring
@@ -80,7 +81,12 @@ module sprforce_mod
   real(wp),save :: WLC_A
   !> Force parameter for WLC-UD model
   real(wp),save :: WLC_B
-
+  !> Force parameter for WLC-UD model
+  real(wp),save :: RWS_v  
+  !> Force parameter for WLC-UD model
+  real(wp),save :: RWS_C  
+  !> Force parameter for WLC-UD model
+  real(wp),save :: RWS_D
 contains
 
   !> Initialization of the sprforce module
@@ -123,6 +129,7 @@ ef: do
               call value(tokens(j+1),b,ios)
             case ('N_Ks')
               call value(tokens(j+1),WLC_v,ios)
+			  call value(tokens(j+1),RWS_v,ios)
           end select
         end do ! j
       end if ! ntokens
@@ -136,6 +143,8 @@ ef: do
       ForceLaw_i=Hookean
     case('FENE')
       ForceLaw_i=FENE
+	case('RWS')
+      ForceLaw_i=RWS
     case('ILCCP')
       ForceLaw_i=ILCCP
     case('WLC_MS')
@@ -151,6 +160,9 @@ ef: do
         WLC_A=3._wp/32-3/(8*WLC_v)-3/(2*WLC_v**2)
         WLC_B=(13._wp/32+0.4086_wp/WLC_v-14.79_wp/(4*WLC_v**2))/ &
                     (1-4.225_wp/(2*WLC_v)+4.87_wp/(4*WLC_v**2))
+      case ('RWS')
+        RWS_C=3-10._wp/(3*RWS_v)+10._wp/(27*RWS_v*RWS_v)
+        RWS_D=1+2._wp/(3*RWS_v)+10._wp/(27*RWS_v*RWS_v)
     end select
   end subroutine init_sprforce
 
@@ -196,7 +208,7 @@ ef: do
 !!$omp parallel default(private) &
 !!$omp shared(this,ntotseg,nchain,nbead,nseg,Rbx,Rby,Rbz,bs,invbs)  &
 !!$omp shared(ForceLaw,b,qmx,FlowType,eps_m,tanb,sinth,costh,itime) &
-!!$omp shared(WLC_v,WLC_A,WLC_B) reduction(-:rFphi) 
+!!$omp shared(WLC_v,WLC_A,WLC_B,RWS_v,RWS_D,RWS_C) reduction(-:rFphi) 
 !!$omp do schedule(auto)
     do its=1, ntotseg
       ! ich=(its-1)/nseg+1
@@ -243,14 +255,18 @@ ef: do
           Ftmp = (1-qsq/b/3)/(1-qsq/b)
         case ('Hookean')
           Ftmp = 1._wp
+		case ('RWS')
+          Ftmp =RWS_C/3*(1-RWS_D/RWS_C*qsq)/(1-qsq)
       end select
       ! this%Fs((oss+is-1)*3+1)=Ftmp*qx
       ! this%Fs((oss+is-1)*3+2)=Ftmp*qy
       ! this%Fs((oss+is-1)*3+3)=Ftmp*qz
+	  
+	  !! \Spring Force(X,Y,Z)= Ftmp* q(X,Y,Z)
       this%Fs((its-1)*3+1)=Ftmp*qx
       this%Fs((its-1)*3+2)=Ftmp*qy
       this%Fs((its-1)*3+3)=Ftmp*qz
-
+      !! \R_v.Fs_v=(r_v-r_(v-1))*(Fc_v-Fc_(v-1))----> =-Q_v*Fc_v
       rFphi(1)=rFphi(1)-qx*Ftmp*qx
       rFphi(2)=rFphi(2)-qx*Ftmp*qy
       rFphi(3)=rFphi(3)-qy*Ftmp*qy
