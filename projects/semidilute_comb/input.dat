@@ -5,7 +5,7 @@ driver        : semidilute_bs
 nchain        : 112
 nseg          : 20
 Rel-Model     : Rouse
-add-comb      : FALSE
+add-comb      : TRUE
 nchain-comb   : 1
 nseg-comb     : 22
 nseg-arm      : 3

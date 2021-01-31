@@ -85,7 +85,7 @@ contains
   subroutine ResizeArray_int(A,newSize)
 
     integer,dimension(:),intent(inout),pointer :: A
-    integer,intent(in) :: newSize
+    integer(long),intent(in) :: newSize
     integer,dimension(:),allocatable :: B
 
     allocate(B(lbound(A,1):ubound(A,1)))
@@ -101,7 +101,7 @@ contains
   subroutine ResizeArray_sp(A,newSize)
 
     real(sp),dimension(:),intent(inout),pointer :: A
-    integer,intent(in) :: newSize
+    integer(long),intent(in) :: newSize
     real(sp),dimension(:),allocatable :: B
 
     allocate(B(lbound(A,1):ubound(A,1)))
@@ -117,7 +117,7 @@ contains
   subroutine ResizeArray_dp(A,newSize)
 
     real(dp),dimension(:),intent(inout),pointer :: A
-    integer,intent(in) :: newSize
+    integer(long),intent(in) :: newSize
     real(dp),dimension(:),allocatable :: B
 
     allocate(B(lbound(A,1):ubound(A,1)))

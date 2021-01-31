@@ -1766,7 +1766,7 @@ module dlt_mod
 
             !! Blake's part
             if ((hstar /= 0._WP) .and. (HITens == 'Blake')) then
-               rcmP(2)=rcmP(2)+1._wp/(4*nbead)*sum(divD)*dt(iPe,idt)
+              rcmP(2)=rcmP(2)+1._wp/(4*nbead)*sum(divD)*dt(iPe,idt)
             endif
             !!-------------
 

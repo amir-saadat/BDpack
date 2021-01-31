@@ -45,6 +45,7 @@ module prcn_mod
 #endif
 !  integer,parameter :: wp=selected_real_kind(p=15,r=307)
   integer,parameter :: short=selected_int_kind(4)
-  integer,parameter :: long=selected_int_kind(9)
+  integer,parameter :: medium=selected_int_kind(9)
+  integer,parameter :: long=selected_int_kind(18)
 
 end module prcn_mod
