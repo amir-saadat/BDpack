@@ -128,6 +128,8 @@ contains
     use :: cmn_io_mod, only: read_input    
 
     integer,intent(in) :: id
+    write(*,*) "module:evverlet_mod:init_evverlet"
+
     call read_input('cll-dns-ev',0,cll_dns_ev,0.1_wp)
     select case (FlowType)
 
@@ -201,7 +203,7 @@ contains
     class(evverlet),intent(inout) :: this
     real(wp),intent(in) :: rc,bs(3)
     integer,intent(in) :: ntotbead
-
+    write(*,*) "module:evverlet_mod:init_evverlet_t"
     this%ncps=0
     call this%init_cll(rc,bs,ntotbead)
 
@@ -232,7 +234,7 @@ contains
     integer,intent(in) :: ntotbead
     integer :: clx,cly,clz,cll,czNxNy,cyNx
     real(wp) :: ncpsl(3)
-
+    write(*,*) "module:evverlet_mod:init_clllst"
     
     ncpsl=this%ncps
 
@@ -342,7 +344,7 @@ contains
     real(wp),intent(in) :: Rbz(:)
     integer,intent(in) :: ntotbead,ntotbeadx3
     integer :: i,clx,cly,clz,cll,itime,j
-
+    write(*,*) "module:evverlet_mod:cnstr_clllst"
     this%head=0
     this%binc=0
 
@@ -418,7 +420,7 @@ contains
     logical,allocatable :: pair(:)
     integer :: i,j,nab,idx,cll,beadi,k,intidx
     real(wp) :: bs(3),invbs(3),rcsq
-
+    write(*,*) "module:evverlet_mod:cnstr_nablst"
     this%iidx=0
     this%jidx=0
     allocate(beadi_tmp(this%nct))
@@ -524,7 +526,7 @@ contains
   subroutine del_verlet_t(this)
 
     type(evverlet),intent(inout) :: this
-
+    write(*,*) "module:evverlet_mod:del_verlet_t"
   end subroutine del_verlet_t
 
   ! subroutine del_verlet()

@@ -59,7 +59,7 @@ contains
     real(wp),allocatable :: dt(:),Wi(:),Pe(:)
     integer,allocatable :: ntime(:)
     logical :: DumpConf
-
+	write(*,*) "module:smdlt_mod:smdlt_bs"
     !----------------------------------------------
     !>>> Initialization of SDE in Semi-dilute BD:
     !----------------------------------------------
@@ -318,7 +318,7 @@ contains
     integer :: j,ntokens,u1,il,stat,ios
     character(len=1024) :: line
     character(len=100) :: tokens(50)
-
+	write(*,*) "module:smdlt_mod:init"
     ! default setting:
     nWi=1;Wii=0._wp;Wif=0._wp;WiSpacing='Linear'
     tend=10._wp;tss=5._wp;trst=0._wp;itrst=0
@@ -413,7 +413,7 @@ ef: do
   end subroutine init
 
   subroutine del()
-
+	write(*,*) "module:smdlt_mod:del"
     deallocate(dt,Wi,Pe,ntime)
 
   end subroutine

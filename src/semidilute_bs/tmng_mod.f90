@@ -84,7 +84,7 @@ contains
     integer(long),intent(out) :: t
      
     call system_clock(t)
-
+	write(*,*) "module:tmng_mod:tick"
   end subroutine tick
 
   real(wp) function tock(t)
@@ -107,7 +107,7 @@ contains
     character(len=1024) :: line
     character(len=100) :: tokens(50)
     integer :: i,j,ntokens,u1,il,stat
-
+	write(*,*) "module:tmng_mod:init_tmng"
     ! Default values:
     doTiming=.false.
 
@@ -153,7 +153,7 @@ ef: do
 
     integer,intent(in) :: nchain,nbead
     integer :: u1
-    
+	write(*,*) "module:tmng_mod:reportTiming"
     open (newunit=u1,file='data/Timing.dat',status='replace',position='append')
     write(u1,*) "########## The report for timing in second #############"
     write(u1,*) "# nchain, nbead #"

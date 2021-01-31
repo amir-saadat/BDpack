@@ -111,7 +111,7 @@ contains
     ! end if
     ! this%chain_b_img => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,:)
     ! this%chain_cm_img => cm_img(id,:)
-
+	write(*,*) "Chain_mod:init_chain"
     if (present(nseg_cmb)) then ! comb chain
 
       nbead_cmb=nseg_cmb+1
@@ -137,7 +137,7 @@ contains
         this%chain_rcmtry => rcmtr(id,2)
       end if
       this%chain_b_img => b_img(offsetbead1+(id-1)*nbead_cmb+1:offsetbead1+(id-1)*nbead_cmb+nbead_cmb,:)
-      this%chain_cm_img => cm_img(id,:)
+      this%chain_cm_img => cm_img(nchain+id,:) !MB nchain added
 
     else ! linear chain
             
@@ -179,7 +179,7 @@ contains
     real(wp),intent(in) :: bs(3),invbs(3)
 
     integer :: nbead
-    
+    	write(*,*) "box_mod:update_chain"
     nbead=size(this%chain_Rbx,1)
 
     this%chain_b_img(:,1)=this%chain_b_img(:,1)-this%chain_cm_img(1)

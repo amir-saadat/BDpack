@@ -253,7 +253,8 @@ contains
     integer :: k,i,n,msec,tm_inf(8),icnt,iarm
     real(wp),allocatable :: u(:)
     character(len=10) :: arm_plc
-
+     
+	write(*,*) "module:box_mod:init_box"
     ! default setting:
     LambdaMethod='Rouse'
     hstar=0._wp
@@ -465,6 +466,7 @@ contains
     integer :: ndiag,isegx3,ibead,jseg,maxnz_K,ierr,offsetch1
     integer :: job_Bbar(8),job_B(8),job_K(8)
 
+	write(*,*) "module:box_mod:init_box_t"
     this%ID=myrank
     this%size=Lbox
     this%invsize(:)=1/(this%size)
@@ -511,7 +513,7 @@ contains
     ! Allocation of box chains:
     allocate(this%BoxChains(ntotchain))
 
-    do ichain=1, nchain
+    do ichain=1, nchain  !Calls init_chain
       call this%BoxChains(ichain)%init(ichain,nchain,nsegx3,nbead,nbeadx3,this%Rb_tilde,this%Rbx,&
         this%Rby,this%Rbz,this%Q_tilde,this%R_tilde,this%rcm_tilde,this%cmif,this%Rbtr,&
         this%rcmtr,this%b_img,this%cm_img)
@@ -651,6 +653,7 @@ contains
 #endif
       integer :: ufo
 
+	write(*,*) "module:box_mod:move_Box"
     !----------------------
     !>>> Initial time step:
     !----------------------
@@ -1015,7 +1018,7 @@ contains
 
     class(box),intent(inout) :: this
     integer,intent(in) :: p,irun
-
+	write(*,*) "module:box_mod:read_init_cnf"
     call this%BoxIO%read_init(p,irun,ntotchain,MPI_REAL_WP)
 
   end subroutine read_init_cnf
@@ -1026,7 +1029,9 @@ contains
 
     class(box),intent(inout) :: this
     integer,intent(in) :: p,irun,idmp,ndmp
-
+	
+	write(*,*) "module:box_mod:read_dmp_cnf"
+	
     call this%BoxIO%read_dmp(p,irun,idmp,this%Q_tilde,this%rcm_tilde,this%cmif,&
                              ntotchain,ntotsegx3,ndmp,MPI_REAL_WP)
     call QtoR(this%Q_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
@@ -1045,6 +1050,7 @@ contains
     real(wp),intent(in) :: time,Wi,dt
     integer :: igb
 
+	write(*,*) "module:box_mod:write_cnf"
     ! we will work on components, i.e. Rbc, because in the case
     ! of reArng=true, only Rbc is the most updated in the move_box
 
@@ -1071,8 +1077,12 @@ contains
         !$omp end parallel
 
         !!!! has to be changed to RbctoRb abd RbtoQ to be consistent for comb simulations
-        call RbctoQ(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Q_tilde,&
-                             this%size,this%invsize,nseg,nbead,ntotseg)
+        !call RbctoQ(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Q_tilde,&
+        !                     this%size,this%invsize,nseg,nbead,ntotseg)
+		
+		call RbctoRb(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
+        call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
+		
       case ('PEF')
         !$omp parallel default(private) shared(this,ntotbead,sinth,costh,tanb)
         !$omp do simd
@@ -1084,9 +1094,11 @@ contains
         !$omp end parallel
 
         !!!! has to be changed to RbctoRb abd RbtoQ to be consistent for comb simulations
-
-        call RbctoQ(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,this%Q_tilde,&
-            [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],nseg,nbead,ntotseg)
+        !call RbctoQ(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,this%Q_tilde,&
+        !    [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],nseg,nbead,ntotseg)
+		
+		call RbctoRb(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,this%Q_tilde,ntotbead)
+        call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,[bsx,bsy,this%size(3)])
     end select
 
     call QtoR(this%Q_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
@@ -1105,6 +1117,8 @@ contains
     integer,intent(in) :: id,irun,itime,tgap,ntime,nrun,nprun
     real(wp),intent(in) :: time,Wi,Pe,dt,tss,trst,tend
 
+	write(*,*) "module:box_mod:calc_mat_fcn"
+	
     call material_func(id,irun,itime,time,Wi,Pe,dt,tgap,ntime,nchain,nseg,nbead,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,nseg_cmbbb,&
               add_cmb,ntotchain,lambda,tss,trst,MPI_REAL_WP,nrun,nprun,tend,this%size,this%BoxChains,this%R_tilde)
 
@@ -1139,7 +1153,7 @@ contains
 
     type(box) :: this
     integer :: ichain
-
+	write(*,*) "module:box_mod:del_box_t"
     select case (FlowType)
       case ('Equil')
         if (CoMDiff) deallocate(this%cmif)
@@ -1206,6 +1220,8 @@ contains
     real(wp) :: t1,t2,rcm(3),R(3),rv(3)
 ! integer :: status,ierr
 ! integer(kind=cuda_count_kind) :: free,total
+
+	write(*,*) "module:box_mod:calcHI"
 
     ! After 1/10th of lambda:
     if ((mod(itime,ceiling(lambda/(dt*100))) == 0) .and. &
@@ -1295,6 +1311,8 @@ contains
 
     class(box),intent(inout) :: this
     integer,intent(in) :: itime
+
+	write(*,*) "module:box_mod:calcForce"
 
 #ifdef USE_GPU
       Fphi_d=0._wp

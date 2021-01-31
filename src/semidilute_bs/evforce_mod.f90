@@ -100,7 +100,7 @@ contains
     character(len=100) :: tokens(50)
     character(len=10) :: dstarCalc
     real(wp) :: s_F
-    
+    	write(*,*) "module:evforce_mod:init_evforce"
     ! default settings:
     EVForceLaw='NoEV' 
     dstar=1._wp;dstarCalc='Kumar'
@@ -179,7 +179,7 @@ ef: do
     class(evforce),intent(inout) :: this
     integer,intent(in) :: id,ntotsegx3,ntotbead,ntotbeadx3
     real(wp),intent(in) :: bs(3)
-
+    	write(*,*) "module:evforce_mod:init_evforce_t"
     ! The parameters used for EV potentials
     select case (EVForceLaw)
       case ('Gauss')
@@ -215,7 +215,7 @@ ef: do
     integer,intent(in) :: itime,itrst,ntotsegx3,ntotbead,ntotbeadx3
     real(wp) :: dispmax
     logical :: update
-
+	write(*,*) "module:evforce_mod:update_vlt_lst"
     if (itime == itrst+1) then
       update=.true.
     else
@@ -264,7 +264,7 @@ ef: do
     integer :: iint,i,j
     real(wp) :: rijx,rijy,rijz,rijsq,rijytmp,Fevij(3)
     ! real(wp),allocatable :: ftest(:)
-
+    write(*,*) "module:evforce_mod:update_force"
 ! allocate(ftest(ntotbeadx3))
 
 !    this%Fev=0._wp
@@ -332,7 +332,7 @@ ef: do
   subroutine del_evforce(this)
 
     type(evforce),intent(inout) :: this
-   
+    write(*,*) "module:evforce_mod:del_evforce"
   end subroutine del_evforce
 
 end module evforce_mod

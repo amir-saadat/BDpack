@@ -103,7 +103,7 @@ contains
     integer :: idx,k,mu,nu,i
     real(wp),allocatable :: Bmattest(:,:)
 
-
+	write(*,*) "module:conv_mod:init_conv"
     if (add_cmb) then
 
       ! nchain_cmb=1
@@ -483,7 +483,7 @@ contains
     integer,intent(in) :: ntotsegx3,ntotbeadx3
     real(wp),intent(in) :: Q(:)
     real(wp),intent(inout) :: R(:)
-
+	write(*,*) "conv_mod:QtoR"
 #ifdef USE_DP
     call mkl_dcsrmv('N',ntotbeadx3,ntotsegx3,1._wp,'GIIF',B_vals,B_cols,&
        B_rowInd,B_rowInd(2),Q,0._wp,R)
@@ -506,7 +506,7 @@ contains
 
     real(wp) :: qx,qy,qz,bsx,bsy,bsz,invbsx,invbsy,invbsz
     integer :: its
-
+	write(*,*) "conv_mod:RbtoQ"
     bsx=bs(1);bsy=bs(2);bsz=bs(3)
     invbsx=1/bs(1);invbsy=1/bs(2);invbsz=1/bs(3)
 
@@ -562,35 +562,74 @@ contains
     integer,intent(in) :: nchain_cmb,nseg_cmb
     integer :: igb,os,ich,os1,os2
 
-!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rbx,Rby,Rbz,R,rcm)
-!$omp do schedule(auto)
-    do igb=1, ntotbead
-      os=(igb-1)*3
-      ich=(igb-1)/nbead+1
-      Rbx(igb)=R(os+1)+rcm(ich,1) 
-      Rby(igb)=R(os+2)+rcm(ich,2)
-      Rbz(igb)=R(os+3)+rcm(ich,3)
-    end do
-!$omp end do
-!$omp end parallel
+	write(*,*) "module:conv_mod:RtoRbc"
+
+!!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rbx,Rby,Rbz,R,rcm)
+!!$omp do schedule(auto)
+!    do igb=1, ntotbead
+!      os=(igb-1)*3
+!      ich=(igb-1)/nbead+1
+!      Rbx(igb)=R(os+1)+rcm(ich,1) 
+!      Rby(igb)=R(os+2)+rcm(ich,2)
+!      Rbz(igb)=R(os+3)+rcm(ich,3)
+!    end do
+!!$omp end do
+!!$omp end parallel
+!
+!    if (add_cmb) then
+!!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rbx,Rby,Rbz,R,rcm,add_cmb,nchain_cmb,nseg_cmb)
+!!$omp do schedule(auto)
+!      do igb=1, nchain_cmb*(nseg_cmb+1)
+!        os1=nchain*nbead+(igb-1)
+!        os2=nchain*nbead*3+(igb-1)*3
+!        ich=nchain+(igb-1)/(nseg_cmb+1)+1
+!
+!        Rbx(os1+1)=R(os2+1)+rcm(ich,1)
+!        Rby(os1+1)=R(os2+2)+rcm(ich,2)
+!        Rbz(os1+1)=R(os2+3)+rcm(ich,3)!
+!
+!      end do
+!!$omp end do
+!!$omp end parallel
+!    endif
 
     if (add_cmb) then
 !$omp parallel default(private) shared(nchain,ntotbead,nbead,Rbx,Rby,Rbz,R,rcm,add_cmb,nchain_cmb,nseg_cmb)
+!$omp do schedule(auto)
+      do igb=1, nchain*nbead
+        os=(igb-1)*3
+        ich=(igb-1)/nbead+1
+        Rbx(igb)=R(os+1)+rcm(ich,1) 
+        Rby(igb)=R(os+2)+rcm(ich,2)
+        Rbz(igb)=R(os+3)+rcm(ich,3)
+      end do
+!$omp end do
 !$omp do schedule(auto)
       do igb=1, nchain_cmb*(nseg_cmb+1)
         os1=nchain*nbead+(igb-1)
         os2=nchain*nbead*3+(igb-1)*3
         ich=nchain+(igb-1)/(nseg_cmb+1)+1
-
         Rbx(os1+1)=R(os2+1)+rcm(ich,1)
         Rby(os1+1)=R(os2+2)+rcm(ich,2)
         Rbz(os1+1)=R(os2+3)+rcm(ich,3)
-
       end do
 !$omp end do
 !$omp end parallel
-    endif
-    
+    else
+!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rbx,Rby,Rbz,R,rcm)
+!$omp do schedule(auto)
+      do igb=1, ntotbead
+        os=(igb-1)*3
+        ich=(igb-1)/nbead+1
+        Rbx(igb)=R(os+1)+rcm(ich,1) 
+        Rby(igb)=R(os+2)+rcm(ich,2)
+        Rbz(igb)=R(os+3)+rcm(ich,3)
+      end do
+!$omp end do
+!$omp end parallel
+    end if !add_comb/linear
+
+
   end subroutine RtoRbc
 
   !> Converting Rbc to Q (only for linear chains)
@@ -608,6 +647,7 @@ contains
     real(wp),intent(in) :: bs(3),invbs(3) 
     integer :: its,ich,oss,osb,is
     real(wp) :: qx,qy,qz,qytmp
+	write(*,*) "module:conv_mod:RbctoQ"
 
 !$omp parallel default(private) &
 !$omp shared(ntotseg,nseg,nbead,Rbx,Rby,Rbz,bs,invbs,FlowType,eps_m,tanb,sinth,costh,Q)
@@ -657,24 +697,62 @@ contains
     integer,intent(in) :: nchain_cmb,nseg_cmb
     integer :: igb,os,ich
 
-!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rb,R,rcm)
-!$omp do schedule(auto)
-    do igb=1, ntotbead
-      os=(igb-1)*3
-      ich=(igb-1)/nbead+1
-      Rb(os+1)=R(os+1)+rcm(ich,1)
-      Rb(os+2)=R(os+2)+rcm(ich,2)
-      Rb(os+3)=R(os+3)+rcm(ich,3)
-    end do
-!$omp end do
-!$omp end parallel
-
-    if (add_cmb) then
+	write(*,*) "module:conv_mod:RtoRb"
+	
+!!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rb,R,rcm)
+!!$omp do schedule(auto)
+!    do igb=1, ntotbead
+!      os=(igb-1)*3
+!      ich=(igb-1)/nbead+1
+!      Rb(os+1)=R(os+1)+rcm(ich,1)
+!      Rb(os+2)=R(os+2)+rcm(ich,2)
+!      Rb(os+3)=R(os+3)+rcm(ich,3)
+!    end do
+!!$omp end do
+!!$omp end parallel
+!
+!    if (add_cmb) then
+!!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rb,R,rcm,add_cmb,nchain_cmb,nseg_cmb)
+!!$omp do schedule(auto)
+!      do igb=1, nchain_cmb*(nseg_cmb+1)
+!        os=nchain*nbead*3+(igb-1)*3
+!        ich=nchain+(igb-1)/(nseg_cmb+1)+1
+!        Rb(os+1)=R(os+1)+rcm(ich,1)
+!        Rb(os+2)=R(os+2)+rcm(ich,2)
+!        Rb(os+3)=R(os+3)+rcm(ich,3)
+!      end do
+!!$omp end do
+!!$omp end parallel
+!    endif
+	
+!MB
+	if (add_cmb) then
 !$omp parallel default(private) shared(nchain,ntotbead,nbead,Rb,R,rcm,add_cmb,nchain_cmb,nseg_cmb)
+!$omp do schedule(auto)
+      do igb=1, nchain*nbead
+        os=(igb-1)*3
+        ich=(igb-1)/nbead+1
+        Rb(os+1)=R(os+1)+rcm(ich,1)
+        Rb(os+2)=R(os+2)+rcm(ich,2)
+        Rb(os+3)=R(os+3)+rcm(ich,3)
+      end do
+!$omp end do
 !$omp do schedule(auto)
       do igb=1, nchain_cmb*(nseg_cmb+1)
         os=nchain*nbead*3+(igb-1)*3
         ich=nchain+(igb-1)/(nseg_cmb+1)+1
+        Rb(os+1)=R(os+1)+rcm(ich,1)
+        Rb(os+2)=R(os+2)+rcm(ich,2)
+        Rb(os+3)=R(os+3)+rcm(ich,3)
+      end do
+!$omp end do
+!$omp end parallel
+	else
+!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rb,R,rcm)
+!$omp do schedule(auto)
+      do igb=1, ntotbead
+        os=(igb-1)*3
+        ich=(igb-1)/nbead+1
         Rb(os+1)=R(os+1)+rcm(ich,1)
         Rb(os+2)=R(os+2)+rcm(ich,2)
         Rb(os+3)=R(os+3)+rcm(ich,3)
@@ -698,7 +776,7 @@ contains
     real(wp),intent(in) :: Rbx(:),Rby(:),Rbz(:)
     real(wp),intent(inout) :: Rb(:)
     integer :: igb,os
-
+	write(*,*) "module:conv_mod:RbctoRb"
 !$omp parallel default(private) shared(ntotbead,Rbx,Rby,Rbz,Rb)
 !$omp do schedule(auto)
     do igb=1, ntotbead
@@ -725,7 +803,7 @@ contains
     real(wp),intent(in) :: Rb(:)
     real(wp),intent(inout) :: Rbx(:),Rby(:),Rbz(:)
     integer :: igb,os
-
+	write(*,*) "module:conv_mod:RbtoRbc"
 !$omp parallel default(private) shared(ntotbead,Rbx,Rby,Rbz,Rb)
 !$omp do schedule(auto)
     do igb=1, ntotbead
@@ -753,7 +831,7 @@ contains
     real(wp) :: qtmp(3),qmag,F,qmax
     character(len=10) :: ForceLaw
     real(wp),pointer :: FsegP(:) => null()
-
+	write(*,*) "module:conv_mod:QtoFseg"
 !$omp parallel default(private) &
 !$omp shared(itime,qmax,ForceLaw,ntotseg,Q,Fseg)
 !$omp do schedule(auto)
@@ -785,7 +863,7 @@ contains
 
     deallocate(Bbar_vals,Bbar_cols,Bbar_rowInd)
     deallocate(B_vals,B_cols,B_rowInd)
-
+	write(*,*) "module:conv_mod:del_conv"
   end subroutine del_conv
 
 end module conv_mod

@@ -72,7 +72,7 @@ contains
     use,intrinsic :: iso_fortran_env
 
     integer,intent(in) :: id
-
+	write(*,*) "module:verlet_mod:init_verlet"
 
     select case (FlowType)
 
@@ -149,7 +149,7 @@ contains
   end subroutine init_verlet
 
   subroutine del_verlet()
-
+	write(*,*) "module:verlet_mod:del_verlet"
     deallocate(shifts)
     deallocate(j_clx,j_cly,j_clz,j_cll)
 

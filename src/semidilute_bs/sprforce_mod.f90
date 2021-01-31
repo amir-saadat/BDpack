@@ -100,7 +100,7 @@ contains
     integer :: il,j,ntokens,u1,stat,ios
     character(len=1024) :: line
     character(len=100) :: tokens(50)
-
+	write(*,*) "module:sprforce_mod:init_sprforce"
     ! default values:
     ForceLaw='Hookean'
 
@@ -172,7 +172,7 @@ ef: do
 
     class(sprforce),intent(inout) :: this
     integer,intent(in) :: id,ntotsegx3
-
+	write(*,*) "module:sprforce_mod:init_sprforce_t"
     allocate(this%Fs(ntotsegx3))
   
   end subroutine init_sprforce_t
@@ -204,11 +204,11 @@ ef: do
     integer :: its,ich,osb,oss,is
     real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
 
-
+	write(*,*) "module:sprforce_mod:update_force"
 !!$omp parallel default(private) &
 !!$omp shared(this,ntotseg,nchain,nbead,nseg,Rbx,Rby,Rbz,bs,invbs)  &
 !!$omp shared(ForceLaw,b,qmx,FlowType,eps_m,tanb,sinth,costh,itime) &
-!!$omp shared(WLC_v,WLC_A,WLC_B,RWS_v,RWS_D,RWS_C) reduction(-:rFphi) 
+!!$omp shared(WLC_v,WLC_A,WLC_B,RWS_D,RWS_C) reduction(-:rFphi) 
 !!$omp do schedule(auto)
     do its=1, ntotseg
       ! ich=(its-1)/nseg+1
@@ -288,7 +288,7 @@ ef: do
   subroutine del_sprforce(this)
 
     type(sprforce),intent(inout) :: this
-
+	write(*,*) "module:sprforce_mod:del_sprforce"
   end subroutine del_sprforce
 
 end module sprforce_mod

@@ -204,7 +204,7 @@ contains
     integer :: u1,i,j,ios,ntokens,ierr,il,stat
     character(len=1024) :: line
     character(len=100) :: tokens(50)
-
+	write(*,*) "module:hi_mod:init_hi"
     ! default values:
     hstar=0._wp
     HITens='RPY'
@@ -372,7 +372,7 @@ ef: do
     logical,intent(in) :: add_cmb
     integer,intent(in) :: nchain_cmb,nseg_cmb
     logical :: update
-
+	write(*,*) "module:hi_mod:update_lst"
     if (itime == itrst+1) then
       update=.true.
     else
@@ -409,7 +409,7 @@ ef: do
     integer,pointer :: neigcell_indx,neigcell_indy,neigcell_indz
     real(wp) :: rlist_Dto2,rijmagto2
     integer,parameter :: EMPTY=-1
-
+	write(*,*) "module:hi_mod:cnstrlst_D"
     !-----------------------------
     ! Construction of linked-list:
     !-----------------------------
@@ -437,6 +437,7 @@ ef: do
           icell=cell_ind(1)*ncells_D(2)*ncells_D(3)+&
             cell_ind(2)*ncells_D(3)+cell_ind(3)
           ! Link to the previous occupant to EMPTY if you are the first
+		  write (*,*) "debug:cnstrlst_D:head_D(icell)", icell
           LkdLst_D(iglobbead)=head_D(icell)
           ! The previous one goes to header
           head_D(icell)=iglobbead
@@ -460,6 +461,7 @@ ef: do
         icell=cell_ind(1)*ncells_D(2)*ncells_D(3)+&
               cell_ind(2)*ncells_D(3)+cell_ind(3)
         ! Link to the previous occupant to EMPTY if you are the first
+		write (*,*) "debug:cnstrlst_D:head_D(icell):lin", icell
         LkdLst_D(iglobbead)=head_D(icell)
         ! The previous one goes to header
         head_D(icell)=iglobbead
@@ -561,7 +563,7 @@ ef: do
 
     integer,intent(in) :: myrank
     real(wp),intent(in) :: bs(3)
-
+	write(*,*) "module:hi_mod:del_hi"
     deallocate(dw_bl,dw_bltmp)
     if (HIcalc_mode == 'Ewald') then
       if (hstar /= 0._wp) deallocate(Diff_tens)
@@ -618,7 +620,7 @@ ef: do
     integer,intent(in) :: myrank
     real(wp),intent(in) :: BoxDim(3)
     integer :: kiki
-
+	write(*,*) "module:hi_mod:setHIPar"
     HI_M=Mstart ! assumtion: exp(-M^2) << 1
     ! For Rotne-Prager-Yamakawa Tensor; ewald_Beenakar_Zhou
     HI_a=sqrtPI*hstar
@@ -716,7 +718,7 @@ ef: do
     integer,intent(in) :: ntotbead,myrank
     real(wp),intent(in) :: BoxDim(3)
     integer :: kiki
-
+	write(*,*) "module:hi_mod:updateHIpar"
     HI_M=HI_M+Minc
 !   These parameter will also change:
     HI_alpha=HI_M/rc_D ! From jain et al.
@@ -783,7 +785,7 @@ ef: do
     implicit none
     real(wp) :: BoxDim(3)
     integer :: ntotbead,kiki,myrank
-
+	write(*,*) "module:hi_mod:restartHIpar"
     HI_M=Mstart
 !   These parameter will also change:
     HI_alpha=HI_M/rc_D ! From jain et al.
@@ -843,7 +845,7 @@ ef: do
 
     integer :: i,k,ibead,ntotbead,myrank
     logical,optional,intent(in) :: reset
-
+	write(*,*) "module:hi_mod:setupPME"
     p_PMEto3=p_PME*p_PME*p_PME
     if (.not.allocated(P_vals)) allocate(P_vals(ntotbead*p_PMEto3))
     if (.not.allocated(P_cols)) allocate(P_cols(ntotbead*p_PMEto3))
@@ -991,7 +993,7 @@ ef: do
     integer :: ktot,kix,kiy,kiz,kisqmax,kiymin,kizmin,mivecx,mivecy,mivecz
     integer :: mpivecx,mpivecy,mpivecz,mtot,kiydev,kikix,kiyy,kikixy,ierr
     real(wp) :: kvec(3),k,kto2,mpvec(3)
-
+	write(*,*) "module:hi_mod:setupKSPACE"
     if (HIcalc_mode == 'Ewald') then
       if (present(reset)) then
         if (reset) then
@@ -1219,7 +1221,7 @@ ef: do
 
     integer :: ktot,kix,kiy,kiz,kiydev,kikix,kiyy,kikixy,kiymin,kizmin
     real(wp) :: BoxDim(3),kvec(3),kto2
-
+	write(*,*) "module:hi_mod:strupdateKSPACE"
     if (HIcalc_mode == 'Ewald') then
 
       ! Unequal box length

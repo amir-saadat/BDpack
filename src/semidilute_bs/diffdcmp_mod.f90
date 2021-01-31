@@ -56,7 +56,7 @@ contains
     type(decomp) :: decompRes
     integer :: i,j,ipiv(120)
     real(wp) :: sum(120)
-
+	write(*,*) "module:diffdcmp_mod:calcBrownNoise_cpu"
     if (HIcalc_mode == 'Ewald') then
 
       if (DecompMeth == 'Cholesky') then 
@@ -209,7 +209,7 @@ contains
     type(decomp) :: decompRes
     integer :: i,j,ipiv(120)
     real(wp) :: sum(120)
-
+	write(*,*) "module:diffdcmp_mod:calcBrownNoise_dev"
     if (HIcalc_mode == 'Ewald') then
 
       if (DecompMeth == 'Cholesky') then 

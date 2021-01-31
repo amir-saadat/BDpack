@@ -63,7 +63,7 @@ module force_smdlt
 !      real(wp),intent(inout) :: F(:)
       integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3
       real(wp),intent(in) :: Qt(:)
-      
+
     end subroutine updateforce
 
   end interface
@@ -88,7 +88,7 @@ contains
   subroutine init_force(ntotbeadx3)
 
     integer,intent(in) :: ntotbeadx3
-
+	write(*,*) "module:force_smdlt:init_force"
     allocate(Fphi(ntotbeadx3))
     Fx => Fphi(1:ntotbeadx3-2:3)
     Fy => Fphi(2:ntotbeadx3-1:3)
@@ -103,7 +103,7 @@ contains
 
     nullify(Fx,Fy,Fz)
     deallocate(Fphi)
-
+	write(*,*) "module:force_smdlt:del_force"
     call del_verlet()
 
   end subroutine del_force

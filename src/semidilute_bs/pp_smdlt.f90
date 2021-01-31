@@ -161,7 +161,7 @@ contains
     character(len=1024) :: format_str,line
     character(len=100) :: tokens(50)
     integer :: i,j,ntokens,u0,il,stat,ierr
-
+	write(*,*) "module:pp_smdlt:init_pp"
     ! Default values:
     StrCalc=.false.;StrPr_mode='Visc'
     doTiming=.false.
@@ -572,7 +572,7 @@ ef: do
     use :: flow_mod, only: FlowType
 
     integer,intent(in) :: myrank
-   
+	write(*,*) "module:pp_smdlt:data_time_init"
     jcount=0;kcount=0;lcount=0
     ! Variables for time averaging:
     if (StrCalc) then
@@ -610,7 +610,7 @@ ef: do
 
     integer,intent(in) :: myrank,ntime,tgap,ndmp,nprun,ntotchain,ntotbeadx3
 !    integer :: ntime,tgap
-   
+	write(*,*) "module:pp_smdlt:data_run_init"
     ! Variables for run averaging:
     if (StrCalc) then
       ! related to end to end distance qetoe.
@@ -732,7 +732,7 @@ ef: do
     character(len=99),parameter :: fmtife3f="(i4,1x,f14.7,1x,e11.3,1x,3(f14.7,2x))"
     character(len=99),parameter :: fmtae3f="(a,1x,e11.3,1x,3(f14.7,2x))"
     character(len=99),parameter :: fmtie2f="(i4,1x,e11.3,1x,2(f14.7,2x))"
-    
+	write(*,*) "module:pp_smdlt:material_func"
 	if (add_cmb) then
     nbead_cmb=nseg_cmb+1
 	nbead_cmbx3=nbead_cmb*3
@@ -1364,7 +1364,7 @@ ef: do
     integer,intent(in) :: nchain_cmb,nseg_cmb,ntotchain,nseg_cmbbb  !,add_cmb
 	integer            :: nbead_cmb,nbead_cmbx3
 	logical,intent(in) :: add_cmb
-	
+	write(*,*) "module:pp_smdlt:StressCalc"
 	if (add_cmb) then
     nbead_cmb=nseg_cmb+1
 	nbead_cmbx3=nbead_cmb*3
@@ -1476,7 +1476,7 @@ ef: do
     real(wp),pointer :: rCFT(:),rCF0(:) ,rCFT_cmb(:),rCF0_cmb(:)
     character(len=99),parameter :: fmtfe2f="(f8.2,1x,e11.3,1x,2(f20.7,2x))"
     character(len=99),parameter :: fmtfe3f="(f8.2,1x,e11.3,1x,3(f14.7,2x))"
-
+	write(*,*) "module:pp_smdlt:CorrFcn"
     select case (CF_mode)
       case ('Ree')
         write(u39,*) "# Wi, dt, time, <Qee(t).Qee(0)>.<Qee(0).Qee(0)>"
@@ -1630,7 +1630,7 @@ ef: do
     use :: flow_mod, only: FlowType
 
     integer,intent(in) :: myrank
-
+	write(*,*) "module:pp_smdlt:del_pp"
     close(u1);close(u2);close(u3);close(u4);close(u5);close(u6);close(u7);close(u8);close(u9)
     close(u10);close(u11);close(u12);close(u13);close(u14);close(u15);close(u16);close(u17)
     close(u18);close(u19);close(u20);close(u21);close(u22);close(u23);close(u24);close(u25)
