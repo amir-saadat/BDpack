@@ -1,0 +1,31 @@
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Fortran object files
+*.o
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# dat and bin files in project folder
+projects/*/*.dat
+projects/*/*.bin
+projects/*/*/*.dat
+projects/*/*/*.bin
+projects/*/*/*/*.dat
+projects/*/*/*/*.bin
+
+# make.inc is user specific
+src/make.inc
+
+# bin folder alltogether
+bin
