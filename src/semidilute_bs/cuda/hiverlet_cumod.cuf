@@ -192,6 +192,8 @@ contains
 !     end do ef
 !     close(u1)
 
+    write(*,*) "module:hiverlet_cumod:init_hiverlet_d"
+	
     call read_input('cll-dns-hi',0,cll_dns_hi,0.1_wp)
 
     select case (FlowType)
@@ -277,6 +279,8 @@ contains
     integer,intent(in) :: ntotbead
     integer,device,allocatable,intent(inout) :: nlst_d(:,:)
 
+    write(*,*) "module:hiverlet_cumod:init_verlet_t"
+	
     this%ncps=0
     call this%init_cll(rc,bs,ntotbead,nlst_d)
     allocate(this%Rbx_h(ntotbead))
@@ -342,6 +346,7 @@ contains
     integer :: clx,cly,clz,cll,czNxNy,cyNx
     real(wp) :: ncpsl(3)
 
+    write(*,*) "module:hiverlet_cumod:init_clllst"
 
     ncpsl=this%ncps
 
@@ -496,6 +501,9 @@ contains
     ! but fortunately it is only done every once a while ...
 
     ! print*,'how ofter', itime
+	
+	write(*,*) "module:hiverlet_cumod:cnstr_nablst"
+
     this%Rbx_h=Rbx_d
     this%Rby_h=Rby_d
     this%Rbz_h=Rbz_d
@@ -568,6 +576,8 @@ contains
     integer,intent(in) :: ntotbead,ntotbeadx3
     integer :: i,clx,cly,clz,cll,itime,j
 
+	write(*,*) "module:hiverlet_cumod:cnstr_clllst"
+	
     this%head=0
     this%binc=0
 
@@ -762,6 +772,7 @@ contains
     real(wp) :: ri(3),rijx,rijy,rijytmp,rijz,rijsq
     integer :: nab,cll,beadi,jb,nabcll
 
+	write(*,*) "module:hiverlet_cumod:cnstr_nab_d"
 
     beadi=binc(blockIdx%x,threadIdx%x)
 
@@ -868,13 +879,16 @@ contains
   subroutine del_verlet_t(this)
 
     type(hiverlet_cu_t),intent(inout) :: this
-
+	
+	write(*,*) "module:hiverlet_cumod:del_verlet_t"
+	
     deallocate(this%Rbx_h,this%Rby_h,this%Rbz_h)
 
   end subroutine del_verlet_t
 
   subroutine del_hiverlet_d()
 
+	write(*,*) "module:hiverlet_cumod:del_hiverlet_d"
     nullify(Rbx_tex,Rby_tex,Rbz_tex)
 
   end subroutine del_hiverlet_d

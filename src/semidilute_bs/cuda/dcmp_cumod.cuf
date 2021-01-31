@@ -135,7 +135,7 @@ contains
     ! real(double),dimension(nbeadx3,nbeadx3),optional,intent(in) :: D
 
     ! real(wp),allocatable,dimension(:) :: wtemp2
-
+	write(*,*) "module:dcmp_cumod:Lanczos_d"
 
     real(wp) :: errormin,error
     integer :: m,k0,k,info,mp10,i

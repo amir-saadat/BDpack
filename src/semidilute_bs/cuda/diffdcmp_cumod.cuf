@@ -59,7 +59,8 @@ contains
 
     ! real(wp) :: dwtest(132)
 
-
+    write(*,*) "module:diffdcmp_cumod:calcBrownNoise_d"
+	
     if (HIcalc_mode == 'Ewald') then
 
       print '(" Ewald is yet not supported on GPU, use PME")'

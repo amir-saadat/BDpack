@@ -72,6 +72,8 @@ contains
     class(sprforce_cu_t),intent(inout) :: this
     integer,intent(in) :: ntsx3
 
+	write(*,*) "module:sprforce_cumod:init_sprforce_t"
+	
     allocate(this%Fs(ntsx3))
   
   end subroutine init_sprforce_t
@@ -102,6 +104,8 @@ contains
     real(wp),device,intent(in) :: Qt(:)
     integer :: istat
 
+	write(*,*) "module:sprforce_cumod:update_force"
+	
     ! integer :: its,ich,osb,oss,is
     ! real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
     ! real(wp) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
@@ -122,8 +126,11 @@ contains
   subroutine del_sprforce_d(this)
 
     type(sprforce_cu_t),intent(inout) :: this
-
+	
+	write(*,*) "module:sprforce_cumod:del_sprforce_d"
+	
     deallocate(this%Fs)
+	
 
   end subroutine del_sprforce_d
 
@@ -143,6 +150,8 @@ contains
     real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
     real(wp) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
 
+	write(*,*) "module:sprforce_cumod:update_force_krnl"
+	
     bsx=bs(1);bsy=bs(2);bsz=bs(3)
     invbsx=invbs(1);invbsy=invbs(2);invbsz=invbs(3)
 

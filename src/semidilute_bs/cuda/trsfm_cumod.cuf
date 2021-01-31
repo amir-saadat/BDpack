@@ -88,6 +88,9 @@ contains
 
     ! ieps=1
     ! reArng=.false.
+	
+	write(*,*) "module:trsfm_cumod:init_trsfm_tm_d"
+	
     select case (FlowType)
       case ('PSF')
         eps_m_d=eps_m
@@ -115,6 +118,8 @@ contains
 
     ! real(wp) :: M(2,2),eps,eps_r
 
+	write(*,*) "module:trsfm_cumod:update_arng_d"
+	
     select case (FlowType)
       case ('PSF','PEF')
         eps_m_d=eps_m
@@ -142,7 +147,10 @@ contains
 
     ! real(wp),intent(in) :: bs(3)
     ! real(wp) :: M(2,2)
-
+	
+	write(*,*) "module:trsfm_cumod:update_trsfm_d"
+	
+	
     select case (FlowType)
       case ('PSF')
         ! delrx_L=eps_m*bs(2)
@@ -172,7 +180,9 @@ contains
   subroutine init_trsfm_t(this)
 
     class(trsfm_cu_t),intent(inout) :: this
-        
+	
+	write(*,*) "module:trsfm_cumod:init_trsfm_t"
+	
   end subroutine init_trsfm_t
 
 
@@ -199,6 +209,8 @@ contains
     integer,device,intent(inout) :: b_img(:,:)
     integer,device,intent(inout) :: cm_img(:,:)
 
+	write(*,*) "module:trsfm_cumod:applypbc_glob"
+	
     ! if (FlowType /= 'Equil') call map(this,Rbx,Rby,rcm,itime)
     call applypbc_rec(this,bs(1),bs(2),bs(3),invbs(1),invbs(2),invbs(3),Rbx,Rby,Rbz,&
       rcm,b_img,cm_img,itime)
@@ -233,6 +245,8 @@ contains
     integer,device,intent(inout) :: cm_img(:,:)
     integer :: igb,ich,ntb,nch
 
+	write(*,*) "module:trsfm_cumod:applypbc_rec"
+	
     ntb=size(Rbx,1)
     nch=size(rcm,1)
 

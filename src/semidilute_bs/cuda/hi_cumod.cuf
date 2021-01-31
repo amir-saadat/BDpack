@@ -258,8 +258,6 @@ contains
     use :: arry_mod, only: print_vector,print_matrix
 
 
-
-
     class(hi_cu_t),intent(inout) :: this
     integer,intent(in) :: myrank,ntotseg,ntotbead
     real(wp),intent(in) :: boxdim(3)
@@ -292,7 +290,8 @@ contains
     ! allocate(this%K_d(3))
     K_d = K_mesh
 
-
+    write(*,*) "module:hi_cumod:init_hi"
+	
     allocate(this%DF_self_h(ntotbead*3))
     allocate(this%DF_self_d(ntotbead*3))
 
@@ -653,6 +652,8 @@ contains
     type(hi_cu_t) :: this
     integer :: istat
 
+    write(*,*) "module:hi_cumod:del_hi_t"
+	
     istat = cusolverDnDestroy(this%h_lam)
     if (istat /= CUSOLVER_STATUS_SUCCESS) print('(" cusolver handle destroy failed in hi_cumod")')
 
@@ -686,6 +687,8 @@ contains
     real(wp),device,allocatable :: diff(:)
     ! real(wp),allocatable :: rtest1(:),rtest2(:)
 
+    write(*,*) "module:hi_cumod:updatelst_dev"
+	
     if (itime == itrst+1) then
       update=.true.
     else
@@ -744,7 +747,8 @@ contains
     integer,parameter :: EMPTY=-1
     integer,allocatable :: nbpc(:)
 
-
+    write(*,*) "module:hi_cumod:cnstrlst_part1"
+	
     ! Reset the array head
     this%head_h=EMPTY
     allocate(nbpc(ntotcells_D))
@@ -799,6 +803,8 @@ contains
     real(wp) :: dispmax
     logical :: update
 
+    write(*,*) "module:hi_cumod:updatelst_D"
+	
     if (itime == itrst+1) then
       update=.true.
     else
@@ -836,6 +842,8 @@ contains
     real(wp) :: rlist_Dto2,rijmagto2
     integer,parameter :: EMPTY=-1
 
+    write(*,*) "module:hi_cumod:cnstrlst_D"
+	
     ! !-----------------------------
     ! ! Construction of linked-list:
     ! !-----------------------------

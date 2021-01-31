@@ -92,6 +92,7 @@ contains
     integer,intent(in) :: ntsx3,ntbx3
     integer :: istat
 
+	write(*,*) "module:conv_cumod:init_conv_d"
     ! nnz_B=ntbx3*ns
     nnz_B=maxnz_B
     allocate(B_Val_d(nnz_B))
@@ -133,7 +134,7 @@ contains
 
   !> Constructor for conv type
   subroutine init_conv_t(this)
-
+	write(*,*) "module:conv_cumod:init_conv_t"
     class(conv_cu_t),intent(inout) :: this
 
   end subroutine init_conv_t
@@ -174,7 +175,7 @@ contains
     real(wp),device,intent(in) :: Rbx(:),Rby(:),Rbz(:)
     real(wp),device,intent(inout) :: Rb(:)
     integer :: igb,os
-
+	write(*,*) "module:conv_cumod:RbctoRb"
     !$cuf kernel do <<< *,* >>>
     do igb=1, ntb
       os=(igb-1)*3
@@ -197,7 +198,7 @@ contains
     real(wp),device,intent(in) :: Rb(:)
     real(wp),device,intent(inout) :: Rbx(:),Rby(:),Rbz(:)
     integer :: igb,os
-
+	write(*,*) "module:conv_cumod:RbtoRbc"
     !$cuf kernel do <<< *,* >>>
     do igb=1, ntb
       os=(igb-1)*3
@@ -221,7 +222,7 @@ contains
 
     real(wp) :: qx,qy,qz,bsx,bsy,bsz
     integer :: its,istat
-
+	write(*,*) "module:conv_cumod:RbtoQ"
     istat = cusparseDcsrmv(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,ntsx3,ntbx3,nnz_Bbar,&
       1._wp,descr_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,Rb,0._wp,Q)
 
