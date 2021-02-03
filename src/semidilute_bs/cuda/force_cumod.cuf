@@ -84,12 +84,16 @@ contains
     integer,intent(in) :: ntbx3
 
     allocate(Fphi_d(ntbx3),rFphi_d(4))
+#ifdef Debuge_sequence
     write(*,*) "module:force_cumod:init_force_d"
+#endif
   end subroutine init_force_d
 
   !> Deletion of the force_mod module variables
   subroutine del_force_d()
+#ifdef Debuge_sequence
     write(*,*) "module:force_cumod:del_force_d"
+#endif
     deallocate(Fphi_d)
 
   end subroutine del_force_d

@@ -76,9 +76,9 @@ contains
 
     use,intrinsic :: iso_fortran_env
     use :: flow_mod, only: FlowType
-
+#ifdef Debuge_sequence
     write(*,*) "module:flow_cumod:init_flow_d"
-	
+#endif
     select case (FlowType)
     case('Equil')
       FlowType_d=Equil
@@ -95,7 +95,9 @@ contains
   subroutine init_flow_t(this)
 
     ! use :: arry_mod, only: print_vector
+#ifdef Debuge_sequence
     write(*,*) "module:flow_cumod:init_flow_t"
+#endif
     class(flow_cu_t),intent(inout) :: this
 
   end subroutine init_flow_t
@@ -104,7 +106,9 @@ contains
   subroutine del_flow_t(this)
 
 !    use :: inp_smdlt, only: 
+#ifdef Debuge_sequence
     write(*,*) "module:flow_cumod:del_flow_d"
+#endif
     type(flow_cu_t) :: this
 
   end subroutine del_flow_t

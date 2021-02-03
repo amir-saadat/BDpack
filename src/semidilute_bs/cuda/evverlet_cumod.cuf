@@ -186,9 +186,9 @@ contains
 !       end if ! ntokens
 !     end do ef
 !     close(u1)
-
+#ifdef Debuge_sequence
     write(*,*) "module:evverlet_cumod:init_evverlet_d"
-
+#endif
     call read_input('cll-dns-ev',0,cll_dns_ev,0.1_wp)
 
     select case (FlowType)
@@ -273,9 +273,9 @@ contains
     real(wp),intent(in) :: rc,bs(3)
     integer,intent(in) :: ntotbead
     integer,device,allocatable,intent(inout) :: nlst_d(:,:)
-
+#ifdef Debuge_sequence
     write(*,*) "module:evverlet_cumod:init_evverlet_t"
-	
+#endif
     this%ncps=0
     call this%init_cll(rc,bs,ntotbead,nlst_d)
     allocate(this%Rbx_h(ntotbead))

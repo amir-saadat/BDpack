@@ -71,9 +71,9 @@ contains
 
     class(sprforce_cu_t),intent(inout) :: this
     integer,intent(in) :: ntsx3
-
+#ifdef Debuge_sequence
 	write(*,*) "module:sprforce_cumod:init_sprforce_t"
-	
+#endif
     allocate(this%Fs(ntsx3))
   
   end subroutine init_sprforce_t
@@ -103,9 +103,9 @@ contains
     integer,intent(in) :: itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3
     real(wp),device,intent(in) :: Qt(:)
     integer :: istat
-
+#ifdef Debuge_sequence
 	write(*,*) "module:sprforce_cumod:update_force"
-	
+#endif
     ! integer :: its,ich,osb,oss,is
     ! real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
     ! real(wp) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
@@ -126,9 +126,9 @@ contains
   subroutine del_sprforce_d(this)
 
     type(sprforce_cu_t),intent(inout) :: this
-	
+#ifdef Debuge_sequence
 	write(*,*) "module:sprforce_cumod:del_sprforce_d"
-	
+#endif
     deallocate(this%Fs)
 	
 
@@ -149,9 +149,9 @@ contains
     integer :: its,ich,osb,oss,is
     real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
     real(wp) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
-
+#ifdef Debuge_sequence
 	write(*,*) "module:sprforce_cumod:update_force_krnl"
-	
+#endif
     bsx=bs(1);bsy=bs(2);bsz=bs(3)
     invbsx=invbs(1);invbsy=invbs(2);invbsz=invbs(3)
 

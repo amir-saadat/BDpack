@@ -135,8 +135,9 @@ contains
     ! real(double),dimension(nbeadx3,nbeadx3),optional,intent(in) :: D
 
     ! real(wp),allocatable,dimension(:) :: wtemp2
+#ifdef Debuge_sequence
 	write(*,*) "module:dcmp_cumod:Lanczos_d"
-
+#endif
     real(wp) :: errormin,error
     integer :: m,k0,k,info,mp10,i
 

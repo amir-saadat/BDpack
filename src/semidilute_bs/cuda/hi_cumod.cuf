@@ -290,8 +290,9 @@ contains
     ! allocate(this%K_d(3))
     K_d = K_mesh
 
+#ifdef Debuge_sequence
     write(*,*) "module:hi_cumod:init_hi"
-	
+#endif
     allocate(this%DF_self_h(ntotbead*3))
     allocate(this%DF_self_d(ntotbead*3))
 
@@ -652,8 +653,9 @@ contains
     type(hi_cu_t) :: this
     integer :: istat
 
+#ifdef Debuge_sequence
     write(*,*) "module:hi_cumod:del_hi_t"
-	
+#endif
     istat = cusolverDnDestroy(this%h_lam)
     if (istat /= CUSOLVER_STATUS_SUCCESS) print('(" cusolver handle destroy failed in hi_cumod")')
 
@@ -687,8 +689,9 @@ contains
     real(wp),device,allocatable :: diff(:)
     ! real(wp),allocatable :: rtest1(:),rtest2(:)
 
+#ifdef Debuge_sequence
     write(*,*) "module:hi_cumod:updatelst_dev"
-	
+#endif
     if (itime == itrst+1) then
       update=.true.
     else
@@ -747,8 +750,9 @@ contains
     integer,parameter :: EMPTY=-1
     integer,allocatable :: nbpc(:)
 
+#ifdef Debuge_sequence
     write(*,*) "module:hi_cumod:cnstrlst_part1"
-	
+#endif
     ! Reset the array head
     this%head_h=EMPTY
     allocate(nbpc(ntotcells_D))
@@ -802,9 +806,9 @@ contains
     integer,intent(in) :: itime,itrst,ntotbead
     real(wp) :: dispmax
     logical :: update
-
+#ifdef Debuge_sequence
     write(*,*) "module:hi_cumod:updatelst_D"
-	
+#endif	
     if (itime == itrst+1) then
       update=.true.
     else
@@ -841,9 +845,9 @@ contains
     integer,pointer :: neigcell_indx,neigcell_indy,neigcell_indz
     real(wp) :: rlist_Dto2,rijmagto2
     integer,parameter :: EMPTY=-1
-
+#ifdef Debuge_sequence
     write(*,*) "module:hi_cumod:cnstrlst_D"
-	
+#endif
     ! !-----------------------------
     ! ! Construction of linked-list:
     ! !-----------------------------
