@@ -71,7 +71,9 @@ contains
     real(wp) :: r,r2,kmag,kto2,rrhat(6),invk2,t0,t1,Coeff,kkhat(6),invr2
     integer(long) :: count0,count1
     integer :: itime
+#ifdef Debuge_sequence
 	write(*,*) "module:diffcalc_mod:calcDiffTens_cpu"
+#endif
     if (HIcalc_mode == 'Ewald') then
 
       if (doTiming) call tick(count0)
@@ -363,9 +365,9 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
     real(wp) :: r,r2,kmag,kto2,rrhat(6),invk2,t0,t1,Coeff,kkhat(6),invr2
     integer(long) :: count0,count1
     integer :: itime
-	
+#ifdef Debuge_sequence
 	write(*,*) "module:diddcalc_mod:calcDiffTens_dev"
-	
+#endif
     if (HIcalc_mode == 'Ewald') then
 
       if (doTiming) call tick(count0)
@@ -647,7 +649,9 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
     use :: hi_mod, only: sqrtPI
 
     real(wp) :: M1(3,3),m1_1,m1_2,r,rto2,rto3,rto4,rrhat(6)
+#ifdef Debuge_sequence
 	write(*,*) "module:diddcalc_mod:M1"
+#endif
     rto3=rto2*r; rto4=rto2*rto2
     m1_1=(erfc(HI_alpha*r)*(M1_c1/r+M1_c2/rto3) + &
           exp(-HI_alphato2*rto2)/sqrtPI*(M1_c3*rto2-M1_c4+M1_c5*rto4-M1_c6*rto2+M1_c7+M1_c8/rto2))
@@ -669,7 +673,9 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
     real(wp),intent(inout) :: M1_1d(:)
     real(wp),intent(in) :: rrhat(:)
     real(wp) :: m1_1,m1_2,r,rto2,rto3,rto4
+#ifdef Debuge_sequence
 	write(*,*) "module:diddcalc_mod:M1_1d_routine"
+#endif
     rto3=rto2*r; rto4=rto2*rto2
     m1_1=(erfc(HI_alpha*r)*(M1_c1/r+M1_c2/rto3) + &
           exp(-HI_alphato2*rto2)/sqrtPI*(M1_c3*rto2-M1_c4+M1_c5*rto4-M1_c6*rto2+M1_c7+M1_c8/rto2))
@@ -688,7 +694,9 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
   function Mstar(r,rto2,rrhat)
 
     real(wp) :: Mstar(3,3),rrhat(6),mstar_1,mstar_2,r,rto2,rto3
+#ifdef Debuge_sequence
 	write(*,*) "module:diddcalc_mod:Mstar"
+#endif
     rto3=r*rto2
     mstar_1=(1-Mstar_c1*r-M1_c1/r-M1_c2/rto3)
     mstar_2=(Mstar_c2*r-M1_c1/r+M1_c9/rto3)
@@ -707,7 +715,9 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
     real(wp),intent(inout) :: Mstar_1d(:)
     real(wp),intent(in) :: rrhat(:)
     real(wp) :: mstar_1,mstar_2,r,rto2,rto3
+#ifdef Debuge_sequence
 	write(*,*) "module:diddcalc_mod:Mstar_1d_routine"
+#endif
     rto3=r*rto2
     mstar_1=(1-Mstar_c1*r-M1_c1/r-M1_c2/rto3)
     mstar_2=(Mstar_c2*r-M1_c1/r+M1_c9/rto3)
@@ -739,7 +749,9 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
     real(wp) :: r,r2,rhatrhat(3,3),rrhat(6),rijx_tr,invr2
     integer,target :: nvec(3)
     integer,pointer :: n1,n2,n3
+#ifdef Debuge_sequence
 	write(*,*) "module:diddcalc_mod:calcDiff_real"
+#endif
     if (Dreal_sparse_mode) then
 
       invboxsize(1:3)=1/boxsize(1:3)
@@ -866,7 +878,9 @@ n3lp:         do n3=-nmax(3),nmax(3)
     integer :: iglobbead,iglob,icoor,nearestMesh(3),igrid,jgrid,kgrid
     integer :: k_ind,k1,k2,k3,elem_count,elem_counttmp,k2Kx,k3KxKy
     integer,allocatable,dimension(:,:),save :: grid
+#ifdef Debuge_sequence
 	write(*,*) "module:diddcalc_mod:calcDiff_recip"
+#endif
 !!$omp threadprivate (grid)
 
 !!$omp parallel default(private) copyin(grid) &
@@ -978,7 +992,9 @@ n3lp:         do n3=-nmax(3),nmax(3)
     integer,target :: nvec(3)
     integer,pointer :: n1,n2,n3
     real(wp) :: M1_1d(9),Mstar_1d(9)
+#ifdef Debuge_sequence
 	write(*,*) "module:diddcalc_mod:calcDiff_real_dev"
+#endif
     if (Dreal_sparse_mode) then
 
       invboxsize(1:3)=1/boxsize(1:3)
@@ -1203,7 +1219,9 @@ n3lp:         do n3=-nmax(3),nmax(3)
     integer :: k_ind,k1,k2,k3,elem_count,elem_counttmp,k2Kx,k3KxKy
     integer,allocatable,dimension(:,:),save :: grid
     integer :: r_str_c(0:3),k1KzKy,k2Kz,elem_count_c,elem_counttmp_c,K_dim
+#ifdef Debuge_sequence
 	write(*,*) "module:diddcalc_mod:calcDiff_recip_dev"
+#endif
 !$omp threadprivate (grid)
 
 
@@ -1406,7 +1424,9 @@ kg_c:     do kgrid=1, p_PME
     real(wp),dimension(:),intent(inout) :: DF_tot
     real(wp) :: boxsize(3)
     integer(long) :: count0,count1
+#ifdef Debuge_sequence
 	write(*,*) "module:diddcalc_mod:PME_cpu"
+#endif
     if (doTiming) then
       PMEcount=PMEcount+1
       call tick(count0)
@@ -1468,7 +1488,9 @@ kg_c:     do kgrid=1, p_PME
       pointer(Cx_ptr,Cx_mat), (Cy_ptr,Cy_mat), (Cz_ptr,Cz_mat)
       complex(wp) :: c1,c2,c3
       integer(long) :: count2,count3
+#ifdef Debuge_sequence
 	  write(*,*) "module:diddcalc_mod:clacDF_recip"
+#endif
       ! Associate complex view with F_mesh for root thread.
       Cx_ptr=loc(F_mesh(0:Kcto3-1,1))
       Cy_ptr=loc(F_mesh(0:Kcto3-1,2))
@@ -1676,7 +1698,9 @@ kg_c:     do kgrid=1, p_PME
     real(wp),dimension(:),intent(inout) :: DF_tot
     real(wp) :: boxsize(3)
     integer(long) :: count0,count1
+#ifdef Debuge_sequence
 	write(*,*) "module:diddcalc_mod:PME_dev"
+#endif
     this%F_d=F
 
     this%DF_tmp=F(1:ntotbead*3-2:3)
@@ -1743,7 +1767,9 @@ kg_c:     do kgrid=1, p_PME
       use :: cublas
 
       integer :: status
+#ifdef Debuge_sequence
 	  write(*,*) "module:diddcalc_mod:calcDF_self"
+#endif
       call cublasDcopy(ntotbead*3,this%F_d,1,this%DF_self_d,1)
       call cublasDscal(ntotbead*3,HI_c0,this%DF_self_d,1)
 
@@ -1770,7 +1796,9 @@ kg_c:     do kgrid=1, p_PME
       ! integer,device,allocatable :: bsrRowPtr_d(:),bsrColInd_d(:)
       ! real(wp),device,allocatable :: bsrVal_d(:)
       ! real(wp),device,allocatable :: F_d(:),DF_d(:)
+#ifdef Debuge_sequence
 	  write(*,*) "module:diddcalc_mod:calcDF_real"
+#endif
       if (Dreal_sparse_mode) then
 
         ! actual sparse mv multiplication
@@ -1854,10 +1882,10 @@ kg_c:     do kgrid=1, p_PME
       real(wp) :: mpx,mpy,mpz,m2,m2tmp,invm2,m2_vectmp
       integer :: mivecx,mivecy,m_ind
       integer :: mivecz,mivecxy
-
       ! complex(wp),device,pointer :: Fmx_d(:)
+#ifdef Debuge_sequence
 	  write(*,*) "module:diddcalc_mod:calcDF_recip"
-
+#endif
       K_dim = K_mesh(1)*K_mesh(2)*K_mesh(3)
       K_dim_CCE = K_mesh(1)*K_mesh(2)*(K_mesh(3)/2+1)
 

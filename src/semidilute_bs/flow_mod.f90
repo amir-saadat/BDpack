@@ -76,7 +76,9 @@ contains
     integer :: i,j,ntokens,u1,il,stat
     character(len=1024) :: line 
     character(len=100) :: tokens(50)
+#ifdef Debuge_sequence
     write(*,*) "module:flow_mod:init_flow"
+#endif
     open (newunit=u1,action='read',file='input.dat',status='old')
     il=1
 ef: do
@@ -116,7 +118,9 @@ ef: do
     !integer,intent(in) :: nchain,nbead  !MB
 	integer,intent(in) :: ntotbeadx3 !MB
     integer :: maxnz,ich,os,ibx3,nbeadx3,ntotbead
+#ifdef Debuge_sequence
     write(*,*) "module:flow_mod:init_flow_t"
+#endif
     !nbeadx3=nbead*3  !MB
     !ntotbead=nbead*nchain
 	!ntotbeadx3=ntotbead*3
@@ -241,7 +245,9 @@ ef: do
     integer,intent(in) :: ntotbeadx3
 
     allocate(KR(ntotbeadx3))
+#ifdef Debuge_sequence
     write(*,*) "module:flow_mod:apply_flow"
+#endif
 #ifdef USE_DP
    call mkl_dcsrmv('N',ntotbeadx3,ntotbeadx3,Pe*dt,'GIIF',this%K_vals,this%K_cols,&
                    this%K_rowIdx,this%K_rowIdx(2),Rb,0._wp,KR)
@@ -262,7 +268,9 @@ ef: do
 !    use :: inp_smdlt, only: 
 
     type(flow) :: this
+#ifdef Debuge_sequence
     write(*,*) "module:flow_mod:del_flow_t"
+#endif
   end subroutine del_flow_t
 
 end module flow_mod

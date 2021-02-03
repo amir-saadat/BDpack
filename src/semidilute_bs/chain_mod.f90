@@ -111,7 +111,9 @@ contains
     ! end if
     ! this%chain_b_img => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,:)
     ! this%chain_cm_img => cm_img(id,:)
+#ifdef Debuge_sequence
 	write(*,*) "Chain_mod:init_chain"
+#endif
     if (present(nseg_cmb)) then ! comb chain
 
       nbead_cmb=nseg_cmb+1
@@ -179,7 +181,9 @@ contains
     real(wp),intent(in) :: bs(3),invbs(3)
 
     integer :: nbead
-    	write(*,*) "box_mod:update_chain"
+#ifdef Debuge_sequence
+    write(*,*) "box_mod:update_chain"
+#endif
     nbead=size(this%chain_Rbx,1)
 
     this%chain_b_img(:,1)=this%chain_b_img(:,1)-this%chain_cm_img(1)

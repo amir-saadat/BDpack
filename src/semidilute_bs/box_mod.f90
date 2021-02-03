@@ -167,10 +167,12 @@ module box_mod
 
 
   ! Protected module variables:
-  protected :: nchain,nseg,nbead,nsegx3,nbeadx3,ntotsegx3,ntotbeadx3,lambda,&
+  protected :: add_lin,nchain,nseg,nbead,nsegx3,nbeadx3,ntotsegx3,ntotbeadx3,lambda,&
     add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar,Na,Ia
 
-  !> The number of linear chains in the box
+  !> if we should not add linear chains
+  logical,save :: add_lin
+  !> The number of linear chains in the box	
   integer,save :: nchain
   !> The total number of chains in the box
   integer,save :: ntotchain
@@ -253,8 +255,9 @@ contains
     integer :: k,i,n,msec,tm_inf(8),icnt,iarm
     real(wp),allocatable :: u(:)
     character(len=10) :: arm_plc
-     
-	write(*,*) "module:box_mod:init_box"
+#ifdef Debuge_sequence
+    write(*,*) "module:box_mod:init_box"
+#endif
     ! default setting:
     LambdaMethod='Rouse'
     hstar=0._wp
@@ -300,6 +303,8 @@ contains
       end if
     end do ef
     close(u1)
+	
+    call read_input('add_lin',0,add_lin,def=.true.)
     ! For comb chains
     call read_input('add-comb',0,add_cmb,def=.false.)
     call read_input('nchain-comb',0,nchain_cmb,def=0)
@@ -348,13 +353,21 @@ contains
       allocate(Ia(0)) ! since we are passing it
     endif
 
-    nbead=nseg+1
-    nsegx3=nseg*3
+    if (add_lin) then
+        nbead=nseg+1
+    else
+	    nchain=0
+		nseg=0
+		nbead=0
+	end if
+	
+	nsegx3=nseg*3
     nbeadx3=nbead*3
     ntotchain=nchain
     ntotseg=nseg*nchain
     ntotbead=nbead*nchain
-
+	
+	
     if (add_cmb) then
       ntotchain=ntotchain+nchain_cmb
       ntotseg=ntotseg+nchain_cmb*nseg_cmb
@@ -365,7 +378,12 @@ contains
     ntotsegx3=ntotseg*3
     ntotbeadx3=ntotbead*3
 
-    ! Longest dimensionless relaxation time setting
+    ! Longest dimensionless relaxation time setting based on LINEAR polymer
+	if (nchain==0) then!MB
+	   nseg=nseg_cmbbb
+	   nbead=nseg+1
+	   print '("Calculating Longest relaxation time based on the <<Comb BackBone>> Chain:")'
+	end if
     if (LambdaMethod /= 'Self') lambda=0._wp
     select case (LambdaMethod)
       case ('Tanner')
@@ -395,6 +413,12 @@ contains
         if (myrank == 0) print '(" Error: Incorrect Rel-Model.")'
         stop
     end select
+	!MB
+	if (nchain==0) then
+	   nseg=0
+	   nbead=0
+	end if
+	
     if (myrank == 0) then
       print *
       print '(" Longest Relaxation Time:",f10.4)',lambda
@@ -465,8 +489,9 @@ contains
     integer :: ichain,offseti,offsetj,info
     integer :: ndiag,isegx3,ibead,jseg,maxnz_K,ierr,offsetch1
     integer :: job_Bbar(8),job_B(8),job_K(8)
-
+#ifdef Debuge_sequence
 	write(*,*) "module:box_mod:init_box_t"
+#endif
     this%ID=myrank
     this%size=Lbox
     this%invsize(:)=1/(this%size)
@@ -652,8 +677,9 @@ contains
       real(wp) :: et
 #endif
       integer :: ufo
-
+#ifdef Debuge_sequence
 	write(*,*) "module:box_mod:move_Box"
+#endif
     !----------------------
     !>>> Initial time step:
     !----------------------
@@ -1018,7 +1044,9 @@ contains
 
     class(box),intent(inout) :: this
     integer,intent(in) :: p,irun
+#ifdef Debuge_sequence
 	write(*,*) "module:box_mod:read_init_cnf"
+#endif
     call this%BoxIO%read_init(p,irun,ntotchain,MPI_REAL_WP)
 
   end subroutine read_init_cnf
@@ -1029,9 +1057,9 @@ contains
 
     class(box),intent(inout) :: this
     integer,intent(in) :: p,irun,idmp,ndmp
-	
+#ifdef Debuge_sequence
 	write(*,*) "module:box_mod:read_dmp_cnf"
-	
+#endif
     call this%BoxIO%read_dmp(p,irun,idmp,this%Q_tilde,this%rcm_tilde,this%cmif,&
                              ntotchain,ntotsegx3,ndmp,MPI_REAL_WP)
     call QtoR(this%Q_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
@@ -1049,8 +1077,9 @@ contains
     integer,intent(in) :: id,p,itime,ntime,irun,idmp,ndmp
     real(wp),intent(in) :: time,Wi,dt
     integer :: igb
-
+#ifdef Debuge_sequence
 	write(*,*) "module:box_mod:write_cnf"
+#endif
     ! we will work on components, i.e. Rbc, because in the case
     ! of reArng=true, only Rbc is the most updated in the move_box
 
@@ -1116,9 +1145,9 @@ contains
     class(box),intent(inout) :: this
     integer,intent(in) :: id,irun,itime,tgap,ntime,nrun,nprun
     real(wp),intent(in) :: time,Wi,Pe,dt,tss,trst,tend
-
+#ifdef Debuge_sequence
 	write(*,*) "module:box_mod:calc_mat_fcn"
-	
+#endif
     call material_func(id,irun,itime,time,Wi,Pe,dt,tgap,ntime,nchain,nseg,nbead,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,nseg_cmbbb,&
               add_cmb,ntotchain,lambda,tss,trst,MPI_REAL_WP,nrun,nprun,tend,this%size,this%BoxChains,this%R_tilde)
 
@@ -1153,7 +1182,9 @@ contains
 
     type(box) :: this
     integer :: ichain
+#ifdef Debuge_sequence
 	write(*,*) "module:box_mod:del_box_t"
+#endif
     select case (FlowType)
       case ('Equil')
         if (CoMDiff) deallocate(this%cmif)
@@ -1220,9 +1251,9 @@ contains
     real(wp) :: t1,t2,rcm(3),R(3),rv(3)
 ! integer :: status,ierr
 ! integer(kind=cuda_count_kind) :: free,total
-
+#ifdef Debuge_sequence
 	write(*,*) "module:box_mod:calcHI"
-
+#endif
     ! After 1/10th of lambda:
     if ((mod(itime,ceiling(lambda/(dt*100))) == 0) .and. &
         (HI_M /= Mstart) .and. (hstar /= 0._wp))   then
@@ -1311,9 +1342,9 @@ contains
 
     class(box),intent(inout) :: this
     integer,intent(in) :: itime
-
+#ifdef Debuge_sequence
 	write(*,*) "module:box_mod:calcForce"
-
+#endif
 #ifdef USE_GPU
       Fphi_d=0._wp
       rFphi_d=0._wp
@@ -1321,6 +1352,7 @@ contains
       case ('Equil')
         call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
         call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
+		
         call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
           itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
 
@@ -1361,21 +1393,36 @@ contains
 
           call this%Boxsprf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
             nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+!MB
+!          call this%Boxsprf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
+!              ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+			
           if (EVForceLaw /= 'NoEV') then
             call this%Boxevf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
               nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+!MB
+!            call this%Boxevf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,&
+!                itime, this%Q_tilde)
           end if
+		  
+		  
         case ('PSF')
 
           call RbctoRb(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
           call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
 
           call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
-            itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-
+		        itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+!MB
+!          call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
+!		      ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+			
           if (EVForceLaw /= 'NoEV') then
             call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
-              itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+             itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+!MB
+!            call this%Boxevf%update(this%Boxtrsfm%Rbtrx, this%Rby, this%Rbz, this%size, this%invsize,&
+!              itime, this%Q_tilde)			
           end if
 
         case ('PEF')
@@ -1386,11 +1433,19 @@ contains
           call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
             [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
             nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+!MB
+!          call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
+!            [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,&
+!            ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+			
           if (EVForceLaw /= 'NoEV') then
-            call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
+           call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
                [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
                nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-          end if
+!MB
+!            call this%Boxevf%update(this%Boxtrsfm%Rbtrx, this%Boxtrsfm%Rbtry, this%Rbz,&
+!               [bsx,bsy,this%size(3)], [invbsx,invbsy,this%invsize(3)], itime, this%Q_tilde)
+         end if
       end select
 
 #endif
@@ -1399,5 +1454,7 @@ contains
       ! if (itime == 5) stop
 
   end subroutine calcForce
+
+
 
 end module box_mod

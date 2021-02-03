@@ -100,7 +100,9 @@ contains
     integer :: il,j,ntokens,u1,stat,ios
     character(len=1024) :: line
     character(len=100) :: tokens(50)
+#ifdef Debuge_sequence
 	write(*,*) "module:sprforce_mod:init_sprforce"
+#endif
     ! default values:
     ForceLaw='Hookean'
 
@@ -172,7 +174,9 @@ ef: do
 
     class(sprforce),intent(inout) :: this
     integer,intent(in) :: id,ntotsegx3
+#ifdef Debuge_sequence
 	write(*,*) "module:sprforce_mod:init_sprforce_t"
+#endif
     allocate(this%Fs(ntotsegx3))
   
   end subroutine init_sprforce_t
@@ -184,9 +188,12 @@ ef: do
   !! \param bs the dimension of the box
   !! \param invbs the inverse of box dimensions
   !! \param F totoal force on particles
+  !!> Called by CalcForce
   subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nchain,nseg,nbead,&
                           ntotseg,ntotsegx3,ntotbead,ntotbeadx3,Qt)
-
+!MB
+!  subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,Qt)
+  
     use :: arry_mod, only: print_vector
     use :: conv_mod, only: Bbar_vals,Bbar_cols,Bbar_rowInd
     use :: flow_mod, only: FlowType
@@ -199,12 +206,15 @@ ef: do
     real(wp),intent(in) :: Rbz(:)
     real(wp),intent(in) :: bs(3),invbs(3)
 !    real(wp),intent(inout) :: F(:)
-    integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3
+    integer,intent(in) :: itime,ntotseg,ntotsegx3,ntotbead,ntotbeadx3
+	integer,intent(in) :: nchain,nseg,nbead !not needed here 
     real(wp),intent(in) :: Qt(:)
     integer :: its,ich,osb,oss,is
     real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
 
+#ifdef Debuge_sequence
 	write(*,*) "module:sprforce_mod:update_force"
+#endif
 !!$omp parallel default(private) &
 !!$omp shared(this,ntotseg,nchain,nbead,nseg,Rbx,Rby,Rbz,bs,invbs)  &
 !!$omp shared(ForceLaw,b,qmx,FlowType,eps_m,tanb,sinth,costh,itime) &
@@ -284,11 +294,19 @@ ef: do
 
   end subroutine update_force
 
+
+
+
   !> Destructor for spring force type
   subroutine del_sprforce(this)
 
     type(sprforce),intent(inout) :: this
+#ifdef Debuge_sequence
 	write(*,*) "module:sprforce_mod:del_sprforce"
+#endif
   end subroutine del_sprforce
+
+
+
 
 end module sprforce_mod

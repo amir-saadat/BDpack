@@ -140,7 +140,9 @@ contains
     real(wp),parameter :: PI=3.1415926535897958648_wp!4*atan(1.0_wp)
     ! The maximum deflection angle in planar shear flow
     real(wp) :: theta_mx
+#ifdef Debuge_sequence
 	write(*,*) "module:trsfm_mod:init_trsfm"
+#endif
     select case (FlowType)
       case ('PSF')
         theta_mx=PI/4
@@ -161,7 +163,9 @@ contains
     use :: flow_mod, only: FlowType
 
     real(wp),intent(in) :: bs(3)
+#ifdef Debuge_sequence
 	write(*,*) "module:trsfm_mod:init_trsfm_tm"
+#endif
     ieps=1
     reArng=.false.
     select case (FlowType)
@@ -189,7 +193,9 @@ contains
     use :: flow_mod, only: FlowType
 
     real(wp) :: M(2,2),eps,eps_r
+#ifdef Debuge_sequence
 	write(*,*) "module:trsfm_mod:update_arng"
+#endif
     select case (FlowType)
       case ('PSF')
         eps_m=mod(eps,eps_mx)
@@ -220,7 +226,9 @@ contains
 
     real(wp),intent(in) :: bs(3)
     real(wp) :: M(2,2)
+#ifdef Debuge_sequence
 	write(*,*) "module:trsfm_mod:update_trsfm"
+#endif
     select case (FlowType)
       case ('PSF')
         delrx_L=eps_m*bs(2)
@@ -256,7 +264,9 @@ contains
     ! integer,intent(in) :: ntotbead,nchain
     real(wp),intent(in),target,contiguous :: Rbtr(:,:)
     real(wp),intent(in),target,contiguous :: rcmtr(:,:)
+#ifdef Debuge_sequence
 	write(*,*) "module:trsfm_mod:init_trsfm_t"
+#endif
     select case (FlowType)
       case ('Equil')
         ! Rbtr and rcmtr in this case are zero-sized
@@ -296,7 +306,9 @@ contains
     real(wp),intent(inout) :: rcm(:,:)
     integer,intent(inout) :: b_img(:,:)
     integer,intent(inout) :: cm_img(:,:)
+#ifdef Debuge_sequence
 	write(*,*) "module:trsfm_mod:applypbc_glob"
+#endif
     if (FlowType /= 'Equil') call map(this,Rbx,Rby,rcm,itime)
     call applypbc_rec(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,itime)
     if (FlowType /= 'Equil') call remap(this,bs,invbs,Rbx,Rby,rcm,b_img,cm_img,itime)
@@ -326,7 +338,9 @@ contains
     integer,intent(inout) :: b_img(:,:)
     integer,intent(inout) :: cm_img(:,:)
     integer :: igb,ich
+#ifdef Debuge_sequence
 	write(*,*) "module:trsfm_mod:applypbc_rec"
+#endif
     select case (FlowType)
       case ('Equil')
 !$omp parallel default(private) shared(Rbx,Rby,Rbz,b_img,bs,invbs,cm_img,rcm)
@@ -422,7 +436,9 @@ contains
     real(wp),intent(in) :: Rby(:)
     real(wp),intent(in) :: rcm(:,:)
     integer :: igb,ich
+#ifdef Debuge_sequence
 	write(*,*) "module:trsfm_mod:map"
+#endif
     select case (FlowType)
       case ('PSF')
 !$omp parallel default(private) shared(this,Rbx,Rby,eps_m,delrx_m,rcm)
@@ -477,7 +493,9 @@ contains
     integer :: igb,ich
     real(wp) :: Rbxtmp,Rbytmp,rcmxtmp,rcmytmp
     integer :: itime
+#ifdef Debuge_sequence
 	write(*,*) "module:trsfm_mod:remap"
+#endif
     select case (FlowType)
       case ('PSF')
 !$omp parallel default(private) shared(this,Rbx,Rby,eps_m,delrx_m,invbs,bs,reArng,rcm)
@@ -525,7 +543,9 @@ contains
     real(wp),intent(inout),contiguous :: Rby(:)
     integer,intent(inout) :: b_img(:,:)
     integer :: igb
+#ifdef Debuge_sequence
 	write(*,*) "module:trsfm_mod:unwrap_box"
+#endif
     select case (FlowType)
       case ('PSF')
 !$omp parallel default(private) &
@@ -571,7 +591,9 @@ contains
     use :: flow_mod, only: FlowType
 
     type(trsfm) :: this
+#ifdef Debuge_sequence
 	write(*,*) "module:trsfm_mod:del_trsfm_t"
+#endif
     select case (FlowType)
       case ('PSF')
         nullify(this%Rbtrx,this%rcmtrx)
@@ -591,7 +613,9 @@ contains
     real(wp),intent(in) :: th
     integer :: i,os
     real(wp) :: Vx,Vy
+#ifdef Debuge_sequence
 	write(*,*) "module:trsfm_mod:zrotate"
+#endif
 !$omp parallel default(private) shared(V,th)
 !$omp do schedule(auto)
     do i=1, size(V)/3

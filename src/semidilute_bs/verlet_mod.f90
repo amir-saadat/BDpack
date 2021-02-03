@@ -72,8 +72,9 @@ contains
     use,intrinsic :: iso_fortran_env
 
     integer,intent(in) :: id
+#ifdef Debuge_sequence
 	write(*,*) "module:verlet_mod:init_verlet"
-
+#endif
     select case (FlowType)
 
       case ('Equil','PSF')
@@ -149,7 +150,9 @@ contains
   end subroutine init_verlet
 
   subroutine del_verlet()
+#ifdef Debuge_sequence
 	write(*,*) "module:verlet_mod:del_verlet"
+#endif
     deallocate(shifts)
     deallocate(j_clx,j_cly,j_clz,j_cll)
 

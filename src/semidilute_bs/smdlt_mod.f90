@@ -59,7 +59,9 @@ contains
     real(wp),allocatable :: dt(:),Wi(:),Pe(:)
     integer,allocatable :: ntime(:)
     logical :: DumpConf
+#ifdef Debuge_sequence
 	write(*,*) "module:smdlt_mod:smdlt_bs"
+#endif
     !----------------------------------------------
     !>>> Initialization of SDE in Semi-dilute BD:
     !----------------------------------------------
@@ -111,9 +113,9 @@ contains
     ! allocate(rdn(nbeadx3,ncols,nchain))
     allocate(rdn(ntotbeadx3,ncols))
 
-  ! Loop over Pe number:
+  ! Loop over Pe numbers:
   do iPe=1, nWi
-    ! Loop over dt:
+    ! Loop over dts:
     do idt=1, ndt
       tgap=ceiling(tend*lambda/(ndmp*dt(idt)))
 
@@ -132,9 +134,9 @@ contains
           write (*,*) "%--------------------------------------------%"
           write (*,*) "| Start of time integration in all processes |"
           write (*,*) "%--------------------------------------------%"
-          write(*,'(7x,a)') 'Wi            dt            process run'
-          write(*,'(7x,a)') '---------------------------------------'
-          write(*,'(f14.7,1x,e10.2,1x,i6)') Wi(iPe),dt(idt),irun
+          write (*,'(7x,a)') 'Wi            dt           process run'
+          write (*,'(7x,a)') '---------------------------------------'
+          write (*,'(f14.7,1x,e10.2,1x,i6)') Wi(iPe),dt(idt),irun
           write (*,*)
         end if
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
@@ -189,6 +191,7 @@ contains
             if (FlowType == 'PSF') then
               if (hstar /= 0._wp) call strupdateKSPACE(MainBox%size)
             elseif (FlowType == 'PEF') then
+			  print*, "PEF Not implemented"
             end if ! FlowType
           end if ! FlowType
           if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
@@ -197,8 +200,8 @@ contains
           if ((mod(itime,ceiling(tend*lambda/(100*dt(idt)))) == 0) .and. (id == 0)) then
             rtpassed=time/lambda
 
-            print '(" >>> Time steps and Time Passed: ", i, f10.5)',itime,time
-            print '(" >>> Chain-Relaxation(s) Passed: ", f10.5)',rtpassed
+            print '(" >>> Time steps and Simulation Time(steps*dt) Passed: ", i, f10.5)',itime,time
+            print '(" >>> Chain-Relaxation(s) [Simulation Time/Tou_R] Passed: ", f10.5)',rtpassed
           end if
 !print*,'itime',itime,id
           ! Constructing the random vector,dW, for the whole Box:
@@ -240,7 +243,8 @@ contains
           if ( (mod(itime,tgap) == 0) .or. (itime == ntime(idt)) ) then
 
             print *
-            print '(" >>> Dumping restart files at time: ",f14.7)',time
+            print '(" >>> Dumping restart files at time (Simulation Time(steps*dt)): ",f14.7)',time
+			print '(" >>> Dumping restart files at Chain-Relaxation(s) [Simulation Time/Tou_R]: ", f10.5)',rtpassed
 
 !          if ( ((time-time_check3) >= -1.d-10) .or. (itime == ntime(iPe,idt)) ) then
             idmp=idmp+1
@@ -318,7 +322,9 @@ contains
     integer :: j,ntokens,u1,il,stat,ios
     character(len=1024) :: line
     character(len=100) :: tokens(50)
+#ifdef Debuge_sequence
 	write(*,*) "module:smdlt_mod:init"
+#endif
     ! default setting:
     nWi=1;Wii=0._wp;Wif=0._wp;WiSpacing='Linear'
     tend=10._wp;tss=5._wp;trst=0._wp;itrst=0
@@ -413,7 +419,9 @@ ef: do
   end subroutine init
 
   subroutine del()
+#ifdef Debuge_sequence
 	write(*,*) "module:smdlt_mod:del"
+#endif
     deallocate(dt,Wi,Pe,ntime)
 
   end subroutine

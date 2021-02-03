@@ -102,8 +102,9 @@ contains
 
     integer :: idx,k,mu,nu,i
     real(wp),allocatable :: Bmattest(:,:)
-
+#ifdef Debuge_sequence
 	write(*,*) "module:conv_mod:init_conv"
+#endif
     if (add_cmb) then
 
       ! nchain_cmb=1
@@ -416,7 +417,7 @@ contains
 
       ! call print_matrix(Bmattest,'btest')
 
-    else
+    else  ! NO Comb Chians
 
       ! Constructing Bbar_tilde and B_tilde based on Bbar and B in DPL of Bird et al.:
       ! For making Bbar_tilde sparse (CSR):
@@ -483,7 +484,9 @@ contains
     integer,intent(in) :: ntotsegx3,ntotbeadx3
     real(wp),intent(in) :: Q(:)
     real(wp),intent(inout) :: R(:)
+#ifdef Debuge_sequence
 	write(*,*) "conv_mod:QtoR"
+#endif
 #ifdef USE_DP
     call mkl_dcsrmv('N',ntotbeadx3,ntotsegx3,1._wp,'GIIF',B_vals,B_cols,&
        B_rowInd,B_rowInd(2),Q,0._wp,R)
@@ -506,7 +509,9 @@ contains
 
     real(wp) :: qx,qy,qz,bsx,bsy,bsz,invbsx,invbsy,invbsz
     integer :: its
+#ifdef Debuge_sequence
 	write(*,*) "conv_mod:RbtoQ"
+#endif
     bsx=bs(1);bsy=bs(2);bsz=bs(3)
     invbsx=1/bs(1);invbsy=1/bs(2);invbsz=1/bs(3)
 
@@ -561,9 +566,9 @@ contains
     logical,intent(in) :: add_cmb
     integer,intent(in) :: nchain_cmb,nseg_cmb
     integer :: igb,os,ich,os1,os2
-
+#ifdef Debuge_sequence
 	write(*,*) "module:conv_mod:RtoRbc"
-
+#endif
 !!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rbx,Rby,Rbz,R,rcm)
 !!$omp do schedule(auto)
 !    do igb=1, ntotbead
@@ -647,8 +652,9 @@ contains
     real(wp),intent(in) :: bs(3),invbs(3) 
     integer :: its,ich,oss,osb,is
     real(wp) :: qx,qy,qz,qytmp
+#ifdef Debuge_sequence
 	write(*,*) "module:conv_mod:RbctoQ"
-
+#endif
 !$omp parallel default(private) &
 !$omp shared(ntotseg,nseg,nbead,Rbx,Rby,Rbz,bs,invbs,FlowType,eps_m,tanb,sinth,costh,Q)
 !$omp do schedule(auto)
@@ -696,9 +702,9 @@ contains
     logical,intent(in) :: add_cmb
     integer,intent(in) :: nchain_cmb,nseg_cmb
     integer :: igb,os,ich
-
+#ifdef Debuge_sequence
 	write(*,*) "module:conv_mod:RtoRb"
-	
+#endif
 !!$omp parallel default(private) shared(nchain,ntotbead,nbead,Rb,R,rcm)
 !!$omp do schedule(auto)
 !    do igb=1, ntotbead
@@ -776,7 +782,9 @@ contains
     real(wp),intent(in) :: Rbx(:),Rby(:),Rbz(:)
     real(wp),intent(inout) :: Rb(:)
     integer :: igb,os
+#ifdef Debuge_sequence
 	write(*,*) "module:conv_mod:RbctoRb"
+#endif
 !$omp parallel default(private) shared(ntotbead,Rbx,Rby,Rbz,Rb)
 !$omp do schedule(auto)
     do igb=1, ntotbead
@@ -803,7 +811,9 @@ contains
     real(wp),intent(in) :: Rb(:)
     real(wp),intent(inout) :: Rbx(:),Rby(:),Rbz(:)
     integer :: igb,os
+#ifdef Debuge_sequence
 	write(*,*) "module:conv_mod:RbtoRbc"
+#endif
 !$omp parallel default(private) shared(ntotbead,Rbx,Rby,Rbz,Rb)
 !$omp do schedule(auto)
     do igb=1, ntotbead
@@ -831,7 +841,9 @@ contains
     real(wp) :: qtmp(3),qmag,F,qmax
     character(len=10) :: ForceLaw
     real(wp),pointer :: FsegP(:) => null()
+#ifdef Debuge_sequence
 	write(*,*) "module:conv_mod:QtoFseg"
+#endif
 !$omp parallel default(private) &
 !$omp shared(itime,qmax,ForceLaw,ntotseg,Q,Fseg)
 !$omp do schedule(auto)
@@ -863,7 +875,9 @@ contains
 
     deallocate(Bbar_vals,Bbar_cols,Bbar_rowInd)
     deallocate(B_vals,B_cols,B_rowInd)
+#ifdef Debuge_sequence
 	write(*,*) "module:conv_mod:del_conv"
+#endif
   end subroutine del_conv
 
 end module conv_mod

@@ -88,7 +88,9 @@ contains
   subroutine init_force(ntotbeadx3)
 
     integer,intent(in) :: ntotbeadx3
+#ifdef Debuge_sequence
 	write(*,*) "module:force_smdlt:init_force"
+#endif
     allocate(Fphi(ntotbeadx3))
     Fx => Fphi(1:ntotbeadx3-2:3)
     Fy => Fphi(2:ntotbeadx3-1:3)
@@ -103,7 +105,9 @@ contains
 
     nullify(Fx,Fy,Fz)
     deallocate(Fphi)
+#ifdef Debuge_sequence
 	write(*,*) "module:force_smdlt:del_force"
+#endif
     call del_verlet()
 
   end subroutine del_force

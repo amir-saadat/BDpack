@@ -63,7 +63,9 @@ contains
     real(wp),allocatable,dimension(:) :: wtemp2
     logical,optional :: msetinp
     type(decomp),intent(inout) :: decompRes
+#ifdef Debuge_sequence
 	write(*,*) "module:dcmp_smdlt:Lanczos"
+#endif
     if (minit < 2) then
       write(*,'(a)') "Error: minit can't be less than 2"
       stop
@@ -212,7 +214,9 @@ mlp:do
     real(wp),allocatable,dimension(:) :: Wtemp2
     logical,optional :: msetinp
     type(decomp),intent(inout) :: decompRes
-	write(*,*) "module:dcmp_smdlt:BlockLanczos"
+#ifdef Debuge_sequence
+    write(*,*) "module:dcmp_smdlt:BlockLanczos"
+#endif
     if (minit < 2) then
       write(*,'(a)') "Error: minit can't be less than 2"
       stop
@@ -405,7 +409,9 @@ mlp:do
     real(wp),allocatable,dimension(:) :: wtemp2
     logical,optional :: msetinp
     type(decomp),intent(inout) :: decompRes
+#ifdef Debuge_sequence
 	write(*,*) "module:dcmp_smdlt:Lanczos_dev"
+#endif
     if (minit < 2) then
       write(*,'(a)') "Error: minit can't be less than 2"
       stop
@@ -585,9 +591,9 @@ mlp:do
     ! dimBlock = dim3( 32, 1, 1 )
     ! call printtest <<<dimGrid,dimBlock>>>
     ! status = cudathreadsynchronize()
-
+#ifdef Debuge_sequence
 	write(*,*) "module:dcmp_smdlt:lanczos_dev2"
-	
+#endif
     if (minit < 2) then
       write(*,'(a)') "Error: minit can't be less than 2"
       minit=2

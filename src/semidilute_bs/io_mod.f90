@@ -162,7 +162,9 @@ contains
     integer :: i,j,ntokens,u1,stat,ios,il
     character(len=1024) :: line
     character(len=100) :: tokens(50)
+#ifdef Debuge_sequence
 	write(*,*) "module:io_mod:init_io"
+#endif
     ! default values:
     DumpConf=.false.
     CoMDiff=.false.
@@ -250,8 +252,9 @@ ef: do
     integer :: u1,u2,u3,u4,u5,u6,i,j,ios,ntokens,stat,il
     character(len=1024) :: line
     character(len=100) :: tokens(50)
+#ifdef Debuge_sequence
 	write(*,*) "module:io_mod:init_conf_io"
-
+#endif
     ! default values:
     this%qfctr=[0.7_wp,0._wp,0._wp]
     this%qfctr_cmbbb=[0.7_wp,0._wp,0._wp]
@@ -729,7 +732,9 @@ ef: do
 
     integer :: offsetch
 
+#ifdef Debuge_sequence
 	write(*,*) "module:io_mod:read_conf"
+#endif
     !   %-------------------------------------------------------%
     !   | The initial guess for Qs in case we are looking for   |
     !   | equilibrium connector vector is arbitrary.            |
@@ -1052,7 +1057,9 @@ ef: do
     integer(kind=MPI_OFFSET_KIND) :: offsetMPI
     real(wp) :: realvar
 
+#ifdef Debuge_sequence
 	write(*,*) "module:io_mod:read_init_conf"
+#endif
     ! rc
     if ((FlowType == 'Equil').and.CoMDiff) then
       offsetMPI=ntotchain*3*p*sizeof(realvar)*(irun-1)
@@ -1085,7 +1092,9 @@ ef: do
     integer :: intvar
     real(wp) :: realvar
 
+#ifdef Debuge_sequence
 	write(*,*) "module:io_mod:read_dmp_conf"
+#endif
     ! q
     offsetMPI=ntotsegx3*p*sizeof(realvar)*((irun-1)*ndmp+idmp-1)
     call MPI_File_set_view(this%fqdmphandle,offsetMPI,MPI_REAL_WP,this%q_recvsubarray,&
@@ -1314,7 +1323,9 @@ ef: do
     real(wp) :: rtpassed,realvar
     integer(kind=MPI_OFFSET_KIND) :: offsetMPI
 
+#ifdef Debuge_sequence
 	write(*,*) "module:io_mod:write_conf"
+#endif
     ! For dumping the configuration of the system:
     if (DumpConf) then
       ! q
@@ -1491,7 +1502,9 @@ ef: do
 
     type(conf_io) :: this
     integer :: ierr
+#ifdef Debuge_sequence
 	write(*,*) "module:io_mod:del_io"
+#endif
     close(this%oldu1);close(this%oldu2)
     close(this%oldu3);close(this%oldu4)
     close(this%oldu5);close(this%oldu6)
