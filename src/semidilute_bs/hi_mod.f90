@@ -67,6 +67,7 @@ module hi_mod
   real(wp) :: HI_M,Mstart,Minc
   integer,protected :: ncols,upfactr,p_PME,p_PMEto3
   integer :: mBlLan,mubBlLan
+  ! For some complilers the long doesnt work well
   integer(long) :: maxNb_list_D
   character(len=10),protected :: DecompMeth,HITens
   character(len=10),protected :: HIcalc_mode,InterpMethod
@@ -213,7 +214,7 @@ contains
     rc_D=20._wp;skin_D=0.2_wp
     InterpMethod='BSpline';p_PME=4
     K_mesh=65;kmeshset=.false.
-    maxNb_list_D=5000000000!max(5000000000,ntotbead**2)
+    maxNb_list_D=5000000000_long !max(5000000000,ntotbead**2)
     DecompMeth='Cholesky'
     ncols=1
     mBlLan=3;mubBlLan=15;mset=.false.
