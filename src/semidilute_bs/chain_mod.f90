@@ -112,7 +112,7 @@ contains
     ! this%chain_b_img => b_img((id-1)*nbead+1:(id-1)*nbead+nbead,:)
     ! this%chain_cm_img => cm_img(id,:)
 #ifdef Debuge_sequence
-	write(*,*) "Chain_mod:init_chain"
+	write(*,*) "module:Chain_mod:init_chain"
 #endif
     if (present(nseg_cmb)) then ! comb chain
 

@@ -103,7 +103,10 @@ contains
     !----------------------------------------------
     !>>> Time integration of SDE:
     !----------------------------------------------
-    
+    if (tend==0) then
+	  write(*,*) "Tend is not specified"
+	  tend=1
+	end if
     ! Calculating Peclet number:
     Pe(:)=Wi(:)/lambda
     ! Calculating total number of iterations:
@@ -121,7 +124,7 @@ contains
 
       if (id == 0) then
         print *
-        print '(" Time index and value between restarts: ",i,1x,f14.7)',tgap,tgap*dt
+        print '(" Time index and value between restarts: ",i,1x,f14.7)', tgap, tgap*dt(idt)
       end if
 
       ! Initializing for run averaging:

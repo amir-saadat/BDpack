@@ -443,7 +443,7 @@ ef: do
           icell=cell_ind(1)*ncells_D(2)*ncells_D(3)+&
             cell_ind(2)*ncells_D(3)+cell_ind(3)
           ! Link to the previous occupant to EMPTY if you are the first
-		  write (*,*) "debug:cnstrlst_D:head_D(icell)", icell
+		  ! write (*,*) "debug:cnstrlst_D:head_D(icell)", icell
           LkdLst_D(iglobbead)=head_D(icell)
           ! The previous one goes to header
           head_D(icell)=iglobbead
@@ -467,7 +467,7 @@ ef: do
         icell=cell_ind(1)*ncells_D(2)*ncells_D(3)+&
               cell_ind(2)*ncells_D(3)+cell_ind(3)
         ! Link to the previous occupant to EMPTY if you are the first
-		write (*,*) "debug:cnstrlst_D:head_D(icell):lin", icell
+		!write (*,*) "debug:cnstrlst_D:head_D(icell):lin", icell
         LkdLst_D(iglobbead)=head_D(icell)
         ! The previous one goes to header
         head_D(icell)=iglobbead

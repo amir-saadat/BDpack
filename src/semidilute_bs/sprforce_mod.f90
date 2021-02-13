@@ -211,7 +211,8 @@ ef: do
     real(wp),intent(in) :: Qt(:)
     integer :: its,ich,osb,oss,is
     real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
-
+    logical :: Qbcomptest
+	Qbcomptest=.FALSE.
 #ifdef Debuge_sequence
 	write(*,*) "module:sprforce_mod:update_force"
 #endif
@@ -245,6 +246,10 @@ ef: do
           qx=costh*qx-sinth*qytmp
       end select
       qsq=qx*qx+qy*qy+qz*qz
+	  
+	  if (qsq>=b) then
+	    Qbcomptest=.TRUE.
+	  end if
 !if ((itime==1).or.(itime==100)) then
 !if (its<=10) then
 !!print *,'eps_m',eps_m
@@ -253,20 +258,22 @@ ef: do
 !print *,'qsq',qsq
 !end if
 !end if
+!   qmx=sqrt(b)
       select case (ForceLaw)
         case ('FENE')
-          Ftmp = 1/(1-qsq/b)
+            Ftmp = 1/(1-qsq/b)
         case ('WLC_MS')
-          q=sqrt(qsq)
-          Ftmp = 2*qmx/(3*q)*(0.25/((1-q/qmx)**2)-0.25+q/qmx)
+            q=sqrt(qsq)
+            Ftmp = 2*qmx/(3*q)*(0.25/((1-q/qmx)**2)-0.25+q/qmx)
         case ('WLC_UD')
-          Ftmp=2._wp/3*(1/(1-qsq/b)**2-7/(2*WLC_v*(1-qsq/b))+WLC_A+WLC_B*(1-qsq/b))
+            Ftmp=2._wp/3*(1/(1-qsq/b)**2-7/(2*WLC_v*(1-qsq/b))+WLC_A+WLC_B*(1-qsq/b))
         case ('ILCCP')
-          Ftmp = (1-qsq/b/3)/(1-qsq/b)
+            Ftmp = (1-qsq/b/3)/(1-qsq/b)
         case ('Hookean')
-          Ftmp = 1._wp
+            Ftmp = 1._wp
 		case ('RWS')
-          Ftmp =RWS_C/3*(1-RWS_D/RWS_C*qsq)/(1-qsq)
+		    ! Eq52, JOR49, 2005 Underhill and Doyle
+            Ftmp =(RWS_C/qmx)*(1-(RWS_D/RWS_C)*(qsq/b))/(1-qsq/b)
       end select
       ! this%Fs((oss+is-1)*3+1)=Ftmp*qx
       ! this%Fs((oss+is-1)*3+2)=Ftmp*qy
@@ -284,6 +291,9 @@ ef: do
     end do
 !!$omp end do
 !!$omp end parallel
+    if (Qbcomptest) then
+	  write(*,*) " ==> Warning: [Q_spr > b] has happened <=="
+	end if
 #ifdef USE_DP
       call mkl_dcsrmv('T',ntotsegx3,ntotbeadx3,-1._wp,'GIIF',Bbar_vals,&
                       Bbar_cols,Bbar_rowInd,Bbar_rowInd(2),this%Fs,1._wp,Fphi)
@@ -294,7 +304,44 @@ ef: do
 
   end subroutine update_force
 
-
+!  subroutine update_bendforce(Fphi,nchain,nbead,nchian_cmb,nseg_cmb,nseg_cmbbb,add_comb,ForceLaw,b,q,
+!      use :: arry_mod, only: print_vector
+!    use :: conv_mod, only: Bbar_vals,Bbar_cols,Bbar_rowInd
+!    use :: flow_mod, only: FlowType
+!    use :: force_smdlt, only: Fphi
+!    
+!    class(sprforce),intent(inout) :: this
+!    real(wp),intent(in) :: Rbx(:)
+!    real(wp),intent(in) :: Rby(:)
+!    real(wp),intent(in) :: Rbz(:)
+!    real(wp),intent(in) :: bs(3),invbs(3)
+!    real(wp),intent(out) :: Fbend(:)
+!    integer,intent(in) :: itime,ntotseg,ntotsegx3,ntotbead,ntotbeadx3
+!	integer,intent(in) :: nchain,nseg,nbead !not needed here 
+ !   real(wp),intent(in) :: Qt(:)
+!    integer :: its,ich,osb,oss,is
+!    real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
+!
+!   integer,intent(in) :: itime
+!    real(wp),intent(in) :: q(:)
+!    real(wp),intent(inout) :: Fbnd(:)
+!    real(wp) :: thta(-1:1),cost(-1:1),thtal,thtar,costl,costr
+!    real(wp) :: thta_s,cost_s
+!    real(wp) :: qtmp(3,-2:1),qmg(-2:1),ehat(3,-2:1)
+!    real(wp) :: qtmpl(3),qtmpr(3),qmgl,qmgr,ehatl(3),ehatr(3)
+!    integer :: nbead,ib,os,nbead_bb,osl,iarm
+!	
+!	
+!   Fbend=0
+!   do ichian=1, nchian
+!     Os1=(ichian-1)*nchian
+!     do ibead=1, nbead
+!
+!
+!
+!
+!
+!  end subroutine update_bendforce
 
 
   !> Destructor for spring force type

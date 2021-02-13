@@ -110,11 +110,15 @@ module io_mod
     integer :: oldu6
     !> The unit for BoxConfig.dat
     integer :: oldu7
-    !> The unit for Rb.rst.dat
+    !> The unit for Rb.rst.dat   Rb
     integer :: oldu8
     !> The unit for Rb.equil.dat or Rb.final.dat
     integer :: oldu9
-
+    
+    integer :: oldu115   !> The unit for Rb.dat  Rb
+    integer :: oldu116   !> The unit for Rb.dat  imageflag
+    integer :: oldu117   !> The unit for Rb.dat
+    integer :: oldu118   !> The unit for Rb.dat
   contains
 
     procedure,pass(this) :: init => init_conf_io
@@ -408,6 +412,11 @@ ef: do
 
       if (this%MakeAnim) then
         open(newunit=this%oldu5,file='data/dump/Rb.dat',status='replace',position='append')
+#ifdef Debuge_sequence
+		open(newunit=this%oldu115,file='data/dump/Rbb.dat',status='replace',position='append')   !MB
+		open(newunit=this%oldu116,file='data/dump/Rbimg.dat',status='replace',position='append') !MB
+		open(newunit=this%oldu117,file='data/dump/Comim.dat',status='replace',position='append') !MB
+#endif
         open(newunit=this%oldu6,file='data/dump/CoM.dat',status='replace',position='append')
         if (FlowType /= 'Equil') &
           open(newunit=this%oldu7,file='data/dump/BoxConfig.dat',status='replace',position='append')
@@ -1297,9 +1306,15 @@ ef: do
 
 !   end subroutine write_conf
 
+!!>Writes configuration to files.
+!!> called by Box_mod:write_cnf
+!! R is this%R_tilde
+!! Rb is this%Rb_tilde
   subroutine write_conf(this,id,p,itime,ntime,irun,idmp,time,Wi,dt,nchain,nbead,&
     nsegx3,nbeadx3,ntotchain,ntotsegx3,ntotbeadx3,ndmp,lambda,MPI_REAL_WP,Q,rcm,&
-    cmif,Rb,R,add_cmb,nchain_cmb,nseg_cmb)
+    cmif,Rb,R,add_cmb,nchain_cmb,nseg_cmb,b_img)
+
+
 
     use :: flow_mod, only: FlowType
     use :: arry_mod, only: print_vector,print_matrix
@@ -1314,7 +1329,7 @@ ef: do
     integer,intent(in) :: MPI_REAL_WP
     real(wp),intent(in) :: Wi,dt,time,lambda
     real(wp),intent(in) :: Q(:),rcm(:,:)
-    integer,intent(in) :: cmif(:,:)
+    integer,intent(in) :: cmif(:,:),b_img(:,:)
     real(wp),intent(in) :: Rb(ntotbeadx3)
     real(wp),intent(in) :: R(ntotbeadx3)
     logical :: add_cmb
@@ -1470,17 +1485,32 @@ ef: do
             ! write(this%oldu5,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3)
             write(this%oldu5,'(3(f18.7,1x))') R(offsetch+offsetb+1:offsetch+offsetb+3)+&
                                               rcm(ichain,1:3)
+#ifdef Debuge_sequence
+			  write(this%oldu115,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3)+&
+              rcm(nchain+ichain,1:3)
+			  write(this%oldu116,*) b_img((ichain-1)*nbead+ibead,1:3)	  
+#endif
           end do ! ibead
         end do ! ichain
         if (add_cmb) then
           do ichain=1, nchain_cmb
             write(this%oldu6,'(3(f18.7,1x))') rcm(nchain+ichain,:)
+			!MB
+#ifdef Debuge_sequence
+			write(this%oldu117,*) cmif(nchain+ichain,:)
+#endif			
             offsetch=nchain*nbeadx3+(ichain-1)*(nseg_cmb+1)*3
             do ibead=1, nseg_cmb+1
               offsetb=(ibead-1)*3
               ! write(this%oldu5,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3)
               write(this%oldu5,'(3(f18.7,1x))') R(offsetch+offsetb+1:offsetch+offsetb+3)+&
               rcm(nchain+ichain,1:3)
+			  !MB
+#ifdef Debuge_sequence
+			  write(this%oldu115,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3)+&
+              rcm(nchain+ichain,1:3)
+			  write(this%oldu116,*) b_img(nchain*nbead+(ichain-1)*(nseg_cmb+1)+ibead,1:3)	  
+#endif
             end do ! ibead
           end do ! ichain
         endif

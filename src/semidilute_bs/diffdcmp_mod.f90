@@ -133,6 +133,7 @@ contains
         end if
       else
         print '(" Incorrect Decomposition method: ",a)',DecompMeth
+        print '("PME + Lanczos ")'
         stop
       end if ! DecompMeth
 
@@ -186,6 +187,7 @@ contains
         end if
       else
         print '(" Incorrect Decomposition method: ",a)',DecompMeth
+		print '("PME + Lanczos ")'
         stop
       end if ! DecompMeth
 

@@ -559,6 +559,7 @@ contains
     call this%Boxevf%init(myrank,this%size,ntotsegx3,ntotbead,ntotbeadx3)
     ! Instantiation of Boxsprf:
     call this%Boxsprf%init(myrank,ntotsegx3)
+	
 #ifdef USE_GPU
       ! Allocation of configurational variables:
       allocate(this%R_d(ntotbeadx3))
@@ -607,7 +608,6 @@ contains
       call this%Boxhi_d%init(myrank,ntotseg,ntotbead,this%size)
       ! Instantiation of Boxsprf_d:
       call this%Boxsprf_d%init(ntotsegx3)
-
       ! Instantiation of Boxsprf_d:
       call this%Boxevf_d%init(myrank,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotsegx3,&
         ntotbead,ntotbeadx3,this%size)
@@ -677,6 +677,7 @@ contains
       real(wp) :: et
 #endif
       integer :: ufo
+	  
 #ifdef Debuge_sequence
 	write(*,*) "module:box_mod:move_Box"
 #endif
@@ -893,6 +894,11 @@ contains
 ! do ibead=1, ntotbeadx3
 ! write(ufo,'(f14.10)') Fphi(ibead)
 ! enddo
+    write(*,*) "Integration scheme"
+    
+!	Fphi=Fphi+Fbend
+    
+
 
 
 #ifdef USE_GPU
@@ -1021,6 +1027,7 @@ contains
     !>>> Updating the dimension of the deformed box :
     !------------------------------------------------
 
+
 #ifdef USE_GPU
 
       call update_arng_d()
@@ -1035,7 +1042,7 @@ contains
       call update_trsfm(this%size)
 
 #endif
-
+	
   end subroutine move_box
 
   subroutine read_init_cnf(this,p,irun)
@@ -1093,6 +1100,8 @@ contains
       case ('Equil')
         ! call RbctoQ(this%Rbx,this%Rby,this%Rbz,this%Q_tilde,this%size,&
         !   this%invsize,nseg,nbead,ntotseg)
+		
+	
         call RbctoRb(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
         call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
 
@@ -1108,6 +1117,8 @@ contains
         !!!! has to be changed to RbctoRb abd RbtoQ to be consistent for comb simulations
         !call RbctoQ(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Q_tilde,&
         !                     this%size,this%invsize,nseg,nbead,ntotseg)
+
+
 		
 		call RbctoRb(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
         call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
@@ -1134,7 +1145,7 @@ contains
 
     call this%BoxIO%write(id,p,itime,ntime,irun,idmp,time,Wi,dt,nchain,nbead,nsegx3,nbeadx3,&
       ntotchain,ntotsegx3,ntotbeadx3,ndmp,lambda,MPI_REAL_WP,this%Q_tilde,this%rcm_tilde,&
-      this%cmif,this%Rb_tilde,this%R_tilde,add_cmb,nchain_cmb,nseg_cmb)
+      this%cmif,this%Rb_tilde,this%R_tilde,add_cmb,nchain_cmb,nseg_cmb,this%b_img)!MB----
 
   end subroutine write_cnf
 

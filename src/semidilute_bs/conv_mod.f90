@@ -485,7 +485,7 @@ contains
     real(wp),intent(in) :: Q(:)
     real(wp),intent(inout) :: R(:)
 #ifdef Debuge_sequence
-	write(*,*) "conv_mod:QtoR"
+	write(*,*) "module:conv_mod:QtoR"
 #endif
 #ifdef USE_DP
     call mkl_dcsrmv('N',ntotbeadx3,ntotsegx3,1._wp,'GIIF',B_vals,B_cols,&
@@ -510,7 +510,7 @@ contains
     real(wp) :: qx,qy,qz,bsx,bsy,bsz,invbsx,invbsy,invbsz
     integer :: its
 #ifdef Debuge_sequence
-	write(*,*) "conv_mod:RbtoQ"
+	write(*,*) "module:conv_mod:RbtoQ"
 #endif
     bsx=bs(1);bsy=bs(2);bsz=bs(3)
     invbsx=1/bs(1);invbsy=1/bs(2);invbsz=1/bs(3)

@@ -369,7 +369,9 @@ contains
       cll=clz*this%ncps(1)*this%ncps(2)+cly*this%ncps(1)+clx+1
 
       ! print*,'2',clx,cly,clz,cll
-
+      ! print*, cll
+	  ! print*, this%head(cll)
+	  
       this%head(cll)=this%head(cll)+1
 
       if (this%head(cll) >= this%mbpc) then

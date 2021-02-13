@@ -723,7 +723,7 @@ ef: do
 	integer            :: nbead_cmb,nbead_cmbx3
 	logical,intent(in) :: add_cmb
     integer,intent(in) :: MPI_REAL_WP,nrun,nprun
-    type(chain),intent(in) :: chains(:) ! this%BoxChains
+    type(chain),intent(in) :: chains(:) ! this%BoxChains  ! type chian is in chain_mod.f90
     real(wp),intent(in) :: Wi,Pe,dt,time,R(:),lambda,tss,trst,tend,bs(3)
     integer :: jchain,ierr,i,j,info,icount
     real(wp) :: rcmtmp(3),rcmExcess(3),rcmTot(3),RgSqTensEV(3),RgSqEVdiff(3)
@@ -911,9 +911,9 @@ ef: do
             if (FlowType == 'PSF') then
               if (nrun > 1) then
 !               Comment out if you want in detail information of each process.
-!                write(u3,fmtfeff) Wi,dt,time,-tauxy/Pe
-!                write(u25,fmtfeff) Wi,dt,time,-tauxxyy/Pe**2
-!                write(u26,fmtfeff) Wi,dt,time,-tauyyzz/Pe**2
+                write(u3,fmtfeff) Wi,dt,time,-tauxy/Pe
+                write(u25,fmtfeff) Wi,dt,time,-tauxxyy/Pe**2
+                write(u26,fmtfeff) Wi,dt,time,-tauyyzz/Pe**2
               else ! nrun=1
                 write(u3,fmtfeff) Wi,dt,time,-tauxy/Pe
                 write(u25,fmtfeff) Wi,dt,time,-tauxxyy/Pe**2
@@ -929,9 +929,9 @@ ef: do
         case ('Stress')
           if (nrun > 1) then
 !           Comment out if you want in detail information of each process.
-!            write(u3,fmtfeff) Wi,dt,time,tauxy
-!            write(u25,fmtfeff) Wi,dt,time,tauxxyy
-!            write(u26,fmtfeff) Wi,dt,time,tauyyzz
+            write(u3,fmtfeff) Wi,dt,time,tauxy
+            write(u25,fmtfeff) Wi,dt,time,tauxxyy
+            write(u26,fmtfeff) Wi,dt,time,tauyyzz
           else ! nrun=1
             write(u3,fmtfeff) Wi,dt,time,tauxy
             write(u25,fmtfeff) Wi,dt,time,tauxxyy
@@ -943,7 +943,7 @@ ef: do
       if (DecompMeth == 'Lanczos') then
         if (nrun > 1) then
 !         Comment out if you want in detail information of each process.
-!          write(u15,fmtae3f) FlowType,Wi,dt,time,real(mst)
+          write(u15,fmtae3f) FlowType,Wi,dt,time,real(mst)
         else ! nrun=1
           write(u15,fmtae3f) FlowType,Wi,dt,time,real(mst)
         end if
@@ -964,8 +964,8 @@ ef: do
         rAveMSD(lcount)=rAveMSD(lcount)+MSDAve
         sdrAveMSD(lcount)=sdrAveMSD(lcount)+MSDAve*MSDAve
 !       Comment out if you want in detail information of each process.
-!        write(u37,fmtfefff) Wi,dt,time,MSDAve,sdMSDAve
-!        write(u19,fmtfefff) Wi,dt,time,DcmAve,sdDcmAve
+        write(u37,fmtfefff) Wi,dt,time,MSDAve,sdMSDAve
+        write(u19,fmtfefff) Wi,dt,time,DcmAve,sdDcmAve
       else ! nrun=1
         write(u37,fmtfefff) Wi,dt,time,MSDAve,sdMSDAve
         write(u19,fmtfefff) Wi,dt,time,DcmAve,sdDcmAve
@@ -984,7 +984,7 @@ ef: do
         rAveRgSq(lcount)=rAveRgSq(lcount)+RgSqAve
         sdrAveRgSq(lcount)=sdrAveRgSq(lcount)+RgSqAve*RgSqAve
 !       Comment out if you want in detail information of each process.
-!        write(u18,fmtfefff) Wi,dt,time,RgSqAve,sdRgSqAve
+        write(u18,fmtfefff) Wi,dt,time,RgSqAve,sdRgSqAve
       else ! nrun=1
         write(u18,fmtfefff) Wi,dt,time,RgSqAve,sdRgSqAve  !Rg
       end if
@@ -1066,9 +1066,9 @@ ef: do
             sdrAvetAvetauxxyy=sdrAvetAvetauxxyy+tAvetauxxyy*tAvetauxxyy
             sdrAvetAvetauyyzz=sdrAvetAvetauyyzz+tAvetauyyzz*tAvetauyyzz
           end if
-		  !MB
-          write(u4,fmtfe3f) Wi,dt,tAveqetoeAve/(qmx*max(nseg,nseg_cmbbb)),tAvesdqetoeAve/(qmx*max(nseg,nseg_cmbbb)),sdtAveqetoeAve/(qmx*max(nseg,nseg_cmbbb)) !normalised with linear chain length
-          write(u16,fmtife3f) nbead,Wi,dt,tAvesqqetoeAve,tAvesdsqqetoeAve,sdtAvesqqetoeAve
+		  !MB!normalised with linear/Backbone chain length
+            write(u4,fmtfe3f) Wi,dt,tAveqetoeAve/(qmx*max(nseg,nseg_cmbbb)),tAvesdqetoeAve/(qmx*max(nseg,nseg_cmbbb)),sdtAveqetoeAve/(qmx*max(nseg,nseg_cmbbb)) 
+            write(u16,fmtife3f) nbead,Wi,dt,tAvesqqetoeAve,tAvesdsqqetoeAve,sdtAvesqqetoeAve
           select case (StrPr_mode)
             case ('Visc')
               if (FlowType /= 'Equil') then
