@@ -3,6 +3,7 @@
 # Intel and MKL Path
 #----------------------------------------------------------------------
 PGIROOT = /opt/packages/pgi/20.11/Linux_x86_64/20.11/
+MPIINC = $(PGIROOT)/comm_libs/mpi/lib/
 #----------------------------------------------------------------------
 # mpif90, mpiifort or <Address of OpenMPI bin directory>/<MPI compiler>
 #----------------------------------------------------------------------
@@ -10,7 +11,7 @@ COMP     = mpif90 #$(INTELMPI)/mpiifort
 #----------------------------------------------------------------------
 # pgf90 or <Address of CUDA Fortran bin directory>/pgf90
 #----------------------------------------------------------------------
-USE_GPU  = FALSE
+USE_GPU  = TRUE
 CUCOMP   = pgf90
 #----------------------------------------------------------------------
 # gfortran, ifort or <Address of Fortran compiler>
@@ -63,7 +64,7 @@ endif
 
 CUFLGS   = -DUSE_GPU
 CUFLGS  += -Mpreprocess -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand -Minfo
-CUFLGS  += -Mbounds -Minfo=all -traceback -Mchkfpstk -Mchkstk -Mdalign -g
+CUFLGS  += -Mbounds -Minfo=all -traceback -Mchkstk -Mdalign -g
 #CUFLGS  += -Mdclchk -Mdepchk -Miomutex -Mrecursive -Msave -Ktrap=fp -O0 -g -byteswapio
 #CUFLGS   = -DADD_
 
@@ -77,8 +78,7 @@ GLBINCS	+= -I ~/mkl_pgi/include/intel64/lp64
 endif
 endif
 
-CUINCS  = 
-#CUINCS  = -I /global/software/extras/pgi/17.4/linux86-64/2017/mpi/openmpi/lib
+CUINCS = -I$(MPIINC)
 
 ifeq ($(FCOMP),ifort)
 GLBLIBS  = -L$(MKLROOT)/lib/intel64/
