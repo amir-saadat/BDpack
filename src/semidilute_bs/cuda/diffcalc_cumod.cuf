@@ -73,9 +73,11 @@ contains
     complex(wp) :: Cx_ilp(ILP)
     complex(wp) :: Cy_ilp(ILP)
     complex(wp) :: Cz_ilp(ILP)
+	
 #ifdef Debuge_sequence
 	write(*,*) "module:diffcalc_cumod:apply_infl_kernel"
 #endif
+
     c_str=[0, (K(3)/2+1)*K(2), K(3)/2+1, 1]
 
 

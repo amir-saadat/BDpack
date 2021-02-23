@@ -58,10 +58,10 @@ module trsfm_cumod
   end type trsfm_cu_t
 
   ! ! Private module variables:
-  ! private :: ieps,eps_mx,L1_0,L2_0,L1p,L2p,sinth0,costh0,eps_p
+   private :: ieps,eps_mx,L1_0,L2_0,L1p,L2p,sinth0,costh0,eps_p
   ! ! Protected module variables:
-  ! protected :: theta_0,theta,bsx,bsy,invbsx,invbsy,sinth,costh,&
-  !              tanb,L1,L2,reArng
+   protected :: theta_0,theta,bsx,bsy,invbsx,invbsy,sinth,costh,&
+                tanb,L1,L2,reArng
 
   ! constants on device for elongational flow
   !> modulo(strain,max(strain))
@@ -98,9 +98,11 @@ contains
         ! delrx_m_d=0._wp
       case ('PEF')
         ! theta=theta_0
+		
         sinth_d=sinth
         costh_d=costh
         tanb_d=tanb
+		
         ! ! Note that the initial box should be square in x-y plane
         ! L1_0=bs(1)*[ costh0,sinth0]
         ! L2_0=bs(1)*[-sinth0,costh0]
@@ -137,6 +139,9 @@ contains
 
   end subroutine update_arng_d
 
+
+
+
   !> Updates trsfm module variables at each time step
   !! \param eps applied strain
   !! \param bs the dimension of the box
@@ -159,8 +164,10 @@ contains
         ! L1=[L1_0(1)*exp(eps_m),L1_0(2)*exp(-eps_m)]
         ! L2=[L2_0(1)*exp(eps_m),L2_0(2)*exp(-eps_m)]
         ! theta_d=theta
+		
         sinth_d=sinth
         costh_d=costh
+		
         ! M(1,:)=[ costh,sinth]
         ! M(2,:)=[-sinth,costh]
         ! L1p=matmul(M,L1)
@@ -169,6 +176,7 @@ contains
         ! bsy=L2p(2)
         ! invbsx=1/bsx
         ! invbsy=1/bsy
+		
         tanb_d=tanb
     end select
 
@@ -229,7 +237,7 @@ contains
   ! subroutine applypbc_rec(this,bsx,bsy,bsz,invbsx,invbsy,invbsz,&
   !   Rbx,Rby,Rbz,rcm,b_img,cm_img,ntb,nch,itime)
   subroutine applypbc_rec(this,bsx,bsy,bsz,invbsx,invbsy,invbsz,Rbx,Rby,Rbz,&
-    rcm,b_img,cm_img,itime)
+           rcm,b_img,cm_img,itime)
 
     use :: flow_mod, only: FlowType
     use :: arry_mod, only: print_vector,print_matrix

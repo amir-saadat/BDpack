@@ -59,7 +59,9 @@ module conv_cumod
   ! Protected module variables:
   protected :: h_B,descr_B,B_Val_d,B_ColInd_d,B_RowPtr_d, &
                h_Bbar,descr_Bbar,Bbar_Val_d,Bbar_ColInd_d, &
-               Bbar_RowPtr_d
+               Bbar_RowPtr_d,B_ColPtr_d,B_Val_tr_d,B_RowInd_d, &
+			   Bbar_Val_tr_d,Bbar_ColPtr_d,Bbar_RowInd_d
+			   
 
   !> @name Group1
   !! The parameters defined to construct sparse B
@@ -67,8 +69,9 @@ module conv_cumod
   type(cusparseHandle) :: h_B
   type(cusparseMatDescr) :: descr_B
   integer :: nnz_B
-  real(wp),device,allocatable :: B_Val_d(:)
-  integer,device,allocatable :: B_ColInd_d(:),B_RowPtr_d(:)
+  real(wp),device,allocatable :: B_Val_d(:)   ,B_Val_tr_d(:)
+  integer,device,allocatable  :: B_ColInd_d(:),B_ColPtr_d(:)
+  integer,device,allocatable  :: B_RowInd_d(:),B_RowPtr_d(:)
   !> @}
   !> @name Group2
   !! The parameters defined to construct sparse Bbar
@@ -76,9 +79,9 @@ module conv_cumod
   type(cusparseHandle) :: h_Bbar
   type(cusparseMatDescr) :: descr_Bbar
   integer :: nnz_Bbar
-  real(wp),device,allocatable :: Bbar_Val_d(:),Bbar_Val_tr_d(:)
-  integer,device,allocatable :: Bbar_ColInd_d(:),Bbar_RowPtr_d(:)
-  integer,device,allocatable :: Bbar_RowInd_d(:),Bbar_ColPtr_d(:)
+  real(wp),device,allocatable :: Bbar_Val_d(:)   ,Bbar_Val_tr_d(:)
+  integer,device,allocatable  :: Bbar_ColInd_d(:),Bbar_RowPtr_d(:)
+  integer,device,allocatable  :: Bbar_RowInd_d(:),Bbar_ColPtr_d(:)
   !> @}
 
 
@@ -101,35 +104,57 @@ contains
     allocate(B_ColInd_d(nnz_B))
     allocate(B_RowPtr_d(ntbx3+1))
 
-    ! nnz_Bbar=ntsx3*2
-    nnz_Bbar=maxnz_Bbar
-    allocate(Bbar_Val_d(nnz_Bbar))
-    allocate(Bbar_ColInd_d(nnz_Bbar))
-    allocate(Bbar_RowPtr_d(ntsx3+1))
-    allocate(Bbar_Val_tr_d(nnz_Bbar))
-    allocate(Bbar_RowInd_d(nnz_Bbar))
-    allocate(Bbar_ColPtr_d(ntbx3+1))
+    allocate(B_Val_tr_d(nnz_B))
+    allocate(B_RowInd_d(nnz_B))
+    allocate(B_ColPtr_d(ntsx3+1))
 
     B_Val_d=B_vals
     B_ColInd_d=B_cols
     B_RowPtr_d=B_rowInd
-    Bbar_Val_d=Bbar_vals
-    Bbar_ColInd_d=Bbar_cols
-    Bbar_RowPtr_d=Bbar_rowInd
 
     istat = cusparseCreate(h_B)
     istat = cusparseCreateMatDescr(descr_B)
     istat = cusparseSetMatType(descr_B,CUSPARSE_MATRIX_TYPE_GENERAL)
     istat = cusparseSetMatIndexBase(descr_B,CUSPARSE_INDEX_BASE_ONE)
 
+    ! nnz_Bbar=ntsx3*2
+    nnz_Bbar=maxnz_Bbar
+    allocate(Bbar_Val_d(nnz_Bbar))
+    allocate(Bbar_ColInd_d(nnz_Bbar))
+    allocate(Bbar_RowPtr_d(ntsx3+1))
+	
+    allocate(Bbar_Val_tr_d(nnz_Bbar))
+    allocate(Bbar_RowInd_d(nnz_Bbar))
+    allocate(Bbar_ColPtr_d(ntbx3+1))
+	
+    Bbar_Val_d=Bbar_vals
+    Bbar_ColInd_d=Bbar_cols
+    Bbar_RowPtr_d=Bbar_rowInd
+	
     istat = cusparseCreate(h_Bbar)
     istat = cusparseCreateMatDescr(descr_Bbar)
     istat = cusparseSetMatType(descr_Bbar,CUSPARSE_MATRIX_TYPE_GENERAL)
     istat = cusparseSetMatIndexBase(descr_Bbar,CUSPARSE_INDEX_BASE_ONE)
+	
 
     istat = cusparseDcsr2csc(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
       Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE)
-
+    
+	istat = cusparseDcsr2csc(h_B,   ntbx3,ntsx3,nnz_B,   B_Val_d,   B_RowPtr_d,   B_ColInd_d,&
+      B_Val_tr_d,  B_RowInd_d,   B_ColPtr_d,   CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ONE)
+	
+	
+	
+	!NEW_VERSON
+	!cusparseCsr2cscEx2_bufferSize(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
+    !  Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,CUDA_R_64F, CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE,&
+	!  CUSPARSE_CSR2CSC_ALG1,bufferSize)
+	!
+	!istat = cusparseCsr2cscEx2(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
+    !  Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,CUDA_R_64F,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE,&
+	!  CUSPARSE_CSR2CSC_ALG1,bufferSize)
+	
+	
     if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csr2csc Error in init_conv: ",i)',istat
 
   end subroutine init_conv_d
@@ -143,10 +168,14 @@ contains
 
   end subroutine init_conv_t
 
+  !--------------------------------------------------------------------------------------------
+
+
   ! !> Converting {R,rc} to Rb
   ! !! \param R bead to center of mass distance for all chains
   ! !! \param rcm center of mass for all chains
   ! !! \param Rb the position vector of the beads for all chains
+  
   ! subroutine RtoRb(this,R,rcm,Rb,nchain,nbead,ntotbead,ntotbeadx3)
 
   !   type(conv_cu_t),intent(inout) :: this
@@ -167,11 +196,14 @@ contains
 
   ! end subroutine RtoRb
 
+  !--------------------------------------------------------------------------------------------
+
   !> Converting (Rx,Ry,Rz) to Rb
   !! \param Rbx x-coordinate of the position vector
   !! \param Rby y-coordinate of the position vector
   !! \param Rbz z-coordinate of the position vector
   !! \param Rb the position vector of the beads for all chains
+  
   subroutine RbctoRb(this,Rbx,Rby,Rbz,Rb,ntb)
 
     class(conv_cu_t),intent(inout) :: this
@@ -192,11 +224,15 @@ contains
 
   end subroutine RbctoRb
 
+ !--------------------------------------------------------------------------------------------
+
+
   !> Converting Rb to (Rx,Ry,Rz)
   !! \param Rb the position vector of the beads for all chains
   !! \param Rbx x-coordinate of the position vector
   !! \param Rby y-coordinate of the position vector
   !! \param Rbz z-coordinate of the position vector
+  
   subroutine RbtoRbc(this,Rb,Rbx,Rby,Rbz,ntb)
 
     class(conv_cu_t),intent(inout) :: this
@@ -217,9 +253,12 @@ contains
 
   end subroutine RbtoRbc
 
+!--------------------------------------------------------------------------------------------
+
   !> Converting Rb to Q using sparse multiplication
   !! \param Q connectivity vectors
-  !! \param R bead to center of mass vectors
+  !! \param Rb bead to center of mass vectors
+  
   subroutine RbtoQ(this,Rb,Q,ntsx3,ntbx3,bs)
 
     class(conv_cu_t),intent(inout) :: this
@@ -234,9 +273,9 @@ contains
 	write(*,*) "module:conv_cumod:RbtoQ"
 #endif
     istat = cusparseDcsrmv(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,ntsx3,ntbx3,nnz_Bbar,&
-      1._wp,descr_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,Rb,0._wp,Q)
-
-    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod: ",i)',istat
+                   1._wp,descr_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,Rb,0._wp,Q)
+	  
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod QtoRb: ",i)',istat
 
     bsx=bs(1);bsy=bs(2);bsz=bs(3)
 
@@ -269,5 +308,32 @@ contains
 
   end subroutine RbtoQ
 
+
+  !> Converting Q to R using sparse multiplication
+  !! \param Q connectivity vectors
+  !! \param R bead to center of mass vectors
+  subroutine QtoR(this,R,Q,ntsx3,ntbx3)
+  
+    class(conv_cu_t),intent(inout) :: this
+    integer,intent(in) :: ntsx3,ntbx3
+    real(wp),device,intent(in) :: R(:)
+    real(wp),device,intent(inout) :: Q(:)
+	
+    istat = cusparseDcsrmv(h_B,CUSPARSE_OPERATION_NON_TRANSPOSE,ntbx3,ntsx3,nnz_B,&
+                           1._wp,descr_B,B_Val_d,B_RowPtr_d,B_ColInd_d,Q,0._wp,R)
+    
+	!NEW_VErsion
+    !cusparseStatus_t
+    !cusparseSpMV_bufferSize(h_B,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp,descr_B,&
+    !                        Q,0._wp,R,CUDA_R_64F,CUSPARSE_MV_ALG_DEFA,externalBuffer)
+    !! or CUSPARSE_CSRMV_ALG1
+
+    !istat=cusparseSpMV(h_B,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp,descr_B,&
+    !                   Q,0._wp,R,CUDA_R_64F,CUSPARSE_MV_ALG_DEFA,externalBuffer)
+	!! or CUSPARSE_CSRMV_ALG1
+	
+	if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod RtoQ: ",i)',istat
+
+  end subroutine QtoR
 
 end module conv_cumod

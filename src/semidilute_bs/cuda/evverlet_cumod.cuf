@@ -186,9 +186,11 @@ contains
 !       end if ! ntokens
 !     end do ef
 !     close(u1)
+
 #ifdef Debuge_sequence
     write(*,*) "module:evverlet_cumod:init_evverlet_d"
 #endif
+
     call read_input('cll-dns-ev',0,cll_dns_ev,0.1_wp)
 
     select case (FlowType)
@@ -273,9 +275,11 @@ contains
     real(wp),intent(in) :: rc,bs(3)
     integer,intent(in) :: ntotbead
     integer,device,allocatable,intent(inout) :: nlst_d(:,:)
+	
 #ifdef Debuge_sequence
     write(*,*) "module:evverlet_cumod:init_evverlet_t"
 #endif
+
     this%ncps=0
     call this%init_cll(rc,bs,ntotbead,nlst_d)
     allocate(this%Rbx_h(ntotbead))
@@ -341,6 +345,9 @@ contains
     integer :: clx,cly,clz,cll,czNxNy,cyNx
     real(wp) :: ncpsl(3)
 
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_cumod:init_clllst"
+#endif
 
     ncpsl=this%ncps
 
@@ -432,6 +439,10 @@ contains
     real(wp) :: bsx,bsy,bsz
     integer :: ierr,r,nbytes,ib,mbb
 
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_cumod:init_nablst"
+#endif
+
     ! unfortunately we need to transfer the positions for now
     ! but fortunately it is only done every once a while ...
     ! print*,'how often ev',itime
@@ -505,6 +516,10 @@ contains
     real(wp),intent(in) :: Rbz(:)
     integer,intent(in) :: ntotbead,ntotbeadx3
     integer :: i,clx,cly,clz,cll,itime,j
+
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_cumod:cnstr_clllst"
+#endif
 
     this%head=0
     this%binc=0
@@ -582,6 +597,9 @@ contains
     real(wp) :: ri(3),rijx,rijy,rijytmp,rijz,rijsq
     integer :: nab,cll,beadi,jb,nabcll
 
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_cumod:cnstr_nab_d"
+#endif
 
     beadi=binc(blockIdx%x,threadIdx%x)
     if (beadi > ntb .or. beadi <= 0) return
