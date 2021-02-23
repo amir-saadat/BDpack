@@ -323,18 +323,18 @@ contains
       case('Rndm')
         allocate(u(Na))
         call date_and_time(values=tm_inf)
-        msec=(1000*tm_inf(7)+tm_inf(8))*((myrank-83)*359)
+        msec=(1000*tm_inf(7)+tm_inf(8))*(abs(myrank-83)*359)
         call random_seed(size=n)
         call random_seed(put=(/(i*msec,i=1,n)/))
         icnt=0
         rndlp: do
           call random_number(u)
           do k=1, Na
-            Ia(k+1)=2+floor((nseg-Na*nseg_cmbar-1)*u(k))
+            Ia(k+1)=3+floor((nseg_cmb-Na*nseg_cmbar-1-3)*u(k))
           end do
           do i=1, Na
             do k=1, i-1
-              if (Ia(i+1) == Ia(k+1)) then
+              if (abs(Ia(i+1)-Ia(k+1)) <= (nseg_cmb/(3*Na)) ) then
                 icnt=icnt+1
                 if (icnt >= 100) then
                   print '(" Random placement of arms did not converge.")'
@@ -349,6 +349,7 @@ contains
         deallocate(u)
       endselect
       call sort(Ia)
+	  Write(*,*) "Arms:",Ia
     else
       allocate(Ia(0)) ! since we are passing it
     endif
@@ -871,6 +872,8 @@ contains
     if (doTiming) call tick(count0)
     call calcForce(this,itime)
     if (doTiming) et_CF=et_CF+tock(count0)
+	
+	
     ! call print_vector(Fphi,'fphi')
     ! call print_vector(this%Rb_tilde,'rb1')
     ! call print_matrix(this%rcm_tilde,'rcm1')
@@ -894,10 +897,10 @@ contains
 ! do ibead=1, ntotbeadx3
 ! write(ufo,'(f14.10)') Fphi(ibead)
 ! enddo
+#ifdef Debuge_sequence
     write(*,*) "Integration scheme"
-    
-!	Fphi=Fphi+Fbend
-    
+#endif
+
 
 
 
@@ -1342,13 +1345,16 @@ contains
   subroutine calcForce(this,itime)
 
     use :: arry_mod, only: print_vector
-    use :: conv_mod, only: RbctoRb,RbtoQ
+    use :: conv_mod, only: RbctoRb,RbtoQ,QtoR
     use :: force_smdlt, only: Fphi,rFphi
     use :: evforce_mod, only: EVForceLaw
     use :: flow_mod, only: FlowType
     use :: trsfm_mod, only: bsx,bsy,invbsx,invbsy,eps_m,reArng
 #ifdef USE_GPU
       use :: force_cumod, only: Fphi_d,rFphi_d
+	  !MB
+	  use :: trsfm_cumod, only: bsx,bsy,invbsx,invbsy,eps_m,reArng
+	  use :: conv_cumod, only: RbctoRb,RbtoQ,QtoR
 #endif
 
     class(box),intent(inout) :: this
@@ -1357,40 +1363,72 @@ contains
 	write(*,*) "module:box_mod:calcForce"
 #endif
 #ifdef USE_GPU
+
       Fphi_d=0._wp
       rFphi_d=0._wp
       select case (FlowType)
       case ('Equil')
         call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
         call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
-		
-        call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
-          itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
 
+        call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
+                              itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+		
+        !Bending Force		
+        call this%Boxconv_d%QtoR(this%Q_d,this%R_d,ntotsegx3,ntotbeadx3)
+        call this%Boxsprf_d%updatebend(this%Q_tilde,this%R_tilde,nchain,nseg,nbead,nchain_cmb,&
+		                      nseg_cmb,ntotbead,nseg_cmbbb,nseg_cmbar,Na,Ia,this%size,this%invsize)
+    
         if (EVForceLaw /= 'NoEV') then
           call this%Boxevf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
-            itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+                              itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
         end if
-      ! case ('PSF')
-      !   call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
-      !     itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-      !   if (EVForceLaw /= 'NoEV') then
-      !     call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
-      !       itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-      !   end if
-      ! case ('PEF')
-      !   call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
-      !     [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
-      !     nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-      !   if (EVForceLaw /= 'NoEV') then
-      !     call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
-      !      [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
-      !      nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-      !   end if
+		
+        ! Shear Flow
+      case ('PSF')
+	    call this%Boxconv_d%RbctoRb(this%Boxtrsfm_d%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
+        call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
+       
+	   !update spring force
+	    call this%Boxsprf_d%update(this%Boxtrsfm_d%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
+          itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+	  
+	  
+	    !Bending Force		
+        call this%Boxconv_d%QtoR(this%Q_d,this%R_d,ntotsegx3,ntotbeadx3)
+        call this%Boxsprf_d%updatebend(this%Q_d,this%R_d,nchain,nseg,nbead,nchain_cmb,&
+		                      nseg_cmb,ntotbead,nseg_cmbbb,nseg_cmbar,Na,Ia,this%size,this%invsize)
+							  
+		!EV		  
+        if (EVForceLaw /= 'NoEV') then
+          call this%Boxevf_d%update(this%Boxtrsfm_d%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
+            itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+		  
+
+
+        ! Extentional Flow
+      case ('PEF')
+	    call this%Boxconv_d%RbctoRb(this%Boxtrsfm_d%Rbx_d,this%Boxtrsfm_d%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
+        call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
+	   
+	    !update spring force
+	    call this%Boxsprf_d%update(this%Boxtrsfm_d%Rbx_d,this%Boxtrsfm_d%Rby_d,this%Rbz_d,[bsx,bsy,this%size(3)],&
+		          [invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+
+         if (EVForceLaw /= 'NoEV') then
+           call this%Boxevf_d%update(this%Boxtrsfm_d%Rbx_d,this%Boxtrsfm_d%Rby_d,this%Rbz_d,&
+            [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
+            nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+         end if
       end select
 
       Fphi=Fphi_d
-
+      rFphi=rFphi_d
+#ifdef Debuge_sequence
+	  Write(*,*) "GPU rFphi:"
+	  Write(*,*) rFphi
+#endif
+ 
 #else
 
       Fphi=0._wp
@@ -1404,38 +1442,40 @@ contains
 
           call this%Boxsprf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
             nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-!MB
-!          call this%Boxsprf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
-!              ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-			
+
+!         Bend Force
+          call QtoR(this%Q_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
+          call this%Boxsprf%updatebend(this%Q_tilde,this%R_tilde,nchain,nseg,nbead,nchain_cmb,&
+                                    nseg_cmb,ntotbead,nseg_cmbbb,nseg_cmbar,add_cmb,Na,Ia,this%size,this%invsize)
           if (EVForceLaw /= 'NoEV') then
             call this%Boxevf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
               nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-!MB
-!            call this%Boxevf%update(this%Rbx,this%Rby,this%Rbz,this%size,this%invsize,&
-!                itime, this%Q_tilde)
+
           end if
 		  
-		  
+        ! Shear Flow
         case ('PSF')
 
           call RbctoRb(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%Rb_tilde,ntotbead)
           call RbtoQ(this%Rb_tilde,this%Q_tilde,ntotsegx3,ntotbeadx3,this%size)
 
           call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
-		        itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-!MB
-!          call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,itime,&
-!		      ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+		                          itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
+!         Bend Force
+          call QtoR(this%Q_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
+          call this%Boxsprf%updatebend(this%Q_tilde,this%R_tilde,nchain,nseg,nbead,nchain_cmb,&
+                                      nseg_cmb,ntotbead,nseg_cmbbb,nseg_cmbar,add_cmb,Na,Ia,&
+									  this%size,this%invsize)
+
 			
           if (EVForceLaw /= 'NoEV') then
             call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Rby,this%Rbz,this%size,this%invsize,&
              itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-!MB
-!            call this%Boxevf%update(this%Boxtrsfm%Rbtrx, this%Rby, this%Rbz, this%size, this%invsize,&
-!              itime, this%Q_tilde)			
+	
           end if
 
+
+        ! Extenstional Flow
         case ('PEF')
 
           call RbctoRb(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,this%Q_tilde,ntotbead)
@@ -1444,18 +1484,17 @@ contains
           call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
             [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
             nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-!MB
-!          call this%Boxsprf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
-!            [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,&
-!            ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-			
+
+!         Bend Force
+          call QtoR(this%Q_tilde,this%R_tilde,ntotsegx3,ntotbeadx3)
+          call this%Boxsprf%updatebend(this%Q_tilde,this%R_tilde,nchain,nseg,nbead,nchain_cmb,&
+                                      nseg_cmb,ntotbead,nseg_cmbbb,nseg_cmbar,add_cmb,Na,Ia,&
+									  [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)])
           if (EVForceLaw /= 'NoEV') then
            call this%Boxevf%update(this%Boxtrsfm%Rbtrx,this%Boxtrsfm%Rbtry,this%Rbz,&
                [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
                nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_tilde)
-!MB
-!            call this%Boxevf%update(this%Boxtrsfm%Rbtrx, this%Boxtrsfm%Rbtry, this%Rbz,&
-!               [bsx,bsy,this%size(3)], [invbsx,invbsy,this%invsize(3)], itime, this%Q_tilde)
+
          end if
       end select
 

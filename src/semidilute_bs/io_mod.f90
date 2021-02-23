@@ -1233,21 +1233,21 @@ ef: do
 !         write(this%oldu3,'(2x,a)') 'AT:'
 !         write(this%oldu3,'(2x,a,1x,f10.3)') 'Wi:',Wi
 !         write(this%oldu3,'(2x,a,1x,f10.3)') 'dt:',dt
-!         write(this%oldu3,'(2x,a,1x,i8)') 'run number:',irun
-!         write(this%oldu3,'(2x,a,1x,i8)') 'time index number:',itime
-!         if (DumpConf) write(this%oldu3,'(2x,a,1x,i8)') 'dump number:',idmp
+!         write(this%oldu3,'(2x,a,1x,i14)') 'run number:',irun
+!         write(this%oldu3,'(2x,a,1x,i14)') 'time index number:',itime
+!         if (DumpConf) write(this%oldu3,'(2x,a,1x,i14)') 'dump number:',idmp
 !         write(this%oldu4,'(2x,a)') 'AT:'
 !         write(this%oldu4,'(2x,a,1x,f10.3)') 'Wi:',Wi
 !         write(this%oldu4,'(2x,a,1x,f10.3)') 'dt:',dt
-!         write(this%oldu4,'(2x,a,1x,i8)') 'run number:',irun
-!         write(this%oldu4,'(2x,a,1x,i8)') 'time index number:',itime
-!         if (DumpConf) write(this%oldu4,'(2x,a,1x,i8)') 'dump number:',idmp
+!         write(this%oldu4,'(2x,a,1x,i14)') 'run number:',irun
+!         write(this%oldu4,'(2x,a,1x,i14)') 'time index number:',itime
+!         if (DumpConf) write(this%oldu4,'(2x,a,1x,i14)') 'dump number:',idmp
 !         write(this%oldu9,'(2x,a)') 'AT:'
 !         write(this%oldu9,'(2x,a,1x,f10.3)') 'Wi:',Wi
 !         write(this%oldu9,'(2x,a,1x,f10.3)') 'dt:',dt
-!         write(this%oldu9,'(2x,a,1x,i8)') 'run number:',irun
-!         write(this%oldu9,'(2x,a,1x,i8)') 'time index number:',itime
-!         if (DumpConf) write(this%oldu9,'(2x,a,1x,i8)') 'dump number:',idmp
+!         write(this%oldu9,'(2x,a,1x,i14)') 'run number:',irun
+!         write(this%oldu9,'(2x,a,1x,i14)') 'time index number:',itime
+!         if (DumpConf) write(this%oldu9,'(2x,a,1x,i14)') 'dump number:',idmp
 
 !       end if ! id
 
@@ -1263,21 +1263,21 @@ ef: do
 !         write(this%oldu1,'(2x,a)') 'AT:'
 !         write(this%oldu1,'(2x,a,1x,f10.3)') 'Wi:',Wi
 !         write(this%oldu1,'(2x,a,1x,f10.3)') 'dt:',dt
-!         write(this%oldu1,'(2x,a,1x,i8)') 'run number:',irun
-!         write(this%oldu1,'(2x,a,1x,i8)') 'time index number:',itime
-!         if (DumpConf) write(this%oldu1,'(2x,a,1x,i8)') 'dump number:',idmp
+!         write(this%oldu1,'(2x,a,1x,i14)') 'run number:',irun
+!         write(this%oldu1,'(2x,a,1x,i14)') 'time index number:',itime
+!         if (DumpConf) write(this%oldu1,'(2x,a,1x,i14)') 'dump number:',idmp
 !         write(this%oldu2,'(2x,a)') 'AT:'
 !         write(this%oldu2,'(2x,a,1x,f10.3)') 'Wi:',Wi
 !         write(this%oldu2,'(2x,a,1x,f10.3)') 'dt:',dt
-!         write(this%oldu2,'(2x,a,1x,i8)') 'run number:',irun
-!         write(this%oldu2,'(2x,a,1x,i8)') 'time index number:',itime
-!         if (DumpConf) write(this%oldu2,'(2x,a,1x,i8)') 'dump number:',idmp
+!         write(this%oldu2,'(2x,a,1x,i14)') 'run number:',irun
+!         write(this%oldu2,'(2x,a,1x,i14)') 'time index number:',itime
+!         if (DumpConf) write(this%oldu2,'(2x,a,1x,i14)') 'dump number:',idmp
 !         write(this%oldu8,'(2x,a)') 'AT:'
 !         write(this%oldu8,'(2x,a,1x,f10.3)') 'Wi:',Wi
 !         write(this%oldu8,'(2x,a,1x,f10.3)') 'dt:',dt
-!         write(this%oldu8,'(2x,a,1x,i8)') 'run number:',irun
-!         write(this%oldu8,'(2x,a,1x,i8)') 'time index number:',itime
-!         if (DumpConf) write(this%oldu8,'(2x,a,1x,i8)') 'dump number:',idmp
+!         write(this%oldu8,'(2x,a,1x,i14)') 'run number:',irun
+!         write(this%oldu8,'(2x,a,1x,i14)') 'time index number:',itime
+!         if (DumpConf) write(this%oldu8,'(2x,a,1x,i14)') 'dump number:',idmp
 
 !       end if ! id
 
@@ -1406,28 +1406,28 @@ ef: do
         write(this%oldu3,'(2x,a)') 'AT:'
         write(this%oldu3,'(2x,a,1x,f14.7)') 'Wi:',Wi
         write(this%oldu3,'(2x,a,1x,f14.7)') 'dt:',dt
-        write(this%oldu3,'(2x,a,1x,i8)') 'run number:',irun
-        write(this%oldu3,'(2x,a,1x,i8)') 'time index number:',itime
-        if (DumpConf) write(this%oldu3,'(2x,a,1x,i8)') 'dump number:',idmp
+        write(this%oldu3,'(2x,a,1x,i14)') 'run number:',irun
+        write(this%oldu3,'(2x,a,1x,i14)') 'time index number:',itime
+        if (DumpConf) write(this%oldu3,'(2x,a,1x,i14)') 'dump number:',idmp
         write(this%oldu4,'(2x,a)') 'AT:'
         write(this%oldu4,'(2x,a,1x,f14.7)') 'Wi:',Wi
         write(this%oldu4,'(2x,a,1x,f14.7)') 'dt:',dt
-        write(this%oldu4,'(2x,a,1x,i8)') 'run number:',irun
-        write(this%oldu4,'(2x,a,1x,i8)') 'time index number:',itime
-        if (DumpConf) write(this%oldu4,'(2x,a,1x,i8)') 'dump number:',idmp
+        write(this%oldu4,'(2x,a,1x,i14)') 'run number:',irun
+        write(this%oldu4,'(2x,a,1x,i14)') 'time index number:',itime
+        if (DumpConf) write(this%oldu4,'(2x,a,1x,i14)') 'dump number:',idmp
         write(this%oldu9,'(2x,a)') 'AT:'
         write(this%oldu9,'(2x,a,1x,f14.7)') 'Wi:',Wi
         write(this%oldu9,'(2x,a,1x,f14.7)') 'dt:',dt
-        write(this%oldu9,'(2x,a,1x,i8)') 'run number:',irun
-        write(this%oldu9,'(2x,a,1x,i8)') 'time index number:',itime
-        if (DumpConf) write(this%oldu9,'(2x,a,1x,i8)') 'dump number:',idmp
+        write(this%oldu9,'(2x,a,1x,i14)') 'run number:',irun
+        write(this%oldu9,'(2x,a,1x,i14)') 'time index number:',itime
+        if (DumpConf) write(this%oldu9,'(2x,a,1x,i14)') 'dump number:',idmp
         write(*,'(2x,a)') 'You can restart using the following:'
-        write (*,'(a,f14.7)') " trst: ",rtpassed
+        write (*,'(a,f16.7)') " trst: ",rtpassed
         write(*,'(2x,a,1x,f14.7)') 'Wi:',Wi
         write(*,'(2x,a,1x,f14.7)') 'dt:',dt
-        write(*,'(2x,a,1x,i8)') 'runrst:',irun-1
-        write(*,'(2x,a,1x,i8)') 'trst index (second entry):',itime
-        if (DumpConf) write(*,'(2x,a,1x,i8)') 'dmprst:',idmp
+        write(*,'(2x,a,1x,i14)') 'runrst:',irun-1
+        write(*,'(2x,a,1x,i14)') 'trst index (second entry):',itime
+        if (DumpConf) write(*,'(2x,a,1x,i14)') 'dmprst:',idmp
         write (*,*)
 
       end if ! id
@@ -1444,28 +1444,28 @@ ef: do
         write(this%oldu1,'(2x,a)') 'AT:'
         write(this%oldu1,'(2x,a,1x,f14.7)') 'Wi:',Wi
         write(this%oldu1,'(2x,a,1x,f14.7)') 'dt:',dt
-        write(this%oldu1,'(2x,a,1x,i8)') 'run number:',irun
-        write(this%oldu1,'(2x,a,1x,i8)') 'time index number:',itime
-        if (DumpConf) write(this%oldu1,'(2x,a,1x,i8)') 'dump number:',idmp
+        write(this%oldu1,'(2x,a,1x,i14)') 'run number:',irun
+        write(this%oldu1,'(2x,a,1x,i14)') 'time index number:',itime
+        if (DumpConf) write(this%oldu1,'(2x,a,1x,i14)') 'dump number:',idmp
         write(this%oldu2,'(2x,a)') 'AT:'
         write(this%oldu2,'(2x,a,1x,f14.7)') 'Wi:',Wi
         write(this%oldu2,'(2x,a,1x,f14.7)') 'dt:',dt
-        write(this%oldu2,'(2x,a,1x,i8)') 'run number:',irun
-        write(this%oldu2,'(2x,a,1x,i8)') 'time index number:',itime
-        if (DumpConf) write(this%oldu2,'(2x,a,1x,i8)') 'dump number:',idmp
+        write(this%oldu2,'(2x,a,1x,i14)') 'run number:',irun
+        write(this%oldu2,'(2x,a,1x,i14)') 'time index number:',itime
+        if (DumpConf) write(this%oldu2,'(2x,a,1x,i14)') 'dump number:',idmp
         write(this%oldu8,'(2x,a)') 'AT:'
         write(this%oldu8,'(2x,a,1x,f14.7)') 'Wi:',Wi
         write(this%oldu8,'(2x,a,1x,f14.7)') 'dt:',dt
-        write(this%oldu8,'(2x,a,1x,i8)') 'run number:',irun
-        write(this%oldu8,'(2x,a,1x,i8)') 'time index number:',itime
-        if (DumpConf) write(this%oldu8,'(2x,a,1x,i8)') 'dump number:',idmp
+        write(this%oldu8,'(2x,a,1x,i14)') 'run number:',irun
+        write(this%oldu8,'(2x,a,1x,i14)') 'time index number:',itime
+        if (DumpConf) write(this%oldu8,'(2x,a,1x,i14)') 'dump number:',idmp
         write(*,'(2x,a)') 'You can restart using the following:'
         write (*,'(a,f14.7)') " trst: ",rtpassed
         write(*,'(2x,a,1x,f14.7)') 'Wi:',Wi
         write(*,'(2x,a,1x,f14.7)') 'dt:',dt
-        write(*,'(2x,a,1x,i8)') 'runrst:',irun-1
-        write(*,'(2x,a,1x,i8)') 'trst index (second entry):',itime
-        if (DumpConf) write(*,'(2x,a,1x,i8)') 'dmprst:',idmp
+        write(*,'(2x,a,1x,i14)') 'runrst:',irun-1
+        write(*,'(2x,a,1x,i14)') 'trst index (second entry):',itime
+        if (DumpConf) write(*,'(2x,a,1x,i14)') 'dmprst:',idmp
         write (*,*)
 
       end if ! id
@@ -1486,8 +1486,8 @@ ef: do
             write(this%oldu5,'(3(f18.7,1x))') R(offsetch+offsetb+1:offsetch+offsetb+3)+&
                                               rcm(ichain,1:3)
 #ifdef Debuge_sequence
-			  write(this%oldu115,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3)+&
-              rcm(nchain+ichain,1:3)
+			  write(this%oldu115,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3) !+&
+              !                                  rcm(nchain+ichain,1:3)
 			  write(this%oldu116,*) b_img((ichain-1)*nbead+ibead,1:3)	  
 #endif
           end do ! ibead
@@ -1504,11 +1504,11 @@ ef: do
               offsetb=(ibead-1)*3
               ! write(this%oldu5,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3)
               write(this%oldu5,'(3(f18.7,1x))') R(offsetch+offsetb+1:offsetch+offsetb+3)+&
-              rcm(nchain+ichain,1:3)
+                                                rcm(nchain+ichain,1:3)
 			  !MB
 #ifdef Debuge_sequence
-			  write(this%oldu115,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3)+&
-              rcm(nchain+ichain,1:3)
+			  write(this%oldu115,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3) !+&
+                                                   !rcm(nchain+ichain,1:3)
 			  write(this%oldu116,*) b_img(nchain*nbead+(ichain-1)*(nseg_cmb+1)+ibead,1:3)	  
 #endif
             end do ! ibead

@@ -81,6 +81,8 @@ module force_smdlt
   real(wp),pointer,save :: Fz(:)
   !> Interparticle distance times total force
   real(wp),save :: rFphi(4)
+  !  !> Total force acting on the particles
+  !real(wp),allocatable,save :: Fbnd(:)
 
 contains
 
