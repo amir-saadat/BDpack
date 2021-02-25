@@ -25,12 +25,12 @@
 !%------------------------------------------------------------------------%
 !--------------------------------------------------------------------
 !
-! MODULE: 
+! MODULE:
 !
 !> @author
 !> Amir Saadat, Stanford University, May 2018
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> contains tools for periodic transformation of the configuration
 !--------------------------------------------------------------------
 module trsfm_cumod
@@ -58,10 +58,10 @@ module trsfm_cumod
   end type trsfm_cu_t
 
   ! ! Private module variables:
-   private :: ieps,eps_mx,L1_0,L2_0,L1p,L2p,sinth0,costh0,eps_p
+   !private :: ieps,eps_mx,L1_0,L2_0,L1p,L2p,sinth0,costh0,eps_p
   ! ! Protected module variables:
-   protected :: theta_0,theta,bsx,bsy,invbsx,invbsy,sinth,costh,&
-                tanb,L1,L2,reArng
+   !protected :: theta_0,theta,bsx,bsy,invbsx,invbsy,sinth,costh,&
+  !              tanb,L1,L2,reArng
 
   ! constants on device for elongational flow
   !> modulo(strain,max(strain))
@@ -73,6 +73,60 @@ module trsfm_cumod
   !> The tan(beta), where beta is the angle of L2' with y-axis
   real(wp),constant :: tanb_d
 
+
+  !> The number of periodic strains applied to the box
+  !integer,constant :: ieps
+  !> if the box should retain to its original state
+  !logical,constant :: reArng
+  ! Parameters used in shear flow:
+  !{
+  !> The maximum strain corresponding to maximum deflection angle
+  !real(wp),constant :: eps_mx
+  !> modulo(strain,max(strain))
+  !real(wp),constant :: eps_m
+  !> Deflection of the box in the top layer
+  !real(wp),constant :: delrx_L
+  !> Deflection of the box in the middle height of the box
+  !real(wp),constant :: delrx_m
+  !}
+  ! Parameters used in elongational flow:
+  !{
+  !> The initial angle of the box with respect to x-axis in PEF
+  !real(wp),constant :: theta_0
+  !> The current angle of the box with respect to x-axis in PEF
+  !real(wp),constant :: theta
+  !> The periodic strain in planar elongational flow
+  !real(wp),constant :: eps_p
+  !> The dimension of the deformed box in x-direction
+  !real(wp),constant :: bsx
+  !> The dimension of the deformed box in y-direction
+  !real(wp),constant :: bsy
+  !> The inversed dimension of the deformed box in x-direction
+  !real(wp),constant :: invbsx
+  !> The inversed dimension of the deformed box in y-direction
+  !real(wp),constant :: invbsy
+  !> The initial box basis vector, L1,0
+  !real(wp),constant :: L1_0(2)
+  !> The initial box basis vector, L2,0
+  !real(wp),constant :: L2_0(2)
+  !> The current box basis vector, L1
+  !real(wp),constant :: L1(2)
+  !> The current box basis vector, L2
+  !real(wp),constant :: L2(2)
+  !> The current box rotated basis vector, L1'
+  !real(wp),constant :: L1p(2)
+  !> The current box rotated basis vector, L2'
+  !real(wp),constant :: L2p(2)
+  !> The sin(theta)
+  !real(wp),constant :: sinth
+  !> The cos(theta)
+  !real(wp),constant :: costh
+  !> The sin(theta0)
+  !real(wp),constant :: sinth0
+  !> The cos(theta0)
+  !real(wp),constant :: costh0
+  !> The tan(beta), where beta is the angle of L2' with y-axis
+  !real(wp),constant :: tanb
 
 
 contains
@@ -98,11 +152,11 @@ contains
         ! delrx_m_d=0._wp
       case ('PEF')
         ! theta=theta_0
-		
+
         sinth_d=sinth
         costh_d=costh
         tanb_d=tanb
-		
+
         ! ! Note that the initial box should be square in x-y plane
         ! L1_0=bs(1)*[ costh0,sinth0]
         ! L2_0=bs(1)*[-sinth0,costh0]
@@ -155,7 +209,7 @@ contains
 #ifdef Debuge_sequence
 	write(*,*) "module:trsfm_cumod:update_trsfm_d"
 #endif
-	
+
     select case (FlowType)
       case ('PSF')
         ! delrx_L=eps_m*bs(2)
@@ -164,10 +218,10 @@ contains
         ! L1=[L1_0(1)*exp(eps_m),L1_0(2)*exp(-eps_m)]
         ! L2=[L2_0(1)*exp(eps_m),L2_0(2)*exp(-eps_m)]
         ! theta_d=theta
-		
+
         sinth_d=sinth
         costh_d=costh
-		
+
         ! M(1,:)=[ costh,sinth]
         ! M(2,:)=[-sinth,costh]
         ! L1p=matmul(M,L1)
@@ -176,7 +230,7 @@ contains
         ! bsy=L2p(2)
         ! invbsx=1/bsx
         ! invbsy=1/bsy
-		
+
         tanb_d=tanb
     end select
 
