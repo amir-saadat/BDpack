@@ -27,7 +27,7 @@
 !> @author
 !> Amir Saadat, The University of Tennessee-Knoxville, Apr 2014
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> Calculating the net spring forces on the beads
 !--------------------------------------------------------------------
 module sprforce_mod
@@ -52,19 +52,19 @@ module sprforce_mod
     real(wp),allocatable :: Fbnd(:)
 
   contains
-     
+
     procedure,pass(this) :: init => init_sprforce_t
     procedure,pass(this) :: update => update_force
-   procedure,pass(this) :: updatebend => update_bendforce
+    procedure,pass(this) :: updatebend => update_bendforce
     final :: del_sprforce
 
   end type sprforce
-  
+
   ! Private module variables:
 !  private ::
   ! Protected module variables:
-  protected :: ForceLaw,b,qmx,WLC_v,WLC_A,WLC_B, WLC_C, RWS_v,RWS_C,RWS_D
-  
+  protected :: ForceLaw_i,ForceLaw,b,qmx,WLC_v,WLC_A,WLC_B, WLC_C, RWS_v,RWS_C,RWS_D
+
   !> The type of ev force
   character(len=10),save :: ForceLaw
   integer,save :: ForceLaw_i
@@ -91,12 +91,12 @@ module sprforce_mod
   !> Force parameter for WLC-UD model
   real(wp),save :: WLC_C
   !> Force parameter for WLC-UD model
-  real(wp),save :: RWS_v  
+  real(wp),save :: RWS_v
   !> Force parameter for WLC-UD model
-  real(wp),save :: RWS_C  
+  real(wp),save :: RWS_C
   !> Force parameter for WLC-UD model
   real(wp),save :: RWS_D
-  
+
 contains
 
   !> Initialization of the sprforce module
@@ -170,7 +170,7 @@ ef: do
     case default
       print('(" Force law not properly chosen.")')
     end select
-  
+
     select case (ForceLaw)
       case ('WLC_UD','WLC_SK','WLC_GEN')
         WLC_A=3._wp/32-3/(8*WLC_v)-3/(2*WLC_v**2)
@@ -195,7 +195,7 @@ ef: do
     write(*,*) "module:sprforce_mod:init_sprforce_t"
 #endif
     allocate(this%Fs(ntotsegx3))
-  
+
   end subroutine init_sprforce_t
 
 
@@ -212,13 +212,13 @@ ef: do
                           ntotseg,ntotsegx3,ntotbead,ntotbeadx3,Qt)
     !MB
     !  subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,Qt)
-  
+
     use :: arry_mod, only: print_vector
     use :: conv_mod, only: Bbar_vals,Bbar_cols,Bbar_rowInd
     use :: flow_mod, only: FlowType
     use :: trsfm_mod, only: eps_m,tanb,sinth,costh
     use :: force_smdlt, only: Fphi,rFphi
-    
+
     class(sprforce),intent(inout) :: this
     real(wp),intent(in) :: Rbx(:)
     real(wp),intent(in) :: Rby(:)
@@ -226,7 +226,7 @@ ef: do
     real(wp),intent(in) :: bs(3),invbs(3)
 !    real(wp),intent(inout) :: F(:)
     integer,intent(in) :: itime,ntotseg,ntotsegx3,ntotbead,ntotbeadx3
-    integer,intent(in) :: nchain,nseg,nbead !not needed here 
+    integer,intent(in) :: nchain,nseg,nbead !not needed here
     real(wp),intent(in) :: Qt(:)
     integer :: its,ich,osb,oss,is
     real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
@@ -238,7 +238,7 @@ ef: do
 !!$omp parallel default(private) &
 !!$omp shared(this,ntotseg,nchain,nbead,nseg,Rbx,Rby,Rbz,bs,invbs)  &
 !!$omp shared(ForceLaw,b,qmx,FlowType,eps_m,tanb,sinth,costh,itime) &
-!!$omp shared(WLC_v,WLC_A,WLC_B,RWS_D,RWS_C) reduction(-:rFphi) 
+!!$omp shared(WLC_v,WLC_A,WLC_B,RWS_D,RWS_C) reduction(-:rFphi)
 !!$omp do schedule(auto)
     do its=1, ntotseg
       ! ich=(its-1)/nseg+1
@@ -267,7 +267,7 @@ ef: do
           qx=costh*qx-sinth*qytmp
       end select
       qsq=qx*qx+qy*qy+qz*qz
-  
+
      if (qsq >= b) then
         Qbcomptest=.TRUE.
      end if
@@ -325,7 +325,7 @@ ef: do
 !    do its=1,ntotseg+1
 !        Write(*,*) its,'Fphi', Fphi(its*3-2:its*3)
 !    end do
-	  
+
 
 
   end subroutine update_force
@@ -341,7 +341,7 @@ ef: do
     use :: flow_mod, only: FlowType
     use :: trsfm_mod, only: eps_m,tanb,sinth,costh
     use :: force_smdlt, only: rFphi,Fphi
-    
+
     class(sprforce),intent(inout) :: this
 
     !real(wp),ALLOCATABLE ::  this%Fbnd(:)
@@ -374,7 +374,7 @@ ef: do
 		!end do
 !!$omp parallel default(private) &
 !!$omp shared(this,nchain,nbead,nseg,nseg_cmbar,nchain_cmb,nbead_cmbbb,nseg_cmbbb,nseg_cmb,R,Q,Na,Ia,sinth,tanb,costh,eps_m,invbs,bs,FlowType,add_cmb)  &
-!!$omp shared(WLC_C) reduction(-:rFphi) 
+!!$omp shared(WLC_C) reduction(-:rFphi)
 !!$omp do schedule(auto)
 
         if (nbead >= 3 .and. nchain /= 0) then
@@ -382,15 +382,15 @@ ef: do
 
           Osb1=(ichain-1)*nbead
           OsS1=(ichain-1)*nSeg
-   
+
           do ibead=3, nbead
-   
+
             osS=OsS1+(ibead-1)
             osb=Osb1+ ibead
 
             qtmp(:,-1)=Qt((osS-1)*3+1:(osS-1)*3+3)
             qtmp(:,-2)=Qt((osS-2)*3+1:(osS-2)*3+3)
-			
+
             qtmp(:,-1)=QtEq(qtmp(:,-1),invbs,bs)
 			qtmp(:,-2)=QtEq(qtmp(:,-2),invbs,bs)
             select case (FlowType)
@@ -401,11 +401,11 @@ ef: do
                 qtmp(:,-1)=QtPEF(qtmp(:,-1),sinth,tanb,costh)
 				qtmp(:,-2)=QtPEF(qtmp(:,-2),sinth,tanb,costh)
             end select
-			
-            qmg(-2)=sqrt(dot(qtmp(:,-2),qtmp(:,-2))) 
-            qmg(-1)=sqrt(dot(qtmp(:,-1),qtmp(:,-1))) 
+
+            qmg(-2)=sqrt(dot(qtmp(:,-2),qtmp(:,-2)))
+            qmg(-1)=sqrt(dot(qtmp(:,-1),qtmp(:,-1)))
             ehat(:,-2)=qtmp(:,-2)/qmg(-2)
-            ehat(:,-1)=qtmp(:,-1)/qmg(-1) 
+            ehat(:,-1)=qtmp(:,-1)/qmg(-1)
             thta(-1)=acos(dot(qtmp(:,-1),qtmp(:,-2))/(qmg(-1)*qmg(-2)))
             cost(-1)=cos(thta(-1))
             !!Fi
@@ -426,18 +426,18 @@ ef: do
         if (add_cmb) then
          !write(*,*) "nbead_cmbbb",nbead_cmbbb,"nchain_cmb",nchain_cmb
          do ichain=1, nchain_cmb
- 
+
           Osb1=nchain*nbead+(ichain-1)*(nSeg_cmb+1)
           OsS1=nchain*nSeg+(ichain-1)*nSeg_cmb
 
           ! Loop over backbone
           do ibead=3, nbead_cmbbb
- 
+
             osS=OsS1+(ibead-1)
             osb=Osb1+ ibead
             qtmp(:,-1)=Qt((osS-1)*3+1:(osS-1)*3+3)
             qtmp(:,-2)=Qt((osS-2)*3+1:(osS-2)*3+3)
-			
+
             !write(*,*) 'before',qtmp(:,-1)
             qtmp(:,-1)=QtEq(qtmp(:,-1),invbs,bs)
 			!write(*,*) 'after',qtmp(:,-1)
@@ -450,14 +450,14 @@ ef: do
                 qtmp(:,-1)=QtPEF(qtmp(:,-1),sinth,tanb,costh)
 				qtmp(:,-2)=QtPEF(qtmp(:,-2),sinth,tanb,costh)
             end select
-			
-            qmg(-2)=sqrt(dot(qtmp(:,-2),qtmp(:,-2))) 
-            qmg(-1)=sqrt(dot(qtmp(:,-1),qtmp(:,-1))) 
+
+            qmg(-2)=sqrt(dot(qtmp(:,-2),qtmp(:,-2)))
+            qmg(-1)=sqrt(dot(qtmp(:,-1),qtmp(:,-1)))
             ehat(:,-2)=qtmp(:,-2)/qmg(-2)
-            ehat(:,-1)=qtmp(:,-1)/qmg(-1) 
+            ehat(:,-1)=qtmp(:,-1)/qmg(-1)
             thta(-1)=acos(dot(qtmp(:,-1),qtmp(:,-2))/(qmg(-1)*qmg(-2)))
             cost(-1)=cos(thta(-1))
-			
+
             !!Fi
              this%Fbnd(osb*3-2:osb*3)= this%Fbnd(osb*3-2:osb*3)+&
                         WLC_C*(1/qmg(-1))*(ehat(:,-2)-cost(-1)*ehat(:,-1))
@@ -469,13 +469,13 @@ ef: do
             !!Fi-2
             this%Fbnd((osb-2)*3-2:(osb-2)*3+0)= this%Fbnd((osb-2)*3-2:(osb-2)*3)+&
                         WLC_C*(1/qmg(-2))*(cost(-1)*ehat(:,-2)-ehat(:,-1))
-						
+
             !Write(*,*) ichain,ibead,osb-2,this%Fbnd((osb-2)*3-2:(osb-2)*3+0)
             !Write(*,*) ichain,ibead,osb-1,this%Fbnd((osb-1)*3-2:(osb-1)*3+0)
-			!Write(*,*) ichain,ibead,osb , this%Fbnd(osb*3-2:osb*3)           
+			!Write(*,*) ichain,ibead,osb , this%Fbnd(osb*3-2:osb*3)
 
 
-			
+
             end do !ibead_cmbbb
           !go to 12
           ! Loop over Arms
@@ -483,23 +483,23 @@ ef: do
           Osb1 = nchain*nbead + (ichain-1)*nbead_cmb+nbead_cmbbb
           !Segment Qt[end of BB]
           OsS1= nchain*nSeg + (ichain-1)*nSeg_cmb+nSeg_cmbbb
-          
+
           if (nseg_cmbar == 1) then
             !write(*,*) "nseg_cmbar == 1"
             do iarm=1, Na
               !Backbone _Arm
               !Segment of the backbone connected to the arm
               !Ia(:) Backbone bead place of arm
-              osSbb=nchain*nSeg+(ichain-1)*nSeg_cmb+(Ia(iarm+1)-1)  
+              osSbb=nchain*nSeg+(ichain-1)*nSeg_cmb+(Ia(iarm+1)-1)
               !bead id for iarm start  !Ia: Backbone bead place of arm
-              oslbbb=nchain*nbead +(ichain-1)*(nSeg_cmb+1)+(Ia(iarm+1))  
+              oslbbb=nchain*nbead +(ichain-1)*(nSeg_cmb+1)+(Ia(iarm+1))
               !Seg-Arm
-              osS=OsS1+(iarm-1)*nseg_cmbar  
+              osS=OsS1+(iarm-1)*nseg_cmbar
               ! osb+1 =Bead# start arm iarm
               osb=osb1+(iarm-1)*(nseg_cmbar)   ! nbead_arm = seg_cmbarm
               !-------------------------------------
               ! Effect of first bead of arm on the Backbone.
-              ! Left and right segments 
+              ! Left and right segments
               ! ...O-L-O-R-O...
               !        | arm Seg 1
               !        O arm bead 1
@@ -507,7 +507,7 @@ ef: do
               qtmpl(:)= -Qt(osSbb*3-2:osSbb*3)
               qtmpr(:)= Qt(osSbb*3+1:osSbb*3+3)
               qtmp(:,-1)= Qt(osS*3+1:osS*3+3)  ! 1st segment of the arm
-			  
+
               qtmpl=QtEq(qtmpl,invbs,bs)
               qtmpr=QtEq(qtmpr,invbs,bs)
               qtmp(:,-1)=QtEq(qtmp(:,-1),invbs,bs)
@@ -524,12 +524,12 @@ ef: do
                   qtmp(:,-1)=QtPEF(qtmp(:,-1),sinth,tanb,costh)
                   !qtmp(:,-2)=QtPEF(qtmp(:,-2),sinth,tanb,costh)
               end select
-			
+
               qmgl=sqrt(dot(qtmpl(:),qtmpl(:)))
               qmgr=sqrt(dot(qtmpr(:),qtmpr(:)))
               ehatl(:)=qtmpl(:)/qmgl
               ehatr(:)=qtmpr(:)/qmgr
-              
+
               qmg(-1)=sqrt(dot(qtmp(:,-1),qtmp(:,-1))) !1st_seg arm
               ehat(:,-1)=qtmp(:,-1)/qmg(-1)  !1st_seg arm
               thtal=acos(dot(qtmpl,qtmp(:,-1))/(qmgl*qmg(-1)))
@@ -557,12 +557,12 @@ ef: do
               !Backbone _Arm
               !Segment of the backbone connected to the arm
               !Ia: Backbone bead place of arm
-              osSbb=nchain*nSeg+(ichain-1)*nSeg_cmb+(Ia(iarm+1)-1)  
+              osSbb=nchain*nSeg+(ichain-1)*nSeg_cmb+(Ia(iarm+1)-1)
               !bead id for iarm start  !Ia: Backbone bead place of arm
-              oslbbb=nchain*nbead +(ichain-1)*(nSeg_cmb+1)+(Ia(iarm+1))  
+              oslbbb=nchain*nbead +(ichain-1)*(nSeg_cmb+1)+(Ia(iarm+1))
               !Seg-Arm
-              osS=OsS1+(iarm-1)*nseg_cmbar  
-              ! osb/osS +1 = First Beadtot#/Segtot# start arm iarm   
+              osS=OsS1+(iarm-1)*nseg_cmbar
+              ! osb/osS +1 = First Beadtot#/Segtot# start arm iarm
               osb=osb1+(iarm-1)*(nseg_cmbar)   ! nbead_arm = nseg_cmbarm
 
               qtmpl(:)= Qt(osSbb*3-2:osSbb*3)
@@ -570,7 +570,7 @@ ef: do
 
               qtmp(:,-1)=Qt(osS*3+1:osS*3+3)          ! First segment of the arm
               qtmp(:,-2)=Qt((osS+1)*3+1:(osS+1)*3+3)
-			  
+
               qtmpl=QtEq(qtmpl,invbs,bs)
               qtmpr=QtEq(qtmpr,invbs,bs)
               qtmp(:,-1)=QtEq(qtmp(:,-1),invbs,bs)
@@ -587,7 +587,7 @@ ef: do
                   qtmp(:,-1)=QtPEF(qtmp(:,-1),sinth,tanb,costh)
                   qtmp(:,-2)=QtPEF(qtmp(:,-2),sinth,tanb,costh)
               end select
-			  
+
 			  qmgl=sqrt(dot(qtmpl(:),qtmpl(:)))
               qmgr=sqrt(dot(qtmpr(:),qtmpr(:)))
               ehatl(:)=qtmpl(:)/qmgl
@@ -611,7 +611,7 @@ ef: do
                               (1/qmg(-1))*(cost(-1)*ehat(:,-1)- ehat(:,-2)) )
               ! 1st bead of the arm 2@F(v,v-1)+F(v,v)
                this%Fbnd((osb)*3+1:(osb)*3+3)=WLC_C*( (1/qmg(-1))*(ehatr(:)-costr*ehat(:,-1))-&
-                                                      (1/qmg(-1))*(ehatl(:)-costl*ehat(:,-1))+& 
+                                                      (1/qmg(-1))*(ehatl(:)-costl*ehat(:,-1))+&
                                                       (ehat(:,-2)*(1/qmg(-1)+cost(-1)/qmg(-2))-&
                                                        ehat(:,-1)*(1/qmg(-2)+cost(-1)/qmg(-1)) ) )
               ! 2ed Bead F(v,v-1)
@@ -623,9 +623,9 @@ ef: do
               !Backbone _Arm
               !Segment of the backbone connected to the arm
               !Ia: Backbone bead place of arm
-              osSbb=nchain*nSeg+(ichain-1)*nSeg_cmb+(Ia(iarm+1)-1)  
+              osSbb=nchain*nSeg+(ichain-1)*nSeg_cmb+(Ia(iarm+1)-1)
               !bead id for iarm start  !Ia: Backbone bead place of arm
-              oslbbb=nchain*nbead +(ichain-1)*(nSeg_cmb+1)+(Ia(iarm+1))  
+              oslbbb=nchain*nbead +(ichain-1)*(nSeg_cmb+1)+(Ia(iarm+1))
               !Seg-Arm
               osS=OsS1+(iarm-1)*nseg_cmbar    ! +1 =1st Seg/bead iarm
               osb=osb1+(iarm-1)*(nseg_cmbar)   ! nbead_arm = nseg_cmbarm
@@ -677,10 +677,10 @@ ef: do
                             ( (ehat(:,-1)*(1/qmgl  +costl/qmg(-1)) -ehatl(:)*(1/qmg(-1)+costl/qmgl))-&
                               (ehat(:,-1)*(1/qmgr  +costr/qmg(-1)) -ehatr(:)*(1/qmg(-1)+costr/qmgr))+&
                               (1/qmg(-1))*(cost(-1)*ehat(:,-1)-ehat(:,-2)) )
-  
+
               !1st bead of the arm 2@F(v,v-1)+F(v,v) !!                     +  F(v,v+1) on the loop
                this%Fbnd((osb)*3+1:(osb)*3+3)=WLC_C*( (1/qmg(-1))*(ehatr(:)-costr*ehat(:,-1))-&
-                                                      (1/qmg(-1))*(ehatl(:)-costl*ehat(:,-1))+& 
+                                                      (1/qmg(-1))*(ehatl(:)-costl*ehat(:,-1))+&
                                                       (ehat(:,-2)*(1/qmg(-1)+cost(-1)/qmg(-2))-&
                                                        ehat(:,-1)*(1/qmg(-2)+cost(-1)/qmg(-1))) )
               ! 2ed Bead F(v,v-1) !!!            +F(v,v)+ F(v,v+1) on the loop
@@ -694,7 +694,7 @@ ef: do
                 qtmp(:, 0)=Qt((osS-1)*3+1:(osS-1)*3+3)
                 qtmp(:,-1)=Qt((osS-2)*3+1:(osS-2)*3+3)
                 qtmp(:,-2)=Qt((osS-3)*3+1:(osS-3)*3+3)
-				
+
 				qtmp(:, 0)=QtEq(qtmp(:, 0),invbs,bs)
                 qtmp(:,-1)=QtEq(qtmp(:,-1),invbs,bs)
 			    qtmp(:,-2)=QtEq(qtmp(:,-2),invbs,bs)
@@ -708,16 +708,16 @@ ef: do
                     qtmp(:,-1)=QtPEF(qtmp(:,-1),sinth,tanb,costh)
                     qtmp(:,-2)=QtPEF(qtmp(:,-2),sinth,tanb,costh)
                 end select
-				
+
                 qmg(-2)=sqrt(dot(qtmp(:,-2),qtmp(:,-2))) !qmg(-1)
                 qmg(-1)=sqrt(dot(qtmp(:,-1),qtmp(:,-1))) !qmg( 0)
                 qmg( 0)=sqrt(dot(qtmp(:,0),qtmp(:,0)))
                 ehat(:,-2)=qtmp(:,-2)/qmg(-2)
-                ehat(:,-1)=qtmp(:,-1)/qmg(-1) 
+                ehat(:,-1)=qtmp(:,-1)/qmg(-1)
                 ehat(:, 0)=qtmp(:,0) /qmg(0)
 				thta(-1)=acos(dot(qtmp(:,-1),qtmp(:,-2))/(qmg(-1)*qmg(-2)))
                 cost(-1)=cos(thta(-1))
-				
+
                 thta(-2)=acos(dot(qtmp(:,-1),qtmp(:,0))/(qmg(-1)*qmg(0)))
                 cost(-2)=cos(thta(-2))
                 !Fi = +Fi,i-1
@@ -744,10 +744,10 @@ ef: do
 
         !rFphi, Fphi
         do ibead=1, ntotbead
-		
+
           !Write(*,*) ibead,'Fphi',Fphi(ibead*3-2:ibead*3)
 		  !Write(*,*) ibead,'Fbnd',this%Fbnd(ibead*3-2:ibead*3)
-		  
+
           Fphi(ibead*3-2)=Fphi(ibead*3-2)+ this%Fbnd(ibead*3-2)
           Fphi(ibead*3-1)=Fphi(ibead*3-1)+ this%Fbnd(ibead*3-1)
           Fphi(ibead*3) = Fphi(ibead*3)+ this%Fbnd(ibead*3)
@@ -780,32 +780,32 @@ ef: do
     q1(3)=q(3)-nint(q(3)*invbs(3))*bs(3)
 
   end function QtEq
- 
+
   function QtPSF(q,eps_m) result(q1)
 
     real(wp) :: q1(3)
     real(wp),INTENT(in) :: q(:)
     real(wp),INTENT(in) :: eps_m
-	
+
     q1(1)=q(1)+eps_m*q(2)
 	q1(2)=q(2)
 	q1(3)=q(3)
-	
+
   end function QtPSF
- 
+
   function QtPEF(q,sinth,tanb,costh) result(q1)
 
     real(wp) :: q1(3)
     real(wp),INTENT(in) :: q(:)
     real(wp),INTENT(in) :: sinth,tanb,costh
 	real(wp):: qytmp
-	
+
     qytmp=q(2)
     q1(1)=q(1)+tanb*qytmp
     q1(2)=sinth*q1(1)+costh*qytmp
     q1(1)=costh*q1(1)-sinth*qytmp
     q1(3)=q(3)
-	
+
   end function QtPEF
 
 
@@ -825,5 +825,3 @@ ef: do
 
 
 end module sprforce_mod
-
-

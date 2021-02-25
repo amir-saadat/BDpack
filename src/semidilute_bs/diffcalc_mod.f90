@@ -1219,11 +1219,12 @@ n3lp:         do n3=-nmax(3),nmax(3)
     integer :: k_ind,k1,k2,k3,elem_count,elem_counttmp,k2Kx,k3KxKy
     integer,allocatable,dimension(:,:),save :: grid
     integer :: r_str_c(0:3),k1KzKy,k2Kz,elem_count_c,elem_counttmp_c,K_dim
-#ifdef Debuge_sequence
-	write(*,*) "module:diffcalc_mod:calcDiff_recip_dev"
-#endif
-!$omp threadprivate (grid)
 
+!#ifdef Debuge_sequence
+!	write(*,*) "module:diffcalc_mod:calcDiff_recip_dev"
+!#endif
+
+!$omp threadprivate (grid)
 
     ! print*,'before',size(this%P_cols)
 
