@@ -1,0 +1,189 @@
++ export OMP_NUM_THREADS=1
++ OMP_NUM_THREADS=1
++ PTH=/ocean/projects/chm200003p/boodaghi/Linear_1500/semi_N150_c1
++ cd /ocean/projects/chm200003p/boodaghi/Linear_1500/semi_N150_c1
++ module purge
+++ /usr/share/lmod/lmod/libexec/lmod bash purge
++ eval unset 'CC;' unset '__LMOD_REF_COUNT_CMAKE_PREFIX_PATH;' unset 'CMAKE_PREFIX_PATH;' unset '__LMOD_REF_COUNT_CPATH;' unset 'CPATH;' unset '__LMOD_REF_COUNT_CPLUS_INCLUDE_PATH;' unset 'CPLUS_INCLUDE_PATH;' unset 'CPP;' unset 'CUDA_HOME;' unset 'CXX;' unset '__LMOD_REF_COUNT_C_INCLUDE_PATH;' unset 'C_INCLUDE_PATH;' unset 'DEFCUDAVERSION;' unset 'F77;' unset 'F90;' unset 'FC;' unset '__LMOD_REF_COUNT_INCLUDE;' unset 'INCLUDE;' unset '__LMOD_REF_COUNT_LD_LIBRARY_PATH;' unset 'LD_LIBRARY_PATH;' unset '__LMOD_REF_COUNT_LIBRARY_PATH;' unset 'LIBRARY_PATH;' unset '__LMOD_REF_COUNT_LOADEDMODULES;' unset 'LOADEDMODULES;' '__LMOD_REF_COUNT_MANPATH=/usr/share/lmod/lmod/share/man:1\;/opt/puppetlabs/puppet/share/man:1;' export '__LMOD_REF_COUNT_MANPATH;' 'MANPATH=/usr/share/lmod/lmod/share/man::/opt/puppetlabs/puppet/share/man;' export 'MANPATH;' 'MODULEPATH=/opt/modulefiles:/etc/modulefiles:/usr/share/modulefiles:/usr/share/modulefiles/Linux:/usr/share/modulefiles/Core:/usr/share/lmod/lmod/modulefiles/Core;' export 'MODULEPATH;' unset 'NVHPC;' unset 'OPAL_PREFIX;' '__LMOD_REF_COUNT_PATH=/jet/home/boodaghi/.local/bin:1\;/jet/home/boodaghi/bin:1\;/usr/local/bin:1\;/usr/bin:1\;/usr/local/sbin:1\;/usr/sbin:1\;/bin:1\;/opt/packages/filemover:1\;/opt/packages/interact/bin:1\;/opt/puppetlabs/bin:1;' export '__LMOD_REF_COUNT_PATH;' 'PATH=/jet/home/boodaghi/.local/bin:/jet/home/boodaghi/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/bin:/opt/packages/filemover:/opt/packages/interact/bin:/opt/puppetlabs/bin;' export 'PATH;' unset '__LMOD_REF_COUNT__LMFILES_;' unset '_LMFILES_;' '_ModuleTable001_=X01vZHVsZVRhYmxlXz17WyJNVHZlcnNpb24iXT0zLFsiY19yZWJ1aWxkVGltZSJdPTcyMDAuMCxbImNfc2hvcnRUaW1lIl09MC4xMTY5Mzc4NzU3NDc2OCxkZXB0aFQ9e30sZmFtaWx5PXt9LG1UPXt9LG1wYXRoQT17Ii9vcHQvbW9kdWxlZmlsZXMiLCIvZXRjL21vZHVsZWZpbGVzIiwiL3Vzci9zaGFyZS9tb2R1bGVmaWxlcyIsIi91c3Ivc2hhcmUvbW9kdWxlZmlsZXMvTGludXgiLCIvdXNyL3NoYXJlL21vZHVsZWZpbGVzL0NvcmUiLCIvdXNyL3NoYXJlL2xtb2QvbG1vZC9tb2R1bGVmaWxlcy9Db3JlIix9LFsic3lzdGVtQmFzZU1QQVRIIl09Ii9vcHQvbW9kdWxlZmlsZXM6L2V0Yy9tb2R1bGVmaWxlczovdXNyL3NoYXJlL21vZHVsZWZpbGVzOi91c3Ivc2hhcmUvbW9kdWxl;' export '_ModuleTable001_;' '_ModuleTable002_=ZmlsZXMvTGludXg6L3Vzci9zaGFyZS9tb2R1bGVmaWxlcy9Db3JlOi91c3Ivc2hhcmUvbG1vZC9sbW9kL21vZHVsZWZpbGVzL0NvcmUiLH0=;' export '_ModuleTable002_;' '_ModuleTable_Sz_=2;' export '_ModuleTable_Sz_;'
+++ unset CC
+++ unset __LMOD_REF_COUNT_CMAKE_PREFIX_PATH
+++ unset CMAKE_PREFIX_PATH
+++ unset __LMOD_REF_COUNT_CPATH
+++ unset CPATH
+++ unset __LMOD_REF_COUNT_CPLUS_INCLUDE_PATH
+++ unset CPLUS_INCLUDE_PATH
+++ unset CPP
+++ unset CUDA_HOME
+++ unset CXX
+++ unset __LMOD_REF_COUNT_C_INCLUDE_PATH
+++ unset C_INCLUDE_PATH
+++ unset DEFCUDAVERSION
+++ unset F77
+++ unset F90
+++ unset FC
+++ unset __LMOD_REF_COUNT_INCLUDE
+++ unset INCLUDE
+++ unset __LMOD_REF_COUNT_LD_LIBRARY_PATH
+++ unset LD_LIBRARY_PATH
+++ unset __LMOD_REF_COUNT_LIBRARY_PATH
+++ unset LIBRARY_PATH
+++ unset __LMOD_REF_COUNT_LOADEDMODULES
+++ unset LOADEDMODULES
+++ __LMOD_REF_COUNT_MANPATH='/usr/share/lmod/lmod/share/man:1;/opt/puppetlabs/puppet/share/man:1'
+++ export __LMOD_REF_COUNT_MANPATH
+++ MANPATH=/usr/share/lmod/lmod/share/man::/opt/puppetlabs/puppet/share/man
+++ export MANPATH
+++ MODULEPATH=/opt/modulefiles:/etc/modulefiles:/usr/share/modulefiles:/usr/share/modulefiles/Linux:/usr/share/modulefiles/Core:/usr/share/lmod/lmod/modulefiles/Core
+++ export MODULEPATH
+++ unset NVHPC
+++ unset OPAL_PREFIX
+++ __LMOD_REF_COUNT_PATH='/jet/home/boodaghi/.local/bin:1;/jet/home/boodaghi/bin:1;/usr/local/bin:1;/usr/bin:1;/usr/local/sbin:1;/usr/sbin:1;/bin:1;/opt/packages/filemover:1;/opt/packages/interact/bin:1;/opt/puppetlabs/bin:1'
+++ export __LMOD_REF_COUNT_PATH
+++ PATH=/jet/home/boodaghi/.local/bin:/jet/home/boodaghi/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/bin:/opt/packages/filemover:/opt/packages/interact/bin:/opt/puppetlabs/bin
+++ export PATH
+++ unset __LMOD_REF_COUNT__LMFILES_
+++ unset _LMFILES_
+++ _ModuleTable001_=X01vZHVsZVRhYmxlXz17WyJNVHZlcnNpb24iXT0zLFsiY19yZWJ1aWxkVGltZSJdPTcyMDAuMCxbImNfc2hvcnRUaW1lIl09MC4xMTY5Mzc4NzU3NDc2OCxkZXB0aFQ9e30sZmFtaWx5PXt9LG1UPXt9LG1wYXRoQT17Ii9vcHQvbW9kdWxlZmlsZXMiLCIvZXRjL21vZHVsZWZpbGVzIiwiL3Vzci9zaGFyZS9tb2R1bGVmaWxlcyIsIi91c3Ivc2hhcmUvbW9kdWxlZmlsZXMvTGludXgiLCIvdXNyL3NoYXJlL21vZHVsZWZpbGVzL0NvcmUiLCIvdXNyL3NoYXJlL2xtb2QvbG1vZC9tb2R1bGVmaWxlcy9Db3JlIix9LFsic3lzdGVtQmFzZU1QQVRIIl09Ii9vcHQvbW9kdWxlZmlsZXM6L2V0Yy9tb2R1bGVmaWxlczovdXNyL3NoYXJlL21vZHVsZWZpbGVzOi91c3Ivc2hhcmUvbW9kdWxl
+++ export _ModuleTable001_
+++ _ModuleTable002_=ZmlsZXMvTGludXg6L3Vzci9zaGFyZS9tb2R1bGVmaWxlcy9Db3JlOi91c3Ivc2hhcmUvbG1vZC9sbW9kL21vZHVsZWZpbGVzL0NvcmUiLH0=
+++ export _ModuleTable002_
+++ _ModuleTable_Sz_=2
+++ export _ModuleTable_Sz_
+++ : -s sh
++ eval
++ /usr/share/lmod/8.2.7/libexec/log_modules purge
++ module load intel/20.4 openmpi/3.1.6-intel20.4
+++ /usr/share/lmod/lmod/libexec/lmod bash load intel/20.4 openmpi/3.1.6-intel20.4
++ eval '__LMOD_REF_COUNT_CLASSPATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/lib/mpi.jar:2\;/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/lib/daal.jar:1;' export '__LMOD_REF_COUNT_CLASSPATH;' 'CLASSPATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/lib/mpi.jar:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/lib/daal.jar;' export 'CLASSPATH;' '__LMOD_REF_COUNT_CPATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp/include:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/include:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/pstl/include:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/include:2\;/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/include:1;' export '__LMOD_REF_COUNT_CPATH;' 'CPATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp/include:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/include:/opt/intel/compilers_and_libraries_2020.4.304/linux/pstl/include:/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/include:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/include;' export 'CPATH;' '__LMOD_REF_COUNT_CPLUS_INCLUDE_PATH=/opt/intel/clck/2019.5/include:1;' export '__LMOD_REF_COUNT_CPLUS_INCLUDE_PATH;' 'CPLUS_INCLUDE_PATH=/opt/intel/clck/2019.5/include;' export 'CPLUS_INCLUDE_PATH;' 'DAALROOT=/opt/intel/compilers_and_libraries_2020.4.304/linux/daal;' export 'DAALROOT;' 'FI_PROVIDER_PATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/lib/prov;' export 'FI_PROVIDER_PATH;' '__LMOD_REF_COUNT_INFOPATH=/opt/intel/documentation_2020/en/debugger/gdb-ia/info:1;' export '__LMOD_REF_COUNT_INFOPATH;' 'INFOPATH=/opt/intel/documentation_2020/en/debugger/gdb-ia/info;' export 'INFOPATH;' 'INTEL_DIR=/opt/packages/openmpi/intel/3.1.6-intel20.4/;' export 'INTEL_DIR;' '__LMOD_REF_COUNT_INTEL_LICENSE_FILE=/opt/intel/licenses:1;' export '__LMOD_REF_COUNT_INTEL_LICENSE_FILE;' 'INTEL_LICENSE_FILE=/opt/intel/licenses;' export 'INTEL_LICENSE_FILE;' 'IPPROOT=/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp;' export 'IPPROOT;' 'I_MPI_JOB_RESPECT_PROCESS_PLACEMENT=0;' export 'I_MPI_JOB_RESPECT_PROCESS_PLACEMENT;' 'I_MPI_ROOT=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi;' export 'I_MPI_ROOT;' '__LMOD_REF_COUNT_LD_LIBRARY_PATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/lib:2\;/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/lib/release:2\;/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/lib:2\;/opt/intel/itac/2020.3.036/intel64/slib:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64_lin:2\;/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp/lib/intel64:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/lib/intel64_lin:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/lib/intel64/gcc4.8:2\;/opt/intel/debugger_2020/libipt/intel64/lib:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/lib/intel64_lin:1\;/opt/packages/openmpi/intel/3.1.6-intel20.4/lib:1;' export '__LMOD_REF_COUNT_LD_LIBRARY_PATH;' 'LD_LIBRARY_PATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/lib:/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/lib/release:/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/lib:/opt/intel/itac/2020.3.036/intel64/slib:/opt/intel/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp/lib/intel64:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/lib/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/lib/intel64/gcc4.8:/opt/intel/debugger_2020/libipt/intel64/lib:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/lib/intel64_lin:/opt/packages/openmpi/intel/3.1.6-intel20.4/lib;' export 'LD_LIBRARY_PATH;' '__LMOD_REF_COUNT_LIBRARY_PATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/lib:2\;/opt/intel/clck/2019.5/lib/intel64:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp/lib/intel64:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64_lin:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/lib/intel64_lin:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/lib/intel64/gcc4.8:2\;/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/lib/intel64_lin:1;' export '__LMOD_REF_COUNT_LIBRARY_PATH;' 'LIBRARY_PATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/lib:/opt/intel/clck/2019.5/lib/intel64:/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp/lib/intel64:/opt/intel/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/lib/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/lib/intel64/gcc4.8:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/lib/intel64_lin;' export 'LIBRARY_PATH;' 'LMOD_FAMILY_COMPILER=intel;' export 'LMOD_FAMILY_COMPILER;' 'LMOD_FAMILY_COMPILER_VERSION=20.4;' export 'LMOD_FAMILY_COMPILER_VERSION;' '__LMOD_REF_COUNT_LOADEDMODULES=intel/20.4:1\;openmpi/3.1.6-intel20.4:1;' export '__LMOD_REF_COUNT_LOADEDMODULES;' 'LOADEDMODULES=intel/20.4:openmpi/3.1.6-intel20.4;' export 'LOADEDMODULES;' '__LMOD_REF_COUNT_MANPATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/man:2\;/opt/intel/itac/2020.3.036/man:1\;/opt/intel/clck/2019.5/man:1\;/opt/intel/man/common:1\;/opt/intel/documentation_2020/en/debugger/gdb-ia/man:1\;/opt/packages/openmpi/intel/3.1.6-intel20.4/share/man:1\;/usr/share/lmod/lmod/share/man:1\;/opt/puppetlabs/puppet/share/man:1;' export '__LMOD_REF_COUNT_MANPATH;' 'MANPATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/man:/opt/intel/itac/2020.3.036/man:/opt/intel/clck/2019.5/man:/opt/intel/man/common:/opt/intel/documentation_2020/en/debugger/gdb-ia/man:/opt/packages/openmpi/intel/3.1.6-intel20.4/share/man:/usr/share/lmod/lmod/share/man:/opt/puppetlabs/puppet/share/man::;' export 'MANPATH;' 'MKLROOT=/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl;' export 'MKLROOT;' '__LMOD_REF_COUNT_MODULEPATH=/opt/modulefiles/intel/20.4.lua:1\;/opt/modulefiles:1\;/etc/modulefiles:1\;/usr/share/modulefiles:1\;/usr/share/modulefiles/Linux:1\;/usr/share/modulefiles/Core:1\;/usr/share/lmod/lmod/modulefiles/Core:1;' export '__LMOD_REF_COUNT_MODULEPATH;' 'MODULEPATH=/opt/modulefiles/intel/20.4.lua:/opt/modulefiles:/etc/modulefiles:/usr/share/modulefiles:/usr/share/modulefiles/Linux:/usr/share/modulefiles/Core:/usr/share/lmod/lmod/modulefiles/Core;' export 'MODULEPATH;' '__LMOD_REF_COUNT_NLSPATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64/locale/%l_%t/%N:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/lib/intel64_lin/locale/%l_%t/%N:1;' export '__LMOD_REF_COUNT_NLSPATH;' 'NLSPATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64/locale/%l_%t/%N:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/lib/intel64_lin/locale/%l_%t/%N;' export 'NLSPATH;' 'OPENMPI_VERSION=3.1.6;' export 'OPENMPI_VERSION;' '__LMOD_REF_COUNT_PATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/bin:2\;/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/bin:2\;/opt/intel/advisor_2020.3.0.607294/bin64:1\;/opt/intel/vtune_profiler_2020.3.0.612611/bin64:1\;/opt/intel/inspector_2020.3.0.604771/bin64:1\;/opt/intel/itac/2020.3.036/intel64/bin:2\;/opt/intel/clck/2019.5/bin/intel64:1\;/opt/intel/compilers_and_libraries_2020.4.304/linux/bin/intel64:1\;/opt/intel/debugger_2020/gdb/intel64/bin:1\;/opt/packages/openmpi/intel/3.1.6-intel20.4/bin:1\;/jet/home/boodaghi/.local/bin:1\;/jet/home/boodaghi/bin:1\;/usr/local/bin:1\;/usr/bin:1\;/usr/local/sbin:1\;/usr/sbin:1\;/bin:1\;/opt/packages/filemover:1\;/opt/packages/interact/bin:1\;/opt/puppetlabs/bin:1\;/opt/intel/parallel_studio_xe_2020.4.912/bin:1;' export '__LMOD_REF_COUNT_PATH;' 'PATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/bin:/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/bin:/opt/intel/advisor_2020.3.0.607294/bin64:/opt/intel/vtune_profiler_2020.3.0.612611/bin64:/opt/intel/inspector_2020.3.0.604771/bin64:/opt/intel/itac/2020.3.036/intel64/bin:/opt/intel/clck/2019.5/bin/intel64:/opt/intel/compilers_and_libraries_2020.4.304/linux/bin/intel64:/opt/intel/debugger_2020/gdb/intel64/bin:/opt/packages/openmpi/intel/3.1.6-intel20.4/bin:/jet/home/boodaghi/.local/bin:/jet/home/boodaghi/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/bin:/opt/packages/filemover:/opt/packages/interact/bin:/opt/puppetlabs/bin:/opt/intel/parallel_studio_xe_2020.4.912/bin;' export 'PATH;' 'PKG_CONFIG_PATH=/opt/intel/advisor_2020.3.0.607294/include/pkgconfig/lib64:/opt/intel/vtune_profiler_2020.3.0.612611/include/pkgconfig/lib64:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/bin/pkgconfig;' export 'PKG_CONFIG_PATH;' 'PSTLROOT=/opt/intel/compilers_and_libraries_2020.4.304/linux/pstl;' export 'PSTLROOT;' 'SLURM_WHOLE=1;' export 'SLURM_WHOLE;' 'TBBROOT=/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb;' export 'TBBROOT;' 'VT_ADD_LIBS=-ldwarf\' '-lelf\' '-lvtunwind\' '-lm\' '-lpthread;' export 'VT_ADD_LIBS;' 'VT_ARCH=intel64;' export 'VT_ARCH;' 'VT_MPI=impi4;' export 'VT_MPI;' '__LMOD_REF_COUNT__LMFILES_=/opt/modulefiles/intel/20.4.lua:1\;/opt/modulefiles/openmpi/3.1.6-intel20.4:1;' export '__LMOD_REF_COUNT__LMFILES_;' '_LMFILES_=/opt/modulefiles/intel/20.4.lua:/opt/modulefiles/openmpi/3.1.6-intel20.4;' export '_LMFILES_;' '_ModuleTable001_=X01vZHVsZVRhYmxlXz17WyJNVHZlcnNpb24iXT0zLFsiY19yZWJ1aWxkVGltZSJdPTcyMDAuMCxbImNfc2hvcnRUaW1lIl09MC4xMTY5Mzc4NzU3NDc2OCxkZXB0aFQ9e30sZmFtaWx5PXtbImNvbXBpbGVyIl09ImludGVsIix9LG1UPXtpbnRlbD17WyJmbiJdPSIvb3B0L21vZHVsZWZpbGVzL2ludGVsLzIwLjQubHVhIixbImZ1bGxOYW1lIl09ImludGVsLzIwLjQiLFsibG9hZE9yZGVyIl09MSxwcm9wVD17fSxbInN0YWNrRGVwdGgiXT0xLFsic3RhdHVzIl09ImFjdGl2ZSIsWyJ1c2VyTmFtZSJdPSJpbnRlbC8yMC40Iix9LG9wZW5tcGk9e1siZm4iXT0iL29wdC9tb2R1bGVmaWxlcy9vcGVubXBpLzMuMS42LWludGVsMjAuNCIsWyJmdWxsTmFtZSJdPSJvcGVubXBpLzMuMS42;' export '_ModuleTable001_;' '_ModuleTable002_=LWludGVsMjAuNCIsWyJsb2FkT3JkZXIiXT0yLHByb3BUPXt9LFsic3RhY2tEZXB0aCJdPTAsWyJzdGF0dXMiXT0iYWN0aXZlIixbInVzZXJOYW1lIl09Im9wZW5tcGkvMy4xLjYtaW50ZWwyMC40Iix9LH0sbXBhdGhBPXsiL29wdC9tb2R1bGVmaWxlcy9pbnRlbC8yMC40Lmx1YSIsIi9vcHQvbW9kdWxlZmlsZXMiLCIvZXRjL21vZHVsZWZpbGVzIiwiL3Vzci9zaGFyZS9tb2R1bGVmaWxlcyIsIi91c3Ivc2hhcmUvbW9kdWxlZmlsZXMvTGludXgiLCIvdXNyL3NoYXJlL21vZHVsZWZpbGVzL0NvcmUiLCIvdXNyL3NoYXJlL2xtb2QvbG1vZC9tb2R1bGVmaWxlcy9Db3JlIix9LFsic3lzdGVtQmFzZU1QQVRIIl09Ii9vcHQvbW9kdWxlZmlsZXM6L2V0Yy9tb2R1bGVmaWxlczovdXNy;' export '_ModuleTable002_;' '_ModuleTable003_=L3NoYXJlL21vZHVsZWZpbGVzOi91c3Ivc2hhcmUvbW9kdWxlZmlsZXMvTGludXg6L3Vzci9zaGFyZS9tb2R1bGVmaWxlcy9Db3JlOi91c3Ivc2hhcmUvbG1vZC9sbW9kL21vZHVsZWZpbGVzL0NvcmUiLH0=;' export '_ModuleTable003_;' '_ModuleTable_Sz_=3;' export '_ModuleTable_Sz_;'
+++ __LMOD_REF_COUNT_CLASSPATH='/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/lib/mpi.jar:2;/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/lib/daal.jar:1'
+++ export __LMOD_REF_COUNT_CLASSPATH
+++ CLASSPATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/lib/mpi.jar:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/lib/daal.jar
+++ export CLASSPATH
+++ __LMOD_REF_COUNT_CPATH='/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp/include:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/include:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/pstl/include:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/include:2;/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/include:1'
+++ export __LMOD_REF_COUNT_CPATH
+++ CPATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp/include:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/include:/opt/intel/compilers_and_libraries_2020.4.304/linux/pstl/include:/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/include:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/include
+++ export CPATH
+++ __LMOD_REF_COUNT_CPLUS_INCLUDE_PATH=/opt/intel/clck/2019.5/include:1
+++ export __LMOD_REF_COUNT_CPLUS_INCLUDE_PATH
+++ CPLUS_INCLUDE_PATH=/opt/intel/clck/2019.5/include
+++ export CPLUS_INCLUDE_PATH
+++ DAALROOT=/opt/intel/compilers_and_libraries_2020.4.304/linux/daal
+++ export DAALROOT
+++ FI_PROVIDER_PATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/lib/prov
+++ export FI_PROVIDER_PATH
+++ __LMOD_REF_COUNT_INFOPATH=/opt/intel/documentation_2020/en/debugger/gdb-ia/info:1
+++ export __LMOD_REF_COUNT_INFOPATH
+++ INFOPATH=/opt/intel/documentation_2020/en/debugger/gdb-ia/info
+++ export INFOPATH
+++ INTEL_DIR=/opt/packages/openmpi/intel/3.1.6-intel20.4/
+++ export INTEL_DIR
+++ __LMOD_REF_COUNT_INTEL_LICENSE_FILE=/opt/intel/licenses:1
+++ export __LMOD_REF_COUNT_INTEL_LICENSE_FILE
+++ INTEL_LICENSE_FILE=/opt/intel/licenses
+++ export INTEL_LICENSE_FILE
+++ IPPROOT=/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp
+++ export IPPROOT
+++ I_MPI_JOB_RESPECT_PROCESS_PLACEMENT=0
+++ export I_MPI_JOB_RESPECT_PROCESS_PLACEMENT
+++ I_MPI_ROOT=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi
+++ export I_MPI_ROOT
+++ __LMOD_REF_COUNT_LD_LIBRARY_PATH='/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/lib:2;/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/lib/release:2;/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/lib:2;/opt/intel/itac/2020.3.036/intel64/slib:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64_lin:2;/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp/lib/intel64:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/lib/intel64_lin:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/lib/intel64/gcc4.8:2;/opt/intel/debugger_2020/libipt/intel64/lib:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/lib/intel64_lin:1;/opt/packages/openmpi/intel/3.1.6-intel20.4/lib:1'
+++ export __LMOD_REF_COUNT_LD_LIBRARY_PATH
+++ LD_LIBRARY_PATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/lib:/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/lib/release:/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/lib:/opt/intel/itac/2020.3.036/intel64/slib:/opt/intel/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp/lib/intel64:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/lib/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/lib/intel64/gcc4.8:/opt/intel/debugger_2020/libipt/intel64/lib:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/lib/intel64_lin:/opt/packages/openmpi/intel/3.1.6-intel20.4/lib
+++ export LD_LIBRARY_PATH
+++ __LMOD_REF_COUNT_LIBRARY_PATH='/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/lib:2;/opt/intel/clck/2019.5/lib/intel64:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp/lib/intel64:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64_lin:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/lib/intel64_lin:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/lib/intel64/gcc4.8:2;/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/lib/intel64_lin:1'
+++ export __LMOD_REF_COUNT_LIBRARY_PATH
+++ LIBRARY_PATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/lib:/opt/intel/clck/2019.5/lib/intel64:/opt/intel/compilers_and_libraries_2020.4.304/linux/ipp/lib/intel64:/opt/intel/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/lib/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/lib/intel64/gcc4.8:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/lib/intel64_lin
+++ export LIBRARY_PATH
+++ LMOD_FAMILY_COMPILER=intel
+++ export LMOD_FAMILY_COMPILER
+++ LMOD_FAMILY_COMPILER_VERSION=20.4
+++ export LMOD_FAMILY_COMPILER_VERSION
+++ __LMOD_REF_COUNT_LOADEDMODULES='intel/20.4:1;openmpi/3.1.6-intel20.4:1'
+++ export __LMOD_REF_COUNT_LOADEDMODULES
+++ LOADEDMODULES=intel/20.4:openmpi/3.1.6-intel20.4
+++ export LOADEDMODULES
+++ __LMOD_REF_COUNT_MANPATH='/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/man:2;/opt/intel/itac/2020.3.036/man:1;/opt/intel/clck/2019.5/man:1;/opt/intel/man/common:1;/opt/intel/documentation_2020/en/debugger/gdb-ia/man:1;/opt/packages/openmpi/intel/3.1.6-intel20.4/share/man:1;/usr/share/lmod/lmod/share/man:1;/opt/puppetlabs/puppet/share/man:1'
+++ export __LMOD_REF_COUNT_MANPATH
+++ MANPATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/man:/opt/intel/itac/2020.3.036/man:/opt/intel/clck/2019.5/man:/opt/intel/man/common:/opt/intel/documentation_2020/en/debugger/gdb-ia/man:/opt/packages/openmpi/intel/3.1.6-intel20.4/share/man:/usr/share/lmod/lmod/share/man:/opt/puppetlabs/puppet/share/man::
+++ export MANPATH
+++ MKLROOT=/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl
+++ export MKLROOT
+++ __LMOD_REF_COUNT_MODULEPATH='/opt/modulefiles/intel/20.4.lua:1;/opt/modulefiles:1;/etc/modulefiles:1;/usr/share/modulefiles:1;/usr/share/modulefiles/Linux:1;/usr/share/modulefiles/Core:1;/usr/share/lmod/lmod/modulefiles/Core:1'
+++ export __LMOD_REF_COUNT_MODULEPATH
+++ MODULEPATH=/opt/modulefiles/intel/20.4.lua:/opt/modulefiles:/etc/modulefiles:/usr/share/modulefiles:/usr/share/modulefiles/Linux:/usr/share/modulefiles/Core:/usr/share/lmod/lmod/modulefiles/Core
+++ export MODULEPATH
+++ __LMOD_REF_COUNT_NLSPATH='/opt/intel/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64/locale/%l_%t/%N:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/lib/intel64_lin/locale/%l_%t/%N:1'
+++ export __LMOD_REF_COUNT_NLSPATH
+++ NLSPATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64/locale/%l_%t/%N:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/lib/intel64_lin/locale/%l_%t/%N
+++ export NLSPATH
+++ OPENMPI_VERSION=3.1.6
+++ export OPENMPI_VERSION
+++ __LMOD_REF_COUNT_PATH='/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/bin:2;/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/bin:2;/opt/intel/advisor_2020.3.0.607294/bin64:1;/opt/intel/vtune_profiler_2020.3.0.612611/bin64:1;/opt/intel/inspector_2020.3.0.604771/bin64:1;/opt/intel/itac/2020.3.036/intel64/bin:2;/opt/intel/clck/2019.5/bin/intel64:1;/opt/intel/compilers_and_libraries_2020.4.304/linux/bin/intel64:1;/opt/intel/debugger_2020/gdb/intel64/bin:1;/opt/packages/openmpi/intel/3.1.6-intel20.4/bin:1;/jet/home/boodaghi/.local/bin:1;/jet/home/boodaghi/bin:1;/usr/local/bin:1;/usr/bin:1;/usr/local/sbin:1;/usr/sbin:1;/bin:1;/opt/packages/filemover:1;/opt/packages/interact/bin:1;/opt/puppetlabs/bin:1;/opt/intel/parallel_studio_xe_2020.4.912/bin:1'
+++ export __LMOD_REF_COUNT_PATH
+++ PATH=/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/libfabric/bin:/opt/intel/compilers_and_libraries_2020.4.304/linux/mpi/intel64/bin:/opt/intel/advisor_2020.3.0.607294/bin64:/opt/intel/vtune_profiler_2020.3.0.612611/bin64:/opt/intel/inspector_2020.3.0.604771/bin64:/opt/intel/itac/2020.3.036/intel64/bin:/opt/intel/clck/2019.5/bin/intel64:/opt/intel/compilers_and_libraries_2020.4.304/linux/bin/intel64:/opt/intel/debugger_2020/gdb/intel64/bin:/opt/packages/openmpi/intel/3.1.6-intel20.4/bin:/jet/home/boodaghi/.local/bin:/jet/home/boodaghi/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/bin:/opt/packages/filemover:/opt/packages/interact/bin:/opt/puppetlabs/bin:/opt/intel/parallel_studio_xe_2020.4.912/bin
+++ export PATH
+++ PKG_CONFIG_PATH=/opt/intel/advisor_2020.3.0.607294/include/pkgconfig/lib64:/opt/intel/vtune_profiler_2020.3.0.612611/include/pkgconfig/lib64:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/bin/pkgconfig
+++ export PKG_CONFIG_PATH
+++ PSTLROOT=/opt/intel/compilers_and_libraries_2020.4.304/linux/pstl
+++ export PSTLROOT
+++ SLURM_WHOLE=1
+++ export SLURM_WHOLE
+++ TBBROOT=/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb
+++ export TBBROOT
+++ VT_ADD_LIBS='-ldwarf -lelf -lvtunwind -lm -lpthread'
+++ export VT_ADD_LIBS
+++ VT_ARCH=intel64
+++ export VT_ARCH
+++ VT_MPI=impi4
+++ export VT_MPI
+++ __LMOD_REF_COUNT__LMFILES_='/opt/modulefiles/intel/20.4.lua:1;/opt/modulefiles/openmpi/3.1.6-intel20.4:1'
+++ export __LMOD_REF_COUNT__LMFILES_
+++ _LMFILES_=/opt/modulefiles/intel/20.4.lua:/opt/modulefiles/openmpi/3.1.6-intel20.4
+++ export _LMFILES_
+++ _ModuleTable001_=X01vZHVsZVRhYmxlXz17WyJNVHZlcnNpb24iXT0zLFsiY19yZWJ1aWxkVGltZSJdPTcyMDAuMCxbImNfc2hvcnRUaW1lIl09MC4xMTY5Mzc4NzU3NDc2OCxkZXB0aFQ9e30sZmFtaWx5PXtbImNvbXBpbGVyIl09ImludGVsIix9LG1UPXtpbnRlbD17WyJmbiJdPSIvb3B0L21vZHVsZWZpbGVzL2ludGVsLzIwLjQubHVhIixbImZ1bGxOYW1lIl09ImludGVsLzIwLjQiLFsibG9hZE9yZGVyIl09MSxwcm9wVD17fSxbInN0YWNrRGVwdGgiXT0xLFsic3RhdHVzIl09ImFjdGl2ZSIsWyJ1c2VyTmFtZSJdPSJpbnRlbC8yMC40Iix9LG9wZW5tcGk9e1siZm4iXT0iL29wdC9tb2R1bGVmaWxlcy9vcGVubXBpLzMuMS42LWludGVsMjAuNCIsWyJmdWxsTmFtZSJdPSJvcGVubXBpLzMuMS42
+++ export _ModuleTable001_
+++ _ModuleTable002_=LWludGVsMjAuNCIsWyJsb2FkT3JkZXIiXT0yLHByb3BUPXt9LFsic3RhY2tEZXB0aCJdPTAsWyJzdGF0dXMiXT0iYWN0aXZlIixbInVzZXJOYW1lIl09Im9wZW5tcGkvMy4xLjYtaW50ZWwyMC40Iix9LH0sbXBhdGhBPXsiL29wdC9tb2R1bGVmaWxlcy9pbnRlbC8yMC40Lmx1YSIsIi9vcHQvbW9kdWxlZmlsZXMiLCIvZXRjL21vZHVsZWZpbGVzIiwiL3Vzci9zaGFyZS9tb2R1bGVmaWxlcyIsIi91c3Ivc2hhcmUvbW9kdWxlZmlsZXMvTGludXgiLCIvdXNyL3NoYXJlL21vZHVsZWZpbGVzL0NvcmUiLCIvdXNyL3NoYXJlL2xtb2QvbG1vZC9tb2R1bGVmaWxlcy9Db3JlIix9LFsic3lzdGVtQmFzZU1QQVRIIl09Ii9vcHQvbW9kdWxlZmlsZXM6L2V0Yy9tb2R1bGVmaWxlczovdXNy
+++ export _ModuleTable002_
+++ _ModuleTable003_=L3NoYXJlL21vZHVsZWZpbGVzOi91c3Ivc2hhcmUvbW9kdWxlZmlsZXMvTGludXg6L3Vzci9zaGFyZS9tb2R1bGVmaWxlcy9Db3JlOi91c3Ivc2hhcmUvbG1vZC9sbW9kL21vZHVsZWZpbGVzL0NvcmUiLH0=
+++ export _ModuleTable003_
+++ _ModuleTable_Sz_=3
+++ export _ModuleTable_Sz_
+++ : -s sh
++ eval
++ /usr/share/lmod/8.2.7/libexec/log_modules load intel/20.4 openmpi/3.1.6-intel20.4
++ mpirun -n 1 /ocean/projects/chm200003p/boodaghi/BDpack_bin/BDpack_CPU_Final_bend input.dat
+ 
+ %------------------------------------------------------------%
+ | ***Start of BDpack program to perform Brownian dynamics*** |
+ |           simulation for semidilute solution               |
+ %------------------------------------------------------------%
+ Process Rank: 0 Random Number Seed: 657483726
+ 
+ Longest Relaxation Time: 4620.6153
+ 
+ kmax:    4.9000
+ kimax:  77   77   77
+ Reciprocal space set up complete.
+ Number of reciprocal vectors:   992973
+ 
+ Polymers are in good solvent with zstar=       1.000
+ Cutoff radius for EV force:        5.000
+ Search radius for EV force:        6.000
+ 
+ Initial number of cells for EV calculation: 
+        16         16         16
+ 
+ Periodic Box with Equal dimensions:
+     100.00000      100.00000      100.00000
+ 
+ Time index and value between restarts:        46207      4.6207000
+ 
+ %--------------------------------------------%
+ | Start of time integration in all processes |
+ %--------------------------------------------%
+       Wi            dt           process run
+       ---------------------------------------
+     0.0000000   0.10E-03      1
+ 
+ maxocc          24        6103
