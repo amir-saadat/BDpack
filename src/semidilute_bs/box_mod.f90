@@ -578,7 +578,7 @@ contains
       ! Instantiation of Boxhi_d
       call this%Boxhi_d%init(myrank,ntotseg,ntotbead,this%size)
       ! Instantiation of Boxsprf_d:
-      call this%Boxsprf_d%init(ntotsegx3)
+      call this%Boxsprf_d%init(ntotsegx3,ntotbeadx3)
 
       ! Instantiation of Boxsprf_d:
       call this%Boxevf_d%init(myrank,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotsegx3,&

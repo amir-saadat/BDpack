@@ -1179,7 +1179,6 @@ contains
       K_dim_CCE = K_mesh(1)*K_mesh(2)*(K_mesh(3)/2+1)
 
 
-
       !-------------------------------------------
       !>>> Spreading the forces onto regular mesh:
       !-------------------------------------------
@@ -1256,7 +1255,24 @@ contains
       ! print*,'rowerror:',sum(abs(rowptrtest1-rowptrtest2))
       ! stop
 
-      ! debugging
+      !! NOTE:!!
+      ! Ideally we would like to perform this with the trick were csr2csc is used. but in case it
+      ! doesn't work this piece will help to debug the code, as it uses the same exact part for non-transpose
+
+#if CUDA_VERSION >= 11000
+      status = cusparseSpMV(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,1._wp,this%spMatDescr_P,&
+        this%dnVecDescr_Fx, 0._wp,this%dnVecDescr_FmeshPxi,CUDA_R_64F, CUSPARSE_CSRMV_ALG1,&
+        this%buffer_Ptr)
+      if (status /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV transpose x-component Error: ",i)',status
+      status = cusparseSpMV(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,1._wp,this%spMatDescr_P,&
+        this%dnVecDescr_Fy, 0._wp,this%dnVecDescr_FmeshPyi,CUDA_R_64F, CUSPARSE_CSRMV_ALG1,&
+        this%buffer_Ptr)
+      if (status /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV transpose y-component Error: ",i)',status
+      status = cusparseSpMV(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,1._wp,this%spMatDescr_P,&
+        this%dnVecDescr_Fz, 0._wp,this%dnVecDescr_FmeshPzi,CUDA_R_64F, CUSPARSE_CSRMV_ALG1,&
+        this%buffer_Ptr)
+      if (status /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV transpose z-component Error: ",i)',status
+#else
       status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,ntb,K_dim,ntb*p_PMEto3,&
         1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fx_d,0._wp,&
         this%F_meshPx_di(1:K_dim))
@@ -1271,6 +1287,7 @@ contains
         1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%Fz_d,0._wp,&
         this%F_meshPz_di(1:K_dim))
       if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv z-component Error: ",i)',status
+#endif
 
 ! stop
 
@@ -1379,6 +1396,21 @@ contains
       !--------------------------------------------------------------------------
       if (doTiming) call tick(count2)
 
+      ! non-transpose matrix vector  to find the diffusion tensor multiplied by force on device
+#if CUDA_VERSION >= 11000
+      status = cusparseSpMV(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp,this%spMatDescr_P,&
+        this%dnVecDescr_FmeshPxi, 0._wp,this%dnVecDescr_DFx, CUDA_R_64F, CUSPARSE_CSRMV_ALG1,&
+        this%buffer_Pntr)
+      if (status /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV non-transpose x-component Error: ",i)',status
+      status = cusparseSpMV(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp,this%spMatDescr_P,&
+        this%dnVecDescr_FmeshPyi, 0._wp,this%dnVecDescr_DFy, CUDA_R_64F, CUSPARSE_CSRMV_ALG1,&
+        this%buffer_Pntr)
+      if (status /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV non-transpose y-component Error: ",i)',status
+      status = cusparseSpMV(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp,this%spMatDescr_P,&
+        this%dnVecDescr_FmeshPzi, 0._wp,this%dnVecDescr_DFz, CUDA_R_64F, CUSPARSE_CSRMV_ALG1,&
+        this%buffer_Pntr)
+      if (status /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV non-transpose z-component Error: ",i)',status
+#else
       status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,ntb,K_dim,this%nnz,&
         1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%F_meshPx_di(1:K_dim),&
         0._wp,this%DFx_d)
@@ -1391,6 +1423,7 @@ contains
         1._wp,this%descr_P,this%P_Val_d,this%P_RowPtr_d,this%P_ColInd_d,this%F_meshPz_di(1:K_dim),&
         0._wp,this%DFz_d)
       if (status /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv z-component Error: ",i)',status
+#endif
 
       ! status = cusparseDcsrmv(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,ntb,K_dim,this%nnz,&
       !   1._wp,this%descr_P,Valtest,this%P_RowPtr_d,ColIndtest,this%F_meshPx_di,0._wp,&

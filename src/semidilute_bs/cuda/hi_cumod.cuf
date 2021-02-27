@@ -42,6 +42,21 @@ module hi_cumod
     type(cusparseHandle) :: h_P
     !> cusparse matrix descriptor for P
     type(cusparseMatDescr) :: descr_P
+#if CUDA_VERSION >= 11000
+    !> buffer size for matrix vector operations for non-transpose and transpose
+    integer(8) :: bsize_Pntr,bsize_Ptr
+    !> buffer for matrix vector operations for non-transpose and transpose
+    integer(1), device, allocatable :: buffer_Pntr(:),buffer_Ptr(:)
+    !> sparse matrix descriptor for Dreal
+    type(cusparseSpMatDescr) :: spMatDescr_P
+    !> dense descriptor for vectors in the spmv for P matrix and F_d
+    type(cusparseDnVecDescr) :: dnVecDescr_Fx, dnVecDescr_Fy,dnVecDescr_Fz
+    !> dense descriptor for vectors in the spmv for P matrix and F_meshP_di
+    type(cusparseDnVecDescr) :: dnVecDescr_FmeshPxi, dnVecDescr_FmeshPyi,dnVecDescr_FmeshPzi
+    !> dense descriptor for vectors in the spmv for P matrix and DF_d
+    type(cusparseDnVecDescr) :: dnVecDescr_DFx, dnVecDescr_DFy,dnVecDescr_DFz
+#endif
+
     !> PME tensor P values on host
     real(wp),allocatable :: P_Val_h(:)
     !> PME tensor P row Index  on host
@@ -68,23 +83,14 @@ module hi_cumod
     integer,device,allocatable :: P_RowInd_d(:)
     integer :: nnz
 
-
-
     !> Force on device
     real(wp),device,pointer :: F_d(:) => null()
-
     !> Component x of the force
     real(wp),device,pointer,contiguous :: Fx_d(:) => null()
      !> Component y of the force
     real(wp),device,pointer,contiguous :: Fy_d(:) => null()
     !> Component z of the force
     real(wp),device,pointer,contiguous :: Fz_d(:) => null()
-    ! !> Component x of the force
-    ! real(wp),device,pointer :: Fx_d(:) => null()
-    !  !> Component y of the force
-    ! real(wp),device,pointer :: Fy_d(:) => null()
-    ! !> Component z of the force
-    ! real(wp),device,pointer :: Fz_d(:) => null()
 
     !> Force on the mesh
     real(wp),pointer :: F_mesh_hi(:,:) => null()
@@ -107,28 +113,27 @@ module hi_cumod
     ! real(wp),device,pointer :: F_meshy_di(:) => null()
     ! real(wp),device,pointer :: F_meshz_di(:) => null()
 
+    !> All components of the force on the mesh input to the device
     real(wp),device,pointer,contiguous :: F_mesh_di(:,:) => null()
+    !> x component of the force on the mesh input to the device
     real(wp),device,pointer,contiguous :: F_meshPx_di(:)
+    !> y component of the force on the mesh input to the device
     real(wp),device,pointer,contiguous :: F_meshPy_di(:)
+    !> z component of the force on the mesh input to the device
     real(wp),device,pointer,contiguous :: F_meshPz_di(:)
-    ! real(wp),device,pointer :: F_mesh_di(:,:) => null()
-    ! real(wp),device,pointer :: F_meshPx_di(:)
-    ! real(wp),device,pointer :: F_meshPy_di(:)
-    ! real(wp),device,pointer :: F_meshPz_di(:)
 
     ! complex(wp),device,pointer :: F_meshx_do(:) => null()
     ! complex(wp),device,pointer :: F_meshy_do(:) => null()
     ! complex(wp),device,pointer :: F_meshz_do(:) => null()
 
-
+    !> All components of the force on the mesh on the device
     complex(wp),device,pointer,contiguous :: F_mesh_do(:,:) => null()
+    !> x component of the force on the mesh output from the device
     complex(wp),device,pointer,contiguous :: F_meshPx_do(:)
+    !> y component of the force on the mesh output from the device
     complex(wp),device,pointer,contiguous :: F_meshPy_do(:)
+    !> z component of the force on the mesh output from the device
     complex(wp),device,pointer,contiguous :: F_meshPz_do(:)
-    ! complex(wp),device,pointer :: F_mesh_do(:,:) => null()
-    ! complex(wp),device,pointer :: F_meshPx_do(:)
-    ! complex(wp),device,pointer :: F_meshPy_do(:)
-    ! complex(wp),device,pointer :: F_meshPz_do(:)
 
 
     integer :: nnzb
@@ -139,28 +144,35 @@ module hi_cumod
     real(wp),allocatable :: DF_real_h(:)
     real(wp),device,allocatable :: DF_real_d(:)
 
-
+    !> All components of the diffusion matrix multiplied by force
     real(wp),pointer :: DF_recip(:) => null()
+    !> x components of the diffusion matrix multiplied by force
     real(wp),pointer :: DFPx(:)
+    !> y components of the diffusion matrix multiplied by force
     real(wp),pointer :: DFPy(:)
+    !> z components of the diffusion matrix multiplied by force
     real(wp),pointer :: DFPz(:)
 
+    !> All components of the diffusion matrix multiplied by force on the host
     real(wp),pointer :: DF_recip_h(:) => null()
+    !> x components of the diffusion matrix multiplied by force on the host
     real(wp),pointer :: DFx_h(:)
+    !> y components of the diffusion matrix multiplied by force on the host
     real(wp),pointer :: DFy_h(:)
+    !> z components of the diffusion matrix multiplied by force on the host
     real(wp),pointer :: DFz_h(:)
 
+    !> All components of the diffusion matrix multiplied by force on the device
     real(wp),device,pointer :: DF_recip_d(:) => null()
+    !> x components of the diffusion matrix multiplied by force on the device
     real(wp),device,pointer,contiguous :: DFx_d(:) => null()
+    !> y components of the diffusion matrix multiplied by force on the device
     real(wp),device,pointer,contiguous :: DFy_d(:) => null()
+    !> z components of the diffusion matrix multiplied by force on the device
     real(wp),device,pointer,contiguous :: DFz_d(:) => null()
-    ! real(wp),device,pointer :: DFx_d(:) => null()
-    ! real(wp),device,pointer :: DFy_d(:) => null()
-    ! real(wp),device,pointer :: DFz_d(:) => null()
 
     real(wp),pointer :: DF_tmp(:) => null()
     real(wp),device,allocatable :: DF_d(:)
-
 
 
     ! FFT variables
@@ -177,8 +189,6 @@ module hi_cumod
     real(wp),device,pointer :: mpy_d(:) => null()
     real(wp),device,pointer :: mpz_d(:) => null()
     real(wp),device,pointer :: m2vec_d(:) => null()
-
-
 
     ! Construction of the verlet list
     integer :: mnnt
@@ -263,7 +273,7 @@ contains
     class(hi_cu_t),intent(inout) :: this
     integer,intent(in) :: myrank,ntotseg,ntotbead
     real(wp),intent(in) :: boxdim(3)
-    integer :: status,version
+    integer :: status,version,istat
     type(cusparseSolveAnalysisInfo) :: saInfo
     integer :: BATCH,RANK
     integer,pointer :: NULL_INT => null()
@@ -321,16 +331,19 @@ contains
     else
     end if
 
-    status = cusparseCreate(this%h_Dreal)
-    status = cusparseCreateMatDescr(this%descr_Dreal)
-    status = cusparseSetMatType(this%descr_Dreal,CUSPARSE_MATRIX_TYPE_GENERAL)
-    status = cusparseSetMatIndexBase(this%descr_Dreal, CUSPARSE_INDEX_BASE_ONE)
-    status = cusparseCreateSolveAnalysisInfo(saInfo)
+    istat = cusparseCreate(this%h_Dreal)
+    istat = cusparseCreateMatDescr(this%descr_Dreal)
+    istat = cusparseSetMatType(this%descr_Dreal,CUSPARSE_MATRIX_TYPE_GENERAL)
+    istat = cusparseSetMatIndexBase(this%descr_Dreal, CUSPARSE_INDEX_BASE_ONE)
+#if CUDA_VERSION < 11000
+    istat = cusparseCreateSolveAnalysisInfo(saInfo)
+#endif
 
-    status = cusparseCreate(this%h_P)
-    status = cusparseCreateMatDescr(this%descr_P)
-    status = cusparseSetMatType(this%descr_P,CUSPARSE_MATRIX_TYPE_GENERAL)
-    status = cusparseSetMatIndexBase(this%descr_P,CUSPARSE_INDEX_BASE_ZERO)
+    istat = cusparseCreate(this%h_P)
+    istat = cusparseCreateMatDescr(this%descr_P)
+    istat = cusparseSetMatType(this%descr_P,CUSPARSE_MATRIX_TYPE_GENERAL)
+    istat = cusparseSetMatIndexBase(this%descr_P,CUSPARSE_INDEX_BASE_ZERO)
+
 
     ! Force and DF in real and reciprocal space
 
@@ -403,6 +416,56 @@ contains
     allocate(this%P_ColPtr_d(K_dim+1))
     allocate(this%P_RowInd_d(ntotbead*p_PMEto3))
 
+    ! Preparing the sparse matrix descriptor to be used for reciprocal matrix vector operations with P
+#if CUDA_VERSION >= 11000
+
+    ! Constructing the descriptor for the device force vectors
+    istat = cusparseCreateDnVec(this%dnVecDescr_Fx,ntotbead,this%Fx_d,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Fx_d in hi_cumod: ",i)',istat
+    istat = cusparseCreateDnVec(this%dnVecDescr_Fy,ntotbead,this%Fy_d,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Fy_d in hi_cumod: ",i)',istat
+    istat = cusparseCreateDnVec(this%dnVecDescr_Fz,ntotbead,this%Fz_d,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Fz_d in hi_cumod: ",i)',istat
+
+    ! Constructing the descriptor for the mesh interpolated force vectors
+    istat = cusparseCreateDnVec(this%dnVecDescr_FmeshPxi,K_dim,this%F_meshPx_di,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for FmeshPxi in hi_cumod: ",i)',istat
+    istat = cusparseCreateDnVec(this%dnVecDescr_FmeshPyi,K_dim,this%F_meshPy_di,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for FmeshPyi in hi_cumod: ",i)',istat
+    istat = cusparseCreateDnVec(this%dnVecDescr_FmeshPzi,K_dim,this%F_meshPz_di,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for FmeshPzi in hi_cumod: ",i)',istat
+
+    ! Constructing the descriptor for the device diffusion multiplied force vectors
+    istat = cusparseCreateDnVec(this%dnVecDescr_DFx,ntotbead,this%DFx_d,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for DFx_d in hi_cumod: ",i)',istat
+    istat = cusparseCreateDnVec(this%dnVecDescr_DFy,ntotbead,this%DFy_d,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for DFy_d in hi_cumod: ",i)',istat
+    istat = cusparseCreateDnVec(this%dnVecDescr_DFz,ntotbead,this%DFz_d,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for DFz_d in hi_cumod: ",i)',istat
+
+    istat = cusparseCreateCsr(this%spMatDescr_P,ntotbead,K_dim,ntotbead*p_PMEto3,&
+      this%P_RowPtr_d,this%P_ColInd_d,this%P_Val_d,CUSPARSE_INDEX_32I,CUSPARSE_INDEX_32I,&
+      CUSPARSE_INDEX_BASE_ONE,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateCsr Error for P in hi_cumod: ",i)',istat
+
+    ! Find the buffer size for the transpose operation using P sparse matrix
+    istat = cusparseSpMV_buffersize(this%h_P,CUSPARSE_OPERATION_TRANSPOSE,1._wp,&
+      this%spMatDescr_P,this%dnVecDescr_Fx,0._wp,this%dnVecDescr_FmeshPxi,CUDA_R_64F,&
+      CUSPARSE_CSRMV_ALG1,this%bsize_Ptr)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV_buffersize Error for transpose operation in hi_cumod: ",i)',istat
+    print'(" SpMV buffersize required for transpose operation: ",i)',this%bsize_Ptr
+    ! Allocate according to the calculated size of the buffer
+    if (this%bsize_Ptr > 0) allocate(this%buffer_Ptr(this%bsize_Ptr))
+
+    istat = cusparseSpMV_buffersize(this%h_P,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp,&
+      this%spMatDescr_P,this%dnVecDescr_FmeshPxi,0._wp,this%dnVecDescr_DFx,CUDA_R_64F,&
+      CUSPARSE_CSRMV_ALG1,this%bsize_Pntr)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV_buffersize Error for non-transpose operation in hi_cumod: ",i)',istat
+    print'(" SpMV buffersize required for non-transpose operation: ",i)',this%bsize_Pntr
+    ! Allocate according to the calculated size of the buffer
+    if (this%bsize_Pntr > 0) allocate(this%buffer_Pntr(this%bsize_Pntr))
+
+#endif
 
     n_k(0:2)=[K_mesh(1),K_mesh(2),K_mesh(3)]
 
@@ -412,7 +475,6 @@ contains
     odist = 0
     oembed = [n_k(0),n_k(1),  (n_k(2)/2+1)]
     ostride = 1 !(n_k(2)/2+1)*n_k(1)
-
 
     !   For In-Place:
     r_str_c=[0, 2*(K_mesh(3)/2+1)*K_mesh(2), 2*(K_mesh(3)/2+1), 1]
@@ -659,10 +721,6 @@ contains
     deallocate(this%P_ColInd_d,this%P_ColPtr_d)
 
   end subroutine del_hi_t
-
-
-
-
 
 
   subroutine updatelst_dev(this,Rbx_d,Rby_d,Rbz_d,Rb_d,Q_d,itime,itrst,ntsx3,ntb,ntbx3,bs,bo)
@@ -978,14 +1036,5 @@ contains
     ! call print_vector(this%list_DP,'list_D')
 
   end subroutine cnstrlst_D
-
-
-
-
-
-
-
-
-
 
 end module hi_cumod
