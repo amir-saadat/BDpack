@@ -48,9 +48,9 @@ GLBFLGS	+= -Ofast -g
 GLBFLGS += -cpp # Enables preprocessing
 GLBFLGS += -qopenmp # Enables openmp directives
 # Extra debugging flags
-GLBFLGS += -heap-arrays
-GLBFLGS += -check all -check bounds -traceback -g
-GLBFLGs += -check-pointers=rw
+#GLBFLGS += -heap-arrays
+#GLBFLGS += -check all -check bounds -traceback -g
+#GLBFLGs += -check-pointers=rw
 else
 ifeq ($(FCOMP),pgf90)
 GLBFLGS	 += -g
