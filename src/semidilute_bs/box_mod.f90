@@ -653,7 +653,7 @@ contains
     !----------------------
     !>>> Initial time step:
     !----------------------
-
+print*,"where"
     if (itime == itrst+1) then
 
       this%Q_tilde(:)=Qst(:,irun)

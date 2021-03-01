@@ -28,12 +28,12 @@
 !> Amir Saadat, The University of Tennessee-Knoxville, Dec 2015
 !
 ! DESCRIPTION: construction of verlet list
-!> 
+!>
 !
 !--------------------------------------------------------------------
 
 module evverlet_mod
-  
+
   use :: prcn_mod
 
   implicit none
@@ -48,7 +48,7 @@ module evverlet_mod
 
   !> A public type for constructing verlet list
   type evverlet
-   
+
     private
     !> The number of the cells per side
     integer :: ncps(3)
@@ -104,7 +104,7 @@ module evverlet_mod
   ! Private module variables:
   private :: cll_dns_ev,nnc
   ! Protected module variables:
-  ! protected :: 
+  ! protected ::
 
   !> The density of particles in a cell
   real(wp),save :: cll_dns_ev
@@ -115,7 +115,7 @@ module evverlet_mod
   ! !> The coordinates for neighboring cells
   ! integer,allocatable :: j_clx(:),j_cly(:),j_clz(:),j_cll(:)
 
-contains 
+contains
 
   !> Initializes the verlet module
   !! \param id The rank of the process
@@ -125,14 +125,14 @@ contains
     use :: flow_mod, only: FlowType
     use :: strg_mod
     use,intrinsic :: iso_fortran_env
-    use :: cmn_io_mod, only: read_input    
+    use :: cmn_io_mod, only: read_input
 
     integer,intent(in) :: id
     call read_input('cll-dns-ev',0,cll_dns_ev,0.1_wp)
     select case (FlowType)
 
       case ('Equil','PSF')
-        nnc=13
+        nnc=27
 !         allocate(shifts(nnc,3))
 !         shifts(1,:) =[ 0, 0,-1]
 !         shifts(2,:) =[ 1, 0,-1]
@@ -149,7 +149,7 @@ contains
 !         shifts(13,:)=[ 1, 1, 1]
 
       case ('PEF')
-        nnc=31
+        nnc=63
 !         allocate(shifts(nnc,3))
 !         shifts(1,:) =[ 0, 0,-1]
 !         shifts(2,:) =[ 1, 0,-1]
@@ -197,7 +197,7 @@ contains
   !! \param rc The cutoff radius
   !! \param bs The dimension of the box
   subroutine init_verlet_t(this,rc,bs,ntotbead)
-  
+
     class(evverlet),intent(inout) :: this
     real(wp),intent(in) :: rc,bs(3)
     integer,intent(in) :: ntotbead
@@ -233,7 +233,7 @@ contains
     integer :: clx,cly,clz,cll,czNxNy,cyNx
     real(wp) :: ncpsl(3)
 
-    
+
     ncpsl=this%ncps
 
     select case (FlowType)
@@ -266,17 +266,17 @@ contains
 
       if (allocated(this%head)) deallocate(this%head)
       if (allocated(this%nclst)) deallocate(this%nclst)
-  
+
       allocate(this%head(this%nct))
       allocate(this%nclst(this%nct,nnc))
 
 !print *,'mbpc',this%mbpc
 
-!print *,'nnc:',nnc
-!print *,'nct',this%nct
-!print *,'ncps',this%ncps
-!print *,'ncps',this%ncps
-!print *,'ncpsl',ncpsl
+! print *,'nnc:',nnc
+! print *,'nct',this%nct
+! print *,'ncps',this%ncps
+! print *,'ncps',this%ncps
+! print *,'ncpsl',ncpsl
 
       do clz=0, this%ncps(3)-1
         czNxNy=clz*this%ncps(1)*this%ncps(2)
@@ -292,8 +292,6 @@ contains
             j_clz=modulo(j_clz,this%ncps(3))
             j_cll=j_clz*this%ncps(1)*this%ncps(2)+j_cly*this%ncps(1)+j_clx+1
             this%nclst(cll,:)=j_cll
-!          print *,'cell:',clx,cly,clz,cll
-!          call print_vector(this%nclst(cll,:),'nclst')
           end do ! clx
         end do ! cly
       end do ! clz
@@ -347,7 +345,7 @@ contains
     this%binc=0
 
     do i=1, ntotbead
-      
+
       clx=int(Rbx(i)/this%cll_sz(1))
       cly=int(Rby(i)/this%cll_sz(2))
       clz=int(Rbz(i)/this%cll_sz(3))
@@ -401,7 +399,7 @@ contains
   !! \param invbs the inverse of box dimensions
   !! \param nlst The neighbor list
   subroutine cnstr_nablst(this,Rbx,Rby,Rbz,rc,bs,invbs,nlst,itime,ntotbead,ntotbeadx3)
-     
+
 !    use :: inp_smdlt, only: ntotbead,ntotbeadx3
     use :: arry_mod, only: print_vector,print_matrix
     use :: flow_mod, only: FlowType
@@ -449,7 +447,7 @@ contains
     deallocate(beadi_tmp)
     deallocate(beadj_tmp)
     deallocate(pair)
-    
+
     ! Different-cell interactions:
     allocate(beadj(nnc*this%mbpc))
     allocate(beadj_tmp(nnc*this%mbpc))
@@ -477,7 +475,7 @@ contains
     deallocate(beadj)
     deallocate(beadj_tmp)
     deallocate(pair)
-     
+
 !$omp parallel default(private) shared(this,Rbx,Rby,Rbz,eps_m,sinth,costh,tanb,rc) &
 !$omp shared(idx,bs,invbs,FlowType)
 !$omp do simd
@@ -518,7 +516,7 @@ contains
     nlst(:,1)=pack(this%iidx,mask=this%inside)
     nlst(:,2)=pack(this%jidx,mask=this%inside)
   end subroutine cnstr_nablst
-  
+
 
   !> Destructor for  verlet type
   subroutine del_verlet_t(this)

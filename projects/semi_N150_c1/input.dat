@@ -3,7 +3,7 @@ driver        : semidilute_bs
 # Configuration parameters
 #------------------------------------------
 nchain        : 20 
-nseg          : 150
+nseg          : 30
 Rel-Model     : Rouse
 add-comb      : FALSE
 nchain-comb   : 0
@@ -54,10 +54,10 @@ cll-dns-hi    : 8.5
 #------------------------------------------
 # Force parameters
 #------------------------------------------
-SPR-Force     : RWS
+SPR-Force     : FENE
 N_Ks          : 10
 b             : 29.9
-cll-dns-ev    : 25
+cll-dns-ev    : 50
 EVForceLaw    : Gauss
 zstar         : 1
 rc_F          : 5 0.2  

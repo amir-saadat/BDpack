@@ -72,6 +72,8 @@ contains
     integer(long) :: count0,count1
     integer :: itime
 
+    nvec=0;
+
     if (HIcalc_mode == 'Ewald') then
 
       if (doTiming) call tick(count0)

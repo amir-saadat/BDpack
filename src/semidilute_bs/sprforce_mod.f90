@@ -27,7 +27,7 @@
 !> @author
 !> Amir Saadat, The University of Tennessee-Knoxville, Apr 2014
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> Calculating the net spring forces on the beads
 !--------------------------------------------------------------------
 module sprforce_mod
@@ -49,18 +49,18 @@ module sprforce_mod
     real(wp),allocatable :: Fs(:)
 
   contains
-     
+
     procedure,pass(this) :: init => init_sprforce_t
     procedure,pass(this) :: update => update_force
     final :: del_sprforce
 
   end type sprforce
-  
+
   ! Private module variables:
 !  private ::
   ! Protected module variables:
   protected :: ForceLaw,b,qmx,WLC_v,WLC_A,WLC_B
-  
+
   !> The type of ev force
   character(len=10),save :: ForceLaw
   integer,save :: ForceLaw_i
@@ -143,9 +143,10 @@ ef: do
     case('WLC_UD')
       ForceLaw_i=WLC_UD
     case default
-      print('(" Force law not properly chosen.")')
+      print('(" The selected force law is not available.")')
+      stop
     end select
-  
+
     select case (ForceLaw)
       case ('WLC_UD')
         WLC_A=3._wp/32-3/(8*WLC_v)-3/(2*WLC_v**2)
@@ -162,7 +163,7 @@ ef: do
     integer,intent(in) :: id,ntotsegx3
 
     allocate(this%Fs(ntotsegx3))
-  
+
   end subroutine init_sprforce_t
 
   !> Updates the force by adding spring force contribution
@@ -180,7 +181,7 @@ ef: do
     use :: flow_mod, only: FlowType
     use :: trsfm_mod, only: eps_m,tanb,sinth,costh
     use :: force_smdlt, only: Fphi,rFphi
-    
+
     class(sprforce),intent(inout) :: this
     real(wp),intent(in) :: Rbx(:)
     real(wp),intent(in) :: Rby(:)
@@ -196,7 +197,7 @@ ef: do
 !!$omp parallel default(private) &
 !!$omp shared(this,ntotseg,nchain,nbead,nseg,Rbx,Rby,Rbz,bs,invbs)  &
 !!$omp shared(ForceLaw,b,qmx,FlowType,eps_m,tanb,sinth,costh,itime) &
-!!$omp shared(WLC_v,WLC_A,WLC_B) reduction(-:rFphi) 
+!!$omp shared(WLC_v,WLC_A,WLC_B) reduction(-:rFphi)
 !!$omp do schedule(auto)
     do its=1, ntotseg
       ! ich=(its-1)/nseg+1
