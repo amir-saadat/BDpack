@@ -28,12 +28,12 @@
 !> Amir Saadat, The University of Tennessee-Knoxville, Dec 2015
 !
 ! DESCRIPTION: construction of verlet list
-!> 
+!>
 !
 !--------------------------------------------------------------------
 
 module evverlet_mod
-  
+
   use :: prcn_mod
 
   implicit none
@@ -48,9 +48,9 @@ module evverlet_mod
 
   !> A public type for constructing verlet list
   type evverlet
-   
+
     private
-    !> The number of the cells per side
+    !> The number of the cells per box side
     integer :: ncps(3)
     !> Total number of cells in the cubic box
     integer :: nct
@@ -104,18 +104,18 @@ module evverlet_mod
   ! Private module variables:
   private :: cll_dns_ev,nnc
   ! Protected module variables:
-  ! protected :: 
+  ! protected ::
 
   !> The density of particles in a cell
   real(wp),save :: cll_dns_ev
   !> Number of neighbering cells
   integer,save :: nnc
   ! !> The neighboring cells offset
-  ! integer,allocatable,save :: shifts(:,:)
+  ! integer,pointer,save :: shifts_ptr(:,:)
   ! !> The coordinates for neighboring cells
-  ! integer,allocatable :: j_clx(:),j_cly(:),j_clz(:),j_cll(:)
+  ! integer,pointer :: j_clx_ptr(:),j_cly_ptr(:),j_clz_ptr(:),j_cll_ptr(:)
 
-contains 
+contains
 
   !> Initializes the verlet module
   !! \param id The rank of the process
@@ -125,7 +125,8 @@ contains
     use :: flow_mod, only: FlowType
     use :: strg_mod
     use,intrinsic :: iso_fortran_env
-    use :: cmn_io_mod, only: read_input    
+    use :: cmn_io_mod, only: read_input
+    use :: verlet_mod, only: shifts,j_clx,j_cly,j_clz,j_cll
 
     integer,intent(in) :: id
 #ifdef Debuge_sequence
@@ -135,64 +136,10 @@ contains
     select case (FlowType)
 
       case ('Equil','PSF')
-        nnc=13
-!         allocate(shifts(nnc,3))
-!         shifts(1,:) =[ 0, 0,-1]
-!         shifts(2,:) =[ 1, 0,-1]
-!         shifts(3,:) =[ 1, 0, 0]
-!         shifts(4,:) =[ 1, 0, 1]
-!         shifts(5,:) =[-1, 1,-1]
-!         shifts(6,:) =[ 0, 1,-1]
-!         shifts(7,:) =[ 1, 1,-1]
-!         shifts(8,:) =[-1, 1, 0]
-!         shifts(9,:) =[ 0, 1, 0]
-!         shifts(10,:)=[ 1, 1, 0]
-!         shifts(11,:)=[-1, 1, 1]
-!         shifts(12,:)=[ 0, 1, 1]
-!         shifts(13,:)=[ 1, 1, 1]
-
+        nnc=27
       case ('PEF')
         nnc=31
-!         allocate(shifts(nnc,3))
-!         shifts(1,:) =[ 0, 0,-1]
-!         shifts(2,:) =[ 1, 0,-1]
-!         shifts(3,:) =[ 2, 0,-1]
-!         shifts(4,:) =[ 3, 0,-1]
-!         shifts(5,:) =[ 1, 0, 0]
-!         shifts(6,:) =[ 2, 0, 0]
-!         shifts(7,:) =[ 3, 0, 0]
-!         shifts(8,:) =[ 1, 0, 1]
-!         shifts(9,:) =[ 2, 0, 1]
-!         shifts(10,:)=[ 3, 0, 1]
-!         shifts(11,:)=[-3, 1,-1]
-!         shifts(12,:)=[-2, 1,-1]
-!         shifts(13,:)=[-1, 1,-1]
-!         shifts(14,:)=[ 0, 1,-1]
-!         shifts(15,:)=[ 1, 1,-1]
-!         shifts(16,:)=[ 2, 1,-1]
-!         shifts(17,:)=[ 3, 1,-1]
-!         shifts(18,:)=[-3, 1, 0]
-!         shifts(19,:)=[-2, 1, 0]
-!         shifts(20,:)=[-1, 1, 0]
-!         shifts(21,:)=[ 0, 1, 0]
-!         shifts(22,:)=[ 1, 1, 0]
-!         shifts(23,:)=[ 2, 1, 0]
-!         shifts(24,:)=[ 3, 1, 0]
-!         shifts(25,:)=[-3, 1, 1]
-!         shifts(26,:)=[-2, 1, 1]
-!         shifts(27,:)=[-1, 1, 1]
-!         shifts(28,:)=[ 0, 1, 1]
-!         shifts(29,:)=[ 1, 1, 1]
-!         shifts(30,:)=[ 2, 1, 1]
-!         shifts(31,:)=[ 3, 1, 1]
-! !        this%ncps(1:2)=bs(1:2)/(sqrt(10._wp)*rc_F)
-! !        this%ncps(3)=bs(3)/rc_F
     end select
-
-!     allocate(j_clx(nnc))
-!     allocate(j_cly(nnc))
-!     allocate(j_clz(nnc))
-!     allocate(j_cll(nnc))
 
   end subroutine init_evverlet
 
@@ -200,7 +147,7 @@ contains
   !! \param rc The cutoff radius
   !! \param bs The dimension of the box
   subroutine init_verlet_t(this,rc,bs,ntotbead)
-  
+
     class(evverlet),intent(inout) :: this
     real(wp),intent(in) :: rc,bs(3)
     integer,intent(in) :: ntotbead
@@ -235,11 +182,13 @@ contains
     class(evverlet),intent(inout) :: this
     real(wp),intent(in) :: rc,bs(3)
     integer,intent(in) :: ntotbead
-    integer :: clx,cly,clz,cll,czNxNy,cyNx
+    integer :: clx,cly,clz,cll,czNxNy,cyNx,ierr
     real(wp) :: ncpsl(3)
+
 #ifdef Debuge_sequence
     write(*,*) "module:evverlet_mod:init_clllst"
 #endif
+
     ncpsl=this%ncps
 
     select case (FlowType)
@@ -256,13 +205,6 @@ contains
     this%nct=this%ncps(1)*this%ncps(2)*this%ncps(3)
     this%cll_vol=bs(1)*bs(2)*bs(3)/this%nct
 
-!print*,'bs',bs
-!print*,'rc',rc
-!print *,'ncps',this%ncps,cll_dns
-!print *,'size',this%cll_sz
-!!
-!print *,'cll_vol',this%cll_vol,'cll_vol',this%cll_sz(1)*this%cll_sz(2)*this%cll_sz(3)
-
     this%mbpc=int(this%cll_vol*cll_dns_ev)
 
     if (allocated(this%binc)) deallocate(this%binc)
@@ -272,17 +214,9 @@ contains
 
       if (allocated(this%head)) deallocate(this%head)
       if (allocated(this%nclst)) deallocate(this%nclst)
-  
+
       allocate(this%head(this%nct))
       allocate(this%nclst(this%nct,nnc))
-
-!print *,'mbpc',this%mbpc
-
-!print *,'nnc:',nnc
-!print *,'nct',this%nct
-!print *,'ncps',this%ncps
-!print *,'ncps',this%ncps
-!print *,'ncpsl',ncpsl
 
       do clz=0, this%ncps(3)-1
         czNxNy=clz*this%ncps(1)*this%ncps(2)
@@ -290,16 +224,15 @@ contains
           cyNx=cly*this%ncps(1)
           do clx=0, this%ncps(1)-1
             cll=czNxNy+cyNx+clx+1
-            j_clx=clx+shifts(:,1)
-            j_cly=cly+shifts(:,2)
-            j_clz=clz+shifts(:,3)
-            j_clx=modulo(j_clx,this%ncps(1))
-            j_cly=modulo(j_cly,this%ncps(2))
-            j_clz=modulo(j_clz,this%ncps(3))
-            j_cll=j_clz*this%ncps(1)*this%ncps(2)+j_cly*this%ncps(1)+j_clx+1
-            this%nclst(cll,:)=j_cll
-!          print *,'cell:',clx,cly,clz,cll
-!          call print_vector(this%nclst(cll,:),'nclst')
+            ! Make sure to take only the first nnc part - later in the cnstr_nab we only need half of the neighbors since j>i always
+            j_clx(1:nnc)=clx+shifts(1:nnc,1)
+            j_cly(1:nnc)=cly+shifts(1:nnc,2)
+            j_clz(1:nnc)=clz+shifts(1:nnc,3)
+            j_clx(1:nnc)=modulo(j_clx(1:nnc),this%ncps(1))
+            j_cly(1:nnc)=modulo(j_cly(1:nnc),this%ncps(2))
+            j_clz(1:nnc)=modulo(j_clz(1:nnc),this%ncps(3))
+            j_cll(1:nnc)=j_clz(1:nnc)*this%ncps(1)*this%ncps(2)+j_cly(1:nnc)*this%ncps(1)+j_clx(1:nnc)+1
+            this%nclst(cll,:)=j_cll(1:nnc)
           end do ! clx
         end do ! cly
       end do ! clz
@@ -307,7 +240,6 @@ contains
     end if
 
     this%num_int=ntotbead*nnc*this%mbpc*0.5
-! print *,'num_int',this%num_int
 
     if (allocated(this%iidx)) deallocate(this%iidx)
     if (allocated(this%jidx)) deallocate(this%jidx)
@@ -320,15 +252,31 @@ contains
       if (allocated(this%Rijytmp)) deallocate(this%Rijytmp)
     end if
 
-    allocate(this%iidx(this%num_int))
-    allocate(this%jidx(this%num_int))
-    allocate(this%inside(this%num_int))
-    allocate(this%Rijx(this%num_int))
-    allocate(this%Rijy(this%num_int))
-    allocate(this%Rijz(this%num_int))
-    allocate(this%Rijsq(this%num_int))
+    ! We check the memory allocation result, as num_int might be a big one
+    allocate(this%iidx(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for iidx in evverlet_mod"
+
+    allocate(this%jidx(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for jidx in evverlet_mod"
+
+    allocate(this%inside(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for inside in evverlet_mod"
+
+    allocate(this%Rijx(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for Rijx in evverlet_mod"
+
+    allocate(this%Rijy(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for Rijy in evverlet_mod"
+
+    allocate(this%Rijz(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for Rijz in evverlet_mod"
+
+    allocate(this%Rijsq(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for Rijsq in evverlet_mod"
+
     if (FlowType == 'PEF') then
-      allocate(this%Rijytmp(this%num_int))
+      allocate(this%Rijytmp(this%num_int),stat=ierr)
+      if ( ierr /= 0 ) stop "Memory allocation issue for Rijytmp in evverlet_mod"
     end if
 
   end subroutine init_clllst
@@ -356,7 +304,7 @@ contains
     this%binc=0
 
     do i=1, ntotbead
-      
+
       clx=int(Rbx(i)/this%cll_sz(1))
       cly=int(Rby(i)/this%cll_sz(2))
       clz=int(Rbz(i)/this%cll_sz(3))
@@ -387,7 +335,7 @@ contains
     end do
     this%mocc=maxval(this%head)
 
-    print*,'maxocc',this%mocc,this%mbpc
+    print '(" maxocc (from the actual bead positions): ",i4," -- max bead per cell (from cell_dns_ev): ",i6)',this%mocc,this%mbpc
 
 !if (itime==8479)then
 !    call print_vector(this%head,'newhead')
@@ -412,7 +360,7 @@ contains
   !! \param invbs the inverse of box dimensions
   !! \param nlst The neighbor list
   subroutine cnstr_nablst(this,Rbx,Rby,Rbz,rc,bs,invbs,nlst,itime,ntotbead,ntotbeadx3)
-     
+
 !    use :: inp_smdlt, only: ntotbead,ntotbeadx3
     use :: arry_mod, only: print_vector,print_matrix
     use :: flow_mod, only: FlowType
@@ -462,7 +410,7 @@ contains
     deallocate(beadi_tmp)
     deallocate(beadj_tmp)
     deallocate(pair)
-    
+
     ! Different-cell interactions:
     allocate(beadj(nnc*this%mbpc))
     allocate(beadj_tmp(nnc*this%mbpc))
@@ -490,7 +438,7 @@ contains
     deallocate(beadj)
     deallocate(beadj_tmp)
     deallocate(pair)
-     
+
 !$omp parallel default(private) shared(this,Rbx,Rby,Rbz,eps_m,sinth,costh,tanb,rc) &
 !$omp shared(idx,bs,invbs,FlowType)
 !$omp do simd
@@ -531,7 +479,7 @@ contains
     nlst(:,1)=pack(this%iidx,mask=this%inside)
     nlst(:,2)=pack(this%jidx,mask=this%inside)
   end subroutine cnstr_nablst
-  
+
 
   !> Destructor for  verlet type
   subroutine del_verlet_t(this)

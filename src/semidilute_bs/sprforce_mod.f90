@@ -63,7 +63,9 @@ module sprforce_mod
   ! Private module variables:
 !  private ::
   ! Protected module variables:
+
   protected :: ForceLaw_i,ForceLaw,b,qmx,WLC_v,WLC_A,WLC_B, WLC_C, RWS_v,RWS_C,RWS_D
+
 
   !> The type of ev force
   character(len=10),save :: ForceLaw
@@ -168,7 +170,8 @@ ef: do
     case('WLC_GEN')
       ForceLaw_i=WLC_GEN
     case default
-      print('(" Force law not properly chosen.")')
+      print('(" The selected force law is not available.")')
+      stop
     end select
 
     select case (ForceLaw)

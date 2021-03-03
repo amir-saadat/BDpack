@@ -38,7 +38,11 @@ module sprforce_cumod
   use :: prcn_mod
   use :: sprforce_mod
   use :: force_cumod, only: force_cu_t
+
+  use :: cusparse
+
   use :: cublas
+
   use :: cudafor
 
   implicit none
@@ -54,6 +58,16 @@ module sprforce_cumod
     private
     !> The spring force
     real(wp),device,allocatable :: Fs(:)
+#if CUDA_VERSION >= 11000
+    !> The descriptor used for sparse operation of Fs
+    type(cusparseDnVecDescr) :: dnVecDescr_Fs
+    !> The descriptor used for sparse operation of Fphi
+    type(cusparseDnVecDescr) :: dnVecDescr_Fphi
+    !> The buffer size required for sparse operations
+    integer(8) :: bsize
+    !> The buffer used for sparse operation
+    integer(1), device, allocatable :: buffer(:)
+#endif
     real(wp),device,allocatable :: Fbnd_d(:)
 
   contains
@@ -72,15 +86,40 @@ contains
 
   !> Constructor for sprforce type
   !! \param id The rank of the process
-  subroutine init_sprforce_t(this,ntsx3)
+  subroutine init_sprforce_t(this,ntsx3,ntbx3)
+
+    use :: force_cumod, only: Fphi_d
+#if CUDA_VERSION >= 11000
+    use :: conv_cumod, only: h_Bbar,spMatDescr_Bbar
+#endif
 
     class(sprforce_cu_t),intent(inout) :: this
-    integer,intent(in) :: ntsx3
+    integer,intent(in) :: ntsx3,ntbx3
+    integer :: istat
 
 #ifdef Debuge_sequence
 	write(*,*) "module:sprforce_cumod:init_sprforce_t"
 #endif
     allocate(this%Fs(ntsx3))
+
+
+#if CUDA_VERSION >= 11000
+    ! Constructing the descriptor for the device spring force vector
+    istat = cusparseCreateDnVec(this%dnVecDescr_Fs,ntsx3,this%Fs,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Fs in sprforce_cumod: ",i)',istat
+    ! Constructing the descriptor for the device spring force vector
+    istat = cusparseCreateDnVec(this%dnVecDescr_Fphi,ntbx3,Fphi_d,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Fphi in sprforce_cumod: ",i)',istat
+
+    ! Find the buffer size for the transpose operation using P sparse matrix
+    istat = cusparseSpMV_buffersize(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,-1._wp,&
+      spMatDescr_Bbar,this%dnVecDescr_Fs,1._wp,this%dnVecDescr_Fphi,CUDA_R_64F,&
+      CUSPARSE_CSRMV_ALG1,this%bsize)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV_buffersize Error for non-transpose operation in sprforce_cumod: ",i)',istat
+    print'(" SpMV buffersize required for non-transpose operation in sprforce_cumod: ",f14.7)',this%bsize
+    ! Allocate according to the calculated size of the buffer
+    if (this%bsize > 0) allocate(this%buffer(this%bsize))
+#endif
 
   end subroutine init_sprforce_t
 
@@ -94,6 +133,7 @@ contains
   !! \param invbs the inverse of box dimensions
   !! \param F totoal force on particles
 
+
    subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nch,ns,nb,nts,ntsx3,ntb,ntbx3,Qt)
 
     use :: sprforce_mod, only : ForceLaw_i
@@ -103,6 +143,10 @@ contains
     use :: force_cumod,  only : Fphi_d     !,rFphi
     use :: conv_cumod,   only : h_Bbar,descr_Bbar,Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,nnz_Bbar
     use :: cusparse
+#if CUDA_VERSION >= 11000
+    use :: conv_cumod, only: spMatDescr_Bbar
+#endif
+
 
     class(sprforce_cu_t),intent(inout) :: this
     real(wp),device,intent(in) :: Rbx(:)
@@ -124,8 +168,17 @@ contains
 
     call update_force_krnl(this%Fs,Rbx,Rby,Rbz,bs,invbs,ns,nb,nts,Qt)
 
+    ! Updating Fphi based on Fs: Fphi=Fphi-Bbar*Fs
+#if CUDA_VERSION >= 11000
+    istat = cusparseSpMV(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,-1._wp,spMatDescr_Bbar,&
+      this%dnVecDescr_Fs,1._wp,this%dnVecDescr_Fphi,CUDA_R_64F,CUSPARSE_CSRMV_ALG1,&
+      this%buffer)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV Error in sprforce_cumod: ",i)',istat
+#else
     istat = cusparseDcsrmv(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,ntbx3,ntsx3,nnz_Bbar,&
-          -1._wp,descr_Bbar,Bbar_Val_tr_d,Bbar_ColPtr_d,Bbar_RowInd_d,this%Fs,1._wp,Fphi_d)
+      -1._wp,descr_Bbar,Bbar_Val_tr_d,Bbar_ColPtr_d,Bbar_RowInd_d,this%Fs,1._wp,Fphi_d)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in sprforce_cumod: ",i)',istat
+#endif
 
     if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in sprforce_cumod: ",i)',istat
   end subroutine update_force
@@ -173,6 +226,7 @@ contains
       qx=qx-nint(qx*invbsx)*bsx
       qy=qy-nint(qy*invbsy)*bsy
       qz=qz-nint(qz*invbsz)*bsz
+
       select case (FlowType_d)
          case (2) !PEF)
            qx=qx+eps_m_d*qy
@@ -182,6 +236,7 @@ contains
            qy=sinth_d*qx+costh_d*qytmp
            qx=costh_d*qx-sinth_d*qytmp
       end select
+
 
       qsq=qx*qx+qy*qy+qz*qz
 
@@ -767,7 +822,7 @@ contains
   end subroutine update_bendforce
 
 
-  !> Destructor for spring force type
+ !> Destructor for spring force type
   subroutine del_sprforce_d(this)
 
     type(sprforce_cu_t),intent(inout) :: this

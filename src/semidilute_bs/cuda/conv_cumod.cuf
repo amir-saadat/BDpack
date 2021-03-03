@@ -39,6 +39,7 @@ module conv_cumod
 
   use :: prcn_mod
   use :: cusparse
+  use :: cudafor
 
   implicit none
 
@@ -71,6 +72,12 @@ module conv_cumod
   real(wp),device,allocatable :: B_Val_d(:)   ,B_Val_tr_d(:)
   integer,device,allocatable  :: B_ColInd_d(:),B_ColPtr_d(:)
   integer,device,allocatable  :: B_RowInd_d(:),B_RowPtr_d(:)
+#if CUDA_VERSION >= 11000
+  integer(8) :: bsize_B
+  integer(1), device, allocatable :: buffer_B(:)
+  type(cusparseSpMatDescr) :: spMatDescr_B
+#endif
+
   !> @}
   !> @name Group2
   !! The parameters defined to construct sparse Bbar
@@ -78,9 +85,14 @@ module conv_cumod
   type(cusparseHandle) :: h_Bbar
   type(cusparseMatDescr) :: descr_Bbar
   integer :: nnz_Bbar
-  real(wp),device,allocatable :: Bbar_Val_d(:)   ,Bbar_Val_tr_d(:)
-  integer,device,allocatable  :: Bbar_ColInd_d(:),Bbar_RowPtr_d(:)
-  integer,device,allocatable  :: Bbar_RowInd_d(:),Bbar_ColPtr_d(:)
+
+  real(wp),device,allocatable :: Bbar_Val_d(:),Bbar_Val_tr_d(:)
+  integer,device,allocatable :: Bbar_ColInd_d(:),Bbar_RowPtr_d(:)
+  integer,device,allocatable :: Bbar_RowInd_d(:),Bbar_ColPtr_d(:)
+#if CUDA_VERSION >= 11000
+  type(cusparseSpMatDescr) :: spMatDescr_Bbar
+#endif
+
   !> @}
 
 
@@ -90,9 +102,14 @@ contains
   subroutine init_conv_d(ntsx3,ntbx3)
 
     use :: conv_mod, only: B_vals,B_cols,B_rowInd,Bbar_vals,Bbar_cols,Bbar_rowInd,maxnz_B,maxnz_Bbar
+    use :: cusparse_wrap
 
     integer,intent(in) :: ntsx3,ntbx3
     integer :: istat
+#if CUDA_VERSION >= 11000
+    integer(8) :: bsize
+    integer(1), device, allocatable :: buffer(:)
+#endif
 
 #ifdef Debuge_sequence
 	write(*,*) "module:conv_cumod:init_conv_d"
@@ -130,31 +147,54 @@ contains
     Bbar_ColInd_d=Bbar_cols
     Bbar_RowPtr_d=Bbar_rowInd
 
+
+    ! Creating the descriptor for the sparse matrix B
+    istat = cusparseCreate(h_B)
+    istat = cusparseCreateMatDescr(descr_B)
+    istat = cusparseSetMatType(descr_B,CUSPARSE_MATRIX_TYPE_GENERAL)
+    istat = cusparseSetMatIndexBase(descr_B,CUSPARSE_INDEX_BASE_ONE)
+#if CUDA_VERSION >= 11000
+    istat = cusparseCreateCsr(spMatDescr_B,ntbx3,ntsx3,nnz_B,B_RowPtr_d,B_ColInd_d,B_Val_d,CUSPARSE_INDEX_32I,&
+      CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ONE,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateCsr Error for B in init_conv: ",i)',istat
+#endif
+
+    ! Creating the descriptor for the sparse matrix Bbar
+
     istat = cusparseCreate(h_Bbar)
     istat = cusparseCreateMatDescr(descr_Bbar)
     istat = cusparseSetMatType(descr_Bbar,CUSPARSE_MATRIX_TYPE_GENERAL)
     istat = cusparseSetMatIndexBase(descr_Bbar,CUSPARSE_INDEX_BASE_ONE)
 
+#if CUDA_VERSION >= 11000
+    istat = cusparseCreateCsr(spMatDescr_Bbar,ntsx3,ntbx3,nnz_Bbar,B_RowPtr_d,B_ColInd_d,B_Val_d,CUSPARSE_INDEX_32I,&
+      CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ONE,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateCsr Error for B in init_conv: ",i)',istat
+#endif
 
+    ! Specifying the buffer size for csr2csc for Bbar and also performing the conversion
+#if CUDA_VERSION >= 11000
+    ! Specifying the buffer size
+    istat = cusparseCsr2cscEx2_buffersize(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
+      Bbar_Val_tr_d,Bbar_ColPtr_d,Bbar_RowInd_d,CUDA_R_64F,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE,&
+      CUSPARSE_CSRMV_ALG2,bsize)
+    print'(" cusparseCsr2cscEx2 buffersize required: ",i)',bsize
+    if (bsize > 0) allocate(buffer(bsize))
+
+    ! Performing the csr2csc conversion
+    istat = cusparseCsr2cscEx2(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
+      Bbar_Val_tr_d,Bbar_ColPtr_d,Bbar_RowInd_d,CUDA_R_64F,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE,&
+      CUSPARSE_CSRMV_ALG2,buffer)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCsr2cscEx2 Error in init_conv: ",i)',istat
+
+    ! deallocate the buffer
+    if (bsize > 0) deallocate(buffer)
+#else
     istat = cusparseDcsr2csc(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
       Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE)
 
-	istat = cusparseDcsr2csc(h_B,   ntbx3,ntsx3,nnz_B,   B_Val_d,   B_RowPtr_d,   B_ColInd_d,&
-      B_Val_tr_d,  B_RowInd_d,   B_ColPtr_d,   CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ONE)
-
-
-
-	!NEW_VERSON
-	!cusparseCsr2cscEx2_bufferSize(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
-    !  Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,CUDA_R_64F, CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE,&
-	!  CUSPARSE_CSR2CSC_ALG1,bufferSize)
-	!
-	!istat = cusparseCsr2cscEx2(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
-    !  Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,CUDA_R_64F,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE,&
-	!  CUSPARSE_CSR2CSC_ALG1,bufferSize)
-
-
     if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csr2csc Error in init_conv: ",i)',istat
+#endif
 
   end subroutine init_conv_d
 
@@ -263,13 +303,39 @@ contains
     real(wp) :: qx,qy,qz,bsx,bsy,bsz
     integer :: its,istat
 
+#if CUDA_VERSION >= 11000
+    type(cusparseDnVecDescr) :: dnVecDescr_Rb,dnVecDescr_Q
+    integer(8) :: bsize
+    integer(1), device, allocatable :: buffer(:)
+#endif
+
+
+#if CUDA_VERSION >= 11000
+    istat = cusparseCreateDnVec(dnVecDescr_Rb,ntbx3,Rb,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Rb in conv_cumod: ",i)',istat
+
+    istat = cusparseCreateDnVec(dnVecDescr_Q,ntsx3,Q,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Q in conv_cumod: ",i)',istat
+
+    istat = cusparseSpMV_buffersize(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp, &
+      spMatDescr_Bbar,dnVecDescr_Rb,0._wp,dnVecDescr_Q,CUDA_R_64F,CUSPARSE_CSRMV_ALG1,bsize)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV_buffersize Error in conv_cumod: ",i)',istat
+    if (bsize > 0) allocate(buffer(bsize))
+
+    istat = cusparseSpMV(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp, &
+      spMatDescr_Bbar,dnVecDescr_Rb,0._wp,dnVecDescr_Q,CUDA_R_64F,CUSPARSE_CSRMV_ALG1,buffer)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV Error in conv_cumod: ",i)',istat
+    if (bsize > 0) deallocate(buffer)
+#else
+    istat = cusparseDcsrmv(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,ntsx3,ntbx3,nnz_Bbar,&
+      1._wp,descr_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,Rb,0._wp,Q)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod: ",i)',istat
+#endif
+
 #ifdef Debuge_sequence
 	write(*,*) "module:conv_cumod:RbtoQ"
 #endif
-    istat = cusparseDcsrmv(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,ntsx3,ntbx3,nnz_Bbar,&
-                   1._wp,descr_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,Rb,0._wp,Q)
 
-    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod QtoRb: ",i)',istat
 
     bsx=bs(1);bsy=bs(2);bsz=bs(3)
 

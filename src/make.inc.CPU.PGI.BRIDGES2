@@ -6,7 +6,7 @@ PGIROOT = /opt/packages/pgi/20.11/Linux_x86_64/20.11/
 #----------------------------------------------------------------------
 # mpif90, mpiifort or <Address of OpenMPI bin directory>/<MPI compiler>
 #----------------------------------------------------------------------
-COMP     = mpiifort #$(INTELMPI)/mpiifort
+COMP     = mpif90 #$(INTELMPI)/mpiifort
 #----------------------------------------------------------------------
 # pgf90 or <Address of CUDA Fortran bin directory>/pgf90
 #----------------------------------------------------------------------
@@ -15,7 +15,7 @@ CUCOMP   = pgf90
 #----------------------------------------------------------------------
 # gfortran, ifort or <Address of Fortran compiler>
 #----------------------------------------------------------------------
-FCOMP    = ifort
+FCOMP    = pgf90
 FEXT	 = f90
 CUEXT	 = cuf
 #MFLAGS	 = -s
@@ -48,9 +48,9 @@ GLBFLGS	+= -Ofast -g
 GLBFLGS += -cpp # Enables preprocessing
 GLBFLGS += -qopenmp # Enables openmp directives
 # Extra debugging flags
-GLBFLGS += -heap-arrays
-GLBFLGS += -check all -check bounds -traceback -g
-GLBFLGs += -check-pointers=rw
+#GLBFLGS += -heap-arrays
+#GLBFLGS += -check all -check bounds -traceback -g
+#GLBFLGs += -check-pointers=rw
 else
 ifeq ($(FCOMP),pgf90)
 GLBFLGS	 += -g

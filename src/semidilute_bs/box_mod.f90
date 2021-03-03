@@ -608,7 +608,9 @@ contains
       ! Instantiation of Boxhi_d
       call this%Boxhi_d%init(myrank,ntotseg,ntotbead,this%size)
       ! Instantiation of Boxsprf_d:
-      call this%Boxsprf_d%init(ntotsegx3)
+      call this%Boxsprf_d%init(ntotsegx3,ntotbeadx3)
+      !call this%Boxsprf_d%init(ntotsegx3)
+
       ! Instantiation of Boxsprf_d:
       call this%Boxevf_d%init(myrank,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotsegx3,&
         ntotbead,ntotbeadx3,this%size)
@@ -941,29 +943,18 @@ contains
           case ('Ewald')
             call symv(Diff_tens,Fphi,this%Rb_tilde,alpha=0.25_wp*dt,beta=1._wp)
           case ('PME')
-            ! #ifdef USE_GPU
-            !   call PME_dev(this%Boxhi_d,Fphi,ntotbead,this%size,DF_tot)
-            ! #else
-            ! call print_vector(Fphi,'fphi3')
 
-            call PME_cpu(Fphi,ntotbead,this%size,DF_tot)
-
-            ! #endif
+              call PME_cpu(Fphi,ntotbead,this%size,DF_tot)
 
             this%Rb_tilde=this%Rb_tilde+0.25_wp*dt*DF_tot
 
         end select
-        ! #ifdef USE_GPU
-        !   this%Rb_tilde=this%Rb_tilde+coeff*dw_bltmp(:,col)
-        ! #else
 
 #ifdef USE_DP
           this%Rb_tilde=this%Rb_tilde+coeff*dw_bltmp(:,col)
 #elif USE_SP
           this%Rb_tilde=this%Rb_tilde+coeff*real(dw_bltmp(:,col),kind=wp)
 #endif
-        ! #endif
-
       end if
 
       call RbtoRbc(this%Rb_tilde,this%Rbx,this%Rby,this%Rbz,ntotbead)
@@ -1246,17 +1237,11 @@ contains
     use :: tmng_mod, only: et_DT,et_DEC,HIcount,doTiming,tick,tock
     use :: arry_mod, only: print_vector,print_matrix
 #ifdef USE_GPU
-      use :: diffcalc_mod, only: calcDiffTens_cpu,calcDiffTens_dev
-      use :: diffdcmp_mod, only: calcBrownNoise_cpu,calcBrownNoise_dev
+      use :: diffcalc_cumod, only: calcDiffTens_d
+      use :: diffdcmp_cumod, only: calcBrownNoise_d
 #else
       use :: diffcalc_mod, only: calcDiffTens_cpu
       use :: diffdcmp_mod, only: calcBrownNoise_cpu
-#endif
-
-
-#ifdef USE_GPU
-      use :: diffcalc_cumod, only: calcDiffTens_d
-      use :: diffdcmp_cumod, only: calcBrownNoise_d
 #endif
     use :: mpi
     !include 'mpif.h'
@@ -1295,43 +1280,29 @@ contains
 
 #ifdef USE_GPU
         if (hstar /= 0._wp) then
-          ! call calcDiffTens_dev(this%Boxhi_d,this%Rb_tilde,ntotbead,this%size,this%origin,itime)
           call calcDiffTens_d(this%Boxhi_d,this%Rb_d,ntotbead,this%size,this%origin)
         endif
-
         if (doTiming) then
           et_DT=et_DT+tock(count0)
           call tick(count0)
         end if
-
 ! status = cudaMemGetInfo( free, total )
 ! print*,'free',free,'total',total
 ! print*,'alloc',allocated(dw_bltmp),allocated(dw_bl_d)
 ! print*,'size',size(dw_bltmp),size(dw_bl_d)
 
         dw_bltmp=dw_bl_d
-
         ! remember that the following routine is where PME_d is called for the first time
         call calcBrownNoise_d(this%Boxhi_d,this%decompRes,itime,ntotbeadx3,this%size)
-
 #else
         if (hstar /= 0._wp) then
-          ! #ifdef USE_GPU
-          !   call calcDiffTens_dev(this%Boxhi_d,this%Rb_tilde,ntotbead,this%size,this%origin,itime)
-          ! #else
-            call calcDiffTens_cpu(this%Rb_tilde,ntotbead,this%size,this%origin,itime)
-          ! #endif
+          call calcDiffTens_cpu(this%Rb_tilde,ntotbead,this%size,this%origin,itime)
         endif
         if (doTiming) then
           et_DT=et_DT+tock(count0)
           call tick(count0)
         end if
-        ! #ifdef USE_GPU
-          ! call calcBrownNoise_dev(this%Boxhi_d,this%decompRes,itime,ntotbeadx3,this%size)
-        ! #else
-
-          call calcBrownNoise_cpu(this%decompRes,itime,ntotbeadx3,this%size)
-        ! #endif
+        call calcBrownNoise_cpu(this%decompRes,itime,ntotbeadx3,this%size)
 #endif
 
         ! print*,'nnzb_h',this%Boxhi_d%nnzb

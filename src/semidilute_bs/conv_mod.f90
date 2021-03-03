@@ -27,7 +27,7 @@
 !> @author
 !> Amir Saadat, The University of Tennessee-Knoxville, Dec 2015
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> (1) Interchanging the configurational state Rb to its components
 !! (2) {R,rc} <--> position vector Rb
 !! (3) Q <--> Rb-rc
@@ -151,14 +151,14 @@ contains
         offsetch1=nchain*nseg*3 + (ichain-1)*nseg_cmb*3
         offsetch2=nchain*nbead*3 + (ichain-1)*nbead_cmb*3
         offsetchx2=offsetch1*2
-        
+
         iarm=1
         icoor=0
         do isegx3=1, nseg_cmb*3
 
           offsetseg=(isegx3-1)*2
-          
-          if (isegx3 <= nseg_cmbbb*3) then            
+
+          if (isegx3 <= nseg_cmbbb*3) then
             Bbar_cols(offsetchx2+offsetseg+1)=offsetch2+isegx3
             Bbar_vals(offsetchx2+offsetseg+1)=-1._wp
             Bbar_cols(offsetchx2+offsetseg+2)=offsetch2+isegx3+3
@@ -193,7 +193,7 @@ contains
 
         end do
 
-        
+
       end do
 
       ! call print_vector(Bbar_vals,'vals')
@@ -265,10 +265,10 @@ contains
             B_cols(offsetch1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
           end do ! jseg
           B_rowInd(offsetch3+icoor+1)=B_rowInd(offsetch3+icoor)+nseg_cmb
-          
+
           do iarm=1, Na
 
-            ! modifying the values of the first row, due to the segments between the arms  
+            ! modifying the values of the first row, due to the segments between the arms
             fctr=(Na-iarm+1)*nseg_cmbar/real(nbead_cmb,kind=wp)
             do jseg=Ia(iarm), Ia(iarm+1)-1
               offsetseg1=offsetcoor+(jseg-1)
@@ -305,7 +305,7 @@ contains
               B_cols(offsetch1+offsetbead1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
             end do ! jseg
 
-            ! modifying the values 
+            ! modifying the values
             do jseg=1, ibead-1
               offsetseg1=offsetcoor+(jseg-1)
               offsetseg2=(jseg-1)*3
@@ -313,9 +313,9 @@ contains
             end do ! jseg
 
             B_rowInd(offsetch3+offsetbead2+icoor+1)=B_rowInd(offsetch3+offsetbead2+icoor)+nseg_cmb
-          
+
           end do ! icoor
-        
+
         end do ! ibead
 
         ! Constructing the rows for the arms
@@ -338,14 +338,14 @@ contains
                 B_cols(offsetch1+offsetbead1+offsetseg1+1)=offsetch2+offsetseg2+1+(icoor-1)
               end do ! jseg
 
-              ! modifying the values 
+              ! modifying the values
               do jseg=1, Ia(iarm+1)-1
                 offsetseg1=offsetcoor+(jseg-1)
                 offsetseg2=(jseg-1)*3
                 B_vals(offsetch1+offsetbead1+offsetseg1+1)=B_vals(offsetch1+offsetbead1+offsetseg1+1)+1
               end do ! jseg
 
-              ! modifying the values 
+              ! modifying the values
               do kseg=1, kbead
                 jseg=nseg_cmbbb+(iarm-1)*nseg_cmbar+kseg
                 offsetseg1=offsetcoor+(jseg-1)
@@ -634,7 +634,6 @@ contains
 !$omp end parallel
     end if !add_comb/linear
 
-
   end subroutine RtoRbc
 
   !> Converting Rbc to Q (only for linear chains)
@@ -649,7 +648,7 @@ contains
     integer,intent(in) :: ntotseg,nbead,nseg
     real(wp),intent(in) :: Rbx(:),Rby(:),Rbz(:)
     real(wp),intent(inout) :: Q(:)
-    real(wp),intent(in) :: bs(3),invbs(3) 
+    real(wp),intent(in) :: bs(3),invbs(3)
     integer :: its,ich,oss,osb,is
     real(wp) :: qx,qy,qz,qytmp
 #ifdef Debuge_sequence
@@ -796,7 +795,7 @@ contains
 !$omp end do
 !$omp end parallel
 
-  end subroutine RbctoRb 
+  end subroutine RbctoRb
 
   !> Converting Rb to (Rx,Ry,Rz)
   !! \param Rb the position vector of the beads for all chains

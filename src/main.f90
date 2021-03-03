@@ -34,12 +34,10 @@ program BDpack
 
   implicit none
 
-
   ! MPI variables
   integer :: ierr,p,id,narg,dev_id
   character(len=20) :: inpFile
   character(len=20) :: driver
-
 
   ! Initialize MPI
   call MPI_Init(ierr)

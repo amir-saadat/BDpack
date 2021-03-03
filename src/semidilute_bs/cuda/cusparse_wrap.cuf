@@ -1,0 +1,73 @@
+!%------------------------------------------------------------------------%
+!|  Copyright (C) 2013 - 2018:                                            |
+!|  Fluid Mechanics Laboratory (Shaqfeh's Group)                          |
+!|  Stanford University                                                   |
+!|  Material Research and Innovation Laboratory                           |
+!|  University of Tennessee-Knoxville                                     |
+!|  Author:    Amir Saadat        <asaadat@stanford.edu>                  |
+!|  Advisor:   Eric S. G. Shaqfeh <esgs@stanford.edu>                     |
+!|             Bamin Khomami      <bkhomami@utk.edu>                      |
+!|                                                                        |
+!|  This file is part of BDpack.                                          |
+!|                                                                        |
+!|  BDpack is a free software: you can redistribute it and/or modify      |
+!|  it under the terms of the GNU General Public License as published by  |
+!|  the Free Software Foundation, either version 3 of the License, or     |
+!|  (at your option) any later version.                                   |
+!|                                                                        |
+!|  BDpack is distributed in the hope that it will be useful,             |
+!|  but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+!|  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+!|  GNU General Public License for more details.                          |
+!|                                                                        |
+!|  You should have received a copy of the GNU General Public License     |
+!|  along with BDpack.  If not, see <http://www.gnu.org/licenses/>.       |
+!%------------------------------------------------------------------------%
+!--------------------------------------------------------------------
+!
+! MODULE:
+!
+!> @author
+!> Amir Saadat, Stanford University, Feb 2021
+!
+! DESCRIPTION:
+!> The interfaces that inadvertently do not exist in the cusparse.mod
+!--------------------------------------------------------------------
+module cusparse_wrap
+
+  use,intrinsic :: iso_c_binding
+  use :: cusparse
+  use :: cudafor
+
+  ! cusparseCsr2cscEx2_bufferSize
+  interface
+    integer(c_int) function cusparseCsr2cscEx2_bufferSize(handle,m,n,nnz,csrVal,csrRowPtr,csrColInd,cscVal,cscColPtr,cscRowInd,valType,&
+        copyValues,idxBase,alg,bufferSize) bind(C,name='cusparseCsr2cscEx2')
+      use iso_c_binding
+      import cusparseHandle
+      type(cusparseHandle), value :: handle
+      integer(c_int), value :: m,n,nnz,valType,copyValues,idxBase,alg
+      !pgi$ ignore_tkr csrVal, cscVal
+      real(4),device :: csrVal(*),cscVal(*)
+      integer(c_int),device :: csrRowPtr(*),csrColInd(*),cscRowInd(*),cscColPtr(*)
+      integer(8) :: bufferSize
+    end function cusparseCsr2cscEx2_bufferSize
+  end interface
+
+  ! cusparseCsr2cscEx2
+  interface
+    integer(c_int) function cusparseCsr2cscEx2(handle,m,n,nnz,csrVal,csrRowPtr,csrColInd,cscVal,cscColPtr,cscRowInd,valType,copyValues,&
+        idxBase,alg,buffer) bind(C,name='cusparseCsr2cscEx2')
+      use iso_c_binding
+      import cusparseHandle
+      type(cusparseHandle), value :: handle
+      integer(c_int), value :: m,n,nnz,valType,copyValues,idxBase,alg
+      !pgi$ ignore_tkr csrVal, cscVal
+      real(4),device :: csrVal(*),cscVal(*)
+      integer(c_int), device :: csrRowPtr(*),csrColInd(*),cscRowInd(*),cscColPtr(*)
+      !pgi$ ignore_tkr buffer
+      character,device :: buffer(*)
+    end function cusparseCsr2cscEx2
+  end interface
+
+end module cusparse_wrap
