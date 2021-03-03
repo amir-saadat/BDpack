@@ -50,7 +50,7 @@ module evverlet_mod
   type evverlet
 
     private
-    !> The number of the cells per side
+    !> The number of the cells per box side
     integer :: ncps(3)
     !> Total number of cells in the cubic box
     integer :: nct
@@ -133,7 +133,7 @@ contains
     select case (FlowType)
 
       case ('Equil','PSF')
-        nnc=13
+        nnc=27
       case ('PEF')
         nnc=31
     end select
@@ -177,7 +177,7 @@ contains
     class(evverlet),intent(inout) :: this
     real(wp),intent(in) :: rc,bs(3)
     integer,intent(in) :: ntotbead
-    integer :: clx,cly,clz,cll,czNxNy,cyNx
+    integer :: clx,cly,clz,cll,czNxNy,cyNx,ierr
     real(wp) :: ncpsl(3)
 
 
@@ -197,13 +197,6 @@ contains
     this%nct=this%ncps(1)*this%ncps(2)*this%ncps(3)
     this%cll_vol=bs(1)*bs(2)*bs(3)/this%nct
 
-!print*,'bs',bs
-!print*,'rc',rc
-!print *,'ncps',this%ncps,cll_dns
-!print *,'size',this%cll_sz
-!!
-!print *,'cll_vol',this%cll_vol,'cll_vol',this%cll_sz(1)*this%cll_sz(2)*this%cll_sz(3)
-
     this%mbpc=int(this%cll_vol*cll_dns_ev)
 
     if (allocated(this%binc)) deallocate(this%binc)
@@ -216,14 +209,6 @@ contains
 
       allocate(this%head(this%nct))
       allocate(this%nclst(this%nct,nnc))
-
-!print *,'mbpc',this%mbpc
-
-! print *,'nnc:',nnc
-! print *,'nct',this%nct
-! print *,'ncps',this%ncps
-! print *,'ncps',this%ncps
-! print *,'ncpsl',ncpsl
 
       do clz=0, this%ncps(3)-1
         czNxNy=clz*this%ncps(1)*this%ncps(2)
@@ -247,7 +232,6 @@ contains
     end if
 
     this%num_int=ntotbead*nnc*this%mbpc*0.5
-! print *,'num_int',this%num_int
 
     if (allocated(this%iidx)) deallocate(this%iidx)
     if (allocated(this%jidx)) deallocate(this%jidx)
@@ -260,15 +244,31 @@ contains
       if (allocated(this%Rijytmp)) deallocate(this%Rijytmp)
     end if
 
-    allocate(this%iidx(this%num_int))
-    allocate(this%jidx(this%num_int))
-    allocate(this%inside(this%num_int))
-    allocate(this%Rijx(this%num_int))
-    allocate(this%Rijy(this%num_int))
-    allocate(this%Rijz(this%num_int))
-    allocate(this%Rijsq(this%num_int))
+    ! We check the memory allocation result, as num_int might be a big one
+    allocate(this%iidx(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for iidx in evverlet_mod"
+
+    allocate(this%jidx(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for jidx in evverlet_mod"
+
+    allocate(this%inside(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for inside in evverlet_mod"
+
+    allocate(this%Rijx(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for Rijx in evverlet_mod"
+
+    allocate(this%Rijy(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for Rijy in evverlet_mod"
+
+    allocate(this%Rijz(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for Rijz in evverlet_mod"
+
+    allocate(this%Rijsq(this%num_int),stat=ierr)
+    if ( ierr /= 0 ) stop "Memory allocation issue for Rijsq in evverlet_mod"
+
     if (FlowType == 'PEF') then
-      allocate(this%Rijytmp(this%num_int))
+      allocate(this%Rijytmp(this%num_int),stat=ierr)
+      if ( ierr /= 0 ) stop "Memory allocation issue for Rijytmp in evverlet_mod"
     end if
 
   end subroutine init_clllst
@@ -322,7 +322,7 @@ contains
     end do
     this%mocc=maxval(this%head)
 
-    print*,'maxocc',this%mocc,this%mbpc
+    print '(" maxocc (from the actual bead positions): ",i4," -- max bead per cell (from cell_dns_ev): ",i6)',this%mocc,this%mbpc
 
 !if (itime==8479)then
 !    call print_vector(this%head,'newhead')
