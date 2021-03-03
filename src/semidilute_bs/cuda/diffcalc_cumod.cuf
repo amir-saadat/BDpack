@@ -73,6 +73,10 @@ contains
     complex(wp) :: Cx_ilp(ILP)
     complex(wp) :: Cy_ilp(ILP)
     complex(wp) :: Cz_ilp(ILP)
+	
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_cumod:apply_infl_kernel"
+#endif
 
     c_str=[0, (K(3)/2+1)*K(2), K(3)/2+1, 1]
 
@@ -136,7 +140,9 @@ contains
     real(wp),intent(in) :: r,rto2,rrhat(6)
     real(wp),intent(inout) :: M1_1d(9)
     real(wp) :: m1_1,m1_2,rto3,rto4
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_cumod:M1_1d"
+#endif
     rto3=rto2*r; rto4=rto2*rto2
     m1_1=(erfc(HI_alpha_d*r)*(M1_c1_d/r+M1_c2_d/rto3) + &
           exp(-HI_alpha2_d*rto2)/sqrtPI_d*(M1_c3_d*rto2-M1_c4_d+M1_c5_d*rto4-M1_c6_d*rto2+&
@@ -161,7 +167,9 @@ contains
     real(wp),intent(in) :: r,rto2,rrhat(6)
     real(wp),intent(inout) :: Mstar_1d(9)
     real(wp) :: mstar_1,mstar_2,rto3
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_cumod:Mstar_1d"
+#endif
     rto3=r*rto2
     mstar_1=(1-Mstar_c1_d*r-M1_c1_d/r-M1_c2_d/rto3)
     mstar_2=(Mstar_c2_d*r-M1_c1_d/r+M1_c9_d/rto3)
@@ -367,6 +375,9 @@ contains
     real(wp) :: r2,ri(3),rj(3),rij(3)
     integer :: igb,ig,jgb,jg,jbeg,jend,jneig
 
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_cumod:calcDiff_real_d_part1"
+#endif
     igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
 
     if (igb > ntb ) return
@@ -424,7 +435,9 @@ contains
     real(wp) :: r,r2,ri(3),rj(3),rij(3),rijhat(3),rrhat(6),m2(9)
     integer :: igb,ig,jgb,jg,offset_nc,offset_D,jbeg,jend,jneig,igbc
 
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_cumod:calcDiff_real_d_part2"
+#endif
     igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
 
     if (igb > ntb ) return
@@ -522,6 +535,9 @@ contains
     real(wp) :: M(p),x_tmp
     integer :: ip,ix,idx
 
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_cumod:M_spl"
+#endif
     do ip=2, p
       do ix=0, p-ip
 
@@ -578,7 +594,9 @@ contains
     real(wp) :: pval_buf
     integer :: pcolind_buf
 
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_cumod:calcDiff_recip_d_part1"
+#endif	
     igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
     if (igb > ntb ) return
 
@@ -697,6 +715,9 @@ contains
     integer,value :: nnz,K_dim
     integer :: ik,innz
 
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_cumod:calcDiff_recip_d_part2"
+#endif
     ik = blockDim%x*(blockIdx%x-1) + threadIdx%x
     if (ik > K_dim ) return
 
@@ -723,6 +744,9 @@ contains
     integer,value :: nnz,K_dim
     integer :: ik,innz,nnz_k,prev_count,curr_count
 
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_cumod:calcDiff_recip_d_part3"
+#endif
     ik = blockDim%x*(blockIdx%x-1) + threadIdx%x
     if (ik > K_dim ) return
 
@@ -793,6 +817,9 @@ contains
 
     integer :: nc_test
 
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_cumod:calcDiffTens_d"
+#endif
     bsx=boxsize(1)
     bsy=boxsize(2)
     bsz=boxsize(3)
@@ -985,6 +1012,9 @@ contains
 
     real(wp),allocatable :: ftest(:)
 
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_cumod:PME_d"
+#endif
     ! allocate(ftest(ntbx3))
 
     ! ftest=F_d
@@ -1080,7 +1110,9 @@ contains
       use :: cublas
 
       integer :: status
-
+#ifdef Debuge_sequence
+	  write(*,*) "module:diffcalc_cumod:calcDF_self"
+#endif
       call cublasDcopy(ntb*3,F_d,1,this%DF_self_d,1)
       call cublasDscal(ntb*3,HI_c0,this%DF_self_d,1)
 
@@ -1099,6 +1131,9 @@ contains
       integer :: c1,c2,c3,c4
       real(wp) :: alpha,beta,flops,ctime_dev,ctime_mkl,mflops_dev,mflops_mkl
 
+#ifdef Debuge_sequence
+	  write(*,*) "module:diffcalc_cumod:calcDF_real"
+#endif
       if (Dreal_sparse_mode) then
 
         ! actual sparse mv multiplication
@@ -1175,6 +1210,9 @@ contains
 
       integer(kind=cuda_count_kind) :: free,total
 
+#ifdef Debuge_sequence
+	  write(*,*) "module:diffcalc_cumod:calcDF_recip"
+#endif	
       K_dim = K_mesh(1)*K_mesh(2)*K_mesh(3)
       K_dim_CCE = K_mesh(1)*K_mesh(2)*(K_mesh(3)/2+1)
 

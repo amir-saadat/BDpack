@@ -143,7 +143,9 @@ contains
 
 
     integer :: offsetseg,offsetbead1,offsetbead2,nbead_cmb
-
+#ifdef Debuge_sequence
+	write(*,*) "module:chain_cumod:init_chain"
+#endif
 
     if (present(nseg_cmb)) then ! comb chain
 
@@ -226,7 +228,9 @@ contains
     ! nullify(this%chain_Rb)
     ! nullify(this%chain_Q,this%chain_R)
     nullify(this%chain_rcmx,this%chain_rcmy,this%chain_rcmz)
-
+#ifdef Debuge_sequence
+	write(*,*) "module:chain_cumod:del_chain"
+#endif
   end subroutine del_chain
 
   ! !> Kernel for updating the properties of the chain
@@ -279,7 +283,9 @@ contains
     integer :: nb,ib,os_bimg,os_rbc
     real(wp) :: rbead(10),rcm
 
-
+#ifdef Debuge_sequence
+	write(*,*) "module:chain_cumod:init_chain"
+#endif
     ! print*,'tid',threadIdx%x,ib!,boxchains(ich)%chain_ID
 
     ! nb=size(this%chain_Rbx,1)

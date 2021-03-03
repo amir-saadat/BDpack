@@ -129,6 +129,9 @@ contains
     use :: verlet_mod, only: shifts,j_clx,j_cly,j_clz,j_cll
 
     integer,intent(in) :: id
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_mod:init_evverlet"
+#endif
     call read_input('cll-dns-ev',0,cll_dns_ev,0.1_wp)
     select case (FlowType)
 
@@ -148,7 +151,9 @@ contains
     class(evverlet),intent(inout) :: this
     real(wp),intent(in) :: rc,bs(3)
     integer,intent(in) :: ntotbead
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_mod:init_evverlet_t"
+#endif
     this%ncps=0
     call this%init_cll(rc,bs,ntotbead)
 
@@ -180,6 +185,9 @@ contains
     integer :: clx,cly,clz,cll,czNxNy,cyNx,ierr
     real(wp) :: ncpsl(3)
 
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_mod:init_clllst"
+#endif
 
     ncpsl=this%ncps
 
@@ -289,6 +297,9 @@ contains
     integer,intent(in) :: ntotbead,ntotbeadx3
     integer :: i,clx,cly,clz,cll,itime,j
 
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_mod:cnstr_clllst"
+#endif
     this%head=0
     this%binc=0
 
@@ -306,7 +317,9 @@ contains
       cll=clz*this%ncps(1)*this%ncps(2)+cly*this%ncps(1)+clx+1
 
       ! print*,'2',clx,cly,clz,cll
-
+      ! print*, cll
+	  ! print*, this%head(cll)
+	  
       this%head(cll)=this%head(cll)+1
 
       if (this%head(cll) >= this%mbpc) then
@@ -364,7 +377,9 @@ contains
     logical,allocatable :: pair(:)
     integer :: i,j,nab,idx,cll,beadi,k,intidx
     real(wp) :: bs(3),invbs(3),rcsq
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_mod:cnstr_nablst"
+#endif
     this%iidx=0
     this%jidx=0
     allocate(beadi_tmp(this%nct))
@@ -470,7 +485,9 @@ contains
   subroutine del_verlet_t(this)
 
     type(evverlet),intent(inout) :: this
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_mod:del_verlet_t"
+#endif
   end subroutine del_verlet_t
 
   ! subroutine del_verlet()
