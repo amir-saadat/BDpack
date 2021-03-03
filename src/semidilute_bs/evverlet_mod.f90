@@ -111,9 +111,9 @@ module evverlet_mod
   !> Number of neighbering cells
   integer,save :: nnc
   ! !> The neighboring cells offset
-  ! integer,allocatable,save :: shifts(:,:)
+  ! integer,pointer,save :: shifts_ptr(:,:)
   ! !> The coordinates for neighboring cells
-  ! integer,allocatable :: j_clx(:),j_cly(:),j_clz(:),j_cll(:)
+  ! integer,pointer :: j_clx_ptr(:),j_cly_ptr(:),j_clz_ptr(:),j_cll_ptr(:)
 
 contains
 
@@ -126,70 +126,17 @@ contains
     use :: strg_mod
     use,intrinsic :: iso_fortran_env
     use :: cmn_io_mod, only: read_input
+    use :: verlet_mod, only: shifts,j_clx,j_cly,j_clz,j_cll
 
     integer,intent(in) :: id
     call read_input('cll-dns-ev',0,cll_dns_ev,0.1_wp)
     select case (FlowType)
 
       case ('Equil','PSF')
-        nnc=27
-!         allocate(shifts(nnc,3))
-!         shifts(1,:) =[ 0, 0,-1]
-!         shifts(2,:) =[ 1, 0,-1]
-!         shifts(3,:) =[ 1, 0, 0]
-!         shifts(4,:) =[ 1, 0, 1]
-!         shifts(5,:) =[-1, 1,-1]
-!         shifts(6,:) =[ 0, 1,-1]
-!         shifts(7,:) =[ 1, 1,-1]
-!         shifts(8,:) =[-1, 1, 0]
-!         shifts(9,:) =[ 0, 1, 0]
-!         shifts(10,:)=[ 1, 1, 0]
-!         shifts(11,:)=[-1, 1, 1]
-!         shifts(12,:)=[ 0, 1, 1]
-!         shifts(13,:)=[ 1, 1, 1]
-
+        nnc=13
       case ('PEF')
-        nnc=63
-!         allocate(shifts(nnc,3))
-!         shifts(1,:) =[ 0, 0,-1]
-!         shifts(2,:) =[ 1, 0,-1]
-!         shifts(3,:) =[ 2, 0,-1]
-!         shifts(4,:) =[ 3, 0,-1]
-!         shifts(5,:) =[ 1, 0, 0]
-!         shifts(6,:) =[ 2, 0, 0]
-!         shifts(7,:) =[ 3, 0, 0]
-!         shifts(8,:) =[ 1, 0, 1]
-!         shifts(9,:) =[ 2, 0, 1]
-!         shifts(10,:)=[ 3, 0, 1]
-!         shifts(11,:)=[-3, 1,-1]
-!         shifts(12,:)=[-2, 1,-1]
-!         shifts(13,:)=[-1, 1,-1]
-!         shifts(14,:)=[ 0, 1,-1]
-!         shifts(15,:)=[ 1, 1,-1]
-!         shifts(16,:)=[ 2, 1,-1]
-!         shifts(17,:)=[ 3, 1,-1]
-!         shifts(18,:)=[-3, 1, 0]
-!         shifts(19,:)=[-2, 1, 0]
-!         shifts(20,:)=[-1, 1, 0]
-!         shifts(21,:)=[ 0, 1, 0]
-!         shifts(22,:)=[ 1, 1, 0]
-!         shifts(23,:)=[ 2, 1, 0]
-!         shifts(24,:)=[ 3, 1, 0]
-!         shifts(25,:)=[-3, 1, 1]
-!         shifts(26,:)=[-2, 1, 1]
-!         shifts(27,:)=[-1, 1, 1]
-!         shifts(28,:)=[ 0, 1, 1]
-!         shifts(29,:)=[ 1, 1, 1]
-!         shifts(30,:)=[ 2, 1, 1]
-!         shifts(31,:)=[ 3, 1, 1]
-! !        this%ncps(1:2)=bs(1:2)/(sqrt(10._wp)*rc_F)
-! !        this%ncps(3)=bs(3)/rc_F
+        nnc=31
     end select
-
-!     allocate(j_clx(nnc))
-!     allocate(j_cly(nnc))
-!     allocate(j_clz(nnc))
-!     allocate(j_cll(nnc))
 
   end subroutine init_evverlet
 
@@ -284,14 +231,15 @@ contains
           cyNx=cly*this%ncps(1)
           do clx=0, this%ncps(1)-1
             cll=czNxNy+cyNx+clx+1
-            j_clx=clx+shifts(:,1)
-            j_cly=cly+shifts(:,2)
-            j_clz=clz+shifts(:,3)
-            j_clx=modulo(j_clx,this%ncps(1))
-            j_cly=modulo(j_cly,this%ncps(2))
-            j_clz=modulo(j_clz,this%ncps(3))
-            j_cll=j_clz*this%ncps(1)*this%ncps(2)+j_cly*this%ncps(1)+j_clx+1
-            this%nclst(cll,:)=j_cll
+            ! Make sure to take only the first nnc part - later in the cnstr_nab we only need half of the neighbors since j>i always
+            j_clx(1:nnc)=clx+shifts(1:nnc,1)
+            j_cly(1:nnc)=cly+shifts(1:nnc,2)
+            j_clz(1:nnc)=clz+shifts(1:nnc,3)
+            j_clx(1:nnc)=modulo(j_clx(1:nnc),this%ncps(1))
+            j_cly(1:nnc)=modulo(j_cly(1:nnc),this%ncps(2))
+            j_clz(1:nnc)=modulo(j_clz(1:nnc),this%ncps(3))
+            j_cll(1:nnc)=j_clz(1:nnc)*this%ncps(1)*this%ncps(2)+j_cly(1:nnc)*this%ncps(1)+j_clx(1:nnc)+1
+            this%nclst(cll,:)=j_cll(1:nnc)
           end do ! clx
         end do ! cly
       end do ! clz
