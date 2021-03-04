@@ -133,7 +133,7 @@ contains
     select case (FlowType)
 
       case ('Equil','PSF')
-        nnc=27
+        nnc=13
       case ('PEF')
         nnc=31
     end select
