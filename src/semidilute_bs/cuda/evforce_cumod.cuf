@@ -107,7 +107,9 @@ contains
     real(wp),device,intent(in),target :: Rbz(:)
     integer,intent(in) :: id,ntotsegx3,ntotbead,ntotbeadx3
     real(wp),intent(in) :: bs(3)
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evforce_cumod:init_evforce_t"
+#endif
     ! For Construction of verlet list
     allocate(this%Rb0_d(ntotbeadx3))
     allocate(this%Q0_d(ntotsegx3))
@@ -164,7 +166,9 @@ contains
     logical :: update
 
     real(wp),device,allocatable :: diff(:)
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evforce_cumod:update_vlt_lst"
+#endif	
     if (itime == itrst+1) then
       update=.true.
     else
@@ -240,7 +244,9 @@ contains
 
     ! integer :: its,ich,osb,oss,is
     ! real(wp) :: qx,qy,qz,qsq,q,Ftmp,qytmp
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evforce_cumod:update_force"
+#endif
     bsx=bs(1);bsy=bs(2);bsz=bs(3)
     invbsx=invbs(1);invbsy=invbs(2);invbsz=invbs(3)
 
@@ -269,7 +275,9 @@ contains
     real(wp) :: rijx,rijy,rijz,rijsq,Fevij(3),rijytmp
 
     ! real(wp),device,intent(out) :: ftest(ntb*3)
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evforce_cumod:update_force_krnl"
+#endif	
     igb = blockDim%x*(blockIdx%x-1) + threadIdx%x
 
     if (igb > ntb ) return
@@ -333,7 +341,9 @@ contains
 
   !> Destructor for ev force type
   subroutine del_evforce_t(this)
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evforce_cumod:del_evforce_t"
+#endif
     type(evforce_cu_t),intent(inout) :: this
 
   end subroutine del_evforce_t

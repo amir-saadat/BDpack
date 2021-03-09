@@ -167,7 +167,7 @@ contains
     ! integer,intent(in) :: id
     ! integer :: il,j,ntokens,u1,stat,ios
     ! character(len=1024) :: line
-    ! character(len=100) :: tokens(10)
+    ! character(len=100) :: tokens(50)
 
 !     open (newunit=u1,action='read',file='input.dat',status='old')
 !     il=1
@@ -191,7 +191,9 @@ contains
 !       end if ! ntokens
 !     end do ef
 !     close(u1)
-
+#ifdef Debuge_sequence
+    write(*,*) "module:hiverlet_cumod:init_hiverlet_d"
+#endif	
     call read_input('cll-dns-hi',0,cll_dns_hi,0.1_wp)
 
     select case (FlowType)
@@ -276,7 +278,9 @@ contains
     real(wp),intent(in) :: rc,bs(3)
     integer,intent(in) :: ntotbead
     integer,device,allocatable,intent(inout) :: nlst_d(:,:)
-
+#ifdef Debuge_sequence
+    write(*,*) "module:hiverlet_cumod:init_verlet_t"
+#endif
     this%ncps=0
     call this%init_cll(rc,bs,ntotbead,nlst_d)
     allocate(this%Rbx_h(ntotbead))
@@ -341,8 +345,9 @@ contains
     integer,device,allocatable,intent(inout) :: nlst_d(:,:)
     integer :: clx,cly,clz,cll,czNxNy,cyNx
     real(wp) :: ncpsl(3)
-
-
+#ifdef Debuge_sequence
+    write(*,*) "module:hiverlet_cumod:init_clllst"
+#endif
     ncpsl=this%ncps
 
     select case (FlowType)
@@ -496,6 +501,9 @@ contains
     ! but fortunately it is only done every once a while ...
 
     ! print*,'how ofter', itime
+#ifdef Debuge_sequence
+	write(*,*) "module:hiverlet_cumod:cnstr_nablst"
+#endif
     this%Rbx_h=Rbx_d
     this%Rby_h=Rby_d
     this%Rbz_h=Rbz_d
@@ -567,7 +575,9 @@ contains
     real(wp),intent(in) :: Rbz(:)
     integer,intent(in) :: ntotbead,ntotbeadx3
     integer :: i,clx,cly,clz,cll,itime,j
-
+#ifdef Debuge_sequence
+	write(*,*) "module:hiverlet_cumod:cnstr_clllst"
+#endif
     this%head=0
     this%binc=0
 
@@ -761,8 +771,9 @@ contains
     real(wp),shared :: rjz_tmp(blockDim%x)
     real(wp) :: ri(3),rijx,rijy,rijytmp,rijz,rijsq
     integer :: nab,cll,beadi,jb,nabcll
-
-
+#ifdef Debuge_sequence
+	write(*,*) "module:hiverlet_cumod:cnstr_nab_d"
+#endif
     beadi=binc(blockIdx%x,threadIdx%x)
 
     nab=0
@@ -868,13 +879,16 @@ contains
   subroutine del_verlet_t(this)
 
     type(hiverlet_cu_t),intent(inout) :: this
-
+#ifdef Debuge_sequence
+	write(*,*) "module:hiverlet_cumod:del_verlet_t"
+#endif
     deallocate(this%Rbx_h,this%Rby_h,this%Rbz_h)
 
   end subroutine del_verlet_t
 
   subroutine del_hiverlet_d()
 
+	write(*,*) "module:hiverlet_cumod:del_hiverlet_d"
     nullify(Rbx_tex,Rby_tex,Rbz_tex)
 
   end subroutine del_hiverlet_d

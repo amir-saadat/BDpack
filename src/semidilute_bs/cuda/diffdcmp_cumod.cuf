@@ -59,7 +59,9 @@ contains
 
     ! real(wp) :: dwtest(132)
 
-
+#ifdef Debuge_sequence
+    write(*,*) "module:diffdcmp_cumod:calcBrownNoise_d"
+#endif
     if (HIcalc_mode == 'Ewald') then
 
       print '(" Ewald is yet not supported on GPU, use PME")'
