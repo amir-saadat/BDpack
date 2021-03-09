@@ -1,5 +1,10 @@
 !Random module
 !December 5, 2017
+!
+!
+!modified by Mahdi Boudaghi @ UTK-MRAIL
+!December 2020
+
 
 module rand_mod
 
@@ -9,18 +14,40 @@ module rand_mod
 
 contains
 
+integer  function seedG()
+
+    real(wp) :: seedtmp
+    integer :: s,i,msec,n,time_info(8)
+    integer(long), allocatable :: seed(:)
+    
+    call date_and_time(values=time_info)
+    msec=(60000*time_info(6)+1000*time_info(7)+time_info(8))  !*((myrank-83)*359) ! a random integer
+    call random_seed(size=n) ! get the number of integers used for the seed
+    ! This is because we want different order of random numbers in each call
+    allocate(seed(n))
+    do i=1,n
+      seed(i)=i*msec
+    end do
+    call random_seed(put=seed) ! give a proper seed
+    call random_number(seedtmp) ! generate a sequence of nchain pseudo
+    !seedG=floor(2000000000*seedtmp)
+    seedG=floor(300000000*seedtmp)
+    deallocate(seed)
+  end function seedG
+
   ! Random numeber seeding (from H. C. Ottinger):
   subroutine ranils(iseed)
 
     integer,intent(in) :: iseed
     integer,parameter :: in=2147483563,ik=40014,iq=53668,ir=12211,ntab=32
     integer :: iv(ntab),idum,idum2,iy
-    integer :: k,j
+    integer :: k,j !,seedG
 
     common /ranbls/ idum,idum2,iy,iv
 
     ! Initial seeds for two random number generators
-    idum=iseed+123456789
+    !idum=iseed+123456789
+    idum = 500000000+seedG()+123456789
     idum2=idum
 
     ! Load the shuffle table (after 8 warm-ups)
