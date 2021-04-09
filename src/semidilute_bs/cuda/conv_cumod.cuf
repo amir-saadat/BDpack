@@ -155,14 +155,14 @@ contains
     ! Specifying the buffer size
     istat = cusparseCsr2cscEx2_buffersize(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
       Bbar_Val_tr_d,Bbar_ColPtr_d,Bbar_RowInd_d,CUDA_R_64F,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE,&
-      CUSPARSE_CSRMV_ALG2,bsize)
+      CUSPARSE_CSR2CSC_ALG2,bsize)
     print'(" cusparseCsr2cscEx2 buffersize required: ",i)',bsize
     if (bsize > 0) allocate(buffer(bsize))
 
     ! Performing the csr2csc conversion
     istat = cusparseCsr2cscEx2(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
       Bbar_Val_tr_d,Bbar_ColPtr_d,Bbar_RowInd_d,CUDA_R_64F,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE,&
-      CUSPARSE_CSRMV_ALG2,buffer)
+      CUSPARSE_CSR2CSC_ALG2,buffer)
     if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCsr2cscEx2 Error in init_conv: ",i)',istat
 
     ! deallocate the buffer
