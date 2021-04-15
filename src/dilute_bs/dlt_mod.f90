@@ -940,7 +940,7 @@ module dlt_mod
         write (*,*)
         write(*,'(7x,a)') 'Wi            dt            ntime'
         write(*,'(7x,a)') '---------------------------------'
-        write(*,'(f14.7,1x,e10.2,1x,i10)') Wi(iPe),dt(iPe,idt),ntime(iPe,idt)
+        write(*,'(f14.7,1x,e10.2,1x,i15)') Wi(iPe),dt(iPe,idt),ntime(iPe,idt)
         write (*,*)
       end if
 
@@ -1018,7 +1018,7 @@ module dlt_mod
           else
             rtpassed=time/lambda
           end if
-          print '(f7.3," Chain-Relaxation-Time(s) Passed")',rtpassed
+          print '(f17.8," Chain-Relaxation-Time(s) Passed")',rtpassed
           time_check1=time_check1+frm_rt_rep*lambda
         end if
 
@@ -1937,12 +1937,12 @@ module dlt_mod
             else
               rtpassed=time/lambda
             end if
-            write(u21,'(f7.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u21)
+            write(u21,'(f17.8,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u21)
             if (CoM) then
-              write(u22,'(f7.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u22)
+              write(u22,'(f17.8,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u22)
             end if
             if (CoHR) then
-              write(u23,'(f7.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u23)
+              write(u23,'(f17.8,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u23)
             end if
           end if ! id == 0
         end if ! mod(itime,lambda/dt)==0

@@ -46,6 +46,7 @@ module pp_smdlt
   !! The variables regarding end to end distance
   !> @{
   real(wp) :: sqqetoeAve,qetoeAve,sdsqqetoeAve,sdqetoeAve
+!  real(wp) :: sqqetoeAve_cmb,qetoeAve_cmb,sdsqqetoeAve_cmb,sdqetoeAve_cmb
   real(wp) :: tAvesqqetoeAve,tAveqetoeAve,tAvesdsqqetoeAve,tAvesdqetoeAve
   real(wp) :: sdtAvesqqetoeAve,sdtAveqetoeAve,rAvetAvesqqetoe,rAvetAveqetoe
   real(wp) :: rAvesdtAvesqqetoe,rAvesdtAveqetoe,sdrAvetAvesqqetoe,sdrAvetAveqetoe
@@ -115,10 +116,12 @@ module pp_smdlt
             del_pp
 
   public :: StrCalc,StrPr_mode,RgCalc,CoMDiff,AveIterCalc,&
-               CorFun,CF_mode,cf_ree,cf_rg,kchk
+               CorFun,CF_mode,cf_ree,cf_rg,kchk,add_cmb
 !  protected :: StrCalc,StrPr_mode,RgCalc,CoMDiff,AveIterCalc,&
 !               CorFun,CF_mode
 
+  !> If the Comb chains exist
+  logical,protected :: add_cmb
   !> If the stress calculation is desired
   logical,protected :: StrCalc
   !> If the timing report is intended
@@ -157,9 +160,11 @@ contains
     character(len=1024) :: file1,file2,file3,file4,file5,file6,file7,file8,file9
     character(len=1024) :: file10,file11,file12,file13,file14,file15,file16,file17,file18
     character(len=1024) :: format_str,line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
     integer :: i,j,ntokens,u0,il,stat,ierr
-
+#ifdef Debuge_sequence
+	write(*,*) "module:pp_smdlt:init_pp"
+#endif
     ! Default values:
     StrCalc=.false.;StrPr_mode='Visc'
     doTiming=.false.
@@ -570,7 +575,9 @@ ef: do
     use :: flow_mod, only: FlowType
 
     integer,intent(in) :: myrank
-   
+#ifdef Debuge_sequence
+	write(*,*) "module:pp_smdlt:data_time_init"
+#endif
     jcount=0;kcount=0;lcount=0
     ! Variables for time averaging:
     if (StrCalc) then
@@ -601,14 +608,16 @@ ef: do
 
   !> Initializes the processing of the data for material functions at initial run
   !! \myrank the rank of the process
-  subroutine data_run_init(myrank,ntime,tgap,ndmp,nprun,nchain,ntotbeadx3)
+  subroutine data_run_init(myrank,ntime,tgap,ndmp,nprun,ntotchain,ntotbeadx3)
  
     use :: hi_mod, only: DecompMeth
     use :: flow_mod, only: FlowType
 
-    integer,intent(in) :: myrank,ntime,tgap,ndmp,nprun,nchain,ntotbeadx3
+    integer,intent(in) :: myrank,ntime,tgap,ndmp,nprun,ntotchain,ntotbeadx3
 !    integer :: ntime,tgap
-   
+#ifdef Debuge_sequence
+	write(*,*) "module:pp_smdlt:data_run_init"
+#endif
     ! Variables for run averaging:
     if (StrCalc) then
       ! related to end to end distance qetoe.
@@ -684,7 +693,7 @@ ef: do
       select case (CF_mode)
         case ('Ree')
           if (allocated(cf_ree)) deallocate(cf_ree)
-          allocate(cf_ree(3,ntime/tgap,nchain,nprun))
+          allocate(cf_ree(3,ntime/tgap,ntotchain,nprun))
         case ('Rg')
           if (allocated(cf_rg)) deallocate(cf_rg)
           allocate(cf_rg(ntotbeadx3,ntime/tgap,nprun))
@@ -694,9 +703,12 @@ ef: do
   end subroutine data_run_init
 
 
-  subroutine material_func(myrank,irun,itime,time,Wi,Pe,dt,tgap,ntime,nchain,nseg,nbead,&
-                  nsegx3,nbeadx3,lambda,tss,trst,MPI_REAL_WP,nrun,nprun,tend,bs,chains,R)
 
+  !!> material_func 
+  subroutine material_func(myrank,irun,itime,time,Wi,Pe,dt,tgap,ntime,nchain,nseg,nbead,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,nseg_cmbbb,&
+               add_cmb,ntotchain,lambda,tss,trst,MPI_REAL_WP,nrun,nprun,tend,bs       ,chains        ,R)
+ !      call material_func(id,irun,itime,time,Wi,Pe,dt,tgap,ntime,nchain,nseg,nbead,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,&
+ !             add_cmb,ntotchain,lambda,tss,trst,MPI_REAL_WP,nrun,nprun,tend,this%size,this%BoxChains,this%R_tilde)
     use :: hi_mod, only: DecompMeth,mst
     use :: chain_mod, only: chain
     use :: arry_mod, only: print_vector,print_matrix
@@ -707,8 +719,11 @@ ef: do
     !include 'mpif.h'
 
     integer,intent(in) :: myrank,irun,itime,ntime,tgap,nchain,nseg,nbead,nsegx3,nbeadx3
+	integer,intent(in) :: nchain_cmb,nseg_cmb,ntotchain,nseg_cmbbb
+	integer            :: nbead_cmb,nbead_cmbx3
+	logical,intent(in) :: add_cmb
     integer,intent(in) :: MPI_REAL_WP,nrun,nprun
-    type(chain),intent(in) :: chains(:)
+    type(chain),intent(in) :: chains(:) ! this%BoxChains  ! type chian is in chain_mod.f90
     real(wp),intent(in) :: Wi,Pe,dt,time,R(:),lambda,tss,trst,tend,bs(3)
     integer :: jchain,ierr,i,j,info,icount
     real(wp) :: rcmtmp(3),rcmExcess(3),rcmTot(3),RgSqTensEV(3),RgSqEVdiff(3)
@@ -724,30 +739,59 @@ ef: do
     character(len=99),parameter :: fmtife3f="(i4,1x,f14.7,1x,e11.3,1x,3(f14.7,2x))"
     character(len=99),parameter :: fmtae3f="(a,1x,e11.3,1x,3(f14.7,2x))"
     character(len=99),parameter :: fmtie2f="(i4,1x,e11.3,1x,2(f14.7,2x))"
-
+#ifdef Debuge_sequence
+	write(*,*) "module:pp_smdlt:material_func"
+#endif
+	if (add_cmb) then
+    nbead_cmb=nseg_cmb+1
+	nbead_cmbx3=nbead_cmb*3
+	end if
+	
     lcount=lcount+1
     if (StrCalc) then
-      call StressCalc(itime,time,ntime,irun,myrank,nchain,nseg,nsegx3,nbeadx3,tss,lambda,&
+      call StressCalc(itime,time,ntime,irun,myrank,nchain,nseg,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,nseg_cmbbb,ntotchain,add_cmb,tss,lambda,&
                         nrun,tend,chains,R)
     end if ! StrCalc
 
     ! Center of mass diffusion calculation:
     if ((FlowType == 'Equil').and.CoMDiff) then
       DcmAve=0._wp;sdDcmAve=0._wp
-      do jchain=1, nchain
+	  if (nchain/=0) then
+       do jchain=1, nchain
         rcmtmp=chains(jchain)%chain_rcm(:)!rcm(:,jchain)
         rcmExcess(:)=bs(:)*chains(jchain)%chain_cmif(:)
         rcmtot=rcmtmp+rcmExcess-rcmst(jchain,:,irun)
         DcmAve=DcmAve+dot_product(rcmtot,rcmtot)             
         sdDcmAve=sdDcmAve+dot_product(rcmtot,rcmtot)*dot_product(rcmtot,rcmtot)
-        
-      end do
+       end do
+	   if (add_cmb) then
+        do jchain=1, nchain_cmb
+            rcmtmp=chains(jchain+nchain)%chain_rcm(:)!rcm(:,jchain)
+            rcmExcess(:)=bs(:)*chains(jchain+nchain)%chain_cmif(:)
+            rcmtot=rcmtmp+rcmExcess-rcmst(jchain+nchain,:,irun)
+            DcmAve=DcmAve+dot_product(rcmtot,rcmtot)             
+            sdDcmAve=sdDcmAve+dot_product(rcmtot,rcmtot)*dot_product(rcmtot,rcmtot)
+        end do
+	   end if !add_cmb
+	  else !(nchain==0)
+	   if (add_cmb) then
+        do jchain=1, nchain_cmb
+            rcmtmp=chains(jchain)%chain_rcm(:)!rcm(:,jchain)
+            rcmExcess(:)=bs(:)*chains(jchain)%chain_cmif(:)
+            rcmtot=rcmtmp+rcmExcess-rcmst(jchain,:,irun)
+            DcmAve=DcmAve+dot_product(rcmtot,rcmtot)             
+            sdDcmAve=sdDcmAve+dot_product(rcmtot,rcmtot)*dot_product(rcmtot,rcmtot)
+        end do
+		end if !add_cmb
+      end if !nchain
     end if ! CoMDiff
+	
     ! Radius of gyration:
     if (RgCalc) then
       ! R=rv-rcm
       RgSqAve=0._wp;sdRgSqAve=0._wp;AspherAve=0._wp;sdAspherAve=0._wp
-      do jchain=1, nchain
+	  if (nchain/=0) then
+       do jchain=1, nchain
         do j=1, 3
           RPj => chains(jchain)%chain_R(j:nbeadx3-(3-j):3)
           do i=1, 3
@@ -772,13 +816,72 @@ ef: do
         sdRgSqAve=sdRgSqAve+traceRgSqTens*traceRgSqTens
         AspherAve=AspherAve+Aspher
         sdAspherAve=sdAspherAve+Aspher*Aspher
-      end do
+       end do
+	  
+	   if (add_cmb) then
+	   do jchain=1, nchain_cmb
+        do j=1, 3
+          RPj => chains(jchain+nchain)%chain_R(j:nbead_cmbx3-(3-j):3)
+          do i=1, 3
+            RPi => chains(jchain+nchain)%chain_R(i:nbead_cmbx3-(3-i):3)
+            RgSqTens(i,j)=1._wp/nbead_cmb*dot(RPi,RPj)
+          end do
+        end do
+        traceRgSqTens=0._wp
+        do i=1, 3
+          traceRgSqTens=traceRgSqTens+RgSqTens(i,i)
+        end do
+        RgSqTensEVbar=traceRgSqTens/3
+        call syev(RgSqTens,RgSqTensEV,jobz='N',info=info)
+        if (info /= 0) then
+          write(*,*) 'Unsuccessful eigenvalue computation For Rg^2 Tensor in main'
+          write(*,'(a,1x,i3)') 'info:',info
+          stop
+        end if
+        RgSqEVdiff(:)=RgSqTensEV(:)-RgSqTensEVbar
+        Aspher=1._wp/6/RgSqTensEVbar**2*dot_product(RgSqEVdiff,RgSqEVdiff)
+        RgSqAve=RgSqAve+traceRgSqTens
+        sdRgSqAve=sdRgSqAve+traceRgSqTens*traceRgSqTens
+        AspherAve=AspherAve+Aspher
+        sdAspherAve=sdAspherAve+Aspher*Aspher
+      end do !
+	  end if !add_cmb
+	  else !nchian=0
+	   if (add_cmb) then
+	    do jchain=1, nchain_cmb
+         do j=1, 3
+          RPj => chains(jchain+nchain)%chain_R(j:nbead_cmbx3-(3-j):3)
+          do i=1, 3
+            RPi => chains(jchain+nchain)%chain_R(i:nbead_cmbx3-(3-i):3)
+            RgSqTens(i,j)=1._wp/nbead_cmb*dot(RPi,RPj)
+          end do
+         end do
+         traceRgSqTens=0._wp
+         do i=1, 3
+          traceRgSqTens=traceRgSqTens+RgSqTens(i,i)
+         end do
+         RgSqTensEVbar=traceRgSqTens/3
+         call syev(RgSqTens,RgSqTensEV,jobz='N',info=info)
+         if (info /= 0) then
+          write(*,*) 'Unsuccessful eigenvalue computation For Rg^2 Tensor in main'
+          write(*,'(a,1x,i3)') 'info:',info
+          stop
+         end if
+         RgSqEVdiff(:)=RgSqTensEV(:)-RgSqTensEVbar
+         Aspher=1._wp/6/RgSqTensEVbar**2*dot_product(RgSqEVdiff,RgSqEVdiff)
+         RgSqAve=RgSqAve+traceRgSqTens
+         sdRgSqAve=sdRgSqAve+traceRgSqTens*traceRgSqTens
+         AspherAve=AspherAve+Aspher
+         sdAspherAve=sdAspherAve+Aspher*Aspher
+        end do !
+	   end if !add_cmb
+	  end if !nchian
     end if ! RgCalc
 
     ! Evaluations as a function of time:
     if (StrCalc) then
-      sdsqqetoeAve=sqrt(abs(sdsqqetoeAve-sqqetoeAve*sqqetoeAve)/(nchain-1))
-      sdqetoeAve=sqrt(abs(sdqetoeAve-qetoeAve*qetoeAve)/(nchain-1))
+      sdsqqetoeAve=sqrt(abs(sdsqqetoeAve-sqqetoeAve*sqqetoeAve)/(ntotchain-1))
+      sdqetoeAve=sqrt(abs(sdqetoeAve-qetoeAve*qetoeAve)/(ntotchain-1))
       ! For run average:
       if (nrun > 1) then
         rAvesqqetoe(lcount)=rAvesqqetoe(lcount)+sqqetoeAve
@@ -793,10 +896,12 @@ ef: do
         sdrAvetauyyzz(lcount)=sdrAvetauyyzz(lcount)+tauyyzz*tauyyzz
         ! Comment out if you want in detail information of each process.
         write(u1,fmtfefff) Wi,dt,time,sqqetoeAve,sdsqqetoeAve
-        write(u2,fmtfefff) Wi,dt,Pe*time,qetoeAve/(qmx*nseg),sdqetoeAve/(qmx*nseg)
+!        write(u2,fmtfefff) Wi,dt,Pe*time,qetoeAve/(qmx*nseg),sdqetoeAve/(qmx*nseg)
+        write(u2,fmtfefff) Wi,dt,Pe*time,qetoeAve/(qmx*max(nseg,nseg_cmbbb)),sdqetoeAve/(qmx*max(nseg,nseg_cmbbb))
       else ! nrun=1
         write(u1,fmtfefff) Wi,dt,time,sqqetoeAve,sdsqqetoeAve
-        write(u2,fmtfefff) Wi,dt,Pe*time,qetoeAve/(qmx*nseg),sdqetoeAve/(qmx*nseg)
+!        write(u2,fmtfefff) Wi,dt,Pe*time,qetoeAve/(qmx*nseg),sdqetoeAve/(qmx*nseg)  !normalised by linear chain length
+        write(u2,fmtfefff) Wi,dt,Pe*time,qetoeAve/(qmx*max(nseg,nseg_cmbbb)),sdqetoeAve/(qmx*max(nseg,nseg_cmbbb))
       end if
       ! To investigate the transient behavior of Ree in rank 0:
 !      if ((nrun > 1) .and. (myrank == 0)) write(u1,fmtfefff) Wi,dt,time,sqqetoeAve,sdsqqetoeAve
@@ -806,25 +911,27 @@ ef: do
             if (FlowType == 'PSF') then
               if (nrun > 1) then
 !               Comment out if you want in detail information of each process.
-!                write(u3,fmtfeff) Wi,dt,time,-tauxy/Pe
-!                write(u25,fmtfeff) Wi,dt,time,-tauxxyy/Pe**2
-!                write(u26,fmtfeff) Wi,dt,time,-tauyyzz/Pe**2
+                write(u3,fmtfeff) Wi,dt,time,-tauxy/Pe
+                write(u25,fmtfeff) Wi,dt,time,-tauxxyy/Pe**2
+                write(u26,fmtfeff) Wi,dt,time,-tauyyzz/Pe**2
               else ! nrun=1
                 write(u3,fmtfeff) Wi,dt,time,-tauxy/Pe
                 write(u25,fmtfeff) Wi,dt,time,-tauxxyy/Pe**2
                 write(u26,fmtfeff) Wi,dt,time,-tauyyzz/Pe**2
               end if ! nrun
-            else
+            !else
+			end if
+			if (FlowType == 'PEF') then
 !             Not implemented yet!
-!              write(u9,fmtfef) Pe*time,dt,-tauxxyy/Pe
+              write(u9,fmtfef) Pe*time,dt,-tauxxyy/Pe
             end if
           end if
         case ('Stress')
           if (nrun > 1) then
 !           Comment out if you want in detail information of each process.
-!            write(u3,fmtfeff) Wi,dt,time,tauxy
-!            write(u25,fmtfeff) Wi,dt,time,tauxxyy
-!            write(u26,fmtfeff) Wi,dt,time,tauyyzz
+            write(u3,fmtfeff) Wi,dt,time,tauxy
+            write(u25,fmtfeff) Wi,dt,time,tauxxyy
+            write(u26,fmtfeff) Wi,dt,time,tauyyzz
           else ! nrun=1
             write(u3,fmtfeff) Wi,dt,time,tauxy
             write(u25,fmtfeff) Wi,dt,time,tauxxyy
@@ -836,7 +943,7 @@ ef: do
       if (DecompMeth == 'Lanczos') then
         if (nrun > 1) then
 !         Comment out if you want in detail information of each process.
-!          write(u15,fmtae3f) FlowType,Wi,dt,time,real(mst)
+          write(u15,fmtae3f) FlowType,Wi,dt,time,real(mst)
         else ! nrun=1
           write(u15,fmtae3f) FlowType,Wi,dt,time,real(mst)
         end if
@@ -846,39 +953,40 @@ ef: do
       end if
     end if ! AveIterCalc
     if ((FlowType == 'Equil').and.CoMDiff) then
-      MSDAve=DcmAve/nchain
-      sdMSDAve=sdDcmAve/nchain
-      sdMSDAve=sqrt(abs(sdMSDAve-MSDAve**2)/(nchain-1))
-      DcmAve=DcmAve/(6*time*nchain)
-      sdDcmAve=sdDcmAve/(36*time*time*nchain)
-      sdDcmAve=sqrt(abs(sdDcmAve-DcmAve**2)/(nchain-1))
+      MSDAve=DcmAve/ntotchain
+      sdMSDAve=sdDcmAve/ntotchain
+      sdMSDAve=sqrt(abs(sdMSDAve-MSDAve**2)/(ntotchain-1))
+      DcmAve=DcmAve/(6*time*ntotchain)
+      sdDcmAve=sdDcmAve/(36*time*time*ntotchain)
+      sdDcmAve=sqrt(abs(sdDcmAve-DcmAve**2)/(ntotchain-1))
       ! For run averages:
       if (nrun > 1) then
         rAveMSD(lcount)=rAveMSD(lcount)+MSDAve
         sdrAveMSD(lcount)=sdrAveMSD(lcount)+MSDAve*MSDAve
 !       Comment out if you want in detail information of each process.
-!        write(u37,fmtfefff) Wi,dt,time,MSDAve,sdMSDAve
-!        write(u19,fmtfefff) Wi,dt,time,DcmAve,sdDcmAve
+        write(u37,fmtfefff) Wi,dt,time,MSDAve,sdMSDAve
+        write(u19,fmtfefff) Wi,dt,time,DcmAve,sdDcmAve
       else ! nrun=1
         write(u37,fmtfefff) Wi,dt,time,MSDAve,sdMSDAve
         write(u19,fmtfefff) Wi,dt,time,DcmAve,sdDcmAve
       end if ! nrun
     end if
+	
     if (RgCalc) then
-      RgSqAve=RgSqAve/nchain
-      AspherAve=AspherAve/nchain
-      sdRgSqAve=sdRgSqAve/nchain
-      sdAspherAve=sdAspherAve/nchain
-      sdRgSqAve=sqrt(abs(sdRgSqAve-RgSqAve**2)/(nchain-1))
-      sdAspherAve=sqrt(abs(sdAspherAve-AspherAve**2)/(nchain-1))
+      RgSqAve=RgSqAve/ntotchain
+      AspherAve=AspherAve/ntotchain
+      sdRgSqAve=sdRgSqAve/ntotchain
+      sdAspherAve=sdAspherAve/ntotchain
+      sdRgSqAve=sqrt(abs(sdRgSqAve-RgSqAve**2)/(ntotchain-1))
+      sdAspherAve=sqrt(abs(sdAspherAve-AspherAve**2)/(ntotchain-1))
 !     For run average:
       if (nrun > 1) then
         rAveRgSq(lcount)=rAveRgSq(lcount)+RgSqAve
         sdrAveRgSq(lcount)=sdrAveRgSq(lcount)+RgSqAve*RgSqAve
 !       Comment out if you want in detail information of each process.
-!        write(u18,fmtfefff) Wi,dt,time,RgSqAve,sdRgSqAve
-      else ! nrun=1
         write(u18,fmtfefff) Wi,dt,time,RgSqAve,sdRgSqAve
+      else ! nrun=1
+        write(u18,fmtfefff) Wi,dt,time,RgSqAve,sdRgSqAve  !Rg
       end if
     end if
 
@@ -958,8 +1066,9 @@ ef: do
             sdrAvetAvetauxxyy=sdrAvetAvetauxxyy+tAvetauxxyy*tAvetauxxyy
             sdrAvetAvetauyyzz=sdrAvetAvetauyyzz+tAvetauyyzz*tAvetauyyzz
           end if
-          write(u4,fmtfe3f) Wi,dt,tAveqetoeAve/(qmx*nseg),tAvesdqetoeAve/(qmx*nseg),sdtAveqetoeAve/(qmx*nseg)
-          write(u16,fmtife3f) nbead,Wi,dt,tAvesqqetoeAve,tAvesdsqqetoeAve,sdtAvesqqetoeAve
+		  !MB!normalised with linear/Backbone chain length
+            write(u4,fmtfe3f) Wi,dt,tAveqetoeAve/(qmx*max(nseg,nseg_cmbbb)),tAvesdqetoeAve/(qmx*max(nseg,nseg_cmbbb)),sdtAveqetoeAve/(qmx*max(nseg,nseg_cmbbb)) 
+            write(u16,fmtife3f) nbead,Wi,dt,tAvesqqetoeAve,tAvesdsqqetoeAve,sdtAvesqqetoeAve
           select case (StrPr_mode)
             case ('Visc')
               if (FlowType /= 'Equil') then
@@ -1024,7 +1133,8 @@ ef: do
             sdrAvetAvetauxxyy=sdrAvetAvetauxxyy+tauxxyy*tauxxyy
             sdrAvetAvetauyyzz=sdrAvetAvetauyyzz+tauyyzz*tauyyzz
           end if
-          write(u4,fmtfe2f) Wi,dt,qetoeAve/(qmx*nseg),sdqetoeAve/(qmx*nseg)
+		  ! nseg==>max(nseg,nseg_cmbbb)
+			write(u4,fmtfe2f) Wi,dt,qetoeAve/(qmx*max(nseg,nseg_cmbbb)),sdqetoeAve/(qmx*max(nseg,nseg_cmbbb))  !normalised based on linear chains
           select case (StrPr_mode)
             case ('Visc')
               if (FlowType /= 'Equil') then
@@ -1174,8 +1284,9 @@ ef: do
           sdrAvetAvetauxyTot=sqrt(abs(sdrAvetAvetauxyTot-rAvetAvetauxyTot**2)/(nrun-1))
           sdrAvetAvetauxxyyTot=sqrt(abs(sdrAvetAvetauxxyyTot-rAvetAvetauxxyyTot**2)/(nrun-1))
           sdrAvetAvetauyyzzTot=sqrt(abs(sdrAvetAvetauyyzzTot-rAvetAvetauyyzzTot**2)/(nrun-1))
-          write(u29,fmtfe3f) Wi,dt,rAvetAveqetoeTot/(qmx*nseg),rAvesdtAveqetoeTot/(qmx*nseg),&
-                            sdrAvetAveqetoeTot/(qmx*nseg)
+		  !MB max(nseg,nseg_cmbbb)
+          write(u29,fmtfe3f) Wi,dt,rAvetAveqetoeTot/(qmx*max(nseg,nseg_cmbbb)),rAvesdtAveqetoeTot/(qmx*max(nseg,nseg_cmbbb)),&
+                            sdrAvetAveqetoeTot/(qmx*max(nseg,nseg_cmbbb))
           write(u36,fmtife3f) nbead,Wi,dt,rAvetAvesqqetoeTot,rAvesdtAvesqqetoeTot,sdrAvetAvesqqetoeTot
           select case (StrPr_mode)
             case ('Visc')
@@ -1286,7 +1397,9 @@ ef: do
 
   end subroutine material_func
 
-  subroutine StressCalc(itime,time,ntime,irun,myrank,nchain,nseg,nsegx3,nbeadx3,tss,lambda,&
+
+  !!> StressCalc
+  subroutine StressCalc(itime,time,ntime,irun,myrank,nchain,nseg,nsegx3,nbeadx3,nchain_cmb,nseg_cmb,nseg_cmbbb,ntotchain,add_cmb,tss,lambda,&
                         nrun,tend,chains,R)
 
     use :: chain_mod, only: chain
@@ -1304,7 +1417,17 @@ ef: do
     real(wp) :: txx,txy,tyy,tzz,txxyy,tyyzz,qetoex,qetoey,qetoez,sqqetoe,qetoe
     real(wp) :: txz,tyx,tyz,tzx,tzy,tauxz,tauyx,tauyz,tauzx,tauzy,rFev(4)
     integer :: ichain,offsetb,offsets
-
+    integer,intent(in) :: nchain_cmb,nseg_cmb,ntotchain,nseg_cmbbb  !,add_cmb
+	integer            :: nbead_cmb,nbead_cmbx3
+	logical,intent(in) :: add_cmb
+#ifdef Debuge_sequence
+	write(*,*) "module:pp_smdlt:StressCalc"
+#endif
+	if (add_cmb) then
+     nbead_cmb=nseg_cmb+1
+	 nbead_cmbx3=nbead_cmb*3
+	end if
+	
 !   !-------------------------------------------------------------------------!
 !   ! Stress is calculated for each chain by summing up the contribution      !
 !   !   of all segments. Then all chain stresses in each process will be      !
@@ -1320,6 +1443,8 @@ ef: do
 !   !-------------------------------------------------------------------------!
     sqqetoeAve=0._wp;qetoeAve=0._wp;sdsqqetoeAve=0._wp;sdqetoeAve=0._wp
     tauxx=0._wp;tauxy=0._wp;tauyy=0._wp;tauzz=0._wp;tauxxyy=0._wp;tauyyzz=0._wp
+
+!	sqqetoeAve_cmb=0._wp;qetoeAve_cmb=0._wp;sdsqqetoeAve_cmb=0._wp;sdqetoeAve_cmb=0._wp	
     ! The data at ntime is excluded since a consistent interval isn't guaranteed.
     if ((CorFun) .and. (time < tend*lambda) .and. (itime /= ntime)) then
       if (CF_mode == 'Rg') then
@@ -1327,63 +1452,157 @@ ef: do
       end if
       kchk=kchk+1
     end if
-    do ichain=1, nchain
-      offsetb=(chains(ichain)%chain_ID-1)*nbeadx3
-      offsets=(chains(ichain)%chain_ID-1)*nsegx3
-      qP => chains(ichain)%chain_Q(:)
+	
+	!linear chians firts
+    if (nchain/=0) then
+	  do ichain=1, nchain
+        offsetb=(chains(ichain)%chain_ID-1)*nbeadx3
+        offsets=(chains(ichain)%chain_ID-1)*nsegx3
+        qP => chains(ichain)%chain_Q(:)
+ 
+        qPx => chains(ichain)%chain_Q(1:nsegx3-2:3)
+        qPy => chains(ichain)%chain_Q(2:nsegx3-1:3) 
+        qPz => chains(ichain)%chain_Q(3:nsegx3:3)
 
-      qPx => chains(ichain)%chain_Q(1:nsegx3-2:3)
-      qPy => chains(ichain)%chain_Q(2:nsegx3-1:3) 
-      qPz => chains(ichain)%chain_Q(3:nsegx3:3)
+        qetoex=sum(qPx);qetoey=sum(qPy);qetoez=sum(qPz)
+        sqqetoe=qetoex*qetoex+qetoey*qetoey+qetoez*qetoez
+        qetoe=sqrt(sqqetoe)
+       ! This data is stored for correlation function calculation.
+        if ((CorFun) .and. (CF_mode == 'Ree') .and. (itime /= ntime)) then
+          cf_ree(1:3,kchk,ichain,irun)=[qetoex,qetoey,qetoez]
+        end if
+        qetoeAve=qetoeAve+qetoe
+        sqqetoeAve=sqqetoeAve+sqqetoe
+        sdsqqetoeAve=sdsqqetoeAve+sqqetoe*sqqetoe
+        sdqetoeAve=sdqetoeAve+qetoe*qetoe
+      end do! chain loop
+	  !Add_comb
+      if (add_cmb) then
+        do ichain=1, nchain_cmb
+          offsetb=(chains(nchain)%chain_ID-1)*nbeadx3+(chains(ichain+nchain)%chain_ID-chains(nchain)%chain_ID-1)*nbead_cmbx3
+          offsets=(chains(nchain)%chain_ID-1)*nsegx3+(chains(ichain+nchain)%chain_ID-chains(ichain)%chain_ID-1)*(nseg_cmb*3)
+          qP => chains(ichain+nchain)%chain_Q(:)
+ 
+          qPx => chains(ichain+nchain)%chain_Q(1:(nseg_cmbbb*3)-2:3) !gathers the information of the comb chain Backbone
+          qPy => chains(ichain+nchain)%chain_Q(2:(nseg_cmbbb*3)-1:3) 
+          qPz => chains(ichain+nchain)%chain_Q(3:(nseg_cmbbb*3):3)
 
-      qetoex=sum(qPx);qetoey=sum(qPy);qetoez=sum(qPz)
-      sqqetoe=qetoex*qetoex+qetoey*qetoey+qetoez*qetoez
-      qetoe=sqrt(sqqetoe)
+          qetoex=sum(qPx);qetoey=sum(qPy);qetoez=sum(qPz)
+          sqqetoe=qetoex*qetoex+qetoey*qetoey+qetoez*qetoez
+          qetoe=sqrt(sqqetoe)
+          ! This data is stored for correlation function calculation.
+          if ((CorFun) .and. (CF_mode == 'Ree') .and. (itime /= ntime)) then
+            cf_ree(1:3,kchk,ichain+nchain,irun)=[qetoex,qetoey,qetoez]
+          end if
+		   qetoeAve=qetoeAve+qetoe
+           sqqetoeAve=sqqetoeAve+sqqetoe
+           sdsqqetoeAve=sdsqqetoeAve+sqqetoe*sqqetoe
+           sdqetoeAve=sdqetoeAve+qetoe*qetoe
+          !qetoeAve_cmb=qetoeAve_cmb+qetoe
+          !sqqetoeAve_cmb=sqqetoeAve_cmb+sqqetoe
+          !sdsqqetoeAve_cmb=sdsqqetoeAve_cmb+sqqetoe*sqqetoe
+          !sdqetoeAve_cmb=sdqetoeAve_cmb+qetoe*qetoe
+        end do! chain_cmb loop
+	  end if !add_cmb
+	  
+	  sqqetoeAve=sqqetoeAve/ntotchain
+      qetoeAve=qetoeAve/ntotchain
+      sdsqqetoeAve=sdsqqetoeAve/ntotchain
+      sdqetoeAve=sdqetoeAve/ntotchain
+	  
+!	   sqqetoeAve=sqqetoeAve/nchain
+!      qetoeAve=qetoeAve/nchain
+!      sdsqqetoeAve=sdsqqetoeAve/nchain
+!      sdqetoeAve=sdqetoeAve/nchain
+!      sqqetoeAve_cmb=sqqetoeAve_cmb/nchain_cmb
+!      qetoeAve_cmb=qetoeAve_cmb/nchain_cmb
+!      sdsqqetoeAve_cmb=sdsqqetoeAve_cmb/nchain_cmb
+!      sdqetoeAve_cmb=sdqetoeAve_cmb/nchain_cmb
+	
+	
+	else!(if nchian==0 Here After)
+	
+	  if (add_cmb) then
+        do ichain=1, nchain_cmb
+	      !Write(*,*) "ichain_cmb,  chains(ichain+nchain)%chain_ID, chains(nchain)%chain_ID"
+          !Write(*,*) ichain,  chains(ichain+nchain)%chain_ID, chains(nchain)%chain_ID  !will see error at nchain=0 case
+          offsetb=(chains(ichain)%chain_ID-1)*nbead_cmbx3
+          offsets=(chains(ichain)%chain_ID-1)*(nseg_cmb*3)
+          qP => chains(ichain)%chain_Q(:)
+ 
+          qPx => chains(ichain)%chain_Q(1:(nseg_cmbbb*3)-2:3) !gathers the information of the comb chain Backbone
+          qPy => chains(ichain)%chain_Q(2:(nseg_cmbbb*3)-1:3) 
+          qPz => chains(ichain)%chain_Q(3:(nseg_cmbbb*3):3)
+
+          qetoex=sum(qPx);qetoey=sum(qPy);qetoez=sum(qPz)
+          sqqetoe=qetoex*qetoex+qetoey*qetoey+qetoez*qetoez
+          qetoe=sqrt(sqqetoe)
       ! This data is stored for correlation function calculation.
-      if ((CorFun) .and. (CF_mode == 'Ree') .and. (itime /= ntime)) then
-        cf_ree(1:3,kchk,ichain,irun)=[qetoex,qetoey,qetoez]
-      end if
-      qetoeAve=qetoeAve+qetoe
-      sqqetoeAve=sqqetoeAve+sqqetoe
-      sdsqqetoeAve=sdsqqetoeAve+sqqetoe*sqqetoe
-      sdqetoeAve=sdqetoeAve+qetoe*qetoe
-    end do! chain loop
-  
-    sqqetoeAve=sqqetoeAve/nchain
-    qetoeAve=qetoeAve/nchain
-    sdsqqetoeAve=sdsqqetoeAve/nchain
-    sdqetoeAve=sdqetoeAve/nchain
-
-    tauxx = rFphi(1)/nchain
-    tauxy = rFphi(2)/nchain 
-    tauyy = rFphi(3)/nchain
-    tauzz = rFphi(4)/nchain
+          if ((CorFun) .and. (CF_mode == 'Ree') .and. (itime /= ntime)) then
+            cf_ree(1:3,kchk,ichain,irun)=[qetoex,qetoey,qetoez]
+          end if
+		  qetoeAve=qetoeAve+qetoe
+          sqqetoeAve=sqqetoeAve+sqqetoe
+          sdsqqetoeAve=sdsqqetoeAve+sqqetoe*sqqetoe
+          sdqetoeAve=sdqetoeAve+qetoe*qetoe
+		  
+          !qetoeAve_cmb=qetoeAve_cmb+qetoe
+          !sqqetoeAve_cmb=sqqetoeAve_cmb+sqqetoe
+          !sdsqqetoeAve_cmb=sdsqqetoeAve_cmb+sqqetoe*sqqetoe
+          !dqetoeAve_cmb=sdqetoeAve_cmb+qetoe*qetoe
+        end do! chain_cmb loop
+	  end if !add_cmb
+	  
+	  sqqetoeAve=sqqetoeAve/ntotchain
+      qetoeAve=qetoeAve/ntotchain
+      sdsqqetoeAve=sdsqqetoeAve/ntotchain
+      sdqetoeAve=sdqetoeAve/ntotchain
+	
+!	sqqetoeAve_cmb=sqqetoeAve_cmb/nchain_cmb
+!    qetoeAve_cmb=qetoeAve_cmb/nchain_cmb
+!    sdsqqetoeAve_cmb=sdsqqetoeAve_cmb/nchain_cmb
+!    sdqetoeAve_cmb=sdqetoeAve_cmb/nchain_cmb
+! Comment for ourselves: I was trying to seperate linear and comb results. but not nessary now	   
+	   
+	  
+	end if !(nchain/=0)
+	
+    tauxx = rFphi(1)/ntotchain
+    tauxy = rFphi(2)/ntotchain 
+    tauyy = rFphi(3)/ntotchain
+    tauzz = rFphi(4)/ntotchain
 
     if ((CorFun) .and. (CF_mode == 'Rg') .and. (itime /= ntime)) then
       cf_rg(:,kchk,irun)=R
     end if
 
-    tauxxyy = (rFphi(1)-rFphi(3))/nchain
-    tauyyzz = (rFphi(3)-rFphi(4))/nchain
+    tauxxyy = (rFphi(1)-rFphi(3))/ntotchain
+    tauyyzz = (rFphi(3)-rFphi(4))/ntotchain
   
   end subroutine StressCalc
 
-  subroutine CorrFcn(dt,Wi,tgap,myrank,p,nchain,nbead,tend,lambda,nprun,MPI_REAL_WP)
+
+  !!> CorrFcn
+  subroutine CorrFcn(dt,Wi,tgap,myrank,p,nchain,nchain_cmb,nbead,tend,lambda,nprun,MPI_REAL_WP)
 
     use :: arry_mod, only: print_vector,print_matrix
     use :: mpi
     !include 'mpif.h'
 
-    integer,intent(in) :: tgap,myrank,p,nchain,nbead,nprun,MPI_REAL_WP
+    integer,intent(in) :: tgap,myrank,p,nchain,nchain_cmb,nbead,nprun,MPI_REAL_WP
     real(wp),intent(in) :: dt,Wi,tend,lambda
     real(wp) :: CF0(3),term,term1,term2
+!	real(wp) :: CF0_cmb(3),term_cmb,term1_cmb,term2_cmb
     integer :: irun,ichain,t0,t0tmp,tt0tmp,ttmp,tcor,trun,tt0max,tt0,t,ierr,ttmpmx
     real(wp),allocatable :: CF(:),CF0t(:),CF00(:),CF0tTot(:),CF00Tot(:),sdCF(:)
-    integer,allocatable :: norm(:)
-    real(wp),pointer :: rCFT(:),rCF0(:)
+!    real(wp),allocatable :: CF_cmb(:),CF0t_cmb(:),CF00_cmb(:),CF0tTot_cmb(:),CF00Tot_cmb(:),sdCF_cmb(:)
+    integer,allocatable :: norm(:) !, norm_cmb(:)
+    real(wp),pointer :: rCFT(:),rCF0(:) !,rCFT_cmb(:),rCF0_cmb(:)
     character(len=99),parameter :: fmtfe2f="(f8.2,1x,e11.3,1x,2(f20.7,2x))"
     character(len=99),parameter :: fmtfe3f="(f8.2,1x,e11.3,1x,3(f14.7,2x))"
-
+#ifdef Debuge_sequence
+	write(*,*) "module:pp_smdlt:CorrFcn"
+#endif
     select case (CF_mode)
       case ('Ree')
         write(u39,*) "# Wi, dt, time, <Qee(t).Qee(0)>.<Qee(0).Qee(0)>"
@@ -1404,13 +1623,21 @@ ef: do
     if (myrank == 0) allocate(CF0tTot(0:ttmpmx/tgap),CF00Tot(0:ttmpmx/tgap))
     CF=0._wp;sdCF=0._wp;norm=0
     CF0t=0._wp;CF00=0._wp
-
+	
+!    if (add_cmb) then
+!	    allocate(CF_cmb(0:ttmpmx/tgap),sdCF_cmb(0:ttmpmx/tgap),norm_cmb(0:ttmpmx/tgap))
+!		allocate(CF0t_cmb(0:ttmpmx/tgap),CF00_cmb(0:ttmpmx/tgap))
+!		if (myrank == 0) allocate(CF0tTot_cmb(0:ttmpmx/tgap),CF00Tot_cmb(0:ttmpmx/tgap))
+!		CF_cmb=0._wp;sdCF_cmb=0._wp;norm_cmb=0
+!		CF0t_cmb=0._wp;CF00_cmb=0._wp
+!	end if
+	
     select case (CF_mode)
 
       case ('Ree')
 
         do irun=1, nprun
-          do ichain=1, nchain
+          do ichain=1, (nchain+nchain_cmb)
 
             do t0tmp=1, kchk
               t0=t0tmp*tgap ! TAU0
@@ -1464,10 +1691,22 @@ ef: do
           case ('Ree')
             CF0tTot(ttmp)=CF0tTot(ttmp)/(p*norm(ttmp))
             CF00Tot(ttmp)=CF00Tot(ttmp)/(p*norm(ttmp))
+!			if (add_cmb) then
+!               CF0tTot_cmb(ttmp)=CF0tTot_cmb(ttmp)/(p*norm_cmb(ttmp))
+!               CF00Tot_cmb(ttmp)=CF00Tot_cmb(ttmp)/(p*norm_cmb(ttmp))
+!			   write(u39,fmtfe2f) Wi,dt,ttmp*tgap*dt,CF0tTot(ttmp)/CF00Tot(ttmp),CF0tTot_cmb(ttmp)/CF00Tot_cmb(ttmp)
+!			else
             write(u39,fmtfe2f) Wi,dt,ttmp*tgap*dt,CF0tTot(ttmp)/CF00Tot(ttmp)
+!			end if
+
           case ('Rg')
             CF0tTot(ttmp)=CF0tTot(ttmp)/(p*norm(ttmp))
-            write(u39,fmtfe2f) Wi,dt,ttmp*tgap*dt,CF0tTot(ttmp)/CF0tTot(0)
+!			if (add_cmb) then
+!			   CF0tTot_cmb(ttmp)=CF0tTot_cmb(ttmp)/(p*norm_cmb(ttmp))
+!			   write(u39,fmtfe2f) Wi,dt,ttmp*tgap*dt,CF0tTot(ttmp)/CF0tTot(0),CF0tTot_cmb(ttmp)/CF0tTot_cmb(0)
+!			else
+               write(u39,fmtfe2f) Wi,dt,ttmp*tgap*dt,CF0tTot(ttmp)/CF0tTot(0)
+!			end if
         end select
       end do
 
@@ -1478,15 +1717,23 @@ ef: do
     kchk=0
     deallocate(CF,sdCF,norm)
     deallocate(CF0t,CF00)
+!	if (add_cmb) then
+!	   deallocate(CF_cmb,sdCF_cmb,norm_cmb)
+!       deallocate(CF0t_cmb,CF00_cmb)
+!	end if
 
   end subroutine CorrFcn
+
+
 
   subroutine del_pp(myrank)
 
     use :: flow_mod, only: FlowType
 
     integer,intent(in) :: myrank
-
+#ifdef Debuge_sequence
+	write(*,*) "module:pp_smdlt:del_pp"
+#endif
     close(u1);close(u2);close(u3);close(u4);close(u5);close(u6);close(u7);close(u8);close(u9)
     close(u10);close(u11);close(u12);close(u13);close(u14);close(u15);close(u16);close(u17)
     close(u18);close(u19);close(u20);close(u21);close(u22);close(u23);close(u24);close(u25)

@@ -56,7 +56,9 @@ contains
     type(decomp) :: decompRes
     integer :: i,j,ipiv(120)
     real(wp) :: sum(120)
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffdcmp_mod:calcBrownNoise_cpu"
+#endif
     if (HIcalc_mode == 'Ewald') then
 
       if (DecompMeth == 'Cholesky') then 
@@ -131,6 +133,7 @@ contains
         end if
       else
         print '(" Incorrect Decomposition method: ",a)',DecompMeth
+        print '("PME + Lanczos ")'
         stop
       end if ! DecompMeth
 
@@ -184,6 +187,7 @@ contains
         end if
       else
         print '(" Incorrect Decomposition method: ",a)',DecompMeth
+		print '("PME + Lanczos ")'
         stop
       end if ! DecompMeth
 
@@ -209,7 +213,9 @@ contains
     type(decomp) :: decompRes
     integer :: i,j,ipiv(120)
     real(wp) :: sum(120)
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffdcmp_mod:calcBrownNoise_dev"
+#endif
     if (HIcalc_mode == 'Ewald') then
 
       if (DecompMeth == 'Cholesky') then 

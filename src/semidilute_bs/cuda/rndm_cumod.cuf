@@ -65,14 +65,14 @@ module rndm_cumod
 contains
 
   !> Initializes the rndm cuda module
-  subroutine init_rndm_d(ntotbeadx3)
+  subroutine init_rndm_d(ntbx3)!ntotbeadx3)
 
     use :: hi_mod, only: ncols
 
-    integer, intent(in) :: ntotbeadx3
+    integer, intent(in) :: ntbx3 !ntotbeadx3
 
-    allocate(dw_bl_d(ntotbeadx3,ncols))
-
+    !allocate(dw_bl_d(ntotbeadx3,ncols))
+    allocate(dw_bl_d(ntbx3,ncols))
   end subroutine init_rndm_d
 
 
@@ -117,12 +117,12 @@ contains
 
 
   !> Generates uniform random numbers and populates dw_bl_d
-  subroutine gen_rndm(this,ntotbeadx3,dt)
-
+!  subroutine gen_rndm(this,ntotbeadx3,dt)
+  subroutine gen_rndm(this,ntbx3,dt) !
     use :: hi_mod, only: ncols
 
     class(rndm_cu_t),intent(inout) :: this
-    integer,intent(in) :: ntotbeadx3
+    integer,intent(in) :: ntbx3 !ntotbeadx3
     real(wp),intent(in) :: dt
 
     integer(kind=c_intptr_t) :: dim
@@ -130,19 +130,20 @@ contains
     real(wp) :: w
     real(wp),allocatable :: dw(:)
 
-    dim=ntotbeadx3*ncols
+    !dim=ntotbeadx3*ncols
+	dim=ntbx3*ncols !
     istat = curandGenerateUniformDouble ( this%g,dw_bl_d,dim )
     if (istat /= CURAND_STATUS_SUCCESS) print('(" curand uniform generator failed")')
     !$cuf kernel do (2) <<< *,* >>>
     do icol=1, ncols
-      do ibead=1, ntotbeadx3
+      do ibead=1, ntbx3 !ntotbeadx3
         w=dw_bl_d(ibead,icol)-0.5
         w=sqrt(dt)*w*(c1*w**2+c2)
         dw_bl_d(ibead,icol)=w
       end do
     end do
 
-    allocate(dw(ntotbeadx3))
+    allocate(dw(ntbx3)) !ntotbeadx3))
     dw=dw_bl_d(:,1)
     ! print*,dw(1:5)
 

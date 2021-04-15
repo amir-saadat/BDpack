@@ -120,7 +120,7 @@ contains
     integer :: il,j,ntokens,u1,stat,ios,id,k,i,n,msec,tm_inf(8),icnt
     real(wp),allocatable :: u(:)
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
     character(len=20) :: inpFile
 
     ! Default values
