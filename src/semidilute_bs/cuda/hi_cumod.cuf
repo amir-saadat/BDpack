@@ -298,7 +298,6 @@ contains
     real(kind=8),allocatable,device :: daa(:),dbb(:),dcc(:)
     real(kind=8),allocatable :: hc(:)
 
-
     ! allocate(this%K_d(3))
     K_d = K_mesh
 

@@ -57,7 +57,7 @@ ifeq ($(FCOMP),pgf90)
 GLBFLGS	 += -g
 GLBFLGS  += -lgomp -Mpreprocess -Mbackslash -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand
 #GLBFLGS  += -Minfo -Mbounds -Mchkptr -Mchkstk
-#GLBFLGS  += -Mbounds -Minfo=all -traceback -Mchkfpstk -Mchkstk -Mdalign
+#GLBFLGS  += -Mbounds -Minfo=all -traceback -Mchkstk -Mdalign
 endif
 endif
 endif

@@ -248,6 +248,8 @@ ef: do
               HITens=trim(adjustl(tokens(j+1)))
             case ('HIcalc-mode')
               HIcalc_mode=trim(adjustl(tokens(j+1)))
+            case ('Decomp-method')
+              DecompMeth=trim(adjustl(tokens(j+1)))
             case ('Interp-method')
               InterpMethod=trim(adjustl(tokens(j+1)))
               call value(tokens(j+2),p_PME,ios)
@@ -296,6 +298,19 @@ ef: do
       HIcalc_mode='Ewald'
       DecompMeth='Cholesky'
     end if
+
+#if USE_GPU
+    if (HIcalc_mode=='Ewald') then
+      print *,'Error!!: GPU code has speedup impact only for PME HI calculation method. Please either use PME as your HIcalc-mode or use CPU if you intend to use Ewald method.'
+      stop
+    endif
+#endif
+
+    if (DecompMeth=='Cholesky') then
+      print *,'Error!!: PME method does not work with Cholesky technique. Please either use Lanczos as your Decomp-method or use Ewald with Cholesky.'
+      stop
+    endif
+
 
     PIx2=PI*2
     sqrtPI=sqrt(PI)
@@ -379,7 +394,7 @@ ef: do
       dispmax=2*sqrt(3*dispmax*dispmax)
       update=dispmax > (rlist_D-rc_D)
     end if
-    ! print*,'update',update
+
     if (update) then
       ! Save positions for next evaluations:
       Rb0=Rb
@@ -521,7 +536,7 @@ ef: do
                              floor(real(neigcell_ind(2:3))/ncells_D(2:3))*bs(2:3))
                 end select
                 rijmagto2=dot_product(rij,rij)
-                ! print*,'i,j,r',iglobbead,jglobbead,rijmagto2
+
                 if (rijmagto2 <= rlist_Dto2) then
                   nlist=nlist+1
                   if (nlist == maxNb_list_D) then

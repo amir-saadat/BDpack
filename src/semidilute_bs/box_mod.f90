@@ -226,7 +226,7 @@ contains
     use :: conv_mod, only: init_conv
     use :: flow_mod, only: init_flow
     use :: trsfm_mod, only: init_trsfm
-    use :: hi_mod, only: init_hi,HIcalc_mode
+    use :: hi_mod, only: init_hi,HIcalc_mode,p_PMEto3
     use :: verlet_mod, only: init_verlet
     use :: evverlet_mod, only: init_evverlet
     use :: force_smdlt, only: init_force
@@ -425,6 +425,7 @@ contains
     ! if (hstar /= 0._wp) then
       call init_hi(myrank,ntotbead,ntotbeadx3,Lbox)
     ! end if
+
     call init_io(myrank,nchain,nsegx3,nbeadx3,ntotchain,ntotsegx3,ntotbeadx3,nprun)
 
     call init_verlet(myrank)
@@ -528,7 +529,9 @@ contains
     call this%BoxIO%read(myrank,nproc,this%size,nchain,nseg,nbead,nsegx3,ntotchain,ntotbead,ntotsegx3,&
       ntotbeadx3,nprun,runrst,qmx,MPI_REAL_WP,add_cmb,nchain_cmb,nseg_cmb,nseg_cmbbb,nseg_cmbar)
     ! Instantiation of Boxevf:
+
     call this%Boxevf%init(myrank,this%size,ntotsegx3,ntotbead,ntotbeadx3)
+
     ! Instantiation of Boxsprf:
     call this%Boxsprf%init(myrank,ntotsegx3)
 #ifdef USE_GPU
@@ -571,18 +574,23 @@ contains
       endif
       ! Instantiation of Boxtrsfm_d
       call this%Boxtrsfm_d%init()
+
       ! Instantiation of Boxtrsfm_d
       call this%Boxconv_d%init()
+
       ! Instantiation of Boxrndm_d
       call this%Boxrndm_d%init(myrank)
+
       ! Instantiation of Boxhi_d
       call this%Boxhi_d%init(myrank,ntotseg,ntotbead,this%size)
+
       ! Instantiation of Boxsprf_d:
       call this%Boxsprf_d%init(ntotsegx3,ntotbeadx3)
 
-      ! Instantiation of Boxsprf_d:
+      ! Instantiation of Boxevf_d:
       call this%Boxevf_d%init(myrank,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotsegx3,&
         ntotbead,ntotbeadx3,this%size)
+
 #endif
 
     if (myrank == 0) then

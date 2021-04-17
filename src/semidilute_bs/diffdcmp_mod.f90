@@ -27,7 +27,7 @@
 !> @author
 !> Amir Saadat, The University of Tennessee-Knoxville, June 2014
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> Decomposes the diffusion tensor for calculating Brownian noise on CPU
 !--------------------------------------------------------------------
 module diffdcmp_mod
@@ -49,7 +49,7 @@ contains
   subroutine calcBrownNoise_cpu(decompRes,itime,ntotbeadx3,boxsize)
 
     use :: arry_mod, only: print_matrix,print_vector
-    
+
     integer,intent(in) :: ntotbeadx3
     integer :: info,ichain,itime,mrst
     real(wp) :: boxsize(3),anorm,rcond
@@ -59,7 +59,7 @@ contains
 
     if (HIcalc_mode == 'Ewald') then
 
-      if (DecompMeth == 'Cholesky') then 
+      if (DecompMeth == 'Cholesky') then
 #ifdef USE_DP
           dw_bltmp=dw_bl
 #elif USE_SP
@@ -201,7 +201,7 @@ contains
 
     use :: arry_mod, only: print_matrix,print_vector
     use :: hi_cumod, only: hi_cu_t
-    
+
     type(hi_cu_t),intent(inout) :: hi_d
     integer,intent(in) :: ntotbeadx3
     integer :: info,ichain,itime,mrst
@@ -212,7 +212,9 @@ contains
 
     if (HIcalc_mode == 'Ewald') then
 
-      if (DecompMeth == 'Cholesky') then 
+      ! Currently not supported. It will throw error message earlier in hi_mod
+      
+      if (DecompMeth == 'Cholesky') then
 #ifdef USE_DP
         dw_bltmp=dw_bl
 #elif USE_SP
