@@ -27,7 +27,7 @@
 !> @author
 !> Amir Saadat, The University of Tennessee-Knoxville, Dec 2015
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> (1) Interchanging the configurational state from Q to R
 !! (2) Converting {R,rc} to position vector Rb
 !! (3) Converting Q to segmental force Fseg
@@ -46,7 +46,7 @@ module trsfm_mod
              map           ,&
              remap         ,&
              unwrap_box
-             
+
   !> A public type for configurational transformation
   type trsfm
 
@@ -257,11 +257,9 @@ contains
   !! \param nchain the number of chain inside the box
   subroutine init_trsfm_t(this,Rbtr,rcmtr)
 
-!    use :: inp_smdlt, only: ntotbead,nchain
     use :: flow_mod, only: FlowType
 
     class(trsfm),intent(inout) :: this
-    ! integer,intent(in) :: ntotbead,nchain
     real(wp),intent(in),target,contiguous :: Rbtr(:,:)
     real(wp),intent(in),target,contiguous :: rcmtr(:,:)
 #ifdef Debuge_sequence
@@ -281,7 +279,7 @@ contains
         this%rcmtrx => rcmtr(:,1)
         this%rcmtry => rcmtr(:,2)
     end select
-        
+
   end subroutine init_trsfm_t
 
   !> Applying periodic boundary condition, global call
@@ -427,7 +425,7 @@ contains
   !! \param Rby y-coordinate of the position vector
   !! \param Rbtr the beads position transdormed to a rectangular box
   subroutine map(this,Rbx,Rby,rcm,itime)
-  
+
     use :: flow_mod, only: FlowType
 
     class(trsfm),intent(inout) :: this
@@ -453,7 +451,7 @@ contains
         end do
 !!$omp end do simd
 !$omp end parallel
-      case ('PEF') 
+      case ('PEF')
 !$omp parallel default(private) shared(this,Rbx,Rby,sinth,costh,tanb,rcm)
 !$omp do simd
         do igb=1, size(Rbx,1)

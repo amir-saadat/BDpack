@@ -252,7 +252,7 @@ ef: do
               HITens=trim(adjustl(tokens(j+1)))
             case ('DecompMeth')
               DecompMeth=trim(adjustl(tokens(j+1)))
-            case ('Decomp-method')      
+            case ('Decomp-method')
               DecompMeth=trim(adjustl(tokens(j+1)))
             case ('HIcalc-mode')
               HIcalc_mode=trim(adjustl(tokens(j+1)))
@@ -304,6 +304,18 @@ ef: do
       HIcalc_mode='Ewald'
       DecompMeth='Cholesky'
     end if
+
+    #if USE_GPU
+      if (HIcalc_mode=='Ewald') then
+        print *,'Error!!: GPU code has speedup impact only for PME HI calculation method. Please either use PME as your HIcalc-mode or use CPU if you intend to use Ewald method.'
+        stop
+      endif
+    #endif
+
+    if (DecompMeth=='Cholesky') then
+        print *,'Error!!: PME method does not work with Cholesky technique. Please either use Lanczos as your Decomp-method or use Ewald with Cholesky.'
+        stop
+    endif
 
     PIx2=PI*2
     sqrtPI=sqrt(PI)

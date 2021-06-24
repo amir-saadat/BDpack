@@ -136,7 +136,7 @@ contains
     select case (FlowType)
 
       case ('Equil','PSF')
-        nnc=27
+        nnc=13
       case ('PEF')
         nnc=31
     end select
@@ -319,7 +319,7 @@ contains
       ! print*,'2',clx,cly,clz,cll
       ! print*, cll
 	  ! print*, this%head(cll)
-	  
+
       this%head(cll)=this%head(cll)+1
 
       if (this%head(cll) >= this%mbpc) then
@@ -385,7 +385,7 @@ contains
     allocate(beadi_tmp(this%nct))
     allocate(beadj_tmp(this%nct))
     allocate(pair(this%nct))
-
+    if ((nab*0.5*(this%mocc-2)*(this%mocc+3))>this%num_int)  print*,'("Warning: You may Increase the cll_dns_ev ")'
     ! Same-cell interactions:
     idx=1
     do i=1, this%mocc-1

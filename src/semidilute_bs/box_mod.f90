@@ -105,13 +105,16 @@ module box_mod
     integer,allocatable :: cm_img(:,:)
     !> The pointer to the chain section  of configurational arrays
     type(chain),allocatable :: BoxChains(:)
+
 #ifdef USE_GPU
       !> The position vector of all beads
       real(wp),device,allocatable :: Rb_d(:)
       !> The x-component of position vector of all beads
       real(wp),device,pointer :: Rbx_d(:)
+      !real(wp),managed, pointer :: Rbtrx_cd(:)
       !> The y-component of position vector of all beads
       real(wp),device,pointer :: Rby_d(:)
+      !real(wp),managed, pointer ::Rbtry_cd(:)
       !> The z-component of position vector of all beads
       real(wp),device,pointer :: Rbz_d(:)
       !> The bead to center of mass distance of all polymer beads
@@ -126,10 +129,17 @@ module box_mod
       real(wp),device,allocatable :: Rbtr_d(:,:)
       !> The array for storing the center of mass transformed position
       real(wp),device,allocatable :: rcmtr_d(:,:)
+      !>
+      real(wp) :: size_d(3), invsize_d(3)
       !> The image of the beads inside the primary box
       integer,device,pointer :: b_img_d(:,:)
       !> The image of the center of mass inside the primary box
-      integer,device,pointer :: cm_img_d(:,:)
+      integer, device, pointer :: cm_img_d(:,:)
+      !> Eq to trsfm
+      real(wp), device, allocatable::Rbtrx_d(:)
+      !>
+      real(wp), device, allocatable::Rbtry_d(:)
+
       !> The pointer to the chain section of configurational arrays
       type(chain_cu_t),allocatable :: BoxChains_d(:)
       !> An object for performing transformation on device
@@ -144,6 +154,12 @@ module box_mod
       type(sprforce_cu_t) :: Boxsprf_d
       !> An object for calculating ev force on device
       type(evforce_cu_t) :: Boxevf_d
+
+      !real(wp) ::Rbtrx_cd(:)
+      !Rbtrx_cd= Boxtrsfm_d%Rbtrx
+      !real(wp) ::Rbtry_cd(:)
+      !Rbtry_cd= Boxtrsfm_d%Rbtry
+
 #endif
 
     contains
@@ -228,7 +244,7 @@ contains
     use :: conv_mod, only: init_conv
     use :: flow_mod, only: init_flow
     use :: trsfm_mod, only: init_trsfm
-    use :: hi_mod, only: init_hi,HIcalc_mode
+    use :: hi_mod, only: init_hi,HIcalc_mode,p_PMEto3
     use :: verlet_mod, only: init_verlet
     use :: evverlet_mod, only: init_evverlet
     use :: force_smdlt, only: init_force
@@ -362,12 +378,11 @@ contains
 		nbead=0
 	end if
 
-	nsegx3=nseg*3
+	  nsegx3=nseg*3
     nbeadx3=nbead*3
     ntotchain=nchain
     ntotseg=nseg*nchain
     ntotbead=nbead*nchain
-
 
     if (add_cmb) then
       ntotchain=ntotchain+nchain_cmb
@@ -415,10 +430,10 @@ contains
         stop
     end select
 	!MB
-	if (nchain==0) then
-	   nseg=0
-	   nbead=0
-	end if
+    if (nchain==0) then
+     nseg=0
+     nbead=0
+    end if
 
     if (myrank == 0) then
       print *
@@ -452,7 +467,6 @@ contains
       call init_hi(myrank,ntotbead,ntotbeadx3,Lbox)
     ! end if
     call init_io(myrank,nchain,nsegx3,nbeadx3,ntotchain,ntotsegx3,ntotbeadx3,nprun)
-
     call init_verlet(myrank)
     call init_evverlet(myrank)
     call init_force(ntotbeadx3)
@@ -562,6 +576,22 @@ contains
     call this%Boxsprf%init(myrank,ntotsegx3)
 
 #ifdef USE_GPU
+select case (FlowType)
+  case ('Equil')
+    allocate(this%Rbtr_d(0,0))
+    !allocate(this%rcmtr(0,0))
+  case ('PSF')
+    allocate(this%Rbtr_d(ntotbead,1))
+    !allocate(this%rcmtr(ntotchain,1))
+    allocate(this%Rbtrx_d(ntotbead))
+    !allocate(this%cmif(0,0))
+  case ('PEF')
+    allocate(this%Rbtr_d(ntotbead,2))
+    !allocate(this%rcmtr(ntotchain,2))
+    allocate(this%Rbtrx_d(ntotbead),this%Rbtry_d(ntotbead))
+    !allocate(this%cmif(0,0))
+end select
+
       ! Allocation of configurational variables:
       allocate(this%R_d(ntotbeadx3))
       allocate(this%rcm_d(ntotchain,3))
@@ -600,8 +630,8 @@ contains
         enddo
       endif
       ! Instantiation of Boxtrsfm_d
-      call this%Boxtrsfm_d%init()
-      ! Instantiation of Boxtrsfm_d
+      call this%Boxtrsfm_d%init(this%Rbtr_d,this%rcmtr_d)
+      ! Instantiation of Boxtconv_d
       call this%Boxconv_d%init()
       ! Instantiation of Boxrndm_d
       call this%Boxrndm_d%init(myrank)
@@ -611,7 +641,7 @@ contains
       call this%Boxsprf_d%init(ntotsegx3,ntotbeadx3)
       !call this%Boxsprf_d%init(ntotsegx3)
 
-      ! Instantiation of Boxsprf_d:
+      ! Instantiation of Boxevf_d:
       call this%Boxevf_d%init(myrank,this%Rbx_d,this%Rby_d,this%Rbz_d,ntotsegx3,&
         ntotbead,ntotbeadx3,this%size)
 #endif
@@ -634,7 +664,7 @@ contains
 
   end subroutine init_box_t
 
-  !> Moving the particles ...
+  !> Moving the particles move_box
   !!
   !! \param eps current value of applied strain
   subroutine move_box(this,itime,ntime,irun,Pe,dt,col,myrank,eps,itrst)
@@ -658,7 +688,7 @@ contains
     use :: evforce_mod, only: EVForceLaw
 #ifdef USE_GPU
       use :: cublas
-      use :: trsfm_cumod, only: init_trsfm_tm_d,update_trsfm_d,update_arng_d
+      use :: trsfm_cumod, only: init_trsfm_tm_d,update_trsfm_d,update_arng_d,passRbtrx,passRbtry
       use :: rndm_cumod, only: dw_bl_d
       use :: force_cumod, only: Fphi_d,rFphi_d
       use :: chain_cumod
@@ -678,6 +708,7 @@ contains
       type(dim3) :: dimGrid, dimBlock
       integer :: istat,ierr
       real(wp) :: et
+      real(wp) :: Rbtrx_d(:), Rbtry_d(:)
 #endif
       integer :: ufo
 
@@ -740,6 +771,8 @@ contains
         this%Rby_d=this%Rby
         this%Rbz_d=this%Rbz
         this%b_img_d=0
+        this%size_d=this%size
+        this%invsize_d=this%invsize
 
         if (itrst /= 0) then
           call update_arng_d()
@@ -793,7 +826,7 @@ contains
       ! call print_matrix(this%rcm_tilde,'rcmstart')
 #ifdef USE_GPU
 
-      call this%Boxtrsfm_d%applypbc(this%size,this%invsize,this%Rbx_d,this%Rby_d,&
+      call this%Boxtrsfm_d%applypbc(this%size_d,this%invsize_d,this%Rbx_d,this%Rby_d,&
         this%Rbz_d,this%rcm_d,this%b_img_d,this%cm_img_d,itime)
       call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
 
@@ -824,21 +857,24 @@ contains
 #ifdef USE_GPU
         select case (FlowType)
           case ('Equil')
-             call this%Boxevf_d%update_vlt(this%Rbx_d,this%Rby_d,this%Rbz_d,&
+            call this%Boxevf_d%update_vlt(this%Rbx_d,this%Rby_d,this%Rbz_d,&
               this%Rb_d,this%Q_d,itime,itrst,ntotsegx3,ntotbead,ntotbeadx3,&
               this%size,this%origin)
           case ('PSF')
-             call this%Boxevf_d%update_vlt(this%Boxtrsfm_d%Rbx_d,this%Rby_d,this%Rbz_d,&
+            call passRbtrx(this%Boxtrsfm_d,this%Rbtrx_d)
+            call this%Boxevf_d%update_vlt(this%Rbtrx_d, this%Rby_d,this%Rbz_d,&
                this%Rb_d,this%Q_d,itime,itrst,ntotsegx3,ntotbead,ntotbeadx3,&
                this%size,this%origin)
 
           case ('PEF')
-             call this%Boxevf_d%update_vlt(this%Boxtrsfm_d%Rbx_d,this%Boxtrsfm_d%Rby_d,this%Rbz_d,&
+            call passRbtrx(this%Boxtrsfm_d,this%Rbtrx_d)
+            call passRbtry(this%Boxtrsfm_d,this%Rbtry_d)
+            call this%Boxevf_d%update_vlt(this%Rbtrx_d, this%Rbtry_d, this%Rbz_d,&
                this%Rb_d,this%Q_d,itime,itrst,ntotsegx3,ntotbead,ntotbeadx3,&
                [bsx,bsy,this%size(3)],this%origin)
 
         end select
-#else
+#else   !CPU
         select case (FlowType)
           case ('Equil')
             call this%Boxevf%update_vlt(this%Rbx,this%Rby,this%Rbz,this%Rb_tilde,&
@@ -861,7 +897,6 @@ contains
     !----------------------------------------------------------
     if (HIcalc_mode == 'PME') then
 #ifdef USE_GPU
-
         ! call update_lst(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,itrst,nchain,nbead,&
         !   nbeadx3,ntotbead,this%size,this%origin,add_cmb,nchain_cmb,nseg_cmb)
         ! call this%Boxhi_d%updatelst_(this%Rb_tilde,this%Boxtrsfm%Rbtrx,itime,&
@@ -1029,6 +1064,9 @@ contains
 #ifdef USE_GPU
 
       call update_arng_d()
+      if (reArng) then
+          call this%Boxtrsfm_d%unwrap(this%size_d,this%Rbx_d,this%Rby_d,this%b_img_d,itime)
+      end if
       call update_trsfm_d()
 
 #else
@@ -1056,6 +1094,9 @@ contains
     call this%BoxIO%read_init(p,irun,ntotchain,MPI_REAL_WP)
 
   end subroutine read_init_cnf
+
+
+
 
   subroutine read_dmp_cnf(this,p,irun,idmp,ndmp)
 
@@ -1325,14 +1366,15 @@ contains
   !> Calculating the force on the beads
   subroutine calcForce(this,itime)
 
-    use :: arry_mod, only: print_vector
-    use :: conv_mod, only: RbctoRb,RbtoQ,QtoR
+    use :: arry_mod,    only: print_vector
+    use :: conv_mod,    only: RbctoRb,RbtoQ,QtoR
     use :: force_smdlt, only: Fphi,rFphi
     use :: evforce_mod, only: EVForceLaw
-    use :: flow_mod, only: FlowType
-    use :: trsfm_mod, only: bsx,bsy,invbsx,invbsy,eps_m,reArng
+    use :: flow_mod,    only: FlowType
+    use :: trsfm_mod,   only: bsx,bsy,invbsx,invbsy,eps_m,reArng
 #ifdef USE_GPU
-      use :: force_cumod, only: Fphi_d,rFphi_d
+      use :: force_cumod, only: Fphi_d, rFphi_d
+      use :: trsfm_cumod, only: passRbtrx, passRbtry
 #endif
 
     class(box),intent(inout) :: this
@@ -1341,54 +1383,67 @@ contains
 #ifdef Debuge_sequence
 	write(*,*) "module:box_mod:calcForce"
 #endif
-#ifdef USE_GPU
 
+#ifdef USE_GPU
       Fphi_d=0._wp
       rFphi_d=0._wp
       select case (FlowType)
-      case ('Equil')
-        call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
-        call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
+        case ('Equil')
+          call this%Boxconv_d%RbctoRb(this%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
+          call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
 
-        call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
+          call this%Boxsprf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
                               itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
 
-      ! Bending Force
-        call this%Boxconv_d%QtoR(this%Q_d,this%R_d,ntotsegx3,ntotbeadx3)
-        call this%Boxsprf_d%updatebend(this%Q_d,this%R_d,ntotbead,ntotbeadx3,ntotsegx3,nchain,nseg,nbead,nchain_cmb,&
+        ! Bending Force
+          call this%Boxconv_d%QtoR(this%Q_d,this%R_d,ntotsegx3,ntotbeadx3)
+          call this%Boxsprf_d%updatebend(this%Q_d,this%R_d,ntotbead,ntotbeadx3,ntotsegx3,nchain,nseg,nbead,nchain_cmb,&
 		                      nseg_cmb,nseg_cmbbb,nseg_cmbar,Na,Ia,this%size,this%invsize)
 
-        if (EVForceLaw /= 'NoEV') then
-          call this%Boxevf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
+          if (EVForceLaw /= 'NoEV') then
+              call this%Boxevf_d%update(this%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
                       itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
-        end if
+          end if
 
 ! GPU Shear Flow
-      case ('PSF')
-        call this%Boxconv_d%RbctoRb(this%Boxtrsfm_d%Rbx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
-        call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
+        case ('PSF')
+          call passRbtrx(this%Boxtrsfm_d,this%Rbtrx_d)
 
-	    ! update spring force
-        call this%Boxsprf_d%update(this%Boxtrsfm_d%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
-		                             itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+          call this%Boxconv_d%RbctoRb(this%Rbtrx_d,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
+          !call this%Boxconv_d%RbctoRb(this%Boxtrsfm_d%Rbtrx,this%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
+          call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
 
-      ! Bending Force
-        call this%Boxconv_d%QtoR(this%Q_d,this%R_d,ntotsegx3,ntotbeadx3)
-        call this%Boxsprf_d%updatebend(this%Q_d,this%R_d,ntotbead,ntotbeadx3,ntotsegx3,nchain,nseg,nbead,nchain_cmb,&
+	      ! update spring force
+          call this%Boxsprf_d%update(this%Rbtrx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
+                               itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+          !call this%Boxsprf_d%update(this%Boxtrsfm_d%Rbtrx,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
+	  	    !                         itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+
+        ! Bending Force
+          call this%Boxconv_d%QtoR(this%Q_d,this%R_d,ntotsegx3,ntotbeadx3)
+          call this%Boxsprf_d%updatebend(this%Q_d,this%R_d,ntotbead,ntotbeadx3,ntotsegx3,nchain,nseg,nbead,nchain_cmb,&
 		                             nseg_cmb,nseg_cmbbb,nseg_cmbar,Na,Ia,this%size,this%invsize)
 		!EV
-        if (EVForceLaw /= 'NoEV') then
-          call this%Boxevf_d%update(this%Boxtrsfm_d%Rbx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
+          if (EVForceLaw /= 'NoEV') then
+                call this%Boxevf_d%update(this%Rbtrx_d,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
                                  itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
-
+              !call this%Boxevf_d%update(this%Boxtrsfm_d%Rbtrx,this%Rby_d,this%Rbz_d,this%size,this%invsize,&
+              !                       itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+          end if
 ! GPU Extentional Flow
-      case ('PEF')
-	        call this%Boxconv_d%RbctoRb(this%Boxtrsfm_d%Rbx_d,this%Boxtrsfm_d%Rby_d,this%Rbz_d,this%Rb_d,ntotbead)
+        case ('PEF')
+          call passRbtrx(this%Boxtrsfm_d,this%Rbtrx_d)
+          call passRbtry(this%Boxtrsfm_d,this%Rbtry_d)
+
+          call this%Boxconv_d%RbctoRb(this%Rbtrx_d,this%Rbtry_d,this%Rbz_d,this%Rb_d,ntotbead)
+	        !call this%Boxconv_d%RbctoRb(this%Boxtrsfm_d%Rbtrx,this%Boxtrsfm_d%Rbtry,this%Rbz_d,this%Rb_d,ntotbead)
           call this%Boxconv_d%RbtoQ(this%Rb_d,this%Q_d,ntotsegx3,ntotbeadx3,this%size)
 
 	        !update spring force
-	        call this%Boxsprf_d%update(this%Boxtrsfm_d%Rbx_d,this%Boxtrsfm_d%Rby_d,this%Rbz_d,[bsx,bsy,this%size(3)],&
-		          [invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+          call this%Boxsprf_d%update(this%Rbtrx_d,this%Rbtry_d,this%Rbz_d,[bsx,bsy,this%size(3)],&
+              [invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+	        !call this%Boxsprf_d%update(this%Boxtrsfm_d%Rbtrx,this%Boxtrsfm_d%Rbtry,this%Rbz_d,[bsx,bsy,this%size(3)],&
+		      !    [invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
 
 	        !Bending Force
           call this%Boxconv_d%QtoR(this%Q_d,this%R_d,ntotsegx3,ntotbeadx3)
@@ -1396,9 +1451,12 @@ contains
 		           nseg_cmb,nseg_cmbbb,nseg_cmbar,Na,Ia,[bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)])
 
           if (EVForceLaw /= 'NoEV') then
-             call this%Boxevf_d%update(this%Boxtrsfm_d%Rbx_d,this%Boxtrsfm_d%Rby_d,this%Rbz_d,&
+             call this%Boxevf_d%update(this%Rbtrx_d,this%Rbtry_d,this%Rbz_d,&
                    [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
                     nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
+            !call this%Boxevf_d%update(this%Boxtrsfm_d%Rbtrx,this%Boxtrsfm_d%Rbtry,this%Rbz_d,&
+            !        [bsx,bsy,this%size(3)],[invbsx,invbsy,this%invsize(3)],itime,nchain,nseg,&
+            !        nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3,this%Q_d)
          end if
       end select
 
@@ -1407,10 +1465,10 @@ contains
 
 #ifdef Debuge_sequence
 	  Write(*,*) "GPU rFphi:"
-	  Write(*,*) rFphi
+	  !Write(*,*) rFphi
 #endif
 
-#else
+#else  !CPU
 
       Fphi=0._wp
       rFphi=0._wp
@@ -1483,7 +1541,5 @@ contains
       ! if (itime == 5) stop
 
   end subroutine calcForce
-
-
 
 end module box_mod
