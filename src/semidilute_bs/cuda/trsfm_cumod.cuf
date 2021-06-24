@@ -40,19 +40,34 @@ module trsfm_cumod
   implicit none
 
   ! Private module procedures:
-  private :: init_trsfm_t  ,&
-             applypbc_glob ,&
-             applypbc_rec
+  private :: init_trsfm_t_d  ,&
+             applypbc_glob_d ,&
+             applypbc_rec_d  ,&
+             map_d           ,&
+             remap_d         ,&
+             unwrap_box_d
+  PUBLIC  :: passRbtrx       ,&
+             passRbtry
 
   !> A public type for configurational transformation
   type trsfm_cu_t
 
     private
 
+    !> The x-component of transformed position of the beads
+    real(wp), device ,pointer :: Rbtrx(:) => null()
+    !> The y-component of transformed position of the beads
+    real(wp), device, pointer :: Rbtry(:) => null()
+    !> The x-component of transformed position of the center of mass
+    real(wp), device, pointer :: rcmtrx(:) => null()
+    !> The y-component of transformed position of the center of mass
+    real(wp), device, pointer :: rcmtry(:) => null()
+
   contains
 
-    procedure,pass(this) :: init => init_trsfm_t
-    procedure,pass(this) :: applypbc => applypbc_glob
+    procedure,pass(this) :: init => init_trsfm_t_d
+    procedure,pass(this) :: applypbc => applypbc_glob_d
+    procedure,pass(this) :: unwrap => unwrap_box_d
     ! final :: del_trsfm_t
 
   end type trsfm_cu_t
@@ -73,21 +88,6 @@ module trsfm_cumod
   !> The tan(beta), where beta is the angle of L2' with y-axis
   real(wp),constant :: tanb_d
 
-
-  !> The number of periodic strains applied to the box
-  !integer,constant :: ieps
-  !> if the box should retain to its original state
-  !logical,constant :: reArng
-  ! Parameters used in shear flow:
-  !{
-  !> The maximum strain corresponding to maximum deflection angle
-  !real(wp),constant :: eps_mx
-  !> modulo(strain,max(strain))
-  !real(wp),constant :: eps_m
-  !> Deflection of the box in the top layer
-  !real(wp),constant :: delrx_L
-  !> Deflection of the box in the middle height of the box
-  !real(wp),constant :: delrx_m
   !}
   ! Parameters used in elongational flow:
   !{
@@ -97,6 +97,8 @@ module trsfm_cumod
   !real(wp),constant :: theta
   !> The periodic strain in planar elongational flow
   !real(wp),constant :: eps_p
+  !> The periodic strain
+  real(wp),constant :: eps_m
   !> The dimension of the deformed box in x-direction
   !real(wp),constant :: bsx
   !> The dimension of the deformed box in y-direction
@@ -118,15 +120,15 @@ module trsfm_cumod
   !> The current box rotated basis vector, L2'
   !real(wp),constant :: L2p(2)
   !> The sin(theta)
-  !real(wp),constant :: sinth
+  real(wp),constant :: sinth
   !> The cos(theta)
-  !real(wp),constant :: costh
+  real(wp),constant :: costh
   !> The sin(theta0)
   !real(wp),constant :: sinth0
   !> The cos(theta0)
   !real(wp),constant :: costh0
   !> The tan(beta), where beta is the angle of L2' with y-axis
-  !real(wp),constant :: tanb
+  real(wp),constant :: tanb
 
 
 contains
@@ -139,9 +141,9 @@ contains
     use :: trsfm_mod, only: eps_m,sinth,costh,tanb
 
     ! real(wp),intent(in) :: bs(3)
-
     ! ieps=1
     ! reArng=.false.
+
 #ifdef Debuge_sequence
 	write(*,*) "module:trsfm_cumod:init_trsfm_tm_d"
 #endif
@@ -152,7 +154,6 @@ contains
         ! delrx_m_d=0._wp
       case ('PEF')
         ! theta=theta_0
-
         sinth_d=sinth
         costh_d=costh
         tanb_d=tanb
@@ -202,13 +203,10 @@ contains
   subroutine update_trsfm_d()
 
     use :: flow_mod, only: FlowType
-    use :: trsfm_mod, only: eps_m,sinth,costh,tanb
+    use :: trsfm_mod, only: eps_m,sinth,costh,tanb,bsx,bsy,invbsx,invbsy
 
     ! real(wp),intent(in) :: bs(3)
     ! real(wp) :: M(2,2)
-#ifdef Debuge_sequence
-	write(*,*) "module:trsfm_cumod:update_trsfm_d"
-#endif
 
     select case (FlowType)
       case ('PSF')
@@ -232,6 +230,7 @@ contains
         ! invbsy=1/bsy
 
         tanb_d=tanb
+
     end select
 
   end subroutine update_trsfm_d
@@ -239,13 +238,31 @@ contains
   !> Constructor for trsfm type
   !! \param ntotbead total number of beads inside the box
   !! \param nchain the number of chain inside the box
-  subroutine init_trsfm_t(this)
+  subroutine init_trsfm_t_d(this,Rbtr_d,rcmtr_d)
 
+    use :: flow_mod, only: FlowType
     class(trsfm_cu_t),intent(inout) :: this
-#ifdef Debuge_sequence
-	write(*,*) "module:trsfm_cumod:init_trsfm_t"
-#endif
-  end subroutine init_trsfm_t
+    real(wp),device,intent(in),target,contiguous :: Rbtr_d(:,:)
+    real(wp),device,intent(in),target,contiguous :: rcmtr_d(:,:)
+    integer :: ntb,nch
+    ntb=size(Rbtr_d,1)
+    nch=size(rcmtr_d,1)
+
+  select case (FlowType)
+    case ('Equil')
+      ! Rbtr and rcmtr in this case are zero-sized
+      this%Rbtrx(1:ntb) => Rbtr_d(:,1)
+      this%rcmtrx(1:nch) => rcmtr_d(:,1)
+    case ('PSF')
+      this%Rbtrx => Rbtr_d(:,1)
+      this%rcmtrx => rcmtr_d(:,1)
+    case ('PEF')
+      this%Rbtrx => Rbtr_d(:,1)
+      this%Rbtry => Rbtr_d(:,2)
+      this%rcmtrx => rcmtr_d(:,1)
+      this%rcmtry => rcmtr_d(:,2)
+   end select
+ end subroutine init_trsfm_t_d
 
 
   !> Applying periodic boundary condition, global call
@@ -257,7 +274,7 @@ contains
   !! \param str the modulo(strain,max(strain))
   !! \param b_img the image of the beads inside the primary box
   !! \param cm_img the image of the center of mass inside the primary box
-  subroutine applypbc_glob(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,itime)
+  subroutine applypbc_glob_d(this,bs,invbs,Rbx,Rby,Rbz,rcm,b_img,cm_img,itime)
 
     use :: flow_mod, only: FlowType
 
@@ -270,15 +287,16 @@ contains
     real(wp),device,intent(inout) :: rcm(:,:)
     integer,device,intent(inout) :: b_img(:,:)
     integer,device,intent(inout) :: cm_img(:,:)
-#ifdef Debuge_sequence
-	write(*,*) "module:trsfm_cumod:applypbc_glob"
-#endif
-    ! if (FlowType /= 'Equil') call map(this,Rbx,Rby,rcm,itime)
-    call applypbc_rec(this,bs(1),bs(2),bs(3),invbs(1),invbs(2),invbs(3),Rbx,Rby,Rbz,&
-      rcm,b_img,cm_img,itime)
-    ! if (FlowType /= 'Equil') call remap(this,bs,invbs,Rbx,Rby,rcm,b_img,cm_img,itime)
+    real(wp),device :: bs_d(3),invbs_d(3)
 
-  end subroutine applypbc_glob
+    bs_d=bs
+    invbs_d=invbs
+
+     if (FlowType /= 'Equil') call map_d(this,Rbx,Rby,rcm,itime)
+       call applypbc_rec_d(this,bs_d,invbs_d,Rbx,Rby,Rbz,rcm,b_img,cm_img,itime)
+     if (FlowType /= 'Equil') call remap_d(this,bs_d,invbs_d,Rbx,Rby,rcm,b_img,cm_img,itime)
+
+  end subroutine applypbc_glob_d
 
   !> Applying periodic boundary condition on a rectangular box
   !! \param bs the dimension of the box
@@ -290,14 +308,16 @@ contains
   !! \param cm_img the image of the center of mass inside the primary box
   ! subroutine applypbc_rec(this,bsx,bsy,bsz,invbsx,invbsy,invbsz,&
   !   Rbx,Rby,Rbz,rcm,b_img,cm_img,ntb,nch,itime)
-  subroutine applypbc_rec(this,bsx,bsy,bsz,invbsx,invbsy,invbsz,Rbx,Rby,Rbz,&
+  subroutine applypbc_rec_d(this,bs,invbs,Rbx,Rby,Rbz,&
            rcm,b_img,cm_img,itime)
 
     use :: flow_mod, only: FlowType
     use :: arry_mod, only: print_vector,print_matrix
+    use :: trsfm_mod, only: bsx,bsy,invbsx,invbsy
 
     class(trsfm_cu_t),intent(inout) :: this
-    real(wp),intent(in) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
+    real(wp),device,intent(in) :: bs(3),invbs(3)
+    !real(wp),intent(in) :: bsx,bsy,bsz,invbsx,invbsy,invbsz
     integer,intent(in) :: itime
     real(wp),device,intent(inout) :: Rbx(:)
     real(wp),device,intent(inout) :: Rby(:)
@@ -306,33 +326,388 @@ contains
     integer,device,intent(inout) :: b_img(:,:)
     integer,device,intent(inout) :: cm_img(:,:)
     integer :: igb,ich,ntb,nch
-#ifdef Debuge_sequence
-	write(*,*) "module:trsfm_cumod:applypbc_rec"
-#endif
+    real(wp), device, allocatable :: Rbtrx_d(:),rcmtrx_d(:),Rbtry_d(:),rcmtry_d(:)
     ntb=size(Rbx,1)
     nch=size(rcm,1)
 
-    !$cuf kernel do <<< *,* >>>
-    do igb=1, ntb
-      ! calculating the image of the beads
-      b_img(igb,1)=b_img(igb,1)-nint(Rbx(igb)*invbsx-0.5_wp)
-      b_img(igb,2)=b_img(igb,2)-nint(Rby(igb)*invbsy-0.5_wp)
-      b_img(igb,3)=b_img(igb,3)-nint(Rbz(igb)*invbsz-0.5_wp)
-      Rbx(igb)=Rbx(igb)-nint(Rbx(igb)*invbsx-0.5_wp)*bsx
-      Rby(igb)=Rby(igb)-nint(Rby(igb)*invbsy-0.5_wp)*bsy
-      Rbz(igb)=Rbz(igb)-nint(Rbz(igb)*invbsz-0.5_wp)*bsz
-    end do
+    select case (FlowType)
+      case ('Equil')
+        !$cuf kernel do <<< *,* >>>
+        do igb=1, ntb
+          ! calculating the image of the beads
+          b_img(igb,1)=b_img(igb,1)-nint(Rbx(igb)*invbs(1)-0.5_wp)
+          b_img(igb,2)=b_img(igb,2)-nint(Rby(igb)*invbs(2)-0.5_wp)
+          b_img(igb,3)=b_img(igb,3)-nint(Rbz(igb)*invbs(3)-0.5_wp)
+          Rbx(igb)=Rbx(igb)-nint(Rbx(igb)*invbs(1)-0.5_wp)*bs(1)
+          Rby(igb)=Rby(igb)-nint(Rby(igb)*invbs(2)-0.5_wp)*bs(2)
+          Rbz(igb)=Rbz(igb)-nint(Rbz(igb)*invbs(3)-0.5_wp)*bs(3)
+        end do
 
-    !$cuf kernel do <<< *,* >>>
-    do ich=1, nch
-      cm_img(ich,1)=-nint(rcm(ich,1)*invbsx-0.5_wp)
-      cm_img(ich,2)=-nint(rcm(ich,2)*invbsy-0.5_wp)
-      cm_img(ich,3)=-nint(rcm(ich,3)*invbsz-0.5_wp)
-      rcm(ich,1)=rcm(ich,1)-nint(rcm(ich,1)*invbsx-0.5_wp)*bsx
-      rcm(ich,2)=rcm(ich,2)-nint(rcm(ich,2)*invbsy-0.5_wp)*bsy
-      rcm(ich,3)=rcm(ich,3)-nint(rcm(ich,3)*invbsz-0.5_wp)*bsz
-    end do
+        !$cuf kernel do <<< *,* >>>
+        do ich=1, nch
+          cm_img(ich,1)=-nint(rcm(ich,1)*invbs(1)-0.5_wp)
+          cm_img(ich,2)=-nint(rcm(ich,2)*invbs(2)-0.5_wp)
+          cm_img(ich,3)=-nint(rcm(ich,3)*invbs(3)-0.5_wp)
+          rcm(ich,1)=rcm(ich,1)-nint(rcm(ich,1)*invbs(1)-0.5_wp)*bs(1)
+          rcm(ich,2)=rcm(ich,2)-nint(rcm(ich,2)*invbs(2)-0.5_wp)*bs(2)
+          rcm(ich,3)=rcm(ich,3)-nint(rcm(ich,3)*invbs(3)-0.5_wp)*bs(3)
+        end do
 
-  end subroutine applypbc_rec
+      case ('PSF')
+        allocate(Rbtrx_d(ntb))
+        allocate(rcmtrx_d(nch))
+        Rbtrx_d=this%Rbtrx
+        rcmtrx_d=this%rcmtrx
+        !$cuf kernel do <<< *,* >>>
+        do igb=1, ntb
+          ! calculating the image of the beads
+          b_img(igb,1)=b_img(igb,1)-nint(Rbtrx_d(igb)*invbs(1)-0.5_wp)
+          b_img(igb,2)=b_img(igb,2)-nint(Rby(igb)*invbs(2)-0.5_wp)
+          b_img(igb,3)=b_img(igb,3)-nint(Rbz(igb)*invbs(3)-0.5_wp)
+          !this%Rbtrx(igb)=this%Rbtrx(igb)-nint(this%Rbtrx(igb)*invbs(1)-0.5_wp)*bs(1)
+          Rbtrx_d(igb)=Rbtrx_d(igb)-nint(Rbtrx_d(igb)*invbs(1)-0.5_wp)*bs(1)
+          Rby(igb)=Rby(igb)-nint(Rby(igb)*invbs(2)-0.5_wp)*bs(2)
+          Rbz(igb)=Rbz(igb)-nint(Rbz(igb)*invbs(3)-0.5_wp)*bs(3)
+        end do
+        !$cuf kernel do <<< *,* >>>
+        do ich=1, nch
+          cm_img(ich,1)=-nint(rcmtrx_d(ich)*invbs(1)-0.5_wp)
+          cm_img(ich,2)=-nint(rcm(ich,2)*invbs(2)-0.5_wp)
+          cm_img(ich,3)=-nint(rcm(ich,3)*invbs(3)-0.5_wp)
+          !this%rcmtrx(ich)=this%rcmtrx(ich)-nint(this%rcmtrx(ich)*invbs(1)-0.5_wp)*bs(1)
+          rcmtrx_d(ich)=rcmtrx_d(ich)-nint(rcmtrx_d(ich)*invbs(1)-0.5_wp)*bs(1)
+          rcm(ich,2)=rcm(ich,2)-nint(rcm(ich,2)*invbs(2)-0.5_wp)*bs(2)
+          rcm(ich,3)=rcm(ich,3)-nint(rcm(ich,3)*invbs(3)-0.5_wp)*bs(3)
+        end do
+
+        this%Rbtrx=Rbtrx_d
+        this%rcmtrx=rcmtrx_d
+        deallocate(Rbtrx_d)
+        deallocate(rcmtrx_d)
+
+      case ('PEF')
+
+        allocate(Rbtrx_d(ntb))
+         Rbtrx_d=this%Rbtrx
+        allocate(rcmtrx_d(nch))
+        rcmtrx_d=this%rcmtrx
+        allocate(Rbtry_d(ntb))
+         Rbtry_d=this%Rbtry
+        allocate(rcmtry_d(nch))
+        rcmtry_d=this%rcmtry
+
+        !$cuf kernel do <<< *,* >>>
+        do igb=1, ntb
+          b_img(igb,1)=b_img(igb,1)-nint(Rbtrx_d(igb)*invbsx-0.5_wp)
+          b_img(igb,2)=b_img(igb,2)-nint(Rbtry_d(igb)*invbsy-0.5_wp)
+          !b_img(igb,1)=b_img(igb,1)-nint(this%Rbtrx(igb)*invbsx-0.5_wp)
+          !b_img(igb,2)=b_img(igb,2)-nint(this%Rbtry(igb)*invbsy-0.5_wp)
+          b_img(igb,3)=b_img(igb,3)-nint(Rbz(igb)*invbs(3)-0.5_wp)
+          Rbtrx_d(igb)=Rbtrx_d(igb)-nint(Rbtrx_d(igb)*invbsx-0.5_wp)*bsx
+          Rbtry_d(igb)=Rbtry_d(igb)-nint(Rbtry_d(igb)*invbsy-0.5_wp)*bsy
+          !this%Rbtrx(igb)=this%Rbtrx(igb)-nint(this%Rbtrx(igb)*invbsx-0.5_wp)*bsx
+          !this%Rbtry(igb)=this%Rbtry(igb)-nint(this%Rbtry(igb)*invbsy-0.5_wp)*bsy
+          Rbz(igb)=Rbz(igb)-nint(Rbz(igb)*invbs(3)-0.5_wp)*bs(3)
+        end do
+        !$cuf kernel do <<< *,* >>>
+        do ich=1, nch
+          cm_img(ich,1)=-nint(rcmtrx_d(ich)*invbsx-0.5_wp)
+          cm_img(ich,2)=-nint(rcmtry_d(ich)*invbsy-0.5_wp)
+          !cm_img(ich,1)=-nint(this%rcmtrx(ich)*invbsx-0.5_wp)
+          !cm_img(ich,2)=-nint(this%rcmtry(ich)*invbsy-0.5_wp)
+          cm_img(ich,3)=-nint(rcm(ich,3)*invbs(3)-0.5_wp)
+          rcmtrx_d(ich)=rcmtrx_d(ich)-nint(rcmtrx_d(ich)*invbsx-0.5_wp)*bsx
+          rcmtry_d(ich)=rcmtry_d(ich)-nint(rcmtry_d(ich)*invbsy-0.5_wp)*bsy
+          !this%rcmtrx(ich)=this%rcmtrx(ich)-nint(this%rcmtrx(ich)*invbsx-0.5_wp)*bsx
+          !this%rcmtry(ich)=this%rcmtry(ich)-nint(this%rcmtry(ich)*invbsy-0.5_wp)*bsy
+          rcm(ich,3)=rcm(ich,3)-nint(rcm(ich,3)*invbs(3)-0.5_wp)*bs(3)
+        end do
+
+        this%Rbtrx=Rbtrx_d
+        this%rcmtrx=rcmtrx_d
+        this%Rbtry=Rbtry_d
+        this%rcmtry=rcmtry_d
+        deallocate(Rbtry_d)
+        deallocate(rcmtry_d)
+        deallocate(Rbtrx_d)
+        deallocate(rcmtrx_d)
+
+    end select
+  end subroutine applypbc_rec_d
+
+  !> Mapping the particles to a rectangular box
+  !! \param Rbx x-coordinate of the position vector
+  !! \param Rby y-coordinate of the position vector
+  !! \param Rbtr the beads position transdormed to a rectangular box
+  subroutine map_d(this,Rbx,Rby,rcm,itime)
+
+    use :: flow_mod, only: FlowType
+
+    class(trsfm_cu_t),intent(inout) :: this
+    integer,intent(in) :: itime
+    real(wp),device,intent(in) :: Rbx(:)
+    real(wp),device,intent(in) :: Rby(:)
+    real(wp),device,intent(in) :: rcm(:,:)
+    integer :: igb,ich,ntb,nch
+    real(wp),device, allocatable :: Rbtrx_d(:),rcmtrx_d(:),Rbtry_d(:),rcmtry_d(:)
+
+    ntb=size(Rbx,1)
+    nch=size(rcm,1)
+
+    select case (FlowType)
+      case ('PSF')
+
+        allocate(Rbtrx_d(ntb))
+         Rbtrx_d=this%Rbtrx
+        allocate(rcmtrx_d(nch))
+        rcmtrx_d=this%rcmtrx
+
+        !$cuf kernel do <<< *,* >>>
+        do igb=1, ntb
+          !this%Rbtrx(igb)=Rbx(igb)-eps_m_d*Rby(igb)
+          Rbtrx_d(igb)=Rbx(igb)-eps_m_d*Rby(igb)
+        end do
+        !$cuf kernel do <<< *,* >>>
+        do ich=1, nch
+          !this%rcmtrx(ich)=rcm(ich,1)-eps_m_d*rcm(ich,2)
+          rcmtrx_d(ich)=rcm(ich,1)-eps_m_d*rcm(ich,2)
+        end do
+
+        this%Rbtrx=Rbtrx_d
+        this%rcmtrx=rcmtrx_d
+        deallocate(Rbtrx_d)
+        deallocate(rcmtrx_d)
+
+      case ('PEF')
+
+        allocate(Rbtrx_d(ntb))
+         Rbtrx_d=this%Rbtrx
+        allocate(rcmtrx_d(nch))
+        rcmtrx_d=this%rcmtrx
+        allocate(Rbtry_d(ntb))
+         Rbtry_d=this%Rbtry
+        allocate(rcmtry_d(nch))
+        rcmtry_d=this%rcmtry
+
+        !$cuf kernel do <<< *,* >>>
+        do igb=1, ntb
+          !this%Rbtry(igb)=-sinth_d*Rbx(igb)+costh_d*Rby(igb)
+          !this%Rbtrx(igb)= costh_d*Rbx(igb)+sinth_d*Rby(igb)-tanb_d*this%Rbtry(igb)
+          Rbtry_d(igb)=-sinth_d*Rbx(igb)+costh_d*Rby(igb)
+          Rbtrx_d(igb)= costh_d*Rbx(igb)+sinth_d*Rby(igb)-tanb_d*Rbtry_d(igb)
+        end do
+        !$cuf kernel do <<< *,* >>>
+        do ich=1, nch
+          !this%rcmtry(ich)=-sinth_d*rcm(ich,1)+costh_d*rcm(ich,2)
+          !this%rcmtrx(ich)= costh_d*rcm(ich,1)+sinth_d*rcm(ich,2)-tanb_d*this%rcmtry(ich)
+          rcmtry_d(ich)=-sinth_d*rcm(ich,1)+costh_d*rcm(ich,2)
+          rcmtrx_d(ich)= costh_d*rcm(ich,1)+sinth_d*rcm(ich,2)-tanb_d*rcmtry_d(ich)
+        end do
+
+        this%Rbtrx=Rbtrx_d
+        this%rcmtrx=rcmtrx_d
+        this%Rbtry=Rbtry_d
+        this%rcmtry=rcmtry_d
+        deallocate(Rbtry_d)
+        deallocate(rcmtry_d)
+        deallocate(Rbtrx_d)
+        deallocate(rcmtrx_d)
+
+    end select
+
+  end subroutine map_d
+
+  !> Mapping back the particles from the rectangular box to deformed box
+  !! \param bs the dimension of the box
+  !! \param invbs the inverse of box dimensions
+  !! \param Rbx x-coordinate of the position vector
+  !! \param Rby y-coordinate of the position vector
+  !! \param b_img the image of the beads inside the primary box
+  !! \param cm_img the image of the center of mass inside the primary box
+  subroutine remap_d(this,bs,invbs,Rbx,Rby,rcm,b_img,cm_img,itime)
+
+    use :: flow_mod, only: FlowType
+
+    class(trsfm_cu_t),intent(inout) :: this
+    real(wp),device,intent(in) :: bs(3),invbs(3)
+    real(wp),device,intent(inout),contiguous :: Rbx(:)
+    real(wp),device,intent(inout),contiguous :: Rby(:)
+    real(wp),device,intent(inout) :: rcm(:,:)
+    integer,device,intent(inout) :: b_img(:,:)
+    integer,device,intent(inout) :: cm_img(:,:)
+    integer :: igb,ich,ntb,nch
+    real(wp),device :: Rbxtmp,Rbytmp,rcmxtmp,rcmytmp
+    integer :: itime
+    real(wp),device, allocatable :: Rbtrx_d(:),rcmtrx_d(:),Rbtry_d(:),rcmtry_d(:)
+    ntb=size(Rbx,1)
+    nch=size(rcm,1)
+
+    select case (FlowType)
+      case ('PSF')
+
+        allocate(Rbtrx_d(ntb))
+         Rbtrx_d=this%Rbtrx
+        allocate(rcmtrx_d(nch))
+        rcmtrx_d=this%rcmtrx
+
+        !$cuf kernel do <<< *,* >>>
+        do igb=1, ntb
+          Rbx(igb)=Rbtrx_d(igb)+eps_m_d*Rby(igb)
+        end do
+        !$cuf kernel do <<< *,* >>>
+        do ich=1, nch
+          rcm(ich,1)=rcmtrx_d(ich)+eps_m_d*rcm(ich,2)
+        end do
+
+        deallocate(Rbtrx_d)
+        deallocate(rcmtrx_d)
+
+      case ('PEF')
+
+        allocate(Rbtrx_d(ntb))
+         Rbtrx_d=this%Rbtrx
+        allocate(rcmtrx_d(nch))
+        rcmtrx_d=this%rcmtrx
+        allocate(Rbtry_d(ntb))
+         Rbtry_d=this%Rbtry
+        allocate(rcmtry_d(nch))
+        rcmtry_d=this%rcmtry
+
+        !$cuf kernel do <<< *,* >>>
+        do igb=1, ntb
+          Rbx(igb)=Rbtrx_d(igb)+tanb_d*Rbtry_d(igb)
+          Rby(igb)=sinth_d*Rbx(igb)+costh_d*Rbtry_d(igb)
+          Rbx(igb)=costh_d*Rbx(igb)-sinth_d*Rbtry_d(igb)
+        end do
+        !$cuf kernel do <<< *,* >>>
+        do ich=1, nch
+          rcm(ich,1)=rcmtrx_d(ich)+tanb_d*rcmtry_d(ich)
+          rcm(ich,2)=sinth_d*rcm(ich,1)+costh_d*rcmtry_d(ich)
+          rcm(ich,1)=costh_d*rcm(ich,1)-sinth_d*rcmtry_d(ich)
+        end do
+
+        deallocate(Rbtry_d)
+        deallocate(rcmtry_d)
+        deallocate(Rbtrx_d)
+        deallocate(rcmtrx_d)
+
+    end select
+
+  end subroutine remap_d
+
+  subroutine unwrap_box_d(this,bs,Rbx,Rby,b_img,itime)
+
+    use :: flow_mod, only: FlowType
+    use :: trsfm_mod, only: bsx,bsy,invbsx,invbsy
+    class(trsfm_cu_t),intent(inout) :: this
+    real(wp),intent(in) :: bs(3)
+    real(wp),device :: bs_d(3)
+    integer,intent(in) :: itime
+    real(wp),device,intent(inout),contiguous :: Rbx(:)
+    real(wp),device,intent(inout),contiguous :: Rby(:)
+    integer,device ,intent(inout) :: b_img(:,:)
+    integer :: igb,ntb
+    real(wp),device :: Rbxtmp,Rbytmp,rcmxtmp,rcmytmp
+    real(wp),device, allocatable :: Rbtrx_d(:),rcmtrx_d(:),Rbtry_d(:),rcmtry_d(:)
+    ntb=size(Rbx,1)
+    bs_d=bs
+    select case (FlowType)
+      case ('PSF')
+        allocate(Rbtrx_d(ntb))
+         Rbtrx_d=this%Rbtrx
+
+         !$cuf kernel do <<< *,* >>>
+         do igb=1, ntb
+           ! map
+           Rbtrx_d(igb)=Rbx(igb)-eps_m*Rby(igb)
+           ! rectangualr unwrap
+           Rbtrx_d(igb)=Rbtrx_d(igb)-b_img(igb,1)*bs_d(1)
+           b_img(igb,1)=0
+           ! remap
+           Rbx(igb)=Rbtrx_d(igb)+eps_m*Rby(igb)
+         end do
+
+         this%Rbtrx=Rbtrx_d
+         deallocate(Rbtrx_d)
+
+        !#!$cuf kernel do <<< *,* >>>
+        !do igb=1, ntb
+        !  ! map
+        !  this%Rbtrx(igb)=Rbx(igb)-eps_m*Rby(igb)
+        !  ! rectangualr unwrap
+        !  this%Rbtrx(igb)=this%Rbtrx(igb)-b_img(igb,1)*bs(1)
+        !  b_img(igb,1)=0
+        !  ! remap
+        !  Rbx(igb)=this%Rbtrx(igb)+eps_m*Rby(igb)
+        !end do
+
+      case ('PEF')
+
+        allocate(Rbtrx_d(ntb))
+         Rbtrx_d=this%Rbtrx
+        allocate(Rbtry_d(ntb))
+         Rbtry_d=this%Rbtry
+
+         !$cuf kernel do <<< *,* >>>
+         do igb=1, ntb
+           ! map
+           Rbtry_d(igb)=-sinth*Rbx(igb)+costh*Rby(igb)
+           Rbtrx_d(igb)= costh*Rbx(igb)+sinth*Rby(igb)-tanb*Rbtry_d(igb)
+           ! rectangualr unwrap
+           Rbtrx_d(igb)=Rbtrx_d(igb)-b_img(igb,1)*bsx
+           Rbtry_d(igb)=Rbtry_d(igb)-b_img(igb,2)*bsy
+           b_img(igb,1:2)=0
+           ! remap
+           Rbx(igb)=Rbtrx_d(igb)+tanb*Rbtry_d(igb)
+           Rby(igb)=sinth*Rbx(igb)+costh*Rbtry_d(igb)
+           Rbx(igb)=costh*Rbx(igb)-sinth*Rbtry_d(igb)
+         end do
+
+        !#!$cuf kernel do <<< *,* >>>
+        !do igb=1, ntb
+        !  ! map
+        !  this%Rbtry(igb)=-sinth*Rbx(igb)+costh*Rby(igb)
+        !  this%Rbtrx(igb)= costh*Rbx(igb)+sinth*Rby(igb)-tanb*this%Rbtry(igb)
+        !  ! rectangualr unwrap
+        !  this%Rbtrx(igb)=this%Rbtrx(igb)-b_img(igb,1)*bsx
+        !  this%Rbtry(igb)=this%Rbtry(igb)-b_img(igb,2)*bsy
+        !  b_img(igb,1:2)=0
+        !  ! remap
+        !  Rbx(igb)=this%Rbtrx(igb)+tanb*this%Rbtry(igb)
+        !  Rby(igb)=sinth*Rbx(igb)+costh*this%Rbtry(igb)
+        !  Rbx(igb)=costh*Rbx(igb)-sinth*this%Rbtry(igb)
+        !end do
+
+        this%Rbtrx=Rbtrx_d
+        this%Rbtry=Rbtry_d
+        deallocate(Rbtry_d)
+        deallocate(Rbtrx_d)
+
+    end select
+
+  end subroutine unwrap_box_d
+
+
+  subroutine passRbtrx(this,Rbtrx_d)
+    class(trsfm_cu_t),intent(inout) :: this
+    real(wp),device, allocatable, intent(out) :: Rbtrx_d(:)
+    integer :: ntb
+
+    ntb=size(this%Rbtrx,1)
+    allocate(Rbtrx_d(ntb))
+    Rbtrx_d=this%Rbtrx
+
+  end subroutine passRbtrx
+
+  subroutine passRbtry(this,Rbtry_d)
+    class(trsfm_cu_t),intent(inout) :: this
+    real(wp),device, allocatable, intent(out) :: Rbtry_d(:)
+    integer :: ntb
+
+    ntb=size(this%Rbtry,1)
+    allocate(Rbtry_d(ntb))
+    Rbtry_d=this%Rbtry
+
+  end subroutine passRbtry
 
 end module trsfm_cumod

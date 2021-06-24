@@ -319,8 +319,6 @@ contains
 !  b = b_d
 !  res(1) = maxval(abs(a-b/(n*n)))
 !  print *,'Max error C2C: ', res(1)
-
-
     ! maxNb_list_D=5000000
 
     if (Dreal_sparse_mode) then
@@ -866,7 +864,7 @@ contains
     logical :: update
 #ifdef Debuge_sequence
     write(*,*) "module:hi_cumod:updatelst_D"
-#endif	
+#endif
     if (itime == itrst+1) then
       update=.true.
     else

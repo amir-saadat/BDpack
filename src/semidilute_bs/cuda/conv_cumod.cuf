@@ -54,6 +54,7 @@ module conv_cumod
     procedure,pass(this) :: RbtoRbc
     procedure,pass(this) :: RbctoRb
     procedure,pass(this) :: RbtoQ
+    procedure,pass(this) :: QtoR
 
   end type conv_cu_t
 
@@ -147,7 +148,6 @@ contains
     Bbar_ColInd_d=Bbar_cols
     Bbar_RowPtr_d=Bbar_rowInd
 
-
     ! Creating the descriptor for the sparse matrix B
     istat = cusparseCreate(h_B)
     istat = cusparseCreateMatDescr(descr_B)
@@ -160,7 +160,6 @@ contains
 #endif
 
     ! Creating the descriptor for the sparse matrix Bbar
-
     istat = cusparseCreate(h_Bbar)
     istat = cusparseCreateMatDescr(descr_Bbar)
     istat = cusparseSetMatType(descr_Bbar,CUSPARSE_MATRIX_TYPE_GENERAL)
@@ -312,24 +311,24 @@ contains
 
 #if CUDA_VERSION >= 11000
     istat = cusparseCreateDnVec(dnVecDescr_Rb,ntbx3,Rb,CUDA_R_64F)
-    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Rb in conv_cumod: ",i)',istat
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Rb in conv_cumod RbtoQ: ",i)',istat
 
     istat = cusparseCreateDnVec(dnVecDescr_Q,ntsx3,Q,CUDA_R_64F)
-    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Q in conv_cumod: ",i)',istat
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Q in conv_cumod RbtoQ: ",i)',istat
 
     istat = cusparseSpMV_buffersize(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp, &
       spMatDescr_Bbar,dnVecDescr_Rb,0._wp,dnVecDescr_Q,CUDA_R_64F,CUSPARSE_CSRMV_ALG1,bsize)
-    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV_buffersize Error in conv_cumod: ",i)',istat
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV_buffersize Error in conv_cumod RbtoQ: ",i)',istat
     if (bsize > 0) allocate(buffer(bsize))
 
     istat = cusparseSpMV(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp, &
       spMatDescr_Bbar,dnVecDescr_Rb,0._wp,dnVecDescr_Q,CUDA_R_64F,CUSPARSE_CSRMV_ALG1,buffer)
-    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV Error in conv_cumod: ",i)',istat
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV Error in conv_cumod RbtoQ: ",i)',istat
     if (bsize > 0) deallocate(buffer)
 #else
     istat = cusparseDcsrmv(h_Bbar,CUSPARSE_OPERATION_NON_TRANSPOSE,ntsx3,ntbx3,nnz_Bbar,&
       1._wp,descr_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,Rb,0._wp,Q)
-    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod: ",i)',istat
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod RbtoQ: ",i)',istat
 #endif
 
 #ifdef Debuge_sequence
@@ -377,21 +376,32 @@ contains
     real(wp),device,intent(in)    :: R(:)
     real(wp),device,intent(inout) :: Q(:)
     integer :: istat
+#if CUDA_VERSION >= 11000
+    type(cusparseDnVecDescr) :: dnVecDescr_R,dnVecDescr_Q
+    integer(8) :: bsize
+    integer(1), device, allocatable :: buffer(:)
+#endif
+#if CUDA_VERSION >= 11000
+    istat = cusparseCreateDnVec(dnVecDescr_R,ntbx3,R,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for R in conv_cumod QtoR: ",i)',istat
 
+    istat = cusparseCreateDnVec(dnVecDescr_Q,ntsx3,Q,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Q in conv_cumod QtoR: ",i)',istat
+
+    istat = cusparseSpMV_buffersize(h_B,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp, &
+      spMatDescr_B,dnVecDescr_Q,0._wp,dnVecDescr_R,CUDA_R_64F,CUSPARSE_CSRMV_ALG1,bsize)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV_buffersize Error in conv_cumod QtoR: ",i)',istat
+    if (bsize > 0) allocate(buffer(bsize))
+
+    istat = cusparseSpMV(h_B,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp, &
+      spMatDescr_B,dnVecDescr_Q,0._wp,dnVecDescr_R,CUDA_R_64F,CUSPARSE_CSRMV_ALG1,buffer)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV Error in conv_cumod QtoR: ",i)',istat
+    if (bsize > 0) deallocate(buffer)
+#else
     istat = cusparseDcsrmv(h_B,CUSPARSE_OPERATION_NON_TRANSPOSE,ntbx3,ntsx3,nnz_B,&
                            1._wp,descr_B,B_Val_d,B_RowPtr_d,B_ColInd_d,Q,0._wp,R)
-
-	!NEW_VErsion
-    !cusparseStatus_t
-    !cusparseSpMV_bufferSize(h_B,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp,descr_B,&
-    !                        Q,0._wp,R,CUDA_R_64F,CUSPARSE_MV_ALG_DEFA,externalBuffer)
-    !! or CUSPARSE_CSRMV_ALG1
-
-    !istat=cusparseSpMV(h_B,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp,descr_B,&
-    !                   Q,0._wp,R,CUDA_R_64F,CUSPARSE_MV_ALG_DEFA,externalBuffer)
-	!! or CUSPARSE_CSRMV_ALG1
-
-	if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod RtoQ: ",i)',istat
+	if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod QtoR: ",i)',istat
+#endif
 
   end subroutine QtoR
 
