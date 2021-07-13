@@ -151,9 +151,9 @@ ef: do
 !            end if
 !          end do
 !        end do
-		!    | 0  1  0 |
-        !  k=| 0  0  0 |
-        !    | 0  0  0 |
+!       !     | 0  1  0 |
+        !   k=\ 0  0  0 \
+        !     | 0  0  0 |
         print*, 'ntotbeadx3=', ntotbeadx3
         maxnz=ntotbeadx3/3
         print*, 'maxnz=', maxnz
@@ -166,7 +166,7 @@ ef: do
 !          do ibx3=1, nbeadx3
           do ibx3=1, ntotbeadx3
             if (mod(ibx3,3) == 1) then ! Only first row of 3x3 matrix k matters.
-              print*, "ibx3=" ,ibx3
+              !print*, "ibx3=" ,ibx3
               this%K_cols(ibx3/3+1)=ibx3+1
               this%K_vals(ibx3/3+1)=1._wp
               this%K_rowIdx(ibx3+1)=this%K_rowIdx(ibx3)+1
