@@ -67,7 +67,6 @@ module hi_mod
   real(wp) :: HI_M,Mstart,Minc
   integer,protected :: ncols,upfactr,p_PME,p_PMEto3
   integer :: mBlLan,mubBlLan
-  ! For some complilers the long doesnt work well
   integer(long) :: maxNb_list_D
   character(len=10),protected :: DecompMeth,HITens
   character(len=10),protected :: HIcalc_mode,InterpMethod
@@ -204,8 +203,10 @@ contains
     real(wp),intent(in) :: bs(3)
     integer :: u1,i,j,ios,ntokens,ierr,il,stat
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
-
+    character(len=100) :: tokens(50)
+#ifdef Debuge_sequence
+	write(*,*) "module:hi_mod:init_hi"
+#endif
     ! default values:
     hstar=0._wp
     HITens='RPY'
@@ -214,7 +215,7 @@ contains
     rc_D=20._wp;skin_D=0.2_wp
     InterpMethod='BSpline';p_PME=4
     K_mesh=65;kmeshset=.false.
-    maxNb_list_D=5000000000_long !max(5000000000,ntotbead**2)
+    maxNb_list_D=50000000 !max(5000000000,ntotbead**2)
     DecompMeth='Cholesky'
     ncols=1
     mBlLan=3;mubBlLan=15;mset=.false.
@@ -246,10 +247,12 @@ ef: do
               call value(tokens(j+1),hstar,ios)
             case ('HITens')
               HITens=trim(adjustl(tokens(j+1)))
-            case ('HIcalc-mode')
-              HIcalc_mode=trim(adjustl(tokens(j+1)))
+            case ('DecompMeth')
+              DecompMeth=trim(adjustl(tokens(j+1)))
             case ('Decomp-method')
               DecompMeth=trim(adjustl(tokens(j+1)))
+            case ('HIcalc-mode')
+              HIcalc_mode=trim(adjustl(tokens(j+1)))
             case ('Interp-method')
               InterpMethod=trim(adjustl(tokens(j+1)))
               call value(tokens(j+2),p_PME,ios)
@@ -298,19 +301,6 @@ ef: do
       HIcalc_mode='Ewald'
       DecompMeth='Cholesky'
     end if
-
-#if USE_GPU
-    if (HIcalc_mode=='Ewald') then
-      print *,'Error!!: GPU code has speedup impact only for PME HI calculation method. Please either use PME as your HIcalc-mode or use CPU if you intend to use Ewald method.'
-      stop
-    endif
-#endif
-
-    if (DecompMeth=='Cholesky') then
-      print *,'Error!!: PME method does not work with Cholesky technique. Please either use Lanczos as your Decomp-method or use Ewald with Cholesky.'
-      stop
-    endif
-
 
     PIx2=PI*2
     sqrtPI=sqrt(PI)
@@ -377,14 +367,17 @@ ef: do
 
   end subroutine init_hi
 
-  subroutine update_lst(Rb,Rbtr,itime,itrst,nchain,nbead,nbeadx3,ntotbead,bs,bo,add_cmb,nchain_cmb,nseg_cmb)
+  subroutine update_lst(Rb,Rbtrx,itime,itrst,nchain,nbead,nbeadx3,ntotbead,bs,bo,add_cmb,nchain_cmb,nseg_cmb)
 
-    real(wp),intent(in) :: Rb(:),Rbtr(:),bs(3),bo(3)
-    integer,intent(in) :: itime,itrst,nchain,nbead,nbeadx3,ntotbead
-    logical,intent(in) :: add_cmb
-    integer,intent(in) :: nchain_cmb,nseg_cmb
+    real(wp),intent(in) :: Rb(:),bs(3),bo(3)
+    integer, intent(in) :: itime,itrst,nchain,nbead,nbeadx3,ntotbead
+    logical, intent(in) :: add_cmb
+    integer, intent(in) :: nchain_cmb,nseg_cmb
+    real(wp) :: Rbtrx(:) !,Rbtry(:)
     logical :: update
-
+#ifdef Debuge_sequence
+	write(*,*) "module:hi_mod:update_lst"
+#endif
     if (itime == itrst+1) then
       update=.true.
     else
@@ -394,22 +387,22 @@ ef: do
       dispmax=2*sqrt(3*dispmax*dispmax)
       update=dispmax > (rlist_D-rc_D)
     end if
-
+    ! print*,'update',update
     if (update) then
       ! Save positions for next evaluations:
       Rb0=Rb
-      call cnstrlst_D(Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo,add_cmb,nchain_cmb,nseg_cmb)
+      call cnstrlst_D(Rb,Rbtrx,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo,add_cmb,nchain_cmb,nseg_cmb)
     end if
 
   end subroutine update_lst
 
-  subroutine cnstrlst_D(Rb,Rbtr,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo,add_cmb,nchain_cmb,nseg_cmb)
+  subroutine cnstrlst_D(Rb,Rbtrx,itime,nchain,nbead,nbeadx3,ntotbead,bs,bo,add_cmb,nchain_cmb,nseg_cmb)
 
     use :: arry_mod, only: print_vector,ResizeArray
     use :: flow_mod, only: FlowType
     use :: trsfm_mod, only: delrx_L
 
-    real(wp),intent(in) :: Rb(:),Rbtr(:),bs(3),bo(3)
+    real(wp),intent(in) :: Rb(:),Rbtrx(:),bs(3),bo(3) !,Rbtry(:)
     integer,intent(in) :: itime,nchain,nbead,nbeadx3,ntotbead
     logical,intent(in) :: add_cmb
     integer,intent(in) :: nchain_cmb,nseg_cmb
@@ -421,7 +414,9 @@ ef: do
     integer,pointer :: neigcell_indx,neigcell_indy,neigcell_indz
     real(wp) :: rlist_Dto2,rijmagto2
     integer,parameter :: EMPTY=-1
-
+#ifdef Debuge_sequence
+	write(*,*) "module:hi_mod:cnstrlst_D"
+#endif
     !-----------------------------
     ! Construction of linked-list:
     !-----------------------------
@@ -443,12 +438,18 @@ ef: do
           case ('Equil')
             cell_ind(1:3)=(rbtmp(1:3)-bo(1:3))/CellSize_D(1:3)
           case ('PSF')
-            cell_ind(1)=(Rbtr(iglobbead)-bo(1))/CellSize_D(1)
+            cell_ind(1)=(Rbtrx(iglobbead)-bo(1))/CellSize_D(1)
             cell_ind(2:3)=(rbtmp(2:3)-bo(2:3))/CellSize_D(2:3)
+          case ('PEF')
+            print*, 'look at hi_mod'
+            !cell_ind(1)=(Rbtrx(iglobbead)-bo(1))/CellSize_D(1)
+            !cell_ind(2)=(Rbtry(iglobbead)-bo(2))/CellSize_D(2)
+            !cell_ind(3)=(rbtmp(3)-bo(3))/CellSize_D(3)
           end select
           icell=cell_ind(1)*ncells_D(2)*ncells_D(3)+&
             cell_ind(2)*ncells_D(3)+cell_ind(3)
           ! Link to the previous occupant to EMPTY if you are the first
+		  ! write (*,*) "debug:cnstrlst_D:head_D(icell)", icell
           LkdLst_D(iglobbead)=head_D(icell)
           ! The previous one goes to header
           head_D(icell)=iglobbead
@@ -466,12 +467,18 @@ ef: do
           case ('Equil')
             cell_ind(1:3)=(rbtmp(1:3)-bo(1:3))/CellSize_D(1:3)
           case ('PSF')
-            cell_ind(1)=(Rbtr(iglobbead)-bo(1))/CellSize_D(1)
+            cell_ind(1)=(Rbtrx(iglobbead)-bo(1))/CellSize_D(1)
             cell_ind(2:3)=(rbtmp(2:3)-bo(2:3))/CellSize_D(2:3)
+          case ('PEF')
+            print*, 'look at hi_mod'
+            !cell_ind(1)=(Rbtrx(iglobbead)-bo(1))/CellSize_D(1)
+            !cell_ind(2)=(Rbtry(iglobbead)-bo(2))/CellSize_D(2)
+            !cell_ind(3)=(rbtmp(3)-bo(3))/CellSize_D(3)
         end select
         icell=cell_ind(1)*ncells_D(2)*ncells_D(3)+&
               cell_ind(2)*ncells_D(3)+cell_ind(3)
         ! Link to the previous occupant to EMPTY if you are the first
+		!write (*,*) "debug:cnstrlst_D:head_D(icell):lin", icell
         LkdLst_D(iglobbead)=head_D(icell)
         ! The previous one goes to header
         head_D(icell)=iglobbead
@@ -495,8 +502,13 @@ ef: do
         case ('Equil')
           cell_ind(1:3)=(rbi(1:3)-bo(1:3))/CellSize_D(1:3)
         case ('PSF')
-          cell_ind(1)=(Rbtr(iglobbead)-bo(1))/CellSize_D(1)
+          cell_ind(1)=(Rbtrx(iglobbead)-bo(1))/CellSize_D(1)
           cell_ind(2:3)=(rbi(2:3)-bo(2:3))/CellSize_D(2:3)
+        case ('PEF')
+          print*, 'look at hi_mod'
+          !cell_ind(1)=(Rbtrx(iglobbead)-bo(1))/CellSize_D(1)
+          !cell_ind(2)=(Rbtry(iglobbead)-bo(2))/CellSize_D(2)
+          !cell_ind(3)=(rbi(3)-bo(3))/CellSize_D(3)
       end select
       ! Scan the neighbouring cells:
         ncix: do neigcell_indx=cell_ind(1)-1, cell_ind(1)+1
@@ -534,9 +546,18 @@ ef: do
                            floor(real(neigcell_ind(2))/ncells_D(2))*delrx_L)
                     rij(2:3)=rbi(2:3)-(rbj(2:3) + &
                              floor(real(neigcell_ind(2:3))/ncells_D(2:3))*bs(2:3))
+                  !case ('PEF') ???? !MB
+                  !   rij(1)=rbi(1)-(rbj(1) + &
+                  !          floor(real(neigcell_ind(1))/ncells_D(1))*bs(1) + &
+                  !          floor(real(neigcell_ind(2))/ncells_D(2))*delrx_L)
+                  !  rij(2)=rbi(2)-(rbj(2) + &
+                  !        floor(real(neigcell_ind(1))/ncells_D(1))*bs(2) + &
+                  !        floor(real(neigcell_ind(2))/ncells_D(2))*delry_L)
+                   !rij(3)=rbi(3)-(rbj(2:3) + &
+                  !                    floor(real(neigcell_ind(3))/ncells_D(3))*bs(3))
                 end select
                 rijmagto2=dot_product(rij,rij)
-
+                ! print*,'i,j,r',iglobbead,jglobbead,rijmagto2
                 if (rijmagto2 <= rlist_Dto2) then
                   nlist=nlist+1
                   if (nlist == maxNb_list_D) then
@@ -573,7 +594,9 @@ ef: do
 
     integer,intent(in) :: myrank
     real(wp),intent(in) :: bs(3)
-
+#ifdef Debuge_sequence
+	write(*,*) "module:hi_mod:del_hi"
+#endif
     deallocate(dw_bl,dw_bltmp)
     if (HIcalc_mode == 'Ewald') then
       if (hstar /= 0._wp) deallocate(Diff_tens)
@@ -602,6 +625,7 @@ ef: do
         stop
       end if
     end if
+    write(*,*) DecompMeth
     if (DecompMeth == 'Lanczos') then
       deallocate(aBlLan,WBlLan,VBlLan,Ybar,VcntBlLan)
     end if
@@ -629,7 +653,9 @@ ef: do
     integer,intent(in) :: myrank
     real(wp),intent(in) :: BoxDim(3)
     integer :: kiki
-
+#ifdef Debuge_sequence
+	write(*,*) "module:hi_mod:setHIPar"
+#endif
     HI_M=Mstart ! assumtion: exp(-M^2) << 1
     ! For Rotne-Prager-Yamakawa Tensor; ewald_Beenakar_Zhou
     HI_a=sqrtPI*hstar
@@ -727,7 +753,9 @@ ef: do
     integer,intent(in) :: ntotbead,myrank
     real(wp),intent(in) :: BoxDim(3)
     integer :: kiki
-
+#ifdef Debuge_sequence
+	write(*,*) "module:hi_mod:updateHIpar"
+#endif
     HI_M=HI_M+Minc
 !   These parameter will also change:
     HI_alpha=HI_M/rc_D ! From jain et al.
@@ -794,7 +822,9 @@ ef: do
     implicit none
     real(wp) :: BoxDim(3)
     integer :: ntotbead,kiki,myrank
-
+#ifdef Debuge_sequence
+	write(*,*) "module:hi_mod:restartHIpar"
+#endif
     HI_M=Mstart
 !   These parameter will also change:
     HI_alpha=HI_M/rc_D ! From jain et al.
@@ -854,7 +884,9 @@ ef: do
 
     integer :: i,k,ibead,ntotbead,myrank
     logical,optional,intent(in) :: reset
-
+#ifdef Debuge_sequence
+	write(*,*) "module:hi_mod:setupPME"
+#endif
     p_PMEto3=p_PME*p_PME*p_PME
     if (.not.allocated(P_vals)) allocate(P_vals(ntotbead*p_PMEto3))
     if (.not.allocated(P_cols)) allocate(P_cols(ntotbead*p_PMEto3))
@@ -1002,7 +1034,9 @@ ef: do
     integer :: ktot,kix,kiy,kiz,kisqmax,kiymin,kizmin,mivecx,mivecy,mivecz
     integer :: mpivecx,mpivecy,mpivecz,mtot,kiydev,kikix,kiyy,kikixy,ierr
     real(wp) :: kvec(3),k,kto2,mpvec(3)
-
+#ifdef Debuge_sequence
+	write(*,*) "module:hi_mod:setupKSPACE"
+#endif
     if (HIcalc_mode == 'Ewald') then
       if (present(reset)) then
         if (reset) then
@@ -1230,7 +1264,9 @@ ef: do
 
     integer :: ktot,kix,kiy,kiz,kiydev,kikix,kiyy,kikixy,kiymin,kizmin
     real(wp) :: BoxDim(3),kvec(3),kto2
-
+#ifdef Debuge_sequence
+	write(*,*) "module:hi_mod:strupdateKSPACE"
+#endif
     if (HIcalc_mode == 'Ewald') then
 
       ! Unequal box length

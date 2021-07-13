@@ -51,9 +51,10 @@ module conv_cumod
   contains
 
     procedure,pass(this) :: init => init_conv_t
-    procedure,pass(this) :: RbtoRbc
-    procedure,pass(this) :: RbctoRb
-    procedure,pass(this) :: RbtoQ
+    !procedure,pass(this) :: RbtoRbc
+    !procedure,pass(this) :: RbctoRb
+    !procedure,pass(this) :: RbtoQ
+    !procedure,pass(this) :: QtoR_d
 
   end type conv_cu_t
 
@@ -96,7 +97,7 @@ contains
   !> Initialization of conversion module
   subroutine init_conv_d(ntsx3,ntbx3)
 
-    use :: conv_mod, only: B_vals,B_cols,B_rowInd,Bbar_vals,Bbar_cols,Bbar_rowInd,maxnz_B,maxnz_Bbar
+    use :: conv_mod, only: B_vals,B_cols,B_rowInd, Bbar_vals,Bbar_cols,Bbar_rowInd, maxnz_B,maxnz_Bbar
     use :: cusparse_wrap
 
     integer,intent(in) :: ntsx3,ntbx3
@@ -120,10 +121,11 @@ contains
     allocate(Bbar_Val_tr_d(nnz_Bbar))
     allocate(Bbar_RowInd_d(nnz_Bbar))
     allocate(Bbar_ColPtr_d(ntbx3+1))
-
+    !B
     B_Val_d=B_vals
     B_ColInd_d=B_cols
     B_RowPtr_d=B_rowInd
+    !Bbar
     Bbar_Val_d=Bbar_vals
     Bbar_ColInd_d=Bbar_cols
     Bbar_RowPtr_d=Bbar_rowInd
@@ -134,6 +136,7 @@ contains
     istat = cusparseSetMatType(descr_B,CUSPARSE_MATRIX_TYPE_GENERAL)
     istat = cusparseSetMatIndexBase(descr_B,CUSPARSE_INDEX_BASE_ONE)
 #if CUDA_VERSION >= 11000
+     !This function initializes the sparse matrix descriptor spMatDescr in the CSR format
     istat = cusparseCreateCsr(spMatDescr_B,ntbx3,ntsx3,nnz_B,B_RowPtr_d,B_ColInd_d,B_Val_d,CUSPARSE_INDEX_32I,&
       CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ONE,CUDA_R_64F)
     if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateCsr Error for B in init_conv: ",i)',istat
@@ -142,12 +145,14 @@ contains
     ! Creating the descriptor for the sparse matrix Bbar
     istat = cusparseCreate(h_Bbar)
     istat = cusparseCreateMatDescr(descr_Bbar)
+    print'(" cusparseCreateCsr Error for Bbar in init_conv: ",i)',istat
     istat = cusparseSetMatType(descr_Bbar,CUSPARSE_MATRIX_TYPE_GENERAL)
     istat = cusparseSetMatIndexBase(descr_Bbar,CUSPARSE_INDEX_BASE_ONE)
 #if CUDA_VERSION >= 11000
+      !This function initializes the sparse matrix descriptor spMatDescr in the CSR format
     istat = cusparseCreateCsr(spMatDescr_Bbar,ntsx3,ntbx3,nnz_Bbar,B_RowPtr_d,B_ColInd_d,B_Val_d,CUSPARSE_INDEX_32I,&
       CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ONE,CUDA_R_64F)
-    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateCsr Error for B in init_conv: ",i)',istat
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateCsr Error for Bbar in init_conv: ",i)',istat
 #endif
 
     ! Specifying the buffer size for csr2csc for Bbar and also performing the conversion
@@ -156,24 +161,26 @@ contains
     istat = cusparseCsr2cscEx2_buffersize(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
       Bbar_Val_tr_d,Bbar_ColPtr_d,Bbar_RowInd_d,CUDA_R_64F,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE,&
       CUSPARSE_CSR2CSC_ALG2,bsize)
-    print'(" cusparseCsr2cscEx2 buffersize required: ",i)',bsize
+    print'(" cusparseCsr2cscEx2 buffersize required Bbar: ",i)',bsize
     if (bsize > 0) allocate(buffer(bsize))
 
     ! Performing the csr2csc conversion
     istat = cusparseCsr2cscEx2(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
       Bbar_Val_tr_d,Bbar_ColPtr_d,Bbar_RowInd_d,CUDA_R_64F,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE,&
       CUSPARSE_CSR2CSC_ALG2,buffer)
-    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCsr2cscEx2 Error in init_conv: ",i)',istat
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCsr2cscEx2 Error Bbar in init_conv: ",i)',istat
 
     ! deallocate the buffer
     if (bsize > 0) deallocate(buffer)
 #else
     istat = cusparseDcsr2csc(h_Bbar,ntsx3,ntbx3,nnz_Bbar,Bbar_Val_d,Bbar_RowPtr_d,Bbar_ColInd_d,&
       Bbar_Val_tr_d,Bbar_RowInd_d,Bbar_ColPtr_d,CUSPARSE_ACTION_NUMERIC,CUSPARSE_INDEX_BASE_ONE)
-    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csr2csc Error in init_conv: ",i)',istat
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csr2csc Error Bbar in init_conv: ",i)',istat
 #endif
 
   end subroutine init_conv_d
+
+
 
   !> Constructor for conv type
   subroutine init_conv_t(this)
@@ -211,9 +218,9 @@ contains
   !! \param Rby y-coordinate of the position vector
   !! \param Rbz z-coordinate of the position vector
   !! \param Rb the position vector of the beads for all chains
-  subroutine RbctoRb(this,Rbx,Rby,Rbz,Rb,ntb)
+  subroutine RbctoRb_d(Rbx,Rby,Rbz,Rb,ntb)
 
-    class(conv_cu_t),intent(inout) :: this
+    !class(conv_cu_t),intent(inout) :: this
     integer,intent(in) :: ntb
     real(wp),device,intent(in) :: Rbx(:),Rby(:),Rbz(:)
     real(wp),device,intent(inout) :: Rb(:)
@@ -227,16 +234,16 @@ contains
       Rb(os+3)=Rbz(igb)
     end do
 
-  end subroutine RbctoRb
+  end subroutine RbctoRb_d
 
   !> Converting Rb to (Rx,Ry,Rz)
   !! \param Rb the position vector of the beads for all chains
   !! \param Rbx x-coordinate of the position vector
   !! \param Rby y-coordinate of the position vector
   !! \param Rbz z-coordinate of the position vector
-  subroutine RbtoRbc(this,Rb,Rbx,Rby,Rbz,ntb)
+  subroutine RbtoRbc_d(Rb,Rbx,Rby,Rbz,ntb)
 
-    class(conv_cu_t),intent(inout) :: this
+    !class(conv_cu_t),intent(inout) :: this
     integer,intent(in) :: ntb
     real(wp),device,intent(in) :: Rb(:)
     real(wp),device,intent(inout) :: Rbx(:),Rby(:),Rbz(:)
@@ -250,14 +257,14 @@ contains
       Rbz(igb)=Rb(os+3)
     end do
 
-  end subroutine RbtoRbc
+  end subroutine RbtoRbc_d
 
   !> Converting Rb to Q using sparse multiplication
   !! \param Q connectivity vectors
   !! \param R bead to center of mass vectors
-  subroutine RbtoQ(this,Rb,Q,ntsx3,ntbx3,bs)
+  subroutine RbtoQ_d(Rb,Q,ntsx3,ntbx3,bs)
 
-    class(conv_cu_t),intent(inout) :: this
+    !class(conv_cu_t),intent(inout) :: this
     integer,intent(in) :: ntsx3,ntbx3
     real(wp),device,intent(in) :: Rb(:)
     real(wp),device,intent(inout) :: Q(:)
@@ -324,7 +331,50 @@ contains
 
     enddo
 
-  end subroutine RbtoQ
+  end subroutine RbtoQ_d
+
+  !> Converting Q to R using sparse multiplication
+  !! \param Q connectivity vectors
+  !! \param R bead to center of mass vectors
+  subroutine QtoR_d(R,Q,ntsx3,ntbx3)
+
+    !class(conv_cu_t),intent(inout) :: this
+    integer,intent(in) :: ntsx3,ntbx3
+    real(wp),device,intent(out)  :: R(:)
+    real(wp),device,intent(in) :: Q(:)
+
+    integer :: istat
+#if CUDA_VERSION >= 11000
+    type(cusparseDnVecDescr) :: dnVecDescr_R,dnVecDescr_Q
+    integer(8) :: bsize
+    integer(1), device, allocatable :: buffer(:)
+#endif
+
+    print*, 'QtoR_d'
+
+#if CUDA_VERSION >= 11000
+    istat = cusparseCreateDnVec(dnVecDescr_R,ntbx3,R,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for R in conv_cumod QtoR: ",i)',istat
+
+    istat = cusparseCreateDnVec(dnVecDescr_Q,ntsx3,Q,CUDA_R_64F)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseCreateDnVec Error for Q in conv_cumod QtoR: ",i)',istat
+
+    istat = cusparseSpMV_buffersize(h_B,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp, &
+      spMatDescr_B,dnVecDescr_Q,0._wp,dnVecDescr_R,CUDA_R_64F,CUSPARSE_CSRMV_ALG1,bsize)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV_buffersize Error in conv_cumod QtoR: ",i)',istat
+    if (bsize > 0) allocate(buffer(bsize))
+
+    istat = cusparseSpMV(h_B,CUSPARSE_OPERATION_NON_TRANSPOSE,1._wp, &
+      spMatDescr_B,dnVecDescr_Q,0._wp,dnVecDescr_R,CUDA_R_64F,CUSPARSE_CSRMV_ALG1,buffer)
+    if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" cusparseSpMV Error in conv_cumod QtoR: ",i)',istat
+    if (bsize > 0) deallocate(buffer)
+#else
+    istat = cusparseDcsrmv(h_B,CUSPARSE_OPERATION_NON_TRANSPOSE,ntbx3,ntsx3,nnz_B,&
+                           1._wp,descr_B,B_Val_d,B_RowPtr_d,B_ColInd_d,Q,0._wp,R)
+	if (istat /= CUSPARSE_STATUS_SUCCESS) print'(" csrmv Error in conv_cumod QtoR: ",i)',istat
+#endif
+
+  end subroutine QtoR_d
 
 
 end module conv_cumod

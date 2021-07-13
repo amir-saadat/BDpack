@@ -50,7 +50,7 @@ module evverlet_mod
   type evverlet
 
     private
-    !> The number of the cells per box side
+    !> The number of the cells per side
     integer :: ncps(3)
     !> Total number of cells in the cubic box
     integer :: nct
@@ -126,17 +126,74 @@ contains
     use :: strg_mod
     use,intrinsic :: iso_fortran_env
     use :: cmn_io_mod, only: read_input
-    use :: verlet_mod, only: shifts,j_clx,j_cly,j_clz,j_cll
+	use :: verlet_mod, only: shifts,j_clx,j_cly,j_clz,j_cll
 
     integer,intent(in) :: id
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_mod:init_evverlet"
+#endif
     call read_input('cll-dns-ev',0,cll_dns_ev,0.1_wp)
     select case (FlowType)
 
       case ('Equil','PSF')
         nnc=13
+!         allocate(shifts(nnc,3))
+!         shifts(1,:) =[ 0, 0,-1]
+!         shifts(2,:) =[ 1, 0,-1]
+!         shifts(3,:) =[ 1, 0, 0]
+!         shifts(4,:) =[ 1, 0, 1]
+!         shifts(5,:) =[-1, 1,-1]
+!         shifts(6,:) =[ 0, 1,-1]
+!         shifts(7,:) =[ 1, 1,-1]
+!         shifts(8,:) =[-1, 1, 0]
+!         shifts(9,:) =[ 0, 1, 0]
+!         shifts(10,:)=[ 1, 1, 0]
+!         shifts(11,:)=[-1, 1, 1]
+!         shifts(12,:)=[ 0, 1, 1]
+!         shifts(13,:)=[ 1, 1, 1]
+
       case ('PEF')
         nnc=31
+!         allocate(shifts(nnc,3))
+!         shifts(1,:) =[ 0, 0,-1]
+!         shifts(2,:) =[ 1, 0,-1]
+!         shifts(3,:) =[ 2, 0,-1]
+!         shifts(4,:) =[ 3, 0,-1]
+!         shifts(5,:) =[ 1, 0, 0]
+!         shifts(6,:) =[ 2, 0, 0]
+!         shifts(7,:) =[ 3, 0, 0]
+!         shifts(8,:) =[ 1, 0, 1]
+!         shifts(9,:) =[ 2, 0, 1]
+!         shifts(10,:)=[ 3, 0, 1]
+!         shifts(11,:)=[-3, 1,-1]
+!         shifts(12,:)=[-2, 1,-1]
+!         shifts(13,:)=[-1, 1,-1]
+!         shifts(14,:)=[ 0, 1,-1]
+!         shifts(15,:)=[ 1, 1,-1]
+!         shifts(16,:)=[ 2, 1,-1]
+!         shifts(17,:)=[ 3, 1,-1]
+!         shifts(18,:)=[-3, 1, 0]
+!         shifts(19,:)=[-2, 1, 0]
+!         shifts(20,:)=[-1, 1, 0]
+!         shifts(21,:)=[ 0, 1, 0]
+!         shifts(22,:)=[ 1, 1, 0]
+!         shifts(23,:)=[ 2, 1, 0]
+!         shifts(24,:)=[ 3, 1, 0]
+!         shifts(25,:)=[-3, 1, 1]
+!         shifts(26,:)=[-2, 1, 1]
+!         shifts(27,:)=[-1, 1, 1]
+!         shifts(28,:)=[ 0, 1, 1]
+!         shifts(29,:)=[ 1, 1, 1]
+!         shifts(30,:)=[ 2, 1, 1]
+!         shifts(31,:)=[ 3, 1, 1]
+! !        this%ncps(1:2)=bs(1:2)/(sqrt(10._wp)*rc_F)
+! !        this%ncps(3)=bs(3)/rc_F
     end select
+
+!     allocate(j_clx(nnc))
+!     allocate(j_cly(nnc))
+!     allocate(j_clz(nnc))
+!     allocate(j_cll(nnc))
 
   end subroutine init_evverlet
 
@@ -148,8 +205,11 @@ contains
     class(evverlet),intent(inout) :: this
     real(wp),intent(in) :: rc,bs(3)
     integer,intent(in) :: ntotbead
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_mod:init_evverlet_t"
+#endif
     this%ncps=0
+    write(*,*) "init_cll"
     call this%init_cll(rc,bs,ntotbead)
 
   end subroutine init_verlet_t
@@ -179,8 +239,9 @@ contains
     integer,intent(in) :: ntotbead
     integer :: clx,cly,clz,cll,czNxNy,cyNx,ierr
     real(wp) :: ncpsl(3)
-
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_mod:init_clllst"
+#endif
     ncpsl=this%ncps
 
     select case (FlowType)
@@ -240,37 +301,38 @@ contains
     if (allocated(this%Rijy)) deallocate(this%Rijy)
     if (allocated(this%Rijz)) deallocate(this%Rijz)
     if (allocated(this%Rijsq)) deallocate(this%Rijsq)
+
     if (FlowType == 'PEF') then
       if (allocated(this%Rijytmp)) deallocate(this%Rijytmp)
     end if
-
+write(*,*) "1-1"
     ! We check the memory allocation result, as num_int might be a big one
     allocate(this%iidx(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for iidx in evverlet_mod"
-
+write(*,*) "1-2"
     allocate(this%jidx(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for jidx in evverlet_mod"
-
+write(*,*) "1-3"
     allocate(this%inside(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for inside in evverlet_mod"
-
+write(*,*) "1-3"
     allocate(this%Rijx(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for Rijx in evverlet_mod"
-
+write(*,*) "1-4"
     allocate(this%Rijy(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for Rijy in evverlet_mod"
-
+write(*,*) "1-5"
     allocate(this%Rijz(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for Rijz in evverlet_mod"
-
+write(*,*) "1-6"
     allocate(this%Rijsq(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for Rijsq in evverlet_mod"
-
+write(*,*) "1-7"
     if (FlowType == 'PEF') then
       allocate(this%Rijytmp(this%num_int),stat=ierr)
-      if ( ierr /= 0 ) stop "Memory allocation issue for Rijytmp in evverlet_mod"
+     if ( ierr /= 0 ) stop "Memory allocation issue for Rijytmp in evverlet_mod"
     end if
-
+write(*,*) "1-8"
   end subroutine init_clllst
 
   !> Constructs the cell list
@@ -289,6 +351,9 @@ contains
     integer,intent(in) :: ntotbead,ntotbeadx3
     integer :: i,clx,cly,clz,cll,itime,j
 
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_mod:cnstr_clllst"
+#endif
     this%head=0
     this%binc=0
 
@@ -306,6 +371,8 @@ contains
       cll=clz*this%ncps(1)*this%ncps(2)+cly*this%ncps(1)+clx+1
 
       ! print*,'2',clx,cly,clz,cll
+      ! print*, cll
+	  ! print*, this%head(cll)
 
       this%head(cll)=this%head(cll)+1
 
@@ -364,7 +431,9 @@ contains
     logical,allocatable :: pair(:)
     integer :: i,j,nab,idx,cll,beadi,k,intidx
     real(wp) :: bs(3),invbs(3),rcsq
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_mod:cnstr_nablst"
+#endif
     this%iidx=0
     this%jidx=0
     allocate(beadi_tmp(this%nct))
@@ -470,7 +539,9 @@ contains
   subroutine del_verlet_t(this)
 
     type(evverlet),intent(inout) :: this
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evverlet_mod:del_verlet_t"
+#endif
   end subroutine del_verlet_t
 
   ! subroutine del_verlet()

@@ -56,7 +56,7 @@ contains
     integer :: itime,mrst
     real(wp),intent(in) :: boxsize(3)
     type(decomp) :: decompRes
-
+    !write(*,*) 'boxsize', boxsize
     ! real(wp) :: dwtest(132)
 
 

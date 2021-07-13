@@ -110,11 +110,15 @@ module io_mod
     integer :: oldu6
     !> The unit for BoxConfig.dat
     integer :: oldu7
-    !> The unit for Rb.rst.dat
+    !> The unit for Rb.rst.dat   Rb
     integer :: oldu8
     !> The unit for Rb.equil.dat or Rb.final.dat
     integer :: oldu9
-
+    
+    integer :: oldu115   !> The unit for Rb.dat  Rb
+    integer :: oldu116   !> The unit for Rb.dat  imageflag
+    integer :: oldu117   !> The unit for Rb.dat
+    integer :: oldu118   !> The unit for Rb.dat
   contains
 
     procedure,pass(this) :: init => init_conf_io
@@ -161,8 +165,10 @@ contains
     integer,intent(in) :: id,nsegx3,nbeadx3,nchain,ntotchain,ntotsegx3,ntotbeadx3,nprun
     integer :: i,j,ntokens,u1,stat,ios,il
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
-
+    character(len=100) :: tokens(50)
+#ifdef Debuge_sequence
+	write(*,*) "module:io_mod:init_io"
+#endif
     ! default values:
     DumpConf=.false.
     CoMDiff=.false.
@@ -249,9 +255,10 @@ ef: do
     integer :: stat1,stat2,stat3,stat4,stat5,stat6
     integer :: u1,u2,u3,u4,u5,u6,i,j,ios,ntokens,stat,il
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
-
-
+    character(len=100) :: tokens(50)
+#ifdef Debuge_sequence
+	write(*,*) "module:io_mod:init_conf_io"
+#endif
     ! default values:
     this%qfctr=[0.7_wp,0._wp,0._wp]
     this%qfctr_cmbbb=[0.7_wp,0._wp,0._wp]
@@ -405,6 +412,11 @@ ef: do
 
       if (this%MakeAnim) then
         open(newunit=this%oldu5,file='data/dump/Rb.dat',status='replace',position='append')
+#ifdef Debuge_sequence
+		open(newunit=this%oldu115,file='data/dump/Rbb.dat',status='replace',position='append')   !MB
+		open(newunit=this%oldu116,file='data/dump/Rbimg.dat',status='replace',position='append') !MB
+		open(newunit=this%oldu117,file='data/dump/Comim.dat',status='replace',position='append') !MB
+#endif
         open(newunit=this%oldu6,file='data/dump/CoM.dat',status='replace',position='append')
         if (FlowType /= 'Equil') &
           open(newunit=this%oldu7,file='data/dump/BoxConfig.dat',status='replace',position='append')
@@ -729,7 +741,9 @@ ef: do
 
     integer :: offsetch
 
-
+#ifdef Debuge_sequence
+	write(*,*) "module:io_mod:read_conf"
+#endif
     !   %-------------------------------------------------------%
     !   | The initial guess for Qs in case we are looking for   |
     !   | equilibrium connector vector is arbitrary.            |
@@ -1052,7 +1066,9 @@ ef: do
     integer(kind=MPI_OFFSET_KIND) :: offsetMPI
     real(wp) :: realvar
 
-
+#ifdef Debuge_sequence
+	write(*,*) "module:io_mod:read_init_conf"
+#endif
     ! rc
     if ((FlowType == 'Equil').and.CoMDiff) then
       offsetMPI=ntotchain*3*p*sizeof(realvar)*(irun-1)
@@ -1085,7 +1101,9 @@ ef: do
     integer :: intvar
     real(wp) :: realvar
 
-
+#ifdef Debuge_sequence
+	write(*,*) "module:io_mod:read_dmp_conf"
+#endif
     ! q
     offsetMPI=ntotsegx3*p*sizeof(realvar)*((irun-1)*ndmp+idmp-1)
     call MPI_File_set_view(this%fqdmphandle,offsetMPI,MPI_REAL_WP,this%q_recvsubarray,&
@@ -1288,9 +1306,15 @@ ef: do
 
 !   end subroutine write_conf
 
+!!>Writes configuration to files.
+!!> called by Box_mod:write_cnf
+!! R is this%R_tilde
+!! Rb is this%Rb_tilde
   subroutine write_conf(this,id,p,itime,ntime,irun,idmp,time,Wi,dt,nchain,nbead,&
     nsegx3,nbeadx3,ntotchain,ntotsegx3,ntotbeadx3,ndmp,lambda,MPI_REAL_WP,Q,rcm,&
-    cmif,Rb,R,add_cmb,nchain_cmb,nseg_cmb)
+    cmif,Rb,R,add_cmb,nchain_cmb,nseg_cmb,b_img)
+
+
 
     use :: flow_mod, only: FlowType
     use :: arry_mod, only: print_vector,print_matrix
@@ -1305,7 +1329,7 @@ ef: do
     integer,intent(in) :: MPI_REAL_WP
     real(wp),intent(in) :: Wi,dt,time,lambda
     real(wp),intent(in) :: Q(:),rcm(:,:)
-    integer,intent(in) :: cmif(:,:)
+    integer,intent(in) :: cmif(:,:),b_img(:,:)
     real(wp),intent(in) :: Rb(ntotbeadx3)
     real(wp),intent(in) :: R(ntotbeadx3)
     logical :: add_cmb
@@ -1314,7 +1338,9 @@ ef: do
     real(wp) :: rtpassed,realvar
     integer(kind=MPI_OFFSET_KIND) :: offsetMPI
 
-
+#ifdef Debuge_sequence
+	write(*,*) "module:io_mod:write_conf"
+#endif
     ! For dumping the configuration of the system:
     if (DumpConf) then
       ! q
@@ -1459,17 +1485,32 @@ ef: do
             ! write(this%oldu5,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3)
             write(this%oldu5,'(3(f18.7,1x))') R(offsetch+offsetb+1:offsetch+offsetb+3)+&
                                               rcm(ichain,1:3)
+#ifdef Debuge_sequence
+			  write(this%oldu115,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3)+&
+              rcm(nchain+ichain,1:3)
+			  write(this%oldu116,*) b_img((ichain-1)*nbead+ibead,1:3)	  
+#endif
           end do ! ibead
         end do ! ichain
         if (add_cmb) then
           do ichain=1, nchain_cmb
             write(this%oldu6,'(3(f18.7,1x))') rcm(nchain+ichain,:)
+			!MB
+#ifdef Debuge_sequence
+			write(this%oldu117,*) cmif(nchain+ichain,:)
+#endif			
             offsetch=nchain*nbeadx3+(ichain-1)*(nseg_cmb+1)*3
             do ibead=1, nseg_cmb+1
               offsetb=(ibead-1)*3
               ! write(this%oldu5,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3)
               write(this%oldu5,'(3(f18.7,1x))') R(offsetch+offsetb+1:offsetch+offsetb+3)+&
               rcm(nchain+ichain,1:3)
+			  !MB
+#ifdef Debuge_sequence
+			  write(this%oldu115,'(3(f18.7,1x))') Rb(offsetch+offsetb+1:offsetch+offsetb+3)+&
+              rcm(nchain+ichain,1:3)
+			  write(this%oldu116,*) b_img(nchain*nbead+(ichain-1)*(nseg_cmb+1)+ibead,1:3)	  
+#endif
             end do ! ibead
           end do ! ichain
         endif
@@ -1491,7 +1532,9 @@ ef: do
 
     type(conf_io) :: this
     integer :: ierr
-
+#ifdef Debuge_sequence
+	write(*,*) "module:io_mod:del_io"
+#endif
     close(this%oldu1);close(this%oldu2)
     close(this%oldu3);close(this%oldu4)
     close(this%oldu5);close(this%oldu6)

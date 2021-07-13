@@ -71,9 +71,10 @@ contains
     real(wp) :: r,r2,kmag,kto2,rrhat(6),invk2,t0,t1,Coeff,kkhat(6),invr2
     integer(long) :: count0,count1
     integer :: itime
-
-    nvec=0;
-
+	nvec=0;
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_mod:calcDiffTens_cpu"
+#endif
     if (HIcalc_mode == 'Ewald') then
 
       if (doTiming) call tick(count0)
@@ -330,15 +331,16 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
 
     end if ! HIcalc_mode
 
-  end subroutine calcDiffTens_cpu
-
+end subroutine calcDiffTens_cpu
 
   function M1(r,rto2,rrhat)
 
     use :: hi_mod, only: sqrtPI
 
     real(wp) :: M1(3,3),m1_1,m1_2,r,rto2,rto3,rto4,rrhat(6)
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_mod:M1"
+#endif
     rto3=rto2*r; rto4=rto2*rto2
     m1_1=(erfc(HI_alpha*r)*(M1_c1/r+M1_c2/rto3) + &
           exp(-HI_alphato2*rto2)/sqrtPI*(M1_c3*rto2-M1_c4+M1_c5*rto4-M1_c6*rto2+M1_c7+M1_c8/rto2))
@@ -360,7 +362,9 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
     real(wp),intent(inout) :: M1_1d(:)
     real(wp),intent(in) :: rrhat(:)
     real(wp) :: m1_1,m1_2,r,rto2,rto3,rto4
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_mod:M1_1d_routine"
+#endif
     rto3=rto2*r; rto4=rto2*rto2
     m1_1=(erfc(HI_alpha*r)*(M1_c1/r+M1_c2/rto3) + &
           exp(-HI_alphato2*rto2)/sqrtPI*(M1_c3*rto2-M1_c4+M1_c5*rto4-M1_c6*rto2+M1_c7+M1_c8/rto2))
@@ -379,7 +383,9 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
   function Mstar(r,rto2,rrhat)
 
     real(wp) :: Mstar(3,3),rrhat(6),mstar_1,mstar_2,r,rto2,rto3
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_mod:Mstar"
+#endif
     rto3=r*rto2
     mstar_1=(1-Mstar_c1*r-M1_c1/r-M1_c2/rto3)
     mstar_2=(Mstar_c2*r-M1_c1/r+M1_c9/rto3)
@@ -398,7 +404,9 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
     real(wp),intent(inout) :: Mstar_1d(:)
     real(wp),intent(in) :: rrhat(:)
     real(wp) :: mstar_1,mstar_2,r,rto2,rto3
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_mod:Mstar_1d_routine"
+#endif
     rto3=r*rto2
     mstar_1=(1-Mstar_c1*r-M1_c1/r-M1_c2/rto3)
     mstar_2=(Mstar_c2*r-M1_c1/r+M1_c9/rto3)
@@ -430,7 +438,9 @@ kzeb:           do kiz=kizlowr(kikixy), kiuppr(kikixy)
     real(wp) :: r,r2,rhatrhat(3,3),rrhat(6),rijx_tr,invr2
     integer,target :: nvec(3)
     integer,pointer :: n1,n2,n3
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_mod:calcDiff_real"
+#endif
     if (Dreal_sparse_mode) then
 
       invboxsize(1:3)=1/boxsize(1:3)
@@ -557,7 +567,9 @@ n3lp:         do n3=-nmax(3),nmax(3)
     integer :: iglobbead,iglob,icoor,nearestMesh(3),igrid,jgrid,kgrid
     integer :: k_ind,k1,k2,k3,elem_count,elem_counttmp,k2Kx,k3KxKy
     integer,allocatable,dimension(:,:),save :: grid
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_mod:calcDiff_recip"
+#endif
 !!$omp threadprivate (grid)
 
 !!$omp parallel default(private) copyin(grid) &
@@ -644,6 +656,7 @@ n3lp:         do n3=-nmax(3),nmax(3)
 
   end subroutine calcDiff_recip
 
+
 ! %=========================== These Routines are for the case of PME ======================%
 
   subroutine PME_cpu(F,ntotbead,boxsize,DF_tot)
@@ -655,7 +668,9 @@ n3lp:         do n3=-nmax(3),nmax(3)
     real(wp),dimension(:),intent(inout) :: DF_tot
     real(wp) :: boxsize(3)
     integer(long) :: count0,count1
-
+#ifdef Debuge_sequence
+	write(*,*) "module:diffcalc_mod:PME_cpu"
+#endif
     if (doTiming) then
       PMEcount=PMEcount+1
       call tick(count0)
@@ -717,7 +732,9 @@ n3lp:         do n3=-nmax(3),nmax(3)
       pointer(Cx_ptr,Cx_mat), (Cy_ptr,Cy_mat), (Cz_ptr,Cz_mat)
       complex(wp) :: c1,c2,c3
       integer(long) :: count2,count3
-
+#ifdef Debuge_sequence
+	  write(*,*) "module:diffcalc_mod:clacDF_recip"
+#endif
       ! Associate complex view with F_mesh for root thread.
       Cx_ptr=loc(F_mesh(0:Kcto3-1,1))
       Cy_ptr=loc(F_mesh(0:Kcto3-1,2))
@@ -904,7 +921,8 @@ n3lp:         do n3=-nmax(3),nmax(3)
       if (doTiming) et_INT=et_INT+tock(count2)
 
     end subroutine calcDF_recip
-
-  end subroutine PME_cpu
+	
+	
+ end subroutine PME_cpu
 
 end module Diffcalc_mod

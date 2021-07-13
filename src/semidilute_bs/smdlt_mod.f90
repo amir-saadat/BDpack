@@ -59,7 +59,9 @@ contains
     real(wp),allocatable :: dt(:),Wi(:),Pe(:)
     integer,allocatable :: ntime(:)
     logical :: DumpConf
-
+#ifdef Debuge_sequence
+	write(*,*) "module:smdlt_mod:smdlt_bs"
+#endif
     !----------------------------------------------
     !>>> Initialization of SDE in Semi-dilute BD:
     !----------------------------------------------
@@ -90,18 +92,24 @@ contains
     call ranils(iseed)
 
     !----------------------------------------------
-    !>>> Initialization of the modules:
+    write(*,*) '!>>> Initialization of the modules:'
     !----------------------------------------------
     call init_box(id,nprun)
+    write(*,*) '16'
     call init_tmng(id)
+    write(*,*) '17'
     call init_pp(id,nrun)
-
+    write(*,*) '18'
     ! Instantiation of the box:
     call MainBox%init(id,p,nprun,runrst)
-    !----------------------------------------------
-    !>>> Time integration of SDE:
-    !----------------------------------------------
 
+    !----------------------------------------------
+    write(*,*) '!>>> Time integration of SDE:'
+    !----------------------------------------------
+    if (tend==0) then
+	  write(*,*) "Tend is not specified"
+	  tend=1
+	end if
     ! Calculating Peclet number:
     Pe(:)=Wi(:)/lambda
     ! Calculating total number of iterations:
@@ -111,30 +119,30 @@ contains
     ! allocate(rdn(nbeadx3,ncols,nchain))
     allocate(rdn(ntotbeadx3,ncols))
 
-  ! Loop over Pe number:
+  write(*,*) '! Loop over Pe numbers:'
   do iPe=1, nWi
-    ! Loop over dt:
+    ! Loop over dts:
     do idt=1, ndt
       tgap=ceiling(tend*lambda/(ndmp*dt(idt)))
-
+    write(*,*) '19'
       if (id == 0) then
         print *
-        print '(" Time index and value between restarts: ",i,1x,f14.7)',tgap,tgap*dt
+        print '(" Time index and value between restarts: ",i,1x,f14.7)', tgap, tgap*dt(idt)
       end if
-
+    write(*,*) '20'
       ! Initializing for run averaging:
-      call data_run_init(id,ntime(idt),tgap,ndmp,nprun,nchain,ntotbeadx3)
+      call data_run_init(id,ntime(idt),tgap,ndmp,nprun,ntotchain,ntotbeadx3)
       ! Loop over run:
       do irun=runrst+1, nprun
-
+    write(*,*) '21'
         if (id == 0) then
           write (*,*)
           write (*,*) "%--------------------------------------------%"
           write (*,*) "| Start of time integration in all processes |"
           write (*,*) "%--------------------------------------------%"
-          write(*,'(7x,a)') 'Wi            dt            process run'
-          write(*,'(7x,a)') '---------------------------------------'
-          write(*,'(f14.7,1x,e10.2,1x,i6)') Wi(iPe),dt(idt),irun
+          write (*,'(7x,a)') 'Wi            dt           process run'
+          write (*,'(7x,a)') '---------------------------------------'
+          write (*,'(f14.7,1x,e10.2,1x,i6)') Wi(iPe),dt(idt),irun
           write (*,*)
         end if
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
@@ -183,12 +191,14 @@ contains
           end if
           ! Time passed based on time step and strain based on flow strength:
           time=time+dt(idt)
+
           if (FlowType /= 'Equil') then
             eps=Pe(iPe)*time
             ! The modified strain because of the periodic feature of the box:
             if (FlowType == 'PSF') then
               if (hstar /= 0._wp) call strupdateKSPACE(MainBox%size)
             elseif (FlowType == 'PEF') then
+			        print*, "PEF Not implemented"
             end if ! FlowType
           end if ! FlowType
           if ((mod(itime,ncols) == 1) .or. (ncols == 1)) then
@@ -197,8 +207,8 @@ contains
           if ((mod(itime,ceiling(tend*lambda/(100*dt(idt)))) == 0) .and. (id == 0)) then
             rtpassed=time/lambda
 
-            print '(" >>> Time steps and Time Passed: ", i, f10.5)',itime,time
-            print '(" >>> Chain-Relaxation(s) Passed: ", f10.5)',rtpassed
+            print '(" >>> Time steps and Simulation Time(steps*dt) Passed: ", i, f10.5)',itime,time
+            print '(" >>> Chain-Relaxation(s) [Simulation Time/Tou_R] Passed: ", f10.5)',rtpassed
           end if
 !print*,'itime',itime,id
           ! Constructing the random vector,dW, for the whole Box:
@@ -240,7 +250,8 @@ contains
           if ( (mod(itime,tgap) == 0) .or. (itime == ntime(idt)) ) then
 
             print *
-            print '(" >>> Dumping restart files at time: ",f14.7)',time
+            print '(" >>> Dumping restart files at time (Simulation Time(steps*dt)): ",f14.7)',time
+			print '(" >>> Dumping restart files at Chain-Relaxation(s) [Simulation Time/Tou_R]: ", f10.5)',rtpassed
 
 !          if ( ((time-time_check3) >= -1.d-10) .or. (itime == ntime(iPe,idt)) ) then
             idmp=idmp+1
@@ -293,8 +304,9 @@ contains
           ! resetting kchk
           if (irun /= nprun) kchk=0
         end do ! irun
-        if (CorFun) call CorrFcn(dt(idt),Wi(iPe),tgap,id,p,nchain,nbead,tend,&
+        if (CorFun) call CorrFcn(dt(idt),Wi(iPe),tgap,id,p,nchain,nchain_cmb,nbead,tend,&
                                  lambda,nprun,MPI_REAL_WP)
+!                        CorrFcn(dt,    Wi,    tgap,myrank,p,nchain,nchain_cmb,nbead,tend,lambda,nprun,MPI_REAL_WP)
       end if ! DumpConf
     end do ! dt loop
   end do ! Pe loop
@@ -316,8 +328,10 @@ contains
 
     integer :: j,ntokens,u1,il,stat,ios
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
-
+    character(len=100) :: tokens(50)
+#ifdef Debuge_sequence
+	write(*,*) "module:smdlt_mod:init"
+#endif
     ! default setting:
     nWi=1;Wii=0._wp;Wif=0._wp;WiSpacing='Linear'
     tend=10._wp;tss=5._wp;trst=0._wp;itrst=0
@@ -412,10 +426,32 @@ ef: do
   end subroutine init
 
   subroutine del()
-
+#ifdef Debuge_sequence
+	write(*,*) "module:smdlt_mod:del"
+#endif
     deallocate(dt,Wi,Pe,ntime)
 
   end subroutine
+
+  integer  function seedG()
+
+    real(wp) :: seedtmp
+    integer :: s,i,msec,n,time_info(8)
+    integer(long), allocatable :: seed(:)
+
+    call date_and_time(values=time_info)
+    msec=(60000*time_info(6)+1000*time_info(7)+time_info(8))  !*((myrank-83)*359) ! a random integer
+    call random_seed(size=n) ! get the number of integers used for the seed
+    ! This is because we want different order of random numbers in each call
+    allocate(seed(n))
+    do i=1,n
+      seed(i)=i*msec
+    end do
+    call random_seed(put=seed) ! give a proper seed
+    call random_number(seedtmp) ! generate a sequence of nchain pseudo
+    seedG=floor(300000000*seedtmp)
+    deallocate(seed)
+  end function seedG
 
   function seedgen(myrank)
 
@@ -445,7 +481,8 @@ ef: do
     common /ranbls/ idum,idum2,iy,iv
 
     ! Initial seeds for two random number generators
-    idum=iseed+123456789
+	!idum=iseed+123456789
+	idum = 500000000+seedG()+123456789  !MB
     idum2=idum
 
     ! Load the shuffle table (after 8 warm-ups)

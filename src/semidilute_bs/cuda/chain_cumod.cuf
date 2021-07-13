@@ -25,12 +25,12 @@
 !%------------------------------------------------------------------------%
 !--------------------------------------------------------------------
 !
-! MODULE: 
+! MODULE:
 !
 !> @author
 !> Amir Saadat, Stanford University, May 2018
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> chain module contains pointers to the configurational arrays on GPU
 !--------------------------------------------------------------------
 module chain_cumod
@@ -101,7 +101,7 @@ module chain_cumod
     real(wp),device,pointer :: chain_rcmtry
     !> The image flag of the center of mass of the chain
 !    integer :: rcm_ImFlag(3)
-  
+
     contains
 
       procedure,pass(this) :: init => init_chain
@@ -138,10 +138,7 @@ contains
     integer,device,intent(in),target :: b_img(:,:)
     integer,device,intent(in),target :: cm_img(:,:)
     integer,intent(in),optional :: nseg_cmb
-
     real(wp) :: rbead(5),rr(6)
-
-
     integer :: offsetseg,offsetbead1,offsetbead2,nbead_cmb
 
 
@@ -161,7 +158,7 @@ contains
       this%chain_Q_idx=[offsetseg+(id-1)*nseg_cmb*3+1,offsetseg+(id-1)*nseg_cmb*3+nseg_cmb*3]
       this%chain_R_idx=[offsetbead2+(id-1)*nbead_cmb*3+1,offsetbead2+(id-1)*nbead_cmb*3+nbead_cmb*3]
       this%chain_Rbc_idx=[offsetbead1+(id-1)*nbead_cmb+1,offsetbead1+(id-1)*nbead_cmb+nbead_cmb]
-      
+
       this%chain_rcmx => rcm(nchain+id,1)
       this%chain_rcmy => rcm(nchain+id,2)
       this%chain_rcmz => rcm(nchain+id,3)

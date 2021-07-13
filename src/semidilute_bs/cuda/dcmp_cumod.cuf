@@ -363,12 +363,12 @@ mlp:do
 
       istat = cusolverDnDsyevd_bufferSize(hi_d%h_lam,CUSOLVER_EIG_MODE_VECTOR,&
         CUBLAS_FILL_MODE_UPPER,m,sqrtH_d,m,lamVPt,Lwork)
-      if (istat /= CUSOLVER_STATUS_SUCCESS) print('(" cusolverDnDsyevd_bufferSize failed")')
+      if (istat /= CUSOLVER_STATUS_SUCCESS) print('(" cusolverDnDsyevd_bufferSize failed Lanczos_d")')
       allocate(workspace_d(Lwork))
 
       istat = cusolverDnDsyevd(hi_d%h_lam,CUSOLVER_EIG_MODE_VECTOR,&
         CUBLAS_FILL_MODE_UPPER,m,sqrtH_d,m,lamVPt,workspace_d,Lwork,devInfo_d)
-      if (istat /= CUSOLVER_STATUS_SUCCESS) print('(" cusolverDnDsyevd failed")')
+      if (istat /= CUSOLVER_STATUS_SUCCESS) print('(" cusolverDnDsyevd failed Lanczos_d")')
       istat = devInfo_d
       if (istat /= 0) print('(" Unsuccessful eigenvalue computation in Lanczos_dev",i)'),istat
 

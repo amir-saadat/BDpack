@@ -27,7 +27,7 @@
 !> @author
 !> Amir Saadat, The University of Tennessee-Knoxville, Apr 2014
 !
-! DESCRIPTION: 
+! DESCRIPTION:
 !> Calculating the excluded volume force
 !--------------------------------------------------------------------
 module evforce_mod
@@ -47,7 +47,7 @@ module evforce_mod
   type, extends(force) :: evforce
 
     private
-    
+
     !> An object for construcing neighbor list for ev force
     type(evverlet) :: evvlt
     !> The position vector in the previous list update iteration
@@ -61,19 +61,19 @@ module evforce_mod
     !> @}
 
   contains
-     
+
     procedure,pass(this) :: init => init_evforce_t
     procedure,pass(this) :: update_vlt => update_vlt_lst
     procedure,pass(this) :: update => update_force
     final :: del_evforce
 
   end type evforce
-  
+
   ! Private module variables:
-  ! private :: 
+  ! private ::
   ! Protected module variables:
   protected :: EVForceLaw,rc_F,zstar,dstar
-  
+
   !> The type of ev force
   character(len=10),save :: EVForceLaw
   !> The cutoff radius for ev force
@@ -97,12 +97,15 @@ contains
     integer,intent(in) :: id
     integer :: il,j,ntokens,u1,stat,ios
     character(len=1024) :: line
-    character(len=100) :: tokens(10)
+    character(len=100) :: tokens(50)
     character(len=10) :: dstarCalc
     real(wp) :: s_F
-    
+
+#ifdef Debuge_sequence
+    write(*,*) "module:evforce_mod:init_evforce"
+#endif
     ! default settings:
-    EVForceLaw='NoEV' 
+    EVForceLaw='NoEV'
     dstar=1._wp;dstarCalc='Kumar'
     rc_F=7._wp;s_F=0.2_wp
     open (newunit=u1,action='read',file='input.dat',status='old')
@@ -134,7 +137,7 @@ ef: do
             case ('rc_F')
               call value(tokens(j+1),rc_F,ios)
               call value(tokens(j+2),s_F,ios)
-          end select 
+          end select
         end do ! j
       end if ! ntokens
     end do ef
@@ -170,7 +173,7 @@ ef: do
           print '(" Polymers are in theta solvent.")'
         end if
     end select
-  
+
   end subroutine init_evforce
 
   !> Constructor for evforce type
@@ -180,6 +183,9 @@ ef: do
     integer,intent(in) :: id,ntotsegx3,ntotbead,ntotbeadx3
     real(wp),intent(in) :: bs(3)
 
+!#ifdef Debuge_sequence
+    write(*,*) "module:evforce_mod:init_evforce_t"
+!#endif
     ! The parameters used for EV potentials
     select case (EVForceLaw)
       case ('Gauss')
@@ -190,10 +196,11 @@ ef: do
       case ('LJ')
       case ('NoEV')
     end select
-
+    write(*,*) "this%evvlt%init"
     call this%evvlt%init(rs_F,bs,ntotbead)
+    write(*,*) "this%evvlt%get_ncps"
     if (id == 0) call this%evvlt%get_ncps()
-  
+
   end subroutine init_evforce_t
 
   !> Updates the verlet list
@@ -215,7 +222,9 @@ ef: do
     integer,intent(in) :: itime,itrst,ntotsegx3,ntotbead,ntotbeadx3
     real(wp) :: dispmax
     logical :: update
-
+#ifdef Debuge_sequence
+	write(*,*) "module:evforce_mod:update_vlt_lst"
+#endif
     if (itime == itrst+1) then
       update=.true.
     else
@@ -245,26 +254,32 @@ ef: do
   !! \param Rbz z-coordinate of the position vector
   !! \param bs the dimension of the box
   !! \param invbs the inverse of box dimensions
+  !!> Called by CalcForce
   subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,nchain,nseg,nbead,&
                           ntotseg,ntotsegx3,ntotbead,ntotbeadx3,Qt)
+!MB
+!  subroutine update_force(this,Rbx,Rby,Rbz,bs,invbs,itime,Qt)
 
     use :: arry_mod, only: print_vector
     use :: trsfm_mod, only: eps_m,tanb,sinth,costh
     use :: flow_mod, only: FlowType
     use :: force_smdlt, only: Fx,Fy,Fz,rFphi,Fphi
 
-    class(evforce),intent(inout) :: this    
+    class(evforce),intent(inout) :: this
     real(wp),intent(in) :: Rbx(:)
     real(wp),intent(in) :: Rby(:)
     real(wp),intent(in) :: Rbz(:)
-    real(wp),intent(in) :: bs(3),invbs(3) 
+    real(wp),intent(in) :: bs(3),invbs(3)
 !    real(wp),intent(inout) :: F(:)
-    integer,intent(in) :: itime,nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3
+    integer,intent(in) :: itime
+	integer,intent(in) :: nchain,nseg,nbead,ntotseg,ntotsegx3,ntotbead,ntotbeadx3 !not needed here
     real(wp),intent(in) :: Qt(:)
     integer :: iint,i,j
     real(wp) :: rijx,rijy,rijz,rijsq,rijytmp,Fevij(3)
     ! real(wp),allocatable :: ftest(:)
-
+#ifdef Debuge_sequence
+    write(*,*) "module:evforce_mod:update_force"
+#endif
 ! allocate(ftest(ntotbeadx3))
 
 !    this%Fev=0._wp
@@ -272,29 +287,32 @@ ef: do
       i=this%nlst(iint,1)
       j=this%nlst(iint,2)
 
-
       rijx=Rbx(i)-Rbx(j)
       rijy=Rby(i)-Rby(j)
       rijz=Rbz(i)-Rbz(j)
       rijx=rijx-nint(rijx*invbs(1))*bs(1)
       rijy=rijy-nint(rijy*invbs(2))*bs(2)
       rijz=rijz-nint(rijz*invbs(3))*bs(3)
+
       select case (FlowType)
+
         case ('PSF')
           rijx=rijx+eps_m*rijy
+
         case ('PEF')
           rijytmp=rijy
           rijx=rijx+tanb*rijytmp
           rijy=sinth*rijx+costh*rijytmp
           rijx=costh*rijx-sinth*rijytmp
+
       end select
       rijsq=rijx*rijx+rijy*rijy+rijz*rijz
 
       ! print*,'i,j',i,j,rijsq
 
-
       if (rijsq <= rc_F**2) then
         Fevij=this%fctr*[rijx,rijy,rijz]*exp(-rijsq*this%efctr)
+
         Fx(i)=Fx(i)+Fevij(1)
         Fy(i)=Fy(i)+Fevij(2)
         Fz(i)=Fz(i)+Fevij(3)
@@ -304,11 +322,10 @@ ef: do
 
         ! ftest((i-1)*3+1)=Fevij(1)
         ! ftest((i-1)*3+2)=Fevij(2)
-        ! ftest((i-1)*3+3)=Fevij(3)        
+        ! ftest((i-1)*3+3)=Fevij(3)
         ! ftest((j-1)*3+1)=-Fevij(1)
         ! ftest((j-1)*3+2)=-Fevij(2)
         ! ftest((j-1)*3+3)=-Fevij(3)
-        
 !        this%Fevx(i)=this%Fevx(i)+this%fctr*rijx*exp(-rijsq*this%efctr)
 !        this%Fevy(i)=this%Fevy(i)+this%fctr*rijy*exp(-rijsq*this%efctr)
 !        this%Fevz(i)=this%Fevz(i)+this%fctr*rijz*exp(-rijsq*this%efctr)
@@ -319,7 +336,7 @@ ef: do
         rFphi(2)=rFphi(2)+rijx*Fevij(2)
         rFphi(3)=rFphi(3)+rijy*Fevij(2)
         rFphi(4)=rFphi(4)+rijz*Fevij(3)
-      
+
       end if
     end do
 
@@ -328,11 +345,21 @@ ef: do
 
   end subroutine update_force
 
+
+
+
+
   !> Destructor for evforce type
   subroutine del_evforce(this)
 
     type(evforce),intent(inout) :: this
-   
+#ifdef Debuge_sequence
+    write(*,*) "module:evforce_mod:del_evforce"
+#endif
   end subroutine del_evforce
+
+
+
+
 
 end module evforce_mod
