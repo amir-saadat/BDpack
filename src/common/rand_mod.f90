@@ -19,9 +19,10 @@ integer  function seedG()
     real(wp) :: seedtmp
     integer :: s,i,msec,n,time_info(8)
     integer(long), allocatable :: seed(:)
-    
+
     call date_and_time(values=time_info)
-    msec=(60000*time_info(6)+1000*time_info(7)+time_info(8))  !*((myrank-83)*359) ! a random integer
+    !msec=(60000*time_info(6)+1000*time_info(7)+time_info(8))  !*((myrank-83)*359) ! a random integer
+    msec=(time_info(3)*60000*time_info(6)+100000*time_info(7)+10000*time_info(8)-60504*time_info(5))
     call random_seed(size=n) ! get the number of integers used for the seed
     ! This is because we want different order of random numbers in each call
     allocate(seed(n))
@@ -30,8 +31,8 @@ integer  function seedG()
     end do
     call random_seed(put=seed) ! give a proper seed
     call random_number(seedtmp) ! generate a sequence of nchain pseudo
-    !seedG=floor(2000000000*seedtmp)
-    seedG=floor(300000000*seedtmp)
+    seedG=floor(1000000000*seedtmp)
+    !seedG=seedtmp
     deallocate(seed)
   end function seedG
 
@@ -40,14 +41,16 @@ integer  function seedG()
 
     integer,intent(in) :: iseed
     integer,parameter :: in=2147483563,ik=40014,iq=53668,ir=12211,ntab=32
-    integer :: iv(ntab),idum,idum2,iy
+    integer :: iv(ntab),idum,idum2,iy,time_info(8)
     integer :: k,j !,seedG
 
     common /ranbls/ idum,idum2,iy,iv
 
+    call date_and_time(values=time_info)
     ! Initial seeds for two random number generators
     !idum=iseed+123456789
-    idum = 500000000+seedG()+123456789
+
+    idum = seedG()+iseed
     idum2=idum
 
     ! Load the shuffle table (after 8 warm-ups)
@@ -68,10 +71,12 @@ integer  function seedG()
    in2=2147483399,ik2=40692,iq2=52774,ir2=3791 ,&
    ntab=32,inm1=in1-1,ndiv=1+inm1/ntab
    real(wp),parameter :: an=1./in1
-   integer :: iv(ntab),idum,idum2,iy
+   integer :: iv(ntab),idum,idum2,iy ,time_info(8)
    integer :: k,j
+   real(wp) :: r
 
    common /ranbls/ idum,idum2,iy,iv
+   call date_and_time(values=time_info)
 
    ! Linear congruential generator 1
    k=idum/iq1
@@ -88,7 +93,11 @@ integer  function seedG()
    iy=iv(j)-idum2
    iv(j)=idum
    if(iy < 1) iy=iy+inm1
-   ranuls=an*iy
+   call random_seed(time_info(8))
+   CALL RANDOM_NUMBER(r)
+   !write(*,*) "r:", r
+   ranuls=(an*iy *r)**0.5
+
    return
 
   end function ranuls
