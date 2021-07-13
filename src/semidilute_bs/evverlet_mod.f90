@@ -305,34 +305,34 @@ contains
     if (FlowType == 'PEF') then
       if (allocated(this%Rijytmp)) deallocate(this%Rijytmp)
     end if
-write(*,*) "1-1"
+!write(*,*) "1-1"
     ! We check the memory allocation result, as num_int might be a big one
     allocate(this%iidx(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for iidx in evverlet_mod"
-write(*,*) "1-2"
+!write(*,*) "1-2"
     allocate(this%jidx(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for jidx in evverlet_mod"
-write(*,*) "1-3"
+!write(*,*) "1-3"
     allocate(this%inside(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for inside in evverlet_mod"
-write(*,*) "1-3"
+!write(*,*) "1-3"
     allocate(this%Rijx(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for Rijx in evverlet_mod"
-write(*,*) "1-4"
+!write(*,*) "1-4"
     allocate(this%Rijy(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for Rijy in evverlet_mod"
-write(*,*) "1-5"
+!write(*,*) "1-5"
     allocate(this%Rijz(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for Rijz in evverlet_mod"
-write(*,*) "1-6"
+!write(*,*) "1-6"
     allocate(this%Rijsq(this%num_int),stat=ierr)
     if ( ierr /= 0 ) stop "Memory allocation issue for Rijsq in evverlet_mod"
-write(*,*) "1-7"
+!write(*,*) "1-7"
     if (FlowType == 'PEF') then
       allocate(this%Rijytmp(this%num_int),stat=ierr)
      if ( ierr /= 0 ) stop "Memory allocation issue for Rijytmp in evverlet_mod"
     end if
-write(*,*) "1-8"
+!write(*,*) "1-8"
   end subroutine init_clllst
 
   !> Constructs the cell list
