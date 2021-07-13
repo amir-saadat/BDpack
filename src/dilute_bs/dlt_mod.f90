@@ -133,7 +133,9 @@ module dlt_mod
     integer,allocatable,dimension(:) :: cnf_tp
     integer,allocatable,dimension(:,:) :: iaTot,cnf_tpTot
     ! File units
-    integer :: u2,u3,u4,u21,u22,u23,u24,u25,u26,u27,u34,u39,u40,u41,u42
+    integer :: u2,u3,u4,u21,u22,u23,u24,u25,u26,u27,u34,u39,u40,u41,u42,u200,u300,u400,u2100,u2200,u2300
+    ! binary File rec
+    integer :: recqstart, recrcmstart, recrchrstart, recrcmT,recrchrT, recqTot
     ! objects
     type(intrn_t) :: myintrn
     type(sde_t) :: mysde
@@ -174,7 +176,8 @@ module dlt_mod
     if (id == 0) then
       ! Initialization of random number generator in rank 0
       ! Choice of iseed: 0 <= iseed <= 2000000000 (2E+9);
-      iseed=657483726
+      !iseed=657483726
+      iseed=657483*p
       call ranils(iseed)
       write (*,*)
       write (*,*) "%------------------------------------------------------------%"
@@ -414,7 +417,6 @@ module dlt_mod
     ! Initializing mysde object
     ! call mysde%init()
 
-
      !----------------------------------------------------------------
      !>>>>> Constant tensors in SDE:
      !----------------------------------------------------------------
@@ -597,7 +599,6 @@ module dlt_mod
     ! end select
 
     call mysde%init(Kappareg,Kappa,Amat,Bmat,KappaBF,AmatBF,nbead_bb,nseg_bb)
-
 
    !  !----------------------------------------------------------------
    !  !>>>>> Constant tensors in SDE:
@@ -865,8 +866,46 @@ module dlt_mod
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
       end do
       close (u2);if (CoM) close (u3);if (CoHR) close(u4)
+
+      !Binary
+    elseif (initmode == 'rstb') then
+      ! In order to prevent probable race condition
+      do ip=1, p
+        if (ip == 1) then
+          inquire(iolength=recqstart) qstart
+          open(newunit=u200,file='data/q.rst.bin',status='old',form='unformatted',access='direct',recl=recqstart) !,position='rewind'
+          if (CoM) then
+            inquire(iolength=recrcmstart) rcmstart
+            open(newunit=u300,file='data/CoM.rst.bin',status='old',form='unformatted',access='direct',recl=recrcmstart)
+          end if
+          if (CoHR) then
+            inquire(iolength=recrchrstart) rchrstart
+            open(newunit=u400,file='data/CoHR.rst.bin',status='old',form='unformatted',access='direct',recl=recrchrstart)
+          end if
+          do iread=1, id*nseg*npchain
+            read(u200,*)
+          end do
+          do iread=1, id*npchain
+            if (CoM) read(u300,*);if (CoHR) read(u400,*)
+          end do
+        end if
+        if (id == ip-1) then
+          do ichain=1, npchain
+            do iseg=1, nseg
+                offset=3*(iseg-1)
+                read(u200,rec=iseg )   qstart(offset+1:offset+3,ichain)
+            end do
+            if (CoM)  read(u300,rec=ichain)   rcmstart(1:3,ichain)
+            if (CoHR) read(u400,rec=ichain)   rchrstart(1:3,ichain)
+          end do
+        end if
+        call MPI_Barrier(MPI_COMM_WORLD,ierr)
+      end do
+      close (u200);if (CoM) close (u300);if (CoHR) close(u400)
     end if ! initmode
+
   else ! iflow /= 1
+
     do ip=1, p
       if (ip == 1) then
         if (initmode == 'st') then
@@ -904,10 +943,51 @@ module dlt_mod
         end do
       end if
       call MPI_Barrier(MPI_COMM_WORLD,ierr)
-    end do
+    end do !ip
     close (u2);if (CoM) close (u3);if (CoHR) close(u4)
+
+  !Binary
+   if (initmode == 'rstb') then
+    ! In order to prevent probable race condition
+     do ip=1, p
+      if (ip == 1) then
+        inquire(iolength=recqstart) qstart
+        open(newunit=u200,file='data/q.rst.bin',status='old',form='unformatted',access='direct',recl=recqstart) !,position='rewind'
+
+        if (CoM) then
+          inquire(iolength=recrcmstart) rcmstart
+          open(newunit=u300,file='data/CoM.rst.bin',status='old',form='unformatted',access='direct',recl=recrcmstart)
+        end if
+        if (CoHR) then
+          inquire(iolength=recrchrstart) rchrstart
+          open(newunit=u400,file='data/CoHR.rst.bin',status='old',form='unformatted',access='direct',recl=recrchrstart)
+        end if
+        do iread=1, id*nseg*npchain
+          read(u200,*)
+        end do
+        do iread=1, id*npchain
+          if (CoM) read(u300,*);if (CoHR) read(u400,*)
+        end do
+      end if
+      if (id == ip-1) then
+        do ichain=1, npchain
+          do iseg=1, nseg
+            offset=3*(iseg-1)
+            read(u200,rec=iseg) qstart(offset+1:offset+3,ichain)
+          end do
+          if (CoM)  read(u300,rec=ichain) rcmstart(1:3,ichain)
+          if (CoHR) read(u400,rec=ichain) rchrstart(1:3,ichain)
+        end do
+      end if
+      call MPI_Barrier(MPI_COMM_WORLD,ierr)
+    end do
+    close (u200)
+    if (CoM) close (u300)
+    if (CoHR) close(u400)
   end if
-  ! close (u2);if (CoM) close (u3);if (CoHR) close(u4)
+  ! end binary
+end if !iflow
+
 
   allocate(root_f(PrScale*nroots))
 
@@ -940,7 +1020,7 @@ module dlt_mod
         write (*,*)
         write(*,'(7x,a)') 'Wi            dt            ntime'
         write(*,'(7x,a)') '---------------------------------'
-        write(*,'(f14.7,1x,e10.2,1x,i10)') Wi(iPe),dt(iPe,idt),ntime(iPe,idt)
+        write(*,'(f14.7,1x,e10.2,1x,i15)') Wi(iPe),dt(iPe,idt),ntime(iPe,idt)
         write (*,*)
       end if
 
@@ -985,7 +1065,7 @@ module dlt_mod
               print *
               print '(7x,a)', 'Wi            Pe            dt          ntime'
               print '(7x,a)', '---------------------------------------------'
-              print '(f14.7,1x,f14.7,1x,e10.2,1x,i10)', Wi(iPe),Pe(iPe),dt(iPe,idt),&
+              print '(f14.7,1x,f14.7,1x,e10.2,1x,i14)', Wi(iPe),Pe(iPe),dt(iPe,idt),&
                   ntime(iPe,idt)
               print *
             end if
@@ -1018,7 +1098,7 @@ module dlt_mod
           else
             rtpassed=time/lambda
           end if
-          print '(f7.3," Chain-Relaxation-Time(s) Passed")',rtpassed
+          print '(f17.8," Chain-Relaxation-Time(s) Passed")',rtpassed
           time_check1=time_check1+frm_rt_rep*lambda
         end if
 
@@ -1850,11 +1930,9 @@ module dlt_mod
         if ( (time >= time_check3) .or. (itime == ntime(iPe,idt)) ) then
           time_check3=time_check3+frm_rt_pp*lambda
 
-
           if (EV_bw == 'Rflc_bc') then
             if (itime == ntime(iPe,idt)) call print_wcll(myintrn%evbw,id,p,MPI_REAL_WP,time)
           endif
-
 
           call data_prcs(id,itime,time,idt,iPe,q,rvmrc,Fphi,rcm,rcmstart,rchr,&
            nseg_bb,mch,Lch,MPI_REAL_WP)
@@ -1920,16 +1998,30 @@ module dlt_mod
           end if
           if (id == 0) then
             open(newunit=u21,file='data/q.rst.dat',status='replace')
+            inquire(iolength=recqTot) qTot
+            open(newunit=u2100,file='data/q.rst.bin',status='replace',form='unformatted',access='direct',recl=recqTot)
+
             if (CoM) open(newunit=u22,file='data/CoM.rst.dat',status='replace')
             if (CoHR) open(newunit=u23,file='data/CoHR.rst.dat',status='replace')
+
+            if (CoM)    inquire(iolength=recrcmT) rcmT
+            if (CoM) open(newunit=u2200,file='data/CoM.rst.dat',status='replace',form='unformatted',access='direct',recl=recrcmT)
+            if (CoHR)   inquire(iolength=recrchrT) rchrT
+            if (CoHR) open(newunit=u2300,file='data/CoHR.rst.dat',status='replace',form='unformatted',access='direct',recl=recrchrT)
             do ip = 1, p
               do ichain =1, npchain
                 do iseg = 1, nseg
                   offset=3*(iseg-1)
-                  write(u21,1) qTot(offset+1:offset+3,ichain,ip)
+                  write(u21,1)          qTot(offset+1:offset+3,ichain,ip)
+                  write (u2100,rec=iseg) qTot(offset+1:offset+3,ichain,ip)
                 end do
-                if (CoM) write(u22,1) rcmT(1:3,ichain,ip)
-                if (CoHR) write(u23,1) rchrT(1:3,ichain,ip)
+
+                if (CoM) write(u22,1)            rcmT(1:3,ichain,ip)
+                if (CoM) write(u2200,rec=ichain) rcmT(1:3,ichain,ip)
+
+                if (CoHR) write(u23,1)             rchrT(1:3,ichain,ip)
+                if (CoHR) write(u2300,rec=ichain)  rchrT(1:3,ichain,ip)
+
               end do
             end do
             if (initmode == 'rst') then
@@ -1937,12 +2029,12 @@ module dlt_mod
             else
               rtpassed=time/lambda
             end if
-            write(u21,'(f7.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u21)
+            write(u21,'(f17.8,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u21);close(u2100)
             if (CoM) then
-              write(u22,'(f7.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u22)
+              write(u22,'(f17.8,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u22);close(u2200)
             end if
             if (CoHR) then
-              write(u23,'(f7.3,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u23)
+              write(u23,'(f17.8,a)') rtpassed," 'Chain-Relaxation-Time(s)' Passed";close(u23);close(u2300)
             end if
           end if ! id == 0
         end if ! mod(itime,lambda/dt)==0
