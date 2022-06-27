@@ -5,7 +5,14 @@ Brownian dynamics (BD) is an accurate and computationally efficient mesoscale si
 
 The stochastic differential equation governing the positions of $N_\mathrm{b}$ beads in a bead-spring chain is [[&Ouml;ttinger (1989)]](http://www.springer.com/us/book/9783540583530),
 
-$$\text{d}\boldsymbol{r}_{\nu}=\left[Pe\boldsymbol{\kappa}\cdot\boldsymbol{r}_{\nu}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\nabla_{\mu}\cdot\mathbf{D_{\mu\nu}}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{D}_{\nu\mu}\cdot\boldsymbol{F}_{\mu}\right]\mathrm{d}t+\frac{1}{\sqrt{2}}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{C}_{\nu\mu}\cdot\mathrm{d}\boldsymbol{W}_{\mu}$$
+$$
+\begin{align}
+\text{d}\boldsymbol{r}_{\nu}=\left[Pe\boldsymbol{\kappa}\cdot\boldsymbol{r}_{\nu}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\nabla_{\mu}\cdot\mathbf{D_{\mu\nu}}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{D}_{\nu\mu}\cdot\boldsymbol{F}_{\mu}\right]\mathrm{d}t \\
++\frac{1}{\sqrt{2}}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{C}_{\nu\mu}\cdot\mathrm{d}\boldsymbol{W}_{\mu}
+\end{align}
+$$
+
+<!-- $$\text{d}\boldsymbol{r}_{\nu}=\left[Pe\boldsymbol{\kappa}\cdot\boldsymbol{r}_{\nu}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\nabla_{\mu}\cdot\mathbf{D_{\mu\nu}}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{D}_{\nu\mu}\cdot\boldsymbol{F}_{\mu}\right]\mathrm{d}t+\frac{1}{\sqrt{2}}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{C}_{\nu\mu}\cdot\mathrm{d}\boldsymbol{W}_{\mu}$$ -->
 
 where $dt$ is the time step, $Pe$ is the Peclet number representing the strength of flow relative to diffusive motion. 
 $\boldsymbol{\kappa}$ is the transposed gradient of the velocity field. $W$ is an increment of a $3N_{b}$ dimensional Wiener process. The net non-hydrodynamic, non-Brownian force acting on each bead is:
