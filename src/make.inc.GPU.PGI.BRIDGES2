@@ -55,7 +55,7 @@ GLBFLGS += -qopenmp # Enables openmp directives
 else
 ifeq ($(FCOMP),pgf90)
 GLBFLGS	 += -g
-GLBFLGS  += -lgomp -Mpreprocess -Mbackslash -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand
+GLBFLGS  += -lgomp -Mpreprocess -Mbackslash -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand -ta:tesla:managed
 #GLBFLGS  += -Minfo -Mbounds -Mchkptr -Mchkstk
 #GLBFLGS  += -Mbounds -Minfo=all -traceback -Mchkstk -Mdalign
 endif
@@ -64,7 +64,7 @@ endif
 
 CUFLGS   = -DUSE_GPU
 CUFLGS  += -Mpreprocess -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand -Minfo
-CUFLGS  += -Mbounds -Minfo=all -traceback -Mchkstk -Mdalign -g
+CUFLGS  += -Mbounds -Minfo=all -traceback -Mchkstk -Mdalign -g -ta:tesla:managed
 #CUFLGS  += -Mdclchk -Mdepchk -Miomutex -Mrecursive -Msave -Ktrap=fp -O0 -g -byteswapio
 #CUFLGS   = -DADD_
 
