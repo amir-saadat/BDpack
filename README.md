@@ -8,7 +8,7 @@ The stochastic differential equation governing the positions of $N_\mathrm{b}$ b
 $$
 \begin{aligned}
 \text{d}\boldsymbol{r}_{\nu} & = \\
-& \left[Pe\boldsymbol{\kappa}\cdot\boldsymbol{r}_{\nu}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\nabla_{\mu}\cdot\mathbf{D_{\mu\nu}}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{D}_{\nu\mu}\cdot\boldsymbol{F}_{\mu}\right]\mathrm{d}t \\
+& \left[Pe\boldsymbol{\kappa}\cdot\boldsymbol{r}_{\nu}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\nabla_{\mu}\cdot\mathbf{D}_{\mu\nu}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{D}_{\nu\mu}\cdot\boldsymbol{F}_{\mu}\right]\mathrm{d}t \\
 & + \frac{1}{\sqrt{2}}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{C}_{\nu\mu}\cdot\mathrm{d}\boldsymbol{W}_{\mu}
 \end{aligned}
 $$
