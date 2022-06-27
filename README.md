@@ -6,10 +6,11 @@ Brownian dynamics (BD) is an accurate and computationally efficient mesoscale si
 The stochastic differential equation governing the positions of $N_\mathrm{b}$ beads in a bead-spring chain is [[&Ouml;ttinger (1989)]](http://www.springer.com/us/book/9783540583530),
 
 $$
-\begin{align}
-\text{d}\boldsymbol{r}_{\nu}=\left[Pe\boldsymbol{\kappa}\cdot\boldsymbol{r}_{\nu}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\nabla_{\mu}\cdot\mathbf{D_{\mu\nu}}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{D}_{\nu\mu}\cdot\boldsymbol{F}_{\mu}\right]\mathrm{d}t \\
-+\frac{1}{\sqrt{2}}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{C}_{\nu\mu}\cdot\mathrm{d}\boldsymbol{W}_{\mu}
-\end{align}
+\begin{aligned}
+\text{d}\boldsymbol{r}_{\nu} & = \\
+& \left[Pe\boldsymbol{\kappa}\cdot\boldsymbol{r}_{\nu}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\nabla_{\mu}\cdot\mathbf{D_{\mu\nu}}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{D}_{\nu\mu}\cdot\boldsymbol{F}_{\mu}\right]\mathrm{d}t \\
+& + \frac{1}{\sqrt{2}}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{C}_{\nu\mu}\cdot\mathrm{d}\boldsymbol{W}_{\mu}
+\end{aligned}
 $$
 
 <!-- $$\text{d}\boldsymbol{r}_{\nu}=\left[Pe\boldsymbol{\kappa}\cdot\boldsymbol{r}_{\nu}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\nabla_{\mu}\cdot\mathbf{D_{\mu\nu}}+\frac{1}{4}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{D}_{\nu\mu}\cdot\boldsymbol{F}_{\mu}\right]\mathrm{d}t+\frac{1}{\sqrt{2}}\sum_{\mu=1}^{N_\mathrm{b}}\mathbf{C}_{\nu\mu}\cdot\mathrm{d}\boldsymbol{W}_{\mu}$$ -->
