@@ -1,7 +1,7 @@
 Brownain Dynamics Package (BDpack)
 ==================================
 
-NOTE: the master branch has recently been renamed to main. Please follow these steps on your local branch to reflect this change on your local repo.
+# Note: the master branch has recently been renamed to main. Please follow these steps on your local branch to reflect this change on your local repo.
 
 ### Switch to the "master" branch:
 $ git checkout master
@@ -18,8 +18,7 @@ $ git branch --unset-upstream
 ### Create a new tracking connection with the new "origin/main" branch:
 $ git branch -u origin/main
 
-Brownain Dynamics (BD) Simulation
-=================================
+# Brownain Dynamics Simulation
 
 Brownian dynamics (BD) is an accurate and computationally efficient mesoscale simulation technique used to study the dynamics and material properties of synthetic and biological polymeric solutions with different architectures, under both equilibrium and nonequilibrium (with the presence of an external field) conditions. A common model used to describe the physics of a polymer is the bead-spring model, where beads resemble the centers of hydrodynamic resistance and they are connected by a network of springs, where the spring tension is generally related nonlinearly to the spring extension. In comparison to a fully resolved molecular dynamics model, this bead-spring model abstracts away the fine (unnecessary) details of real macromoleculaes. 
 
