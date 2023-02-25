@@ -1,7 +1,8 @@
 Brownain Dynamics Package (BDpack)
 ==================================
 
-# Note: the master branch has recently been renamed to main. Please follow these steps on your local branch to reflect this change on your local repo.
+# Note: 
+the master branch has recently been renamed to main. Please follow these steps on your local branch to reflect this change on your local repo.
 
 ### Switch to the "master" branch:
 $ git checkout master
