@@ -20,7 +20,7 @@ CUCOMP   = mpif90 #pgf90
 #----------------------------------------------------------------------
 # gfortran, ifort or <Address of Fortran compiler>
 #----------------------------------------------------------------------
-FCOMP    = ifort
+FCOMP    = ifx
 FEXT	 = f90
 CUEXT	 = cuf
 #MFLAGS	 = -s
@@ -51,8 +51,8 @@ GLBFLGS += -openmp # Enables openmp directives
 # Extra debugging flags
 #GLBFLGS += -fcray-pointer
 #GLBFLGS += -fbounds-check
-else 
-ifeq ($(FCOMP),ifort)
+else
+ifneq ($(filter $(FCOMP),ifort ifx),)
 GLBFLGS	+= -Ofast -g
 GLBFLGS += -cpp # Enables preprocessing
 GLBFLGS += -qopenmp # Enables openmp directives

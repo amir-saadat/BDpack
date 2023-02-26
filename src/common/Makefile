@@ -13,7 +13,7 @@ INCS	= -I ./inc
 ifeq ($(FCOMP),gfortran)
 MOD      = -J ./inc
 else 
-ifeq ($(FCOMP),ifort)
+ifeq ($(FCOMP),$(filter $(FCOMP),ifort ifx))
 MOD      = -module ./inc
 else
 ifeq ($(FCOMP),pgf90)

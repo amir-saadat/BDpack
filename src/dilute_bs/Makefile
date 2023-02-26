@@ -2,8 +2,8 @@ include ../make.inc
 
 CMNDIR	 = ../common
 CUDIR	 = ./cuda
-OBJLIB	 = ../libdlt_bs.a
-CUOBJLIB = ../libdlt_bs_cuda.a
+OBJLIB	 = ../lib/libdlt_bs.a
+CUOBJLIB = ../lib/libdlt_bs_cuda.a
 CMNOBJS += $(CMNDIR)/prcn_mod.o 
 CMNOBJS += $(CMNDIR)/cmn_tp_mod.o
 CMNOBJS += $(CMNDIR)/arry_mod.o 
@@ -29,7 +29,7 @@ INCS	+= -I ./cuda/inc
 ifeq ($(FCOMP),gfortran)
 MOD      = -J ./inc
 else 
-ifeq ($(FCOMP),ifort)
+ifeq ($(FCOMP),$(filter $(FCOMP),ifort ifx))
 MOD      = -module ./inc
 else
 ifeq ($(FCOMP),pgf90)
@@ -48,9 +48,9 @@ makeinc:
 	fi
 
 ifeq ($(USE_GPU),TRUE)
-../libdlt_bs.a : $(CUOBJS) $(OBJS) $(CMNOBJS)
+../lib/libdlt_bs.a : $(CUOBJS) $(OBJS) $(CMNOBJS)
 else
-../libdlt_bs.a : $(OBJS) $(CMNOBJS)
+../lib/libdlt_bs.a : $(OBJS) $(CMNOBJS)
 endif
 	$(ECHO) making the library: $(OBJLIB)
 	$(AR) $(ARFLAGS) rv $(OBJLIB) $?

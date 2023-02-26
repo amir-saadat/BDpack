@@ -1,22 +1,26 @@
 # put common definitions in here
 #----------------------------------------------------------------------
 # Intel and MKL Path
+# Uncomment for using <Address of MKL directory>
 #----------------------------------------------------------------------
-PGIROOT = /opt/packages/pgi/20.11/Linux_x86_64/20.11/
-MPIINC = $(PGIROOT)/comm_libs/mpi/lib/
+#MKLROOT  = /opt/intel/compilers_and_libraries_2018.5.274/linux/mkl
+#PGIROOT  = /share/software/user/open/pgi/linux86-64/18.4
+INTELROOT = ~/intel
+MAGMAROOT = /home/asaadat/magma_mkl_pgi
 #----------------------------------------------------------------------
 # mpif90, mpiifort or <Address of OpenMPI bin directory>/<MPI compiler>
 #----------------------------------------------------------------------
-COMP     = mpif90 #$(INTELMPI)/mpiifort
+COMP     = mpiifort #$(INTELMPI)/mpiifort
 #----------------------------------------------------------------------
 # pgf90 or <Address of CUDA Fortran bin directory>/pgf90
 #----------------------------------------------------------------------
-USE_GPU  = TRUE
-CUCOMP   = pgf90
+USE_GPU  = FALSE
+USE_MAGMA = FALSE
+CUCOMP   = mpif90 #pgf90
 #----------------------------------------------------------------------
 # gfortran, ifort or <Address of Fortran compiler>
 #----------------------------------------------------------------------
-FCOMP    = pgf90
+FCOMP    = ifx
 FEXT	 = f90
 CUEXT	 = cuf
 #MFLAGS	 = -s
@@ -27,11 +31,15 @@ RANLIB	 = ranlib
 RM	 = rm
 MV	 = mv
 #----------------------------------------------------------------------
-# Compiler flags based on the compiler and if CPU or GPU is used
+# Global FlagsLibraries and include files
 #----------------------------------------------------------------------
 GLBFLGS   = -DUSE_DP # SP or DP for single or double precision
 ifeq ($(USE_GPU),TRUE)
 GLBFLGS	 += -DUSE_GPU
+GLBFLGS  += -ta=tesla:cc35,cc60,cc70
+ifeq ($(USE_MAGMA),TRUE)
+GLBFLGS	 += -DUSE_MAGMA
+endif
 endif
 # Extra debugging flags
 #GLBFLGS += -g -traceback
@@ -43,8 +51,8 @@ GLBFLGS += -openmp # Enables openmp directives
 # Extra debugging flags
 #GLBFLGS += -fcray-pointer
 #GLBFLGS += -fbounds-check
-else 
-ifeq ($(FCOMP),ifort)
+else
+ifeq ($(FCOMP),$(filter $(FCOMP),ifort ifx))
 GLBFLGS	+= -Ofast -g
 GLBFLGS += -cpp # Enables preprocessing
 GLBFLGS += -qopenmp # Enables openmp directives
@@ -52,50 +60,68 @@ GLBFLGS += -qopenmp # Enables openmp directives
 #GLBFLGS += -heap-arrays
 #GLBFLGS += -check all -check bounds -traceback -g
 #GLBFLGs += -check-pointers=rw
+#GLBFLGS += -fp-model precise
+#GLBFLGS += -fp-model consistent
+#GLBFLGS += -fp-model strict
 else
 ifeq ($(FCOMP),pgf90)
-GLBFLGS	 += -g
-GLBFLGS  += -lgomp -Mpreprocess -Mbackslash -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand
-GLBFLGS  += -Minfo -Mbounds -Mchkptr -Mchkstk
-GLBFLGS  += -Mbounds -Minfo=all -traceback -Mchkstk -Mdalign
+GLBFLGS	 += –Ktrap=fp –Minform=inform -g
+GLBFLGS  += -lgomp -Mpreprocess -Mbackslash -mp -Mcuda=charstring -Mcuda -Mcudalib=cublas,cusolver,cusparse,cufft,curand 
+GLBFLGS  += -ta=tesla:cc35,cc60,cc70 -Minfo=accel
+#GLBFLGS  += -traceback -Mbounds -Mchkfpstk -Mchkstk -Mdalign -g
+#GLBFLGS += -Mmpi=mpich
 endif
 endif
 endif
-
 CUFLGS   = -DUSE_GPU
-CUFLGS  += -Mpreprocess -mp -Mcuda=charstring -Mcudalib=cublas,cusolver,cusparse,cufft,curand -Minfo
-CUFLGS  += -Mbounds -Minfo=all -traceback -Mchkstk -Mdalign -g
+ifeq ($(USE_MAGMA),TRUE)
+CUFLGS	+= -DUSE_MAGMA
+endif
+CUFLGS  += -Mpreprocess -mp -Mcuda=charstring -Mcuda -Mcudalib=cublas,cusolver,cusparse,cufft,curand -Minfo=all
+CUFLGS  += -ta=tesla:cc35,cc60,cc70
+#CUFLGS  += -traceback -Mbounds -Mchkfpstk -Mchkstk -Mdalign -g
 #CUFLGS  += -Mdclchk -Mdepchk -Miomutex -Mrecursive -Msave -Ktrap=fp -O0 -g -byteswapio
-#CUFLGS   = -DADD_
 
+#----------------------------------------------------------------------
+# MKL Libraries and Include Path
+#----------------------------------------------------------------------
 GLBINCS  = -I/usr/include
 GLBINCS	+= -I$(MKLROOT)/include
-ifeq ($(FCOMP),ifort)
+ifeq ($(FCOMP),$(filter $(FCOMP),ifort ifx))
 GLBINCS	+= -I$(MKLROOT)/include/intel64/lp64
 else
 ifeq ($(FCOMP),pgf90)
-GLBINCS	+= -I ~/mkl_pgi/include/intel64/lp64
+GLBINCS	+= -I ~/mkl_pgi18/include/intel64/lp64
+ifeq ($(USE_MAGMA),TRUE)
+GLBINCS += -I$(MAGMAROOT)/include
+endif
 endif
 endif
 
-CUINCS = -I$(MPIINC)
+CUINCS  = 
+#CUINCS  = -I /global/software/extras/pgi/17.4/linux86-64/2017/mpi/openmpi/lib
 
-ifeq ($(FCOMP),ifort)
-GLBLIBS  = -L$(MKLROOT)/lib/intel64/
-GLBLIBS += -lmkl_intel_lp64 -lmkl_core
-GLBLIBS += -lmkl_sequential -lmkl_lapack95_lp64
+ifeq ($(FCOMP),$(filter $(FCOMP),ifort ifx))
+GLBLIBS  = -L$(MKLROOT)/lib/intel64/ -liomp5
 GLBLIBS += -lmkl_lapack95_lp64 -lmkl_blas95_lp64
 else
 ifeq ($(FCOMP),pgf90)
-GLBLIBS += -L$(PGIROOT)/lib
-GLBLIBS += -lcudafor -lcudaforblas -lcublas_static -lcudart
-GLBLIBS += -L ~/mkl_pgi/lib/intel64/
+#GLBLIBS += -L$(PGIROOT)/lib -L$(PGIROOT)/cuda/9.1/lib64
+#GLBLIBS += -L$(PGIROOT)/lib
+#GLBLIBS += -lcudafor -lcudaforblas -lcublas_static -lcudart
+GLBLIBS = -Mcuda -Mcudalib=cublas
+GLBLIBS += -L ~/mkl_pgi18/lib/intel64/
 GLBLIBS += -lmkl_lapack95_lp64 -lmkl_blas95_lp64
 endif
 endif
 GLBLIBS += -L$(MKLROOT)/lib/intel64/
 GLBLIBS += -lmkl_intel_lp64 -lmkl_core
 GLBLIBS += -lmkl_sequential -lpthread
+ifeq ($(USE_MAGMA),TRUE)
+GLBLIBS += -L$(MAGMAROOT)/lib -lmagma -lmagma_sparse
+GLBLIBS += -L$(INTELROOT)/lib/intel64
+GLBLIBS += -lsvml -liomp5
+endif
 
 SHELL   = /bin/sh
 

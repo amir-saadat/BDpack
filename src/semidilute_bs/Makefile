@@ -3,7 +3,7 @@ include ../make.inc
 CMNDIR	 = ../common
 CMNCUDIR = ../common/cuda
 CUDIR	 = ./cuda
-OBJLIBS	 = ../libsmdlt_bs.a
+OBJLIBS	 = ../lib/libsmdlt_bs.a
 CMNCUOBJS += $(CMNCUDIR)/dev_cumod.o 
 ifeq ($(USE_MAGMA),TRUE)
 CMNCUOBJS += $(CMNCUDIR)/magma_cumod.o 
@@ -40,7 +40,7 @@ INCS    += -I ./inc
 ifeq ($(FCOMP),gfortran)
 MOD      = -J ./inc
 else 
-ifeq ($(FCOMP),ifort)
+ifeq ($(FCOMP),$(filter $(FCOMP),ifort ifx))
 MOD      = -module ./inc
 else
 ifeq ($(FCOMP),pgf90)
@@ -58,13 +58,13 @@ makeinc:
         fi
 
 ifeq ($(USE_GPU),TRUE)
-../libsmdlt_bs.a : $(OBJS_F) $(CUOBJS_F) $(OBJS_M) $(CUOBJS_M) $(OBJS_L) $(CMNOBJS) $(CMNCUOBJS)
+../lib/libsmdlt_bs.a : $(OBJS_F) $(CUOBJS_F) $(OBJS_M) $(CUOBJS_M) $(OBJS_L) $(CMNOBJS) $(CMNCUOBJS)
 else
-../libsmdlt_bs.a : $(OBJS_F) $(OBJS_M) $(OBJS_L) $(CMNOBJS)
+../lib/libsmdlt_bs.a : $(OBJS_F) $(OBJS_M) $(OBJS_L) $(CMNOBJS)
 endif
 	$(ECHO) making the library: $(OBJLIBS)
-	$(AR) $(ARFLAGS) rv ../libsmdlt_bs.a $?
-	$(RANLIB) ../libsmdlt_bs.a
+	$(AR) $(ARFLAGS) rv $(OBJLIBS) $?
+	$(RANLIB) $(OBJLIBS)
 
 $(OBJS_F): %.o: %.$(FEXT)
 	$(ECHO) compiling $< using $(COMP)
