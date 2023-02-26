@@ -5,7 +5,7 @@
 #----------------------------------------------------------------------
 #MKLROOT  = /opt/intel/compilers_and_libraries_2018.5.274/linux/mkl
 #PGIROOT  = /share/software/user/open/pgi/linux86-64/18.4
-INTELROOT = /opt/intel
+INTELROOT = ~/intel
 MAGMAROOT = /home/asaadat/magma_mkl_pgi
 #----------------------------------------------------------------------
 # mpif90, mpiifort or <Address of OpenMPI bin directory>/<MPI compiler>
@@ -52,7 +52,7 @@ GLBFLGS += -openmp # Enables openmp directives
 #GLBFLGS += -fcray-pointer
 #GLBFLGS += -fbounds-check
 else
-ifneq ($(filter $(FCOMP),ifort ifx),)
+ifeq ($(FCOMP),$(filter $(FCOMP),ifort ifx))
 GLBFLGS	+= -Ofast -g
 GLBFLGS += -cpp # Enables preprocessing
 GLBFLGS += -qopenmp # Enables openmp directives
@@ -87,7 +87,7 @@ CUFLGS  += -ta=tesla:cc35,cc60,cc70
 #----------------------------------------------------------------------
 GLBINCS  = -I/usr/include
 GLBINCS	+= -I$(MKLROOT)/include
-ifeq ($(FCOMP),ifort)
+ifeq ($(FCOMP),$(filter $(FCOMP),ifort ifx))
 GLBINCS	+= -I$(MKLROOT)/include/intel64/lp64
 else
 ifeq ($(FCOMP),pgf90)
@@ -101,7 +101,7 @@ endif
 CUINCS  = 
 #CUINCS  = -I /global/software/extras/pgi/17.4/linux86-64/2017/mpi/openmpi/lib
 
-ifeq ($(FCOMP),ifort)
+ifeq ($(FCOMP),$(filter $(FCOMP),ifort ifx))
 GLBLIBS  = -L$(MKLROOT)/lib/intel64/ -liomp5
 GLBLIBS += -lmkl_lapack95_lp64 -lmkl_blas95_lp64
 else
